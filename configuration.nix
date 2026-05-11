@@ -34,10 +34,13 @@
       portalPackage =
         inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
     };
+
     neovim = {
       enable = true;
       defaultEditor = true;
     };
+
+    nix-ld.enable = true;
   };
 
   environment = {
