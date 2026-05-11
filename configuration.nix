@@ -47,6 +47,7 @@
     fuzzel
     firefox
     fastfetch
+    zed-editor
   ];
 
   services = {
