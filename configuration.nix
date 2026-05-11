@@ -49,6 +49,7 @@
       git
       nil
       nixd
+      glib
       wget
       curl
       kitty
@@ -60,16 +61,22 @@
       wl-clipboard
       libsForQt5.qt5ct
       qt6Packages.qt6ct
+      catppuccin-kvantum
+      rose-pine-kvantum
+      gsettings-desktop-schemas
       libsForQt5.qtstyleplugin-kvantum
       inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
     ];
 
-    variables.EDITOR = "nvim";
+    variables = {
+      EDITOR = "nvim";
+    };
   };
 
   qt = {
     enable = true;
-    platformTheme = "kvantum";
+    style = "kvantum";
+    platformTheme = "qt5ct";
   };
 
   services = {
