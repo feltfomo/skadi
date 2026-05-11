@@ -1,13 +1,15 @@
 { ... }:
 {
   imports = [
+    ./hosts/lumi/impermanence.nix
     ./hosts/lumi/hardware.nix
+    ./hosts/lumi/disko.nix
     ./modules/hyprland.nix
     ./modules/packages.nix
+    ./modules/boot.nix
     ./impermanence.nix
     ./networking.nix
     ./disko.nix
-    ./boot.nix
     ./user.nix
   ];
 

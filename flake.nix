@@ -36,6 +36,12 @@
           ./configuration.nix
         ];
       };
+      nixosConfigurations.khion = nixpkgs.lib.nixosSystem {
+        specialArgs = { inherit inputs; };
+        modules = [
+
+        ];
+      };
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
           lua
