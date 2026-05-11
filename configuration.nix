@@ -27,7 +27,11 @@
     extraGroups = [ "wheel" "networkmanager" "video" ];
   };
 
-  programs.hyprland.enable = true;
+  programs.hyprland = {
+    enable = true;
+    withUWSM = true;
+    xwayland.enable = true;
+  };
 
   programs.neovim = {
     enable = true;
@@ -44,6 +48,13 @@
     firefox
     fastfetch
   ];
+
+  services = {
+    displayManager.sddm = {
+      enable = true;
+      wayland.enable = true;
+    };
+  };
 
   services.openssh.enable = true;
 
