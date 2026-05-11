@@ -39,8 +39,10 @@
   };
 
   environment.systemPackages = with pkgs; [
-    gcc 
+    gcc
     git
+    nil
+    nixd
     wget
     curl
     kitty
