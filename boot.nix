@@ -7,7 +7,10 @@
         device = "nodev";
         efiSupport = true;
       };
-      efi.canTouchEfiVariables = true;
+      efi = {
+        canTouchEfiVariables = true;
+        efiSysMountPoint = "/boot";
+      };
     };
   };
 }
