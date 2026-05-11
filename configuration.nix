@@ -58,10 +58,18 @@
       fastfetch
       zed-editor
       wl-clipboard
+      libsForQt5.qt5ct
+      qt6Packages.qt6ct
+      libsForQt5.qtstyleplugin-kvantum
       inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
     ];
 
     variables.EDITOR = "nvim";
+  };
+
+  qt = {
+    enable = true;
+    platformTheme = "kvantum";
   };
 
   services = {
