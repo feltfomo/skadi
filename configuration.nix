@@ -1,10 +1,10 @@
 { pkgs, inputs, ... }:
 {
   imports = [
+    ./modules/hyprland.nix
     ./hardware-configuration.nix
     ./impermanence.nix
     ./networking.nix
-    ./hyprland.nix
     ./disko.nix
     ./boot.nix
     ./user.nix
