@@ -4,13 +4,10 @@
     ./hardware-configuration.nix
     ./disko.nix
     ./impermanence.nix
+    ./boot.nix
     <impermanence/nixos.nix>
     <disko/module.nix>
   ];
-
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.initrd.systemd.enable = true;
 
   networking.hostName = "lumi";
   networking.networkmanager.enable = true;
