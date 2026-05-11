@@ -4,6 +4,7 @@
     ./hardware-configuration.nix
     ./impermanence.nix
     ./networking.nix
+    ./hyprland.nix
     ./disko.nix
     ./boot.nix
     ./user.nix
@@ -26,13 +27,6 @@
   hardware.cpu.intel.updateMicrocode = true;
 
   programs = {
-    hyprland = {
-      enable = true;
-      package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-      portalPackage =
-        inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-    };
-
     neovim = {
       enable = true;
       defaultEditor = true;
