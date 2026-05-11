@@ -57,6 +57,8 @@
       firefox
       fastfetch
       zed-editor
+      wl-clipboard
+      inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
     ];
 
     variables.EDITOR = "nvim";
