@@ -7,8 +7,8 @@
     ./disko.nix
     ./boot.nix
     ./user.nix
-    <impermanence/nixos.nix>
-    <disko/module.nix>
+    ./impermanence.nix
+    ./disko.nix
   ];
 
   nix.settings.experimental-features = [
