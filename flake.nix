@@ -1,5 +1,5 @@
 {
-  description = "flake for skadi`";
+  description = "flake for skadi";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -17,7 +17,6 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       impermanence,
       disko,
@@ -39,7 +38,9 @@
       nixosConfigurations.khion = nixpkgs.lib.nixosSystem {
         specialArgs = { inherit inputs; };
         modules = [
-
+          impermanence.nixosModules.impermanence
+          disko.nixosModules.disko
+          ./hosts/khion/configuration.nix
         ];
       };
       devShells.${system}.default = pkgs.mkShell {
