@@ -1,9 +1,9 @@
 { ... }:
 {
   imports = [
+    ./hosts/lumi/hardware.nix
     ./modules/hyprland.nix
     ./modules/packages.nix
-    ./hardware-configuration.nix
     ./impermanence.nix
     ./networking.nix
     ./disko.nix
@@ -24,8 +24,6 @@
   time.timeZone = "America/Los_Angeles";
 
   i18n.defaultLocale = "en_US.UTF-8";
-
-  hardware.cpu.intel.updateMicrocode = true;
 
   programs = {
     neovim = {
