@@ -38,6 +38,9 @@
     git
     wget
     curl
+    kitty
+    fuzzel
+    firefox
     fastfetch
   ];
 
