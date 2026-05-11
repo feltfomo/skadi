@@ -33,7 +33,7 @@
         modules = [
           impermanence.nixosModules.impermanence
           disko.nixosModules.disko
-          ./configuration.nix
+          ./hosts/lumi/configuration.nix
         ];
       };
       nixosConfigurations.khion = nixpkgs.lib.nixosSystem {

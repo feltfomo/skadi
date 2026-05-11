@@ -29,7 +29,7 @@
     directories = [
       "/etc/nix"
       "/etc/nixos"
-      "/etc/lumi"
+      "/etc/khion"
       "/var/log"
       "/var/lib/bluetooth"
       "/var/lib/systemd/coredump"
