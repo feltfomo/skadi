@@ -2,18 +2,14 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ./disko.nix
     ./impermanence.nix
+    ./networking.nix
+    ./disko.nix
     ./boot.nix
     ./user.nix
     <impermanence/nixos.nix>
     <disko/module.nix>
   ];
-
-  networking = {
-    hostName = "lumi";
-    networkmanager.enable = true;
-  };
 
   time.timeZone = "America/Los_Angeles";
 
@@ -40,6 +36,7 @@
     wget
     curl
     kitty
+    brave
     fuzzel
     firefox
     fastfetch
