@@ -4,6 +4,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
+    hyprland.url = "github:hyprwm/Hyprland";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -18,6 +19,10 @@
       disko,
       ...
     }@inputs:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+    in
     {
       nixosConfigurations.lumi = nixpkgs.lib.nixosSystem {
         specialArgs = { inherit inputs; };
@@ -25,6 +30,12 @@
           impermanence.nixosModules.impermanence
           disko.nixosModules.disko
           ./configuration.nix
+        ];
+      };
+      devShells.${system}.default = pkgs.mkShell {
+        packages = with pkgs; [
+          lua
+          lua-language-server
         ];
       };
     };
