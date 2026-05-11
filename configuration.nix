@@ -5,28 +5,21 @@
     ./disko.nix
     ./impermanence.nix
     ./boot.nix
+    ./user.nix
     <impermanence/nixos.nix>
     <disko/module.nix>
   ];
 
-  networking.hostName = "lumi";
-  networking.networkmanager.enable = true;
+  networking = {
+    hostName = "lumi";
+    networkmanager.enable = true;
+  };
 
   time.timeZone = "America/Los_Angeles";
 
   i18n.defaultLocale = "en_US.UTF-8";
 
   hardware.cpu.intel.updateMicrocode = true;
-
-  users.users.feltfomo = {
-    isNormalUser = true;
-    hashedPassword = "$y$j9T$HT.mVqk50c03QSEv1rqlP0$5albZpdKB3hIndg.ecMfZ2ZxaDPEwDx5AbZKLaY9tY8";
-    extraGroups = [
-      "wheel"
-      "networkmanager"
-      "video"
-    ];
-  };
 
   programs.hyprland = {
     enable = true;
