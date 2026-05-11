@@ -11,6 +11,10 @@
     <disko/module.nix>
   ];
 
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
   time.timeZone = "America/Los_Angeles";
 
   i18n.defaultLocale = "en_US.UTF-8";
@@ -28,20 +32,24 @@
     defaultEditor = true;
   };
 
-  environment.systemPackages = with pkgs; [
-    gcc
-    git
-    nil
-    nixd
-    wget
-    curl
-    kitty
-    brave
-    fuzzel
-    firefox
-    fastfetch
-    zed-editor
-  ];
+  environment = {
+    systemPackages = with pkgs; [
+      gcc
+      git
+      nil
+      nixd
+      wget
+      curl
+      kitty
+      brave
+      fuzzel
+      firefox
+      fastfetch
+      zed-editor
+    ];
+
+    variables.EDITOR = "nvim";
+  };
 
   services = {
     displayManager.sddm = {
