@@ -13,12 +13,17 @@
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     {
-      nixpkgs,
+      home-manager,
       impermanence,
+      nixpkgs,
       disko,
       ...
     }@inputs:
@@ -39,6 +44,12 @@
         specialArgs = { inherit inputs; };
         modules = [
           impermanence.nixosModules.impermanence
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.feltfomo = import ./home.nix;
+          }
           disko.nixosModules.disko
           ./hosts/khion/configuration.nix
         ];

@@ -12,9 +12,7 @@
       kitty
       brave
       fuzzel
-      firefox
       fastfetch
-      librewolf
       grub2_efi
       efibootmgr
       zed-editor

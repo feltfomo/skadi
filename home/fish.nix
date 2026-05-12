@@ -1,0 +1,8 @@
+{ ... }:
+{
+  programs.fish = {
+    interactiveShellInit = ''
+      fastfetch
+    '';
+  };
+}
