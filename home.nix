@@ -6,6 +6,7 @@
     ./home/fuzzel.nix
     ./home/walker.nix
     ./home/spicetify.nix
+    ./home/nix-your-shell.nix
     inputs.spicetify-nix.homeManagerModules.spicetify
     inputs.walker.homeManagerModules.default
   ];
