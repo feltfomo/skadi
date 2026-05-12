@@ -1,6 +1,7 @@
 { pkgs, inputs, ... }:
 {
   imports = [
+    ./home/git.nix
     ./home/fish.nix
     ./home/spicetify.nix
     inputs.spicetify-nix.homeManagerModules.spicetify
@@ -14,17 +15,13 @@
     brave
     fuzzel
     firefox
+    equibop
     librewolf
     fastfetch
     zed-editor
+    prismlauncher
     inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
-
-  programs.git.settings = {
-    enable = true;
-    userName = "feltfomo";
-    userEmail = "241195017+feltfomo@users.noreply.github.com";
-  };
 
   home.stateVersion = "25.11";
 }
