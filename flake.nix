@@ -3,8 +3,9 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    impermanence.url = "github:nix-community/impermanence";
     hyprland.url = "github:hyprwm/Hyprland";
+    impermanence.url = "github:nix-community/impermanence";
+    spicetify-nix.url = "github:Gerg-L/spicetify-nix";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -21,6 +22,7 @@
 
   outputs =
     {
+      spicetify-nix,
       home-manager,
       impermanence,
       nixpkgs,
@@ -43,11 +45,12 @@
       nixosConfigurations.khion = nixpkgs.lib.nixosSystem {
         specialArgs = { inherit inputs; };
         modules = [
-          impermanence.nixosModules.impermanence
           home-manager.nixosModules.home-manager
+          impermanence.nixosModules.impermanence
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = { inherit inputs; };
             home-manager.users.feltfomo = import ./home.nix;
           }
           disko.nixosModules.disko

@@ -1,7 +1,9 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 {
   imports = [
     ./home/fish.nix
+    ./home/spicetify.nix
+    inputs.spicetify-nix.homeManagerModules.spicetify
   ];
   home.username = "feltfomo";
   home.homeDirectory = "/home/feltfomo";
