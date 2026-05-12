@@ -41,39 +41,44 @@
       lix-module,
       nixpkgs,
       disko,
-      lix,
       ...
     }@inputs:
     let
       system = "x86_64-linux";
+      mkSystem = nixpkgs.lib.nixosSystem;
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
-      nixosConfigurations.lumi = nixpkgs.lib.nixosSystem {
-        specialArgs = { inherit inputs; };
-        modules = [
-          impermanence.nixosModules.impermanence
-          lix-module.nixosModules.default
-          disko.nixosModules.disko
-          ./hosts/lumi/configuration.nix
-        ];
+
+      nixosConfigurations = {
+        lumi = mkSystem {
+          specialArgs = { inherit inputs; };
+          modules = [
+            home-manager.nixodModules.home-manager
+            impermanence.nixosModules.impermanence
+            lix-module.nixosModules.default
+            disko.nixosModules.disko
+            ./hosts/lumi/configuration.nix
+          ];
+        };
+        khion = mkSystem {
+          specialArgs = { inherit inputs; };
+          modules = [
+            home-manager.nixosModules.home-manager
+            impermanence.nixosModules.impermanence
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.extraSpecialArgs = { inherit inputs; };
+              home-manager.users.feltfomo = import ./home.nix;
+            }
+            lix-module.nixosModules.default
+            disko.nixosModules.disko
+            ./hosts/khion/configuration.nix
+          ];
+        };
       };
-      nixosConfigurations.khion = nixpkgs.lib.nixosSystem {
-        specialArgs = { inherit inputs; };
-        modules = [
-          home-manager.nixosModules.home-manager
-          impermanence.nixosModules.impermanence
-          {
-            home-manager.useGlobalPkgs = true;
-            home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = { inherit inputs; };
-            home-manager.users.feltfomo = import ./home.nix;
-          }
-          lix-module.nixosModules.default
-          disko.nixosModules.disko
-          ./hosts/khion/configuration.nix
-        ];
-      };
+
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
           lua
