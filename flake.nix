@@ -65,6 +65,7 @@
             home-manager.extraSpecialArgs = { inherit inputs; };
             home-manager.users.feltfomo = import ./home.nix;
           }
+          lix-module.nixosModules.default
           disko.nixosModules.disko
           ./hosts/khion/configuration.nix
         ];
