@@ -16,9 +16,12 @@
   home.packages = with pkgs; [
     kitty
     brave
+    satty
     fuzzel
     firefox
     equibop
+    hyprshot
+    grimblast
     superfile
     librewolf
     fastfetch
