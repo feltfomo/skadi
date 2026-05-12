@@ -3,6 +3,7 @@
   imports = [
     ./home/git.nix
     ./home/fish.nix
+    ./home/fuzzel.nix
     ./home/spicetify.nix
     inputs.spicetify-nix.homeManagerModules.spicetify
   ];
