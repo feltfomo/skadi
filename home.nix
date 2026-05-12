@@ -9,6 +9,7 @@
     ./home/git.nix
     ./home/fish.nix
     ./home/fuzzel.nix
+    ./home/cursor.nix
     ./home/walker.nix
     ./home/spicetify.nix
     ./home/nix-your-shell.nix

@@ -11,6 +11,8 @@
       wget
       curl
       xclip
+      ayugram-desktop
+      telegram-desktop
       grub2_efi
       efibootmgr
       wl-clipboard
