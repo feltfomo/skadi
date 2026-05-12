@@ -4,6 +4,7 @@
     ./impermanence.nix
     ./environment.nix
     ./networking.nix
+    ./hardware.nix
     ./nvidia.nix
     ./disko.nix
     ../../modules/hyprland.nix
