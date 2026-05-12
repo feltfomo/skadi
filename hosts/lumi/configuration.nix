@@ -15,6 +15,7 @@
     ../../modules/sddm.nix
     ../../modules/user.nix
     ../../modules/boot.nix
+    ../../modules/kde.nix
     ../../modules/qt.nix
     ../../modules/gc.nix
   ];
