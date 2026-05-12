@@ -18,6 +18,8 @@
       "nix-command"
       "flakes"
     ];
+    trusted-users = [ "@wheel" ];
+    auto-optimise-store = false;
   };
 
   nixpkgs.config.allowUnfree = true;
