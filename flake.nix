@@ -44,32 +44,39 @@
       ...
     }@inputs:
     let
-      system = "x86_64-linux";
+      spicePkgs = inputs.spicetify-nix.legacyPackages.${system};
       mkSystem = nixpkgs.lib.nixosSystem;
+      system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
     in
     {
 
       nixosConfigurations = {
         lumi = mkSystem {
-          specialArgs = { inherit inputs; };
-          modules = [
-            home-manager.nixodModules.home-manager
-            impermanence.nixosModules.impermanence
-            lix-module.nixosModules.default
-            disko.nixosModules.disko
-            ./hosts/lumi/configuration.nix
-          ];
-        };
-        khion = mkSystem {
-          specialArgs = { inherit inputs; };
+          specialArgs = { inherit inputs system spicePkgs; };
           modules = [
             home-manager.nixosModules.home-manager
             impermanence.nixosModules.impermanence
             {
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit inputs; };
+              home-manager.extraSpecialArgs = { inherit inputs system spicePkgs; };
+              home-manager.users.feltfomo = import ./home.nix;
+            }
+            lix-module.nixosModules.default
+            disko.nixosModules.disko
+            ./hosts/lumi/configuration.nix
+          ];
+        };
+        khion = mkSystem {
+          specialArgs = { inherit inputs system spicePkgs; };
+          modules = [
+            home-manager.nixosModules.home-manager
+            impermanence.nixosModules.impermanence
+            {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.extraSpecialArgs = { inherit inputs system spicePkgs; };
               home-manager.users.feltfomo = import ./home.nix;
             }
             lix-module.nixosModules.default

@@ -1,4 +1,9 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  system,
+  ...
+}:
 {
   imports = [
     ./home/git.nix
@@ -11,26 +16,27 @@
     inputs.walker.homeManagerModules.default
   ];
 
-  home.username = "feltfomo";
-  home.homeDirectory = "/home/feltfomo";
+  home = {
+    username = "feltfomo";
+    homeDirectory = "/home/feltfomo";
+    stateVersion = "25.11";
 
-  home.packages = with pkgs; [
-    kitty
-    brave
-    satty
-    fuzzel
-    firefox
-    equibop
-    hyprshot
-    grimblast
-    superfile
-    librewolf
-    fastfetch
-    zed-editor
-    prismlauncher
-    inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
-    inputs.walker.packages.${pkgs.stdenv.hostPlatform.system}.default
-  ];
-
-  home.stateVersion = "25.11";
+    packages = with pkgs; [
+      kitty
+      brave
+      satty
+      fuzzel
+      firefox
+      equibop
+      hyprshot
+      grimblast
+      superfile
+      librewolf
+      fastfetch
+      zed-editor
+      prismlauncher
+      inputs.noctalia.packages.${system}.default
+      inputs.walker.packages.${system}.default
+    ];
+  };
 }
