@@ -6,7 +6,6 @@
       "flakes"
     ];
     trusted-users = [ "@wheel" ];
-    trust-flakes = -[ "etc/skadi " ];
     auto-optimise-store = true;
   };
 
