@@ -19,7 +19,7 @@
       "flakes"
     ];
     trusted-users = [ "@wheel" ];
-    auto-optimise-store = false;
+    auto-optimise-store = true;
   };
 
   nixpkgs.config.allowUnfree = true;
