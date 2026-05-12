@@ -14,6 +14,7 @@
     ../../modules/security.nix
     ../../modules/openssh.nix
     ../../modules/thunar.nix
+    ../../modules/steam.nix
     ../../modules/sddm.nix
     ../../modules/user.nix
     ../../modules/boot.nix

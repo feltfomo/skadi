@@ -13,6 +13,5 @@
     kdePackages.kpat
     kdePackages.ksudoku
     kdePackages.ktorrent
-    kdePackages.sddm-kcm
   ];
 }

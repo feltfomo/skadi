@@ -20,6 +20,8 @@
 
   hardware.cpu.intel.updateMicrocode = true;
 
+  hardware.graphics.enable = true;
+
   swapDevices = [ ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
