@@ -18,6 +18,7 @@
     ../../modules/user.nix
     ../../modules/boot.nix
     ../../modules/qt.nix
+    ../../modules/gc.nix
   ];
 
   system.stateVersion = "25.11";

@@ -1,6 +1,7 @@
 {
   description = "flake for skadi";
 
+  # caches
   nixConfig = {
     extra-substituters = [
       "https://hyprland.cachix.org"
@@ -16,6 +17,7 @@
     ];
   };
 
+  # flake inputs
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     hyprland.url = "github:hyprwm/Hyprland";
@@ -49,6 +51,7 @@
     };
   };
 
+  # flake outputs
   outputs =
     {
       home-manager,
@@ -67,6 +70,8 @@
     {
 
       nixosConfigurations = {
+
+        # lumi machine (laptop)
         lumi = mkSystem {
           specialArgs = { inherit inputs system spicePkgs; };
           modules = [
@@ -83,6 +88,8 @@
             ./hosts/lumi/configuration.nix
           ];
         };
+
+        # khion machine (desktop)
         khion = mkSystem {
           specialArgs = { inherit inputs system spicePkgs; };
           modules = [
