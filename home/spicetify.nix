@@ -5,9 +5,12 @@ in
 {
   programs.spicetify = {
     enable = true;
-    theme = spicePkgs.themes.catppuccin;
-    colorScheme = "mocha";
+    theme = spicePkgs.themes.bloom;
+    colorScheme = "";
     enabledExtensions = with spicePkgs.extensions; [
+      shuffle
+      fullAppDisplay
+      beautifulLyrics
       adblockify
       hidePodcasts
     ];
