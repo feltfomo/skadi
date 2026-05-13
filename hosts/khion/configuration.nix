@@ -17,6 +17,7 @@
     ../../modules/steam.nix
     ../../modules/user.nix
     ../../modules/boot.nix
+    ../../modules/gtk.nix
     ../../modules/qt.nix
     ../../modules/gc.nix
   ];
