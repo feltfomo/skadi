@@ -8,6 +8,7 @@
   imports = [
     ./home/git.nix
     ./home/fish.nix
+    ./home/gnome.nix
     ./home/fuzzel.nix
     ./home/cursor.nix
     ./home/walker.nix

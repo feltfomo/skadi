@@ -16,7 +16,6 @@
     ../../modules/thunar.nix
     ../../modules/steam.nix
     ../../modules/user.nix
-    ../../modules/gnome.nix
     ../../modules/boot.nix
     ../../modules/qt.nix
     ../../modules/gc.nix
