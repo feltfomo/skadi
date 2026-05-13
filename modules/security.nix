@@ -1,4 +1,8 @@
 { ... }:
 {
-  security.sudo.wheelNeedsPassword = true;
+  flake.nixosModules.security =
+    { ... }:
+    {
+      security.sudo.wheelNeedsPassword = true;
+    };
 }

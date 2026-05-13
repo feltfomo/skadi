@@ -22,6 +22,8 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     hyprland.url = "github:hyprwm/Hyprland";
     elephant.url = "github:abenz1267/elephant";
+    import-tree.url = "github:vic/import-tree";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     impermanence.url = "github:nix-community/impermanence";
     spicetify-nix.url = "github:Gerg-L/spicetify-nix";
     disko = {
@@ -51,69 +53,10 @@
     };
   };
 
-  # flake outputs
   outputs =
-    {
-      home-manager,
-      impermanence,
-      lix-module,
-      nixpkgs,
-      disko,
-      ...
-    }@inputs:
-    let
-      spicePkgs = inputs.spicetify-nix.legacyPackages.${system};
-      mkSystem = nixpkgs.lib.nixosSystem;
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-    in
-    {
-
-      nixosConfigurations = {
-
-        # lumi machine (laptop)
-        lumi = mkSystem {
-          specialArgs = { inherit inputs system spicePkgs; };
-          modules = [
-            home-manager.nixosModules.home-manager
-            impermanence.nixosModules.impermanence
-            {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit inputs system spicePkgs; };
-              home-manager.users.feltfomo = import ./home.nix;
-            }
-            lix-module.nixosModules.default
-            disko.nixosModules.disko
-            ./hosts/lumi/configuration.nix
-          ];
-        };
-
-        # khion machine (desktop)
-        khion = mkSystem {
-          specialArgs = { inherit inputs system spicePkgs; };
-          modules = [
-            home-manager.nixosModules.home-manager
-            impermanence.nixosModules.impermanence
-            {
-              home-manager.useGlobalPkgs = true;
-              home-manager.useUserPackages = true;
-              home-manager.extraSpecialArgs = { inherit inputs system spicePkgs; };
-              home-manager.users.feltfomo = import ./home.nix;
-            }
-            lix-module.nixosModules.default
-            disko.nixosModules.disko
-            ./hosts/khion/configuration.nix
-          ];
-        };
-      };
-
-      devShells.${system}.default = pkgs.mkShell {
-        packages = with pkgs; [
-          lua
-          stylua
-          lua-language-server
-        ];
-      };
+    inputs:
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ (inputs.import-tree ./modules) ];
+      systems = [ "x86_64-linux" ];
     };
 }

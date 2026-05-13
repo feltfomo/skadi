@@ -6,12 +6,6 @@
 }:
 {
   imports = [
-    ./home/git.nix
-    ./home/gtk.nix
-    ./home/fish.nix
-    ./home/gnome.nix
-    ./home/fuzzel.nix
-    ./home/cursor.nix
     ./home/walker.nix
     ./home/spicetify.nix
     ./home/nix-your-shell.nix

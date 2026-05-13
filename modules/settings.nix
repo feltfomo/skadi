@@ -1,16 +1,20 @@
 { ... }:
 {
-  nix.settings = {
-    experimental-features = [
-      "nix-command"
-      "flakes"
-    ];
-    trusted-users = [ "@wheel" ];
-    auto-optimise-store = true;
-  };
+  flake.nixosModules.settings =
+    { ... }:
+    {
+      nix.settings = {
+        experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+        trusted-users = [ "@wheel" ];
+        auto-optimise-store = true;
+      };
 
-  nixpkgs.config.allowUnfree = true;
+      nixpkgs.config.allowUnfree = true;
 
-  time.timeZone = "America/Los_Angeles";
-  i18n.defaultLocale = "en_US.UTF-8";
+      time.timeZone = "America/Los_Angeles";
+      i18n.defaultLocale = "en_US.UTF-8";
+    };
 }
