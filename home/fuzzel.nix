@@ -8,6 +8,7 @@
           include = "~/.config/fuzzel/themes/noctalia";
           namespace = "fuzzel";
           placeholder = "bru";
+          icon-theme = "Papirus-Dark";
           message = "Skadi - App Launcher";
           show-actions = "true";
           lines = "35";

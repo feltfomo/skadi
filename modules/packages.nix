@@ -4,6 +4,7 @@
     systemPackages = with pkgs; [
       gcc
       git
+      fzf
       nil
       vlc
       nixd
