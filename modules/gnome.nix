@@ -3,11 +3,13 @@
   flake.nixosModules.gnome =
     { pkgs, ... }:
     {
+      # enable gnome and gdm
       services = {
         displayManager.gdm.enable = true;
         desktopManager.gnome.enable = true;
       };
 
+      # exclude gnome apps that are not needed
       environment.gnome.excludePackages = (
         with pkgs;
         [
@@ -28,6 +30,8 @@
           totem
         ]
       );
+
+      # configure gnome settings for feltfomo
       home-manager.users.feltfomo =
         { pkgs, ... }:
         {

@@ -3,6 +3,7 @@
   flake.nixosModules.boot =
     { ... }:
     {
+      # install grub
       boot.loader = {
         grub = {
           enable = true;

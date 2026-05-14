@@ -3,6 +3,7 @@
   flake.nixosModules.git =
     { ... }:
     {
+      # enable and configure git for feltfomo
       home-manager.users.feltfomo = {
         programs.git = {
           enable = true;

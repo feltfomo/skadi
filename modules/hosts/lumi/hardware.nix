@@ -3,7 +3,10 @@
   flake.nixosModules.lumiHardware =
     { lib, modulesPath, ... }:
     {
+      # auto-detected hardware modules
       imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+
+      # hardware-specific kernel modules and platform
       boot.initrd.availableKernelModules = [
         "xhci_pci"
         "nvme"
@@ -12,11 +15,11 @@
         "sdhci_pci"
         "rtsx_usb_sdmmc"
       ];
-      boot.initrd.kernelModules = [ ];
       boot.kernelModules = [ "kvm-intel" ];
-      boot.extraModulePackages = [ ];
+
+      # keep intel cpu microcode up to date
       hardware.cpu.intel.updateMicrocode = true;
-      swapDevices = [ ];
+
       nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
     };
 }

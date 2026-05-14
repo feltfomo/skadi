@@ -3,7 +3,10 @@
   flake.nixosModules.nvidia =
     { config, pkgs, ... }:
     {
+      # use nvidia driver for xserver
       services.xserver.videoDrivers = [ "nvidia" ];
+
+      # nvidia driver configuration
       hardware.nvidia = {
         modesetting.enable = true;
         open = false;
@@ -15,6 +18,8 @@
           finegrained = false;
         };
       };
+
+      # graphics/opengl support including 32bit for games
       hardware.graphics = {
         enable = true;
         enable32Bit = true;
@@ -22,12 +27,18 @@
           nvidia-vaapi-driver
         ];
       };
+
+      # kernel params for nvidia power management
       boot.kernelParams = [
         "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
         "nvidia.NVreg_TemporaryFilePath=/var/tmp"
         "nowatchdog"
       ];
+
+      # load nvidia uvm module for cuda support
       boot.kernelModules = [ "nvidia-uvm" ];
+
+      # enable fan control via coolbits
       environment.etc."X11/xorg.conf.d/20-nvidia.conf".text = ''
         Section "Device"
           Identifier "NVIDIA Card"
@@ -35,6 +46,8 @@
           Option "Coolbits" "4"
         EndSection
       '';
+
+      # custom fan curve service
       systemd.services.nvidia-fan-control = {
         description = "NVIDIA Custom Fan Curve";
         wantedBy = [ "multi-user.target" ];
@@ -68,11 +81,15 @@
           '';
         };
       };
+
+      # vulkan tools and drivers
       environment.systemPackages = with pkgs; [
         vulkan-tools
         vulkan-loader
         vulkan-validation-layers
       ];
+
+      # point vulkan to nvidia icd
       environment.variables.VK_DRIVER_FILES = "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json";
     };
 }

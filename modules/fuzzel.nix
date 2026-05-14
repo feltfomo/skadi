@@ -3,6 +3,7 @@
   flake.nixosModules.fuzzel =
     { ... }:
     {
+      # enable and config fuzzel for feltfomo
       home-manager.users.feltfomo.programs.fuzzel = {
         enable = true;
         settings = {

@@ -1,7 +1,7 @@
 {
-  description = "flake for skadi";
+  description = "skadi";
 
-  # caches
+  # binary caches
   nixConfig = {
     extra-substituters = [
       "https://hyprland.cachix.org"
@@ -53,6 +53,7 @@
     };
   };
 
+  # pull in all modules via import-tree
   outputs =
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {

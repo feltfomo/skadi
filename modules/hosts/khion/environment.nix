@@ -3,6 +3,7 @@
   flake.nixosModules.khionEnvironment =
     { ... }:
     {
+      # setting environment variables for khion
       environment = {
         variables = {
           EDITOR = "nvim";

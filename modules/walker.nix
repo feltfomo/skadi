@@ -3,6 +3,7 @@
   flake.nixosModules.walker =
     { ... }:
     {
+      # temmplate from wiki havent configured yet
       home-manager.users.feltfomo = {
         imports = [ inputs.walker.homeManagerModules.walker ];
         programs.walker = {

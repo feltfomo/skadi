@@ -3,11 +3,14 @@
   flake.nixosModules.impermanence =
     { ... }:
     {
+      # provides environment.persistence option
       imports = [ inputs.impermanence.nixosModules.impermanence ];
 
+      # persist and home must be available early in boot
       fileSystems."/persist".neededForBoot = true;
       fileSystems."/home".neededForBoot = true;
 
+      # rollback btrfs root to blank snapshot on every boot
       boot.initrd.systemd.services.rollback = {
         description = "Rollback BTRFS root subvolume to blank";
         wantedBy = [ "initrd.target" ];
@@ -29,8 +32,10 @@
         '';
       };
 
+      # what gets persisted across reboots
       environment.persistence."/persist" = {
         hideMounts = true;
+        # system directories to persist
         directories = [
           "/etc/nix"
           "/etc/nixos"
@@ -41,6 +46,7 @@
           "/etc/NetworkManager/system-connections"
           "/var/lib/nixos"
         ];
+        # system files to persist
         files = [
           "/etc/machine-id"
           "/etc/ssh/ssh_host_ed25519_key"
@@ -48,6 +54,7 @@
           "/etc/ssh/ssh_host_rsa_key"
           "/etc/ssh/ssh_host_rsa_key.pub"
         ];
+        # user directories to persist
         users.feltfomo = {
           directories = [
             "Downloads"
@@ -62,5 +69,4 @@
         };
       };
     };
-
 }

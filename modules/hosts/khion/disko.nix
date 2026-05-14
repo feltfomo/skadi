@@ -3,7 +3,10 @@
   flake.nixosModules.khionDisko =
     { ... }:
     {
+      # provides disko.devices option
       imports = [ inputs.disko.nixosModules.disko ];
+
+      # disk layout: gpt -> esp + luks -> btrfs subvolumes
       disko.devices = {
         disk = {
           nvme0n1 = {
@@ -12,6 +15,7 @@
             content = {
               type = "gpt";
               partitions = {
+                # efi boot partition
                 ESP = {
                   size = "1G";
                   type = "EF00";
@@ -22,6 +26,7 @@
                     mountOptions = [ "umask=0077" ];
                   };
                 };
+                # luks encrypted partition containing btrfs
                 luks = {
                   size = "100%";
                   content = {
@@ -35,6 +40,7 @@
                         "nixos"
                         "-f"
                       ];
+                      # btrfs subvolumes
                       subvolumes = {
                         "@" = {
                           mountpoint = "/";
@@ -64,10 +70,12 @@
                             "noatime"
                           ];
                         };
+                        # swapfile subvolume
                         "@swap" = {
                           mountpoint = "/.swapvol";
                           swap.swapfile.size = "8G";
                         };
+                        # blank snapshot for impermanence rollback
                         "@blank" = { };
                       };
                     };

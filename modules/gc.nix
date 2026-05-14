@@ -4,6 +4,7 @@
     { ... }:
     {
       nix = {
+        # automatic garbage collection (from wiki)
         gc = {
           automatic = true;
           dates = "weekly";
