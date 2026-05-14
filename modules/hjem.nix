@@ -1,0 +1,10 @@
+{ ... }:
+{
+  flake.nixosModules.hjem =
+    { ... }:
+    {
+      hjem = {
+
+      };
+    };
+}

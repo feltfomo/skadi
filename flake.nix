@@ -51,6 +51,10 @@
       url = "github:abenz1267/walker";
       inputs.elephant.follows = "elephant";
     };
+    hjem = {
+      url = "github:feel-co/hjem";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   # pull in all modules via import-tree
@@ -59,5 +63,6 @@
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ (inputs.import-tree ./modules) ];
       systems = [ "x86_64-linux" ];
+      _module.args.rootPath = ./.;
     };
 }
