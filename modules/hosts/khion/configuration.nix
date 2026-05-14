@@ -39,7 +39,6 @@
       self.nixosModules.thunar
       self.nixosModules.kitty
       self.nixosModules.steam
-      self.nixosModules.home
       self.nixosModules.fish
       self.nixosModules.boot
       self.nixosModules.nyx

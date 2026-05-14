@@ -14,16 +14,19 @@
             blink-cmp = {
               enable = true;
               lspCapabilities = true;
-              luaConfig.post = ''
-                require('blink.cmp').setup({
-                  sources = {
-                    default = { "lsp", "path", "snippets", "buffer" },
-                  },
-                  completion = {
-                    menu = { auto_show = true },
-                  },
-                })
-              '';
+              settings = {
+                sources = {
+                  default = [
+                    "lsp"
+                    "path"
+                    "snippets"
+                    "buffer"
+                  ];
+                };
+                completion = {
+                  menu.auto_show = true;
+                };
+              };
             };
             lsp = {
               enable = true;
