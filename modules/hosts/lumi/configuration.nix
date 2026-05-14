@@ -27,6 +27,8 @@
       self.nixosModules.hyprland
       self.nixosModules.security
       self.nixosModules.settings
+      self.nixosModules.feltfomo
+      self.nixosModules.grandpa
       self.nixosModules.openssh
       self.nixosModules.fuzzel
       self.nixosModules.walker
@@ -35,7 +37,6 @@
       self.nixosModules.gnome
       self.nixosModules.steam
       self.nixosModules.home
-      self.nixosModules.user
       self.nixosModules.fish
       self.nixosModules.boot
       self.nixosModules.nyx
