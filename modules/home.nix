@@ -3,8 +3,8 @@
   flake.nixosModules.home =
     { pkgs, ... }:
     {
-      home-manager.users.feltfomo = {
-        home = {
+      home-manager.users = {
+        feltfomo.home = {
           # set username
           username = "feltfomo";
 
@@ -33,6 +33,16 @@
             ayugram-desktop
             inputs.walker.packages.${system}.default
             inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
+          ];
+        };
+
+        grandpa.home = {
+          username = "grandpa";
+          homeDirectory = "/home/grandpa";
+          stateVersion = "25.11";
+          packages = with pkgs; [
+            firefox
+            zed-editor
           ];
         };
       };
