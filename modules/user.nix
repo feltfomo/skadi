@@ -19,8 +19,15 @@
           ];
         };
 
+        users.grandpa = {
+          isNormalUser = true;
+          group = "grandpa";
+          hashedPassword = "$y$j9T$EmyKMur/y5oRy1GBxFY28.$P55.D5.ua.d7NbKpJfh4Q2K4YjAoOQaMlQULxHTOlT8";
+          shell = pkgs.bash;
+        };
         # user group
         groups.feltfomo = { };
+        groups.grandpa = { };
       };
     };
 }
