@@ -10,7 +10,22 @@
           colorschemes.catppuccin.enable = true;
           plugins = {
             lualine.enable = true;
-            plugins.lsp = {
+            telescope.enable = true;
+            blink-cmp = {
+              enable = true;
+              lspCapabilities = true;
+              luaConfig.post = ''
+                require('blink.cmp').setup({
+                  sources = {
+                    default = { "lsp", "path", "snippets", "buffer" },
+                  },
+                  completion = {
+                    menu = { auto_show = true },
+                  },
+                })
+              '';
+            };
+            lsp = {
               enable = true;
               servers = {
                 lua_ls.enable = true;
@@ -20,10 +35,10 @@
                   installRustc = false;
                 };
                 nil_ls.enable = true;
-                opts.clipboard = "unnamedplus";
               };
             };
           };
+          opts.clipboard = "unnamedplus";
         };
       };
     };

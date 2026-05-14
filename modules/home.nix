@@ -17,6 +17,7 @@
           # user packages
           packages = with pkgs; [
             vlc
+            eza
             kitty
             brave
             satty
