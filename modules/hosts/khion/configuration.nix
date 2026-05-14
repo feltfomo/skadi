@@ -29,7 +29,7 @@
       self.nixosModules.hyprland
       self.nixosModules.security
       self.nixosModules.settings
-      self.nixosModules.feltfom
+      self.nixosModules.feltfomo
       self.nixosModules.openssh
       self.nixosModules.nixvim
       self.nixosModules.nvidia
