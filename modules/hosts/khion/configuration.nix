@@ -17,6 +17,7 @@
       }
 
       # internal modules to load for config
+      self.nixosModules.noctalia-templates
       self.nixosModules.khionEnvironment
       self.nixosModules.khionNetworking
       self.nixosModules.khionHardware
@@ -34,6 +35,7 @@
       self.nixosModules.walker
       self.nixosModules.cursor
       self.nixosModules.thunar
+      self.nixosModules.kitty
       self.nixosModules.steam
       self.nixosModules.home
       self.nixosModules.user

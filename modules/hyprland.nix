@@ -1,19 +1,18 @@
-{ rootPath, ... }:
+{ inputs, rootPath, ... }:
 {
   flake.nixosModules.hyprland =
-    { ... }:
+    { pkgs, ... }:
     {
       # enable hyprland
-      programs = {
-        hyprland = {
-          enable = true;
-        };
+      programs.hyprland = {
+        enable = true;
+        package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+        portalPackage = inputs.hyprland.packages.${pkgs.system}.xdg-desktop-portal-hyprland;
       };
 
-      hjem.users.feltfomo = {
-        files = {
-          ".config/hypr".source = "${rootPath}/configs/hypr";
-        };
+      # manager hyprland config with hjem
+      hjem.users.feltfomo.files = {
+        ".config/hypr".source = "${rootPath}/configs/hypr";
       };
     };
 }

@@ -30,6 +30,7 @@
             fastfetch
             zed-editor
             prismlauncher
+            ayugram-desktop
             inputs.walker.packages.${system}.default
             inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           ];
