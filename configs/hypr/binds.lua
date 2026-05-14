@@ -11,6 +11,9 @@ hl.bind(Mod .. " + SHIFT + F", hl.dsp.window.fullscreen({ "fullscreen", "toggle"
 hl.bind(Mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 hl.bind(Mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 
+-- Noctalia Binds
+hl.bind(Mod .. " + Grave", hl.dsp.exec_cmd(NoctaliaShellOverview))
+
 for dir, keys in pairs(Directions) do
     -- focus
     hl.bind(Mod .. " + " .. keys.arrow, hl.dsp.focus({ direction = dir }))

@@ -5,6 +5,7 @@
     {
       environment = {
         systemPackages = with pkgs; [
+          jq
           gcc
           git
           fzf
@@ -14,6 +15,7 @@
           wget
           curl
           xclip
+          ffmpeg
           grub2_efi
           efibootmgr
           wl-clipboard

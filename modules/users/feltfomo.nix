@@ -31,13 +31,19 @@
         stateVersion = "25.11";
         # user packages
         packages = with pkgs; [
-          vlc
+          vslc
           eza
+          grim
           btop
+          zbar
+          slurp
           kitty
           brave
           satty
+          gifski
+          zenity
           fuzzel
+          python3
           firefox
           equibop
           hyprshot
@@ -45,10 +51,16 @@
           superfile
           librewolf
           fastfetch
+          tesseract
+          hyprpicker
           zed-editor
           evil-helix
+          imagemagick
+          wf-recorder
+          wl-screenrec
           prismlauncher
           ayugram-desktop
+          translate-shell
           inputs.walker.packages.${system}.default
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
         ];
