@@ -7,7 +7,7 @@
     platformTheme = "qt5ct";
   };
 
-  environment.packages = with pkgs; [
+  environment.systemPackages = with pkgs; [
     libsForQt5.qt5ct
     qt6Packages.qt6ct
     libsForQt5.qtstyleplugin-kvantum
