@@ -34,8 +34,6 @@
           vlc
           eza
           grim
-          btop
-          zbar
           slurp
           brave
           satty
