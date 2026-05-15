@@ -40,10 +40,12 @@
           gifski
           zenity
           fuzzel
+          logseq
           python3
           firefox
           equibop
           hyprshot
+          obsidian
           grimblast
           superfile
           librewolf
