@@ -19,10 +19,7 @@
           cliphist
           grub2_efi
           efibootmgr
-          libsForQt5.qt5ct
-          qt6Packages.qt6ct
           gsettings-desktop-schemas
-          libsForQt5.qtstyleplugin-kvantum
         ];
       };
     };
