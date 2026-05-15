@@ -13,6 +13,7 @@
         fuzzel
         thunar
         walker
+        wayland
         packages
         programs
         hyprland

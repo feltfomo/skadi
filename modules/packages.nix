@@ -19,8 +19,6 @@
           cliphist
           grub2_efi
           efibootmgr
-          wl-clipboard
-          wayland-utils
           libsForQt5.qt5ct
           qt6Packages.qt6ct
           gsettings-desktop-schemas

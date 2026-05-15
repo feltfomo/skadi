@@ -53,8 +53,6 @@
           zed-editor
           evil-helix
           imagemagick
-          wf-recorder
-          wl-screenrec
           prismlauncher
           ayugram-desktop
           translate-shell
