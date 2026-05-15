@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.thunar =
+  flake.modules.nixos.thunar =
     { pkgs, ... }:
     {
       programs = {

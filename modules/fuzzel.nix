@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.fuzzel =
+  flake.modules.nixos.fuzzel =
     { ... }:
     {
       # enable and config fuzzel for feltfomo

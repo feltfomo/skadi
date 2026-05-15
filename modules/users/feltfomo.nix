@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.nixosModules.feltfomo =
+  flake.modules.nixos.feltfomo =
     { pkgs, ... }:
     {
       # set feltfomo user
@@ -37,7 +37,6 @@
           btop
           zbar
           slurp
-          kitty
           brave
           satty
           gifski

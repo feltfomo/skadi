@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.steam =
+  flake.modules.nixos.steam =
     { pkgs, ... }:
     {
       # install steam, extest, protontricks, and proton-ge to play window games

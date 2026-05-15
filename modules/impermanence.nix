@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.nixosModules.impermanence =
+  flake.modules.nixos.impermanence =
     { ... }:
     {
       # provides environment.persistence option

@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.programs =
+  flake.modules.nixos.programs =
     { ... }:
     {
       # enable dconf, neovim, fish, and nix-ld

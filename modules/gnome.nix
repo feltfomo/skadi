@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.gnome =
+  flake.modules.nixos.gnome =
     { pkgs, ... }:
     {
       # enable gnome and gdm

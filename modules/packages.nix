@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.packages =
+  flake.modules.nixos.packages =
     { pkgs, ... }:
     {
       environment = {

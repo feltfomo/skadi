@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.noctalia-templates =
+  flake.modules.nixos.noctalia-templates =
     { pkgs, ... }:
     {
       hjem.users.feltfomo.files = {

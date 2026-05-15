@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.nixosModules.spicetify =
+  flake.modules.nixos.spicetify =
     { ... }:
     # define spicePkgs
     let

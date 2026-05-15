@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixosModules.kitty =
+  flake.modules.nixos.kitty =
     { ... }:
     {
       home-manager.users.feltfomo =

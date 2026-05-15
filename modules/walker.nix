@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.nixosModules.walker =
+  flake.modules.nixos.walker =
     { ... }:
     {
       # temmplate from wiki havent configured yet
