@@ -5,6 +5,7 @@ Terminal              = "kitty"
 FileManager           = "dolphin"
 ScreenShot            = "hyprshot -m region --raw | satty --filename -"
 HostName              = io.popen("hostname"):read("*l")
+NotcaliaShellClipper  = "noctalia-shell ipc call plugin:clipper toggle"
 NoctaliaShellOverview = "noctalia-shell ipc call plugin:workspace-overview toggle"
 Directions            = {
     right = { arrow = "right", vim = "l" },

@@ -12,6 +12,7 @@ hl.bind(Mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 hl.bind(Mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 
 -- Noctalia Binds
+hl.bind(Mod .. " + C", hl.dsp.exec_cmd(NotcaliaShellClipper))
 hl.bind(Mod .. " + Grave", hl.dsp.exec_cmd(NoctaliaShellOverview))
 
 for dir, keys in pairs(Directions) do

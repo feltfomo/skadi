@@ -31,7 +31,7 @@
         stateVersion = "25.11";
         # user packages
         packages = with pkgs; [
-          vslc
+          vlc
           eza
           grim
           btop

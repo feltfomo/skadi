@@ -16,6 +16,7 @@
           curl
           xclip
           ffmpeg
+          cliphist
           grub2_efi
           efibootmgr
           wl-clipboard
