@@ -9,7 +9,6 @@
       (with inputs.self.modules.nixos; [
         kitty
         steam
-        gnome
         fuzzel
         thunar
         walker

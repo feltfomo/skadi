@@ -39,7 +39,6 @@
           satty
           gifski
           zenity
-          fuzzel
           logseq
           python3
           firefox
