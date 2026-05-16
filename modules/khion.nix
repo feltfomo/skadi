@@ -13,7 +13,6 @@
         thunar
         walker
         firefox
-        wayland
         packages
         programs
         hyprland
@@ -21,6 +20,7 @@
         spicetify
         impermanence
         khion-modules
+        wayland-packages
         noctalia-templates
       ])
       ++ [
