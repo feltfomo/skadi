@@ -45,7 +45,7 @@
         }:
         { ... }:
         {
-          imports = [ inputs.self.nixos.modules.terminalPackages ];
+          imports = [ inputs.self.modules.nixos.terminalPackages ];
           hjem.users.feltfomo.files.".config/${name}/${name}.conf".source = configPath + "/${name}.conf";
           home-manager.users.feltfomo =
             { lib, ... }:
