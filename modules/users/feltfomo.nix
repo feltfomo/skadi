@@ -32,7 +32,6 @@
         # user packages
         packages = with pkgs; [
           vlc
-          eza
           grim
           slurp
           brave
