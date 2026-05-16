@@ -40,7 +40,6 @@
           zenity
           logseq
           python3
-          firefox
           equibop
           hyprshot
           obsidian

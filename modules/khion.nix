@@ -12,6 +12,7 @@
         fuzzel
         thunar
         walker
+        firefox
         wayland
         packages
         programs
