@@ -4,11 +4,20 @@
     { pkgs, ... }:
     {
       imports = [
-        (config.flake.factory.terminal {
-          name = "kitty";
+        (config.flake.factory.program {
           pkg = pkgs.kitty;
-          configPath = ../configs/kitty;
-          templateFile = ../configs/kitty/themes/skadi.conf;
+          files = [
+            {
+              dest = ".config/kitty/kitty.conf";
+              src = ../configs/kitty/kitty.conf;
+            }
+          ];
+          templates = [
+            {
+              name = "kitty.conf";
+              templateFile = ../configs/kitty/themes/skadi.conf;
+            }
+          ];
         })
       ];
     };

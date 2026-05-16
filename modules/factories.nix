@@ -1,5 +1,4 @@
 {
-  inputs,
   lib,
   ...
 }:
@@ -8,59 +7,37 @@
     type = lib.types.attrsOf lib.types.unspecified;
     default = { };
   };
-  config = {
-    flake.factory = {
-      # writes a noctalia template file to ~/.config/noctalia/templates/
-      # noctalia reads it and outputs a themed file on wallpaper change
-      noctaliaTemplate =
-        {
-          name,
-          templateFile,
-          subdir ? "",
-        }:
-        { ... }:
-        {
-          home-manager.users.feltfomo =
-            { lib, ... }:
-            {
-              home.activation."noctalia-template-${name}" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-                mkdir -p $HOME/.config/noctalia/templates/${subdir}
-                cat > $HOME/.config/noctalia/templates/${subdir}${name} << 'EOF'
-                ${builtins.readFile templateFile}
+
+  config.flake.factory.program =
+    {
+      pkg ? null,
+      files ? [ ],
+      templates ? [ ],
+    }:
+    { ... }:
+    {
+      home-manager.users.feltfomo =
+        { lib, ... }:
+        lib.mkMerge [
+          (lib.mkIf (pkg != null) {
+            home.packages = [ pkg ];
+          })
+          (lib.mkMerge (
+            map (t: {
+              home.activation."noctalia-template-${t.name}" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                mkdir -p $HOME/.config/noctalia/templates/${t.subdir or ""}
+                cat > $HOME/.config/noctalia/templates/${t.subdir or ""}${t.name} << 'EOF'
+                ${builtins.readFile t.templateFile}
                 EOF
               '';
-            };
-        };
+            }) templates
+          ))
+        ];
 
-      # sets up a terminal emulator with:
-      # - the package installed via home-manager
-      # - config linked via hjem
-      # - noctalia template written for theming
-      terminal =
-        {
-          name,
-          pkg,
-          configPath,
-          templateFile,
-        }:
-        { ... }:
-        {
-          imports = [ inputs.self.modules.nixos.terminalPackages ];
-          hjem.users.feltfomo.files.".config/${name}/${name}.conf".source = configPath + "/${name}.conf";
-          home-manager.users.feltfomo =
-            { lib, ... }:
-            {
-              home = {
-                packages = [ pkg ];
-                activation."noctalia-template-${name}" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-                  mkdir -p $HOME/.config/noctalia/templates
-                  cat > $HOME/.config/noctalia/templates/${name}.conf << 'EOF'
-                  ${builtins.readFile templateFile}
-                  EOF
-                '';
-              };
-            };
-        };
+      hjem.users.feltfomo.files = lib.mkMerge (
+        map (f: {
+          ${f.dest}.source = f.src;
+        }) files
+      );
     };
-  };
 }
