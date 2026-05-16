@@ -10,6 +10,32 @@
   };
   config = {
     flake.factory = {
+      # writes a noctalia template file to ~/.config/noctalia/templates/
+      # noctalia reads it and outputs a themed file on wallpaper change
+      noctaliaTemplate =
+        {
+          name,
+          templateFile,
+          subdir ? "",
+        }:
+        { ... }:
+        {
+          home-manager.users.feltfomo =
+            { lib, ... }:
+            {
+              home.activation."noctalia-template-${name}" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+                mkdir -p $HOME/.config/noctalia/templates/${subdir}
+                cat > $HOME/.config/noctalia/templates/${subdir}${name} << 'EOF'
+                ${builtins.readFile templateFile}
+                EOF
+              '';
+            };
+        };
+
+      # sets up a terminal emulator with:
+      # - the package installed via home-manager
+      # - config linked via hjem
+      # - noctalia template written for theming
       terminal =
         {
           name,

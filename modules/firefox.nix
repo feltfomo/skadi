@@ -1,23 +1,24 @@
-{ ... }:
+{ config, ... }:
 {
   flake.modules.nixos.firefox =
     { pkgs, ... }:
     {
+      imports = [
+        (config.flake.factory.noctaliaTemplate {
+          name = "userChrome.css";
+          templateFile = ../configs/firefox/chrome/userChrome.css;
+          subdir = "firefox/";
+        })
+        (config.flake.factory.noctaliaTemplate {
+          name = "userContent.css";
+          templateFile = ../configs/firefox/chrome/userContent.css;
+          subdir = "firefox/";
+        })
+      ];
       home-manager.users.feltfomo =
-        { lib, ... }:
+        { ... }:
         {
-          home = {
-            packages = with pkgs; [ firefox ];
-            activation.firefox-theme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-              mkdir -p $HOME/.config/noctalia/templates/firefox
-              cat > $HOME/.config/noctalia/templates/firefox/userChrome.css << 'EOF'
-              ${builtins.readFile ../configs/firefox/chrome/userChrome.css}
-              EOF
-              cat > $HOME/.config/noctalia/templates/firefox/userContent.css << 'EOF'
-              ${builtins.readFile ../configs/firefox/chrome/userContent.css}
-              EOF
-            '';
-          };
+          home.packages = with pkgs; [ firefox ];
         };
     };
 }

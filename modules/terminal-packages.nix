@@ -1,6 +1,6 @@
 { ... }:
 {
-  flake.nixos.modules.terminalPackages =
+  flake.modules.nixos.terminalPackages =
     { ... }:
     {
       home-manager.users.feltfomo =
