@@ -7,15 +7,16 @@
     type = lib.types.attrsOf lib.types.unspecified;
     default = { };
   };
-
   config.flake.factory.program =
     {
       pkg ? null,
       files ? [ ],
       templates ? [ ],
+      imports ? [ ],
     }:
     { ... }:
     {
+      imports = imports;
       home-manager.users.feltfomo =
         { lib, ... }:
         lib.mkMerge [
@@ -33,7 +34,6 @@
             }) templates
           ))
         ];
-
       hjem.users.feltfomo.files = lib.mkMerge (
         map (f: {
           ${f.dest}.source = f.src;

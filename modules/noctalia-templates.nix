@@ -23,6 +23,10 @@
                 output_path = "~/.config/mozilla/firefox/449sgxzm.default/chrome/userContent.css";
                 post_hook = "pkill -HUP firefox";
               };
+              templates.hyprland = {
+                input_path = "~/.config/noctalia/templates/hyprland/colors.lua";
+                output_path = "~/.config/hypr/colors.lua";
+              };
             };
       };
     };
