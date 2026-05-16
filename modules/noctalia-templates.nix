@@ -16,12 +16,10 @@
               templates.firefox-chrome = {
                 input_path = "~/.config/noctalia/templates/firefox/userChrome.css";
                 output_path = "~/.config/mozilla/firefox/449sgxzm.default/chrome/userChrome.css";
-                post_hook = "pkill -HUP firefox";
               };
               templates.firefox-content = {
                 input_path = "~/.config/noctalia/templates/firefox/userContent.css";
                 output_path = "~/.config/mozilla/firefox/449sgxzm.default/chrome/userContent.css";
-                post_hook = "pkill -HUP firefox";
               };
               templates.hyprland = {
                 input_path = "~/.config/noctalia/templates/hyprland/colors.lua";
