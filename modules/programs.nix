@@ -13,5 +13,6 @@
         fish.enable = true;
         nix-ld.enable = true;
       };
+      services.flatpak.enable = true;
     };
 }

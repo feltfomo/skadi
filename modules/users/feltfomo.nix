@@ -36,6 +36,7 @@
           slurp
           brave
           satty
+          heroic
           gifski
           zenity
           logseq
@@ -48,11 +49,13 @@
           librewolf
           fastfetch
           tesseract
+          winetricks
           hyprpicker
           zed-editor
           evil-helix
           imagemagick
           prismlauncher
+          protonvpn-gui
           ayugram-desktop
           translate-shell
           inputs.walker.packages.${system}.default
