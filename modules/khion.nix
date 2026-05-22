@@ -9,6 +9,7 @@
       (with inputs.self.modules.nixos; [
         kitty
         steam
+        qt-hm
         fuzzel
         thunar
         walker

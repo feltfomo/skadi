@@ -42,6 +42,7 @@
           logseq
           python3
           equibop
+          gamemode
           hyprshot
           obsidian
           grimblast
@@ -49,17 +50,26 @@
           librewolf
           fastfetch
           tesseract
+          proton-vpn
           winetricks
           hyprpicker
           zed-editor
           evil-helix
+          tor-browser
           imagemagick
-          prismlauncher
-          protonvpn-gui
+          appimage-run
           ayugram-desktop
           translate-shell
           inputs.walker.packages.${system}.default
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
+          # prism with graalvm and sensible fallback JDKs
+          (prismlauncher.override {
+            jdks = [
+              graalvmPackages.graalvm-oracle
+              jdk21
+              jdk17
+            ];
+          })
         ];
       };
     };
