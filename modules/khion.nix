@@ -22,6 +22,7 @@
         impermanence
         khion-modules
         wayland-packages
+        graalvm-oracle-21
         noctalia-templates
       ])
       ++ [
