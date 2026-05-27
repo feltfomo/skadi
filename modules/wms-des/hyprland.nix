@@ -66,6 +66,13 @@
               subdir = "hyprland/";
             }
           ];
+          noctaliaConfig = {
+            _fileName = "hyprland";
+            theme.templates.user.hyprland = {
+              input_path = "~/.config/noctalia/templates/hyprland/colors.lua";
+              output_path = "~/.config/hypr/colors.lua";
+            };
+          };
         })
       ];
     };

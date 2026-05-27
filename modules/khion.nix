@@ -14,6 +14,7 @@
         thunar
         walker
         firefox
+        noctalia
         packages
         programs
         hyprland
@@ -23,7 +24,6 @@
         khion-modules
         wayland-packages
         graalvm-oracle-21
-        noctalia-templates
       ])
       ++ [
 

@@ -1,0 +1,6 @@
+[dock]
+background_opacity = 0.6
+enabled = true
+launcher_position = "start"
+monitors = ["DP-1"]
+pinned = ["steam", "spotify", "firefox", "equibop"]

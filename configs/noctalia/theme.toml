@@ -1,0 +1,5 @@
+[theme]
+source = "wallpaper"
+
+[theme.templates]
+community_ids = ["steam"]

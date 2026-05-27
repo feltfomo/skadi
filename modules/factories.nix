@@ -3,26 +3,36 @@
   ...
 }:
 {
+  # register the factory namespace so aspects can access flake.factory.*
   options.flake.factory = lib.mkOption {
     type = lib.types.attrsOf lib.types.unspecified;
     default = { };
   };
+
+  # program factory — call this from any aspect to wire up a program's
+  # package, config files, noctalia templates, and noctalia toml config
   config.flake.factory.program =
     {
       pkg ? null,
       files ? [ ],
       templates ? [ ],
       imports ? [ ],
+      noctaliaConfig ? { },
     }:
-    { ... }:
+    { pkgs, ... }:
     {
       imports = imports;
+
       home-manager.users.feltfomo =
         { lib, ... }:
         lib.mkMerge [
+          # install the package if one was given
           (lib.mkIf (pkg != null) {
             home.packages = [ pkg ];
           })
+
+          # write each noctalia template file into ~/.config/noctalia/templates/
+          # runs as an activation script so it happens after the store is linked
           (lib.mkMerge (
             map (t: {
               home.activation."noctalia-template-${t.name}" = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -34,10 +44,22 @@
             }) templates
           ))
         ];
-      hjem.users.feltfomo.files = lib.mkMerge (
-        map (f: {
-          ${f.dest}.source = f.src;
-        }) files
-      );
+
+      hjem.users.feltfomo.files = lib.mkMerge [
+        # link static config files straight into home
+        (lib.mkMerge (
+          map (f: {
+            ${f.dest}.source = f.src;
+          }) files
+        ))
+
+        # if noctaliaConfig was given, serialise it to toml and link it into
+        # ~/.config/noctalia/ so noctalia picks it up and merges it automatically
+        (lib.mkIf (noctaliaConfig != { }) {
+          ".config/noctalia/${noctaliaConfig._fileName}.toml".source =
+            (pkgs.formats.toml { }).generate "noctalia-${noctaliaConfig._fileName}.toml"
+              (builtins.removeAttrs noctaliaConfig [ "_fileName" ]);
+        })
+      ];
     };
 }

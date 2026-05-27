@@ -1,0 +1,10 @@
+[shell]
+clipboard_history_max_entries = 100.0
+launch_apps_as_systemd_services = true
+screen_time_enabled = true
+telemetry_enabled = false
+
+[shell.panel]
+clipboard_placement = "attached"
+launcher_placement = "attached"
+transparency_mode = "glass"
