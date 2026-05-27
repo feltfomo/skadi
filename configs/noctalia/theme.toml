@@ -2,4 +2,5 @@
 source = "wallpaper"
 
 [theme.templates]
-community_ids = ["steam"]
+builtin_ids = ["alacritty", "btop", "cava", "emacs", "foot", "gtk3", "gtk4", "helix", "kcolorscheme", "qt", "wezterm"]
+community_ids = ["zed", "discord", "steam", "telegram"]
