@@ -26,7 +26,7 @@ jobs:
             experimental-features = nix-command flakes
 
       - name: Install tools via nix
-        run: nix-env -iA nixpkgs.jq nixpkgs.curl nixpkgs.nodejs nixpkgs.prefetch-npm-deps
+        run: nix profile install nixpkgs#jq nixpkgs#curl nixpkgs#nodejs nixpkgs#prefetch-npm-deps
 
       - name: Run update script
         id: update
