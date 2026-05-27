@@ -28,7 +28,7 @@ fi
 log_info "Latest commit: $LATEST_REV"
 
 # ── 2. Check if already up to date ──────────────────────────────────────────
-CURRENT_REV=$(grep 'rev = ' "$LUCID_NIX" | head -1 | grep -oP '"[a-f0-9]{40}"' | tr -d '"' || echo "")
+CURRENT_REV=$(grep 'rev = ' "$LUCID_NIX" 2>/dev/null | head -1 | grep -oP '"[^"]+"' | tr -d '"' || true)
 
 if [[ "$CURRENT_REV" == "$LATEST_REV" ]]; then
     log_info "Already at latest commit ($LATEST_REV). Nothing to do."
