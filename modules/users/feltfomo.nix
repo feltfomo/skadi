@@ -53,6 +53,7 @@
           tor-browser
           imagemagick
           appimage-run
+          jetbrains.idea-oss
           ayugram-desktop
           translate-shell
           inputs.walker.packages.${system}.default

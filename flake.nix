@@ -32,8 +32,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     noctalia = {
-      url = "github:noctalia-dev/noctalia-shell";
-      inputs.nixpkgs.follows = "nixpkgs";
+      # v5 branch — inputs.nixpkgs.follows omitted to enable binary cache
+      url = "github:noctalia-dev/noctalia-shell/v5";
     };
     home-manager = {
       url = "github:nix-community/home-manager";

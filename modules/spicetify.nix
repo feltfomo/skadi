@@ -20,6 +20,9 @@
             beautifulLyrics
             adblockify
             hidePodcasts
+            beautifulLyrics
+            simpleBeautifulLyrics
+            spicyLyrics
           ];
         };
       };

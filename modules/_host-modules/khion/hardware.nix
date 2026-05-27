@@ -14,4 +14,5 @@
   ];
   boot.kernelModules = [ "kvm-amd" ];
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+  hardware.ckb-next.enable = true;
 }

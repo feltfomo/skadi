@@ -1,6 +1,9 @@
+local scratch = require("helpers/scratchpad")
+hl.bind(Mod .. " + S", scratch.toggle_spotify)
+
 -- App Binds
 hl.bind(Mod .. " + T", hl.dsp.exec_cmd(Terminal))
-hl.bind(Mod .. " + SPACE", hl.dsp.exec_cmd(Menu))
+hl.bind(Mod .. " + SPACE", hl.dsp.exec_cmd(NoctaliaShellLauncher))
 hl.bind("Print", hl.dsp.exec_cmd(ScreenShot))
 
 -- Window Binds
@@ -13,7 +16,6 @@ hl.bind(Mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 
 -- Noctalia Binds
 hl.bind(Mod .. " + C", hl.dsp.exec_cmd(NotcaliaShellClipper))
-hl.bind(Mod .. " + Grave", hl.dsp.exec_cmd(NoctaliaShellOverview))
 
 for dir, keys in pairs(Directions) do
     -- focus

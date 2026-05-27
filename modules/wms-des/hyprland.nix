@@ -54,6 +54,10 @@
               dest = ".config/hypr/helpers/workspace.lua";
               src = "${rootPath}/configs/hypr/helpers/workspace.lua";
             }
+            {
+              dest = ".config/hypr/helpers/scratchpad.lua";
+              src = "${rootPath}/configs/hypr/helpers/scratchpad.lua";
+            }
           ];
           templates = [
             {
