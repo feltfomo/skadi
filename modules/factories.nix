@@ -1,5 +1,7 @@
 {
   lib,
+  inputs,
+  rootPath,
   ...
 }:
 {
@@ -58,8 +60,15 @@
         (lib.mkIf (noctaliaConfig != { }) {
           ".config/noctalia/${noctaliaConfig._fileName}.toml".source =
             (pkgs.formats.toml { }).generate "noctalia-${noctaliaConfig._fileName}.toml"
-              (builtins.removeAttrs noctaliaConfig [ "_fileName" ]);
+              (removeAttrs noctaliaConfig [ "_fileName" ]);
         })
       ];
     };
+
+  # hostModules factory — eliminates duplicate module loader files per host
+  config.flake.factory.hostModules = host: {
+    imports = (lib.filesystem.listFilesRecursive "${rootPath}/modules/_host-modules/${host}") ++ [
+      inputs.self.modules.nixos.shared
+    ];
+  };
 }
