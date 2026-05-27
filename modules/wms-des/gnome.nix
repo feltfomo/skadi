@@ -10,26 +10,23 @@
       };
 
       # exclude gnome apps that are not needed
-      environment.gnome.excludePackages = (
-        with pkgs;
-        [
-          atomix
-          cheese
-          epiphany
-          evince
-          geary
-          gedit
-          gnome-characters
-          gnome-music
-          gnome-photos
-          gnome-terminal
-          gnome-tour
-          hitori
-          iagno
-          tali
-          totem
-        ]
-      );
+      environment.gnome.excludePackages = with pkgs; [
+        atomix
+        cheese
+        epiphany
+        evince
+        geary
+        gedit
+        gnome-characters
+        gnome-music
+        gnome-photos
+        gnome-terminal
+        gnome-tour
+        hitori
+        iagno
+        tali
+        totem
+      ];
 
       # configure gnome settings for feltfomo
       home-manager.users.feltfomo =

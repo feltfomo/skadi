@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.nixosModules.nixvim =
+  flake.modules.nixos.nixvim =
     { ... }:
     {
       home-manager.users.feltfomo = {

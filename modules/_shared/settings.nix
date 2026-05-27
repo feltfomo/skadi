@@ -5,9 +5,11 @@
     experimental-features = [
       "nix-command"
       "flakes"
+      "pipe-operator"
     ];
     trusted-users = [ "@wheel" ];
-    auto-optimise-store = true;
+    # prevents hanging on offline caches
+    connect-timeout = 5;
   };
 
   # allow unfree packages

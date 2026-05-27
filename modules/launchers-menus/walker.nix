@@ -31,16 +31,6 @@
               "F3"
             ];
           };
-          themes = {
-            "my-theme" = {
-              style = ''
-                /* Your CSS here */
-              '';
-              layouts = {
-                "layout" = "<!-- Your XML layout -->";
-              };
-            };
-          };
         };
       };
     };
