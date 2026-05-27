@@ -2,8 +2,11 @@ name: Update Lucid Theme
 
 on:
   schedule:
-    - cron: '0 7 * * *' # daily at 07:00 UTC
+    - cron: "0 7 * * *" # daily at 07:00 UTC
   workflow_dispatch: # allow manual trigger
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   update:
@@ -22,11 +25,15 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      - name: Install tools via nix
+        run: nix-env -iA nixpkgs.jq nixpkgs.curl nixpkgs.nodejs nixpkgs.prefetch-npm-deps
+
       - name: Run update script
         id: update
         run: |
           chmod +x scripts/update-lucid.sh
-          bash scripts/update-lucid.sh
+          # strip the nix-shell shebang lines before running
+          bash <(tail -n +3 scripts/update-lucid.sh)
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else

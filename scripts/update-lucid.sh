@@ -1,6 +1,4 @@
-#!/usr/bin/env nix-shell
-#!nix-shell -i bash -p jq curl nix nodejs prefetch-npm-deps
-
+#!/usr/bin/env bash
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -48,16 +46,16 @@ log_info "New source hash: $NEW_SRC_HASH"
 
 # ── 4. Regenerate package-lock.json from new source ─────────────────────────
 log_info "Regenerating package-lock.json..."
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
+WORKDIR=$(mktemp -d)
+trap 'rm -rf "$WORKDIR"' EXIT
 
-curl -sL "$TARBALL_URL" | tar -xz -C "$TMPDIR" --strip-components=1
+curl -sL "$TARBALL_URL" | tar -xz -C "$WORKDIR" --strip-components=1
 
-pushd "$TMPDIR" > /dev/null
-npm install --package-lock-only --ignore-scripts 2>/dev/null || npm install --ignore-scripts 2>/dev/null
+pushd "$WORKDIR" > /dev/null
+npm install --ignore-scripts 2>/dev/null
 popd > /dev/null
 
-cp "$TMPDIR/package-lock.json" "$LOCKFILE"
+cp "$WORKDIR/package-lock.json" "$LOCKFILE"
 log_info "package-lock.json updated"
 
 # ── 5. Prefetch new npmDepsHash ──────────────────────────────────────────────
@@ -72,8 +70,6 @@ CURRENT_NPM_HASH=$(grep 'npmDepsHash' "$LUCID_NIX" | grep -oP '"sha256-[^"]+"' |
 
 sed -i "s|$CURRENT_SRC_HASH|$NEW_SRC_HASH|g" "$LUCID_NIX"
 sed -i "s|$CURRENT_NPM_HASH|$NEW_NPM_HASH|g" "$LUCID_NIX"
-
-# Update rev — handle both full commit hash and "main"
 sed -i "s|rev = \"[^\"]*\";|rev = \"$LATEST_REV\";|" "$LUCID_NIX"
 
 log_info "lucid.nix patched"
