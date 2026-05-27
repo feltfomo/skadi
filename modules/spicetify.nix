@@ -1,26 +1,31 @@
 { inputs, ... }:
 {
   flake.modules.nixos.spicetify =
-    { ... }:
-    # define spicePkgs
+    { pkgs, ... }:
     let
       spicePkgs = inputs.spicetify-nix.legacyPackages.x86_64-linux;
+      lucid = pkgs.callPackage ./_pkgs/lucid.nix { };
     in
     {
-      # set theme and extensions for feltfomo on spicetify
       home-manager.users.feltfomo = {
         imports = [ inputs.spicetify-nix.homeManagerModules.default ];
         programs.spicetify = {
           enable = true;
-          theme = spicePkgs.themes.tokyonight;
-          colorScheme = "";
+          theme = {
+            name = "Lucid";
+            src = lucid;
+            injectCss = true;
+            injectThemeJs = true;
+            replaceColors = false;
+            overwriteAssets = true;
+          };
+          colorScheme = "dark";
           enabledExtensions = with spicePkgs.extensions; [
             shuffle
             fullAppDisplay
             beautifulLyrics
             adblockify
             hidePodcasts
-            beautifulLyrics
             simpleBeautifulLyrics
             spicyLyrics
           ];

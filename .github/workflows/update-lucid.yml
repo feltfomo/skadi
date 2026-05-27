@@ -1,0 +1,45 @@
+name: Update Lucid Theme
+
+on:
+  schedule:
+    - cron: '0 7 * * *' # daily at 07:00 UTC
+  workflow_dispatch: # allow manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Run update script
+        id: update
+        run: |
+          chmod +x scripts/update-lucid.sh
+          bash scripts/update-lucid.sh
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            REV=$(grep 'rev = ' modules/_pkgs/lucid.nix | head -1 | grep -oP '"[a-f0-9]{40}"' | tr -d '"' | cut -c1-8)
+            echo "rev=$REV" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add modules/_pkgs/lucid.nix modules/_pkgs/package-lock.json
+          git commit -m "chore(lucid): update to ${{ steps.update.outputs.rev }}"
+          git push
