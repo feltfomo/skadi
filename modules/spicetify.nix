@@ -12,7 +12,7 @@
         imports = [ inputs.spicetify-nix.homeManagerModules.default ];
         programs.spicetify = {
           enable = true;
-          theme = spicePkgs.themes.bloom;
+          theme = spicePkgs.themes.tokyonight;
           colorScheme = "";
           enabledExtensions = with spicePkgs.extensions; [
             shuffle

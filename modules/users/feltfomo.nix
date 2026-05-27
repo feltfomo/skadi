@@ -57,6 +57,7 @@
           ayugram-desktop
           translate-shell
           inputs.walker.packages.${system}.default
+          inputs.zen-browser.packages."${system}".twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           (prismlauncher.override {
             jdks = [
