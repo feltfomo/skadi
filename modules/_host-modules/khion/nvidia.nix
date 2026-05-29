@@ -86,6 +86,7 @@
     vulkan-validation-layers
   ];
 
-  # point vulkan to nvidia icd
-  environment.variables.VK_DRIVER_FILES = "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json";
+  # do not set VK_DRIVER_FILES or VK_ICD_FILENAMES globally — it breaks 32-bit vulkan
+  # by overriding the loader's ICD discovery with only the 64-bit path.
+  # the loader finds /run/opengl-driver{,-32}/share/vulkan/icd.d/ automatically.
 }

@@ -50,6 +50,7 @@
           hyprpicker
           zed-editor
           evil-helix
+          qbittorrent
           tor-browser
           imagemagick
           appimage-run
