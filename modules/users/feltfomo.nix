@@ -54,9 +54,10 @@
           tor-browser
           imagemagick
           appimage-run
-          jetbrains.idea-oss
           ayugram-desktop
           translate-shell
+          jetbrains.idea-oss
+          notion-app-enhanced
           inputs.walker.packages.${system}.default
           inputs.zen-browser.packages."${system}".twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
