@@ -37,7 +37,6 @@
         hideMounts = true;
         # system directories to persist
         directories = [
-          "/etc/nix"
           "/etc/nixos"
           "/etc/skadi"
           "/var/log"
