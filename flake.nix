@@ -27,6 +27,7 @@
     impermanence.url = "github:nix-community/impermanence";
     spicetify-nix.url = "github:Gerg-L/spicetify-nix";
     den.url = "github:denful/den/v0.17.0";
+    hermes-agent.url = "github:NousResearch/hermes-agent";
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";

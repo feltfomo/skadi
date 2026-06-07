@@ -11,6 +11,7 @@
       den.aspects.base
       den.aspects.docker
       den.aspects.gpu-nvidia
+      den.aspects.hermes
       den.aspects.steam
       den.aspects.wayland
     ];
