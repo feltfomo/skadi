@@ -4,6 +4,19 @@
     includes = [
       den.batteries.define-user
       den.batteries.primary-user
+
+      # home aspects must be included on the user. den dropped host to user
+      # homeManager forwarding in v0.13, so host aspects no longer reach this
+      # home. aspects that also define nixos still contribute it to the host.
+      den.aspects.shell
+      den.aspects.theming
+      den.aspects.hyprland
+      den.aspects.kitty
+      den.aspects.fuzzel
+      den.aspects.noctalia
+      den.aspects.walker
+      den.aspects.firefox
+      den.aspects.qt-hm
     ];
 
     # define-user makes a normal user and sets the home dir,
