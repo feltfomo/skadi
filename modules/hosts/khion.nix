@@ -9,6 +9,7 @@
   den.aspects.khion = {
     includes = [
       den.aspects.base
+      den.aspects.docker
       den.aspects.gpu-nvidia
       den.aspects.steam
       den.aspects.wayland
