@@ -27,12 +27,17 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     impermanence.url = "github:nix-community/impermanence";
     spicetify-nix.url = "github:Gerg-L/spicetify-nix";
+    den.url = "github:denful/den/v0.17.0";
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     noctalia = {
-      # v5 branch — inputs.nixpkgs.follows omitted to enable binary cache
+      # v5 branch, nixpkgs follows omitted to keep the binary cache
       url = "github:noctalia-dev/noctalia-shell/v5";
     };
     home-manager = {
@@ -65,14 +70,11 @@
     };
   };
 
-  # pull in all modules via import-tree
+  # den drives the fleet, flake-parts kept for perSystem devshells
   outputs =
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        inputs.flake-parts.flakeModules.modules
-        (inputs.import-tree ./modules)
-      ];
+      imports = [ (inputs.import-tree ./modules) ];
       systems = [ "x86_64-linux" ];
       _module.args.rootPath = ./.;
     };

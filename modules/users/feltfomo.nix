@@ -1,31 +1,62 @@
-{ inputs, ... }:
+{ inputs, den, ... }:
 {
-  flake.modules.nixos.feltfomo =
-    { pkgs, ... }:
-    {
-      # set feltfomo user
-      users.users.feltfomo = {
-        isNormalUser = true;
-        group = "feltfomo";
-        hashedPassword = "$y$j9T$HT.mVqk50c03QSEv1rqlP0$5albZpdKB3hIndg.ecMfZ2ZxaDPEwDx5AbZKLaY9tY8";
-        shell = pkgs.fish;
-        extraGroups = [
-          "wheel"
-          "networkmanager"
-          "video"
+  den.aspects.feltfomo = {
+    includes = [
+      den.batteries.define-user
+      den.batteries.primary-user
+    ];
+
+    # define-user makes a normal user and sets the home dir,
+    # primary-user adds wheel and networkmanager
+    nixos =
+      { pkgs, ... }:
+      {
+        # logseq pulls an eol electron
+        nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
+
+        # gifski 1.34.0 has a flaky timing test
+        nixpkgs.overlays = [
+          (_: prev: {
+            gifski = prev.gifski.overrideAttrs (_: {
+              doCheck = false;
+            });
+          })
+        ];
+
+        users.users.feltfomo = {
+          group = "feltfomo";
+          hashedPassword = "$y$j9T$HT.mVqk50c03QSEv1rqlP0$5albZpdKB3hIndg.ecMfZ2ZxaDPEwDx5AbZKLaY9tY8";
+          shell = pkgs.fish;
+          extraGroups = [ "video" ];
+        };
+        users.groups.feltfomo = { };
+
+        # user directories that survive the boot rollback
+        environment.persistence."/persist".users.feltfomo.directories = [
+          "Downloads"
+          "Documents"
+          "Pictures"
+          "Videos"
+          "Music"
+          ".config"
+          ".local"
+          ".ssh"
         ];
       };
-      users.groups.feltfomo = { };
-      hjem.users.feltfomo = {
-        enable = true;
-        user = "feltfomo";
-        directory = "/home/feltfomo";
-      };
-      home-manager.users.feltfomo.home = {
-        username = "feltfomo";
-        homeDirectory = "/home/feltfomo";
-        stateVersion = "25.11";
-        packages = with pkgs; [
+
+    homeManager =
+      { pkgs, ... }:
+      {
+        # git identity
+        programs.git = {
+          enable = true;
+          settings.user = {
+            name = "feltfomo";
+            email = "241195017+feltfomo@users.noreply.github.com";
+          };
+        };
+
+        home.packages = with pkgs; [
           vlc
           grim
           slurp
@@ -57,8 +88,7 @@
           ayugram-desktop
           translate-shell
           jetbrains.idea-oss
-          inputs.walker.packages.${system}.default
-          inputs.zen-browser.packages."${system}".twilight
+          inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           (prismlauncher.override {
             jdks = [
@@ -70,5 +100,5 @@
           })
         ];
       };
-    };
+  };
 }
