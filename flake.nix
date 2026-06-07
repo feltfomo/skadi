@@ -19,7 +19,6 @@
 
   # flake inputs
   inputs = {
-    nixvim.url = "github:nix-community/nixvim";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     hyprland.url = "github:hyprwm/Hyprland";
     elephant.url = "github:abenz1267/elephant";

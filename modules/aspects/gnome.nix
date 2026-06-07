@@ -3,7 +3,6 @@ _: {
     nixos =
       { pkgs, ... }:
       {
-        # enable gnome and gdm
         services = {
           displayManager.gdm.enable = true;
           desktopManager.gnome.enable = true;

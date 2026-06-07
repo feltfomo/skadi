@@ -2,7 +2,6 @@ _: {
   den.aspects.shell.homeManager =
     { pkgs, ... }:
     {
-      # fish
       programs.fish = {
         enable = true;
 

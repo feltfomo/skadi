@@ -20,7 +20,6 @@ _: {
     homeManager =
       { pkgs, ... }:
       {
-        # gtk color scheme and icon theme
         gtk = {
           enable = true;
           colorScheme = "dark";

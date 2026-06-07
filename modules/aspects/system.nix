@@ -41,7 +41,6 @@ _: {
         };
       };
 
-      # install grub
       boot.loader = {
         grub = {
           enable = true;
