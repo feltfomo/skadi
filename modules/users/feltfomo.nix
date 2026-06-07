@@ -4,6 +4,7 @@
     includes = [
       den.batteries.define-user
       den.batteries.primary-user
+      den.aspects.spicetify
 
       # home aspects must be included on the user. den dropped host to user
       # homeManager forwarding in v0.13, so host aspects no longer reach this

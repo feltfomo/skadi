@@ -10,7 +10,7 @@ pkgs.buildNpmPackage {
     hash = "sha256-Yj3+opEh16aJslCT9f2GTTEwLUk9A7bO/6i+LHk/AVA=";
   };
 
-  npmDepsHash = "sha256-eFMeAeA6J4xngWF7iKmV/DhN4gfwlbYMLRmEy1ap9v4=";
+  npmDepsHash = "sha256-ooG9SInExQudTJd5ey7hw7JBd2RI8lZzypiOa7HszZw=";
 
   nativeBuildInputs = with pkgs; [
     bun
