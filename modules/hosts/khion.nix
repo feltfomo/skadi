@@ -11,10 +11,7 @@
       den.aspects.base
       den.aspects.gpu-nvidia
       den.aspects.steam
-      den.aspects.walker
-      den.aspects.firefox
       den.aspects.wayland
-      den.aspects.qt-hm
     ];
 
     # disko's nixos module must sit with the disko.devices it enables
