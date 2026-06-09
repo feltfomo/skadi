@@ -4,7 +4,6 @@
     includes = [
       den.batteries.define-user
       den.batteries.primary-user
-      den.aspects.spicetify
 
       # home aspects must be included on the user. den dropped host to user
       # homeManager forwarding in v0.13, so host aspects no longer reach this
@@ -14,6 +13,7 @@
       den.aspects.hyprland
       den.aspects.kitty
       den.aspects.fuzzel
+      den.aspects.spicetify
       den.aspects.noctalia
       den.aspects.walker
       den.aspects.firefox
@@ -23,7 +23,7 @@
     # define-user makes a normal user and sets the home dir,
     # primary-user adds wheel and networkmanager
     nixos =
-      { pkgs, ... }:
+      { pkgs, config, ... }:
       {
         # logseq pulls an eol electron
         nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
@@ -39,12 +39,17 @@
 
         users.users.feltfomo = {
           group = "feltfomo";
-          hashedPassword = "$y$j9T$HT.mVqk50c03QSEv1rqlP0$5albZpdKB3hIndg.ecMfZ2ZxaDPEwDx5AbZKLaY9tY8";
+          # decrypted by sops-nix from secrets/secrets.yaml. provision it BEFORE
+          # rebuilding or the account has no password -- use `nixos-rebuild test`
+          # and confirm login on a fresh tty before `switch` (see README).
+          hashedPasswordFile = config.sops.secrets."feltfomo-password".path;
           shell = pkgs.fish;
           extraGroups = [
             "video"
             "docker"
           ];
+          # lingering lets the notion-sync user service start at boot, no login needed
+          linger = true;
         };
         users.groups.feltfomo = { };
 
@@ -58,6 +63,8 @@
           ".config"
           ".local"
           ".ssh"
+          # notion-sync dirs
+          "Projects"
         ];
       };
 

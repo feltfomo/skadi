@@ -12,6 +12,7 @@
       den.aspects.docker
       den.aspects.gpu-nvidia
       den.aspects.hermes
+      den.aspects.notion-sync
       den.aspects.steam
       den.aspects.wayland
     ];
