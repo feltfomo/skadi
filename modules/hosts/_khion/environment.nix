@@ -2,7 +2,7 @@ _: {
   # setting environment variables for khion
   environment = {
     variables = {
-      EDITOR = "nvim";
+      # EDITOR is set globally via programs.neovim.defaultEditor in system.nix
       # nvidia
       LIBVA_DRIVER_NAME = "nvidia";
       __GLX_VENDOR_LIBRARY_NAME = "nvidia";

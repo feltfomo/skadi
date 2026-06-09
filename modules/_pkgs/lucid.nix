@@ -7,7 +7,7 @@ pkgs.buildNpmPackage {
     owner = "sanoojes";
     repo = "spicetify-lucid";
     rev = "main";
-    hash = "sha256-Yj3+opEh16aJslCT9f2GTTEwLUk9A7bO/6i+LHk/AVA=";
+    hash = "sha256-B/gAm4wd520OZMyimj8Bes4UxYcZ/++100a+R4T7a1M=";
   };
 
   npmDepsHash = "sha256-ooG9SInExQudTJd5ey7hw7JBd2RI8lZzypiOa7HszZw=";

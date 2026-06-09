@@ -30,7 +30,8 @@ the username lives in exactly one file: modules/users/feltfomo.nix.
     modules/aspects/              feature modules (base, system, shell, theming,
                                   hyprland, kitty, fuzzel, walker, thunar,
                                   spicetify, noctalia, firefox, steam, gnome,
-                                  wayland, qt-hm, impermanence, gpu-nvidia)
+                                  wayland, qt-hm, impermanence, gpu-nvidia,
+                                  docker, hermes, notion-sync, sops)
     modules/hosts/                khion.nix, lumi.nix, and per-host hardware in
                                   _khion/ and _lumi/ (disko, hardware,
                                   networking, environment)
@@ -70,3 +71,10 @@ see what an upgrade changes before switching:
 - the "unknown flake output denful" warning is expected.
 - electron-39.8.10 is allowed for logseq. drop it when logseq updates.
 - gifski is built with doCheck = false because its upstream test is flaky.
+- secrets are managed with sops-nix. the encrypted store is secrets/secrets.yaml,
+  decrypted with khion's ssh host key (persisted across the boot rollback). the
+  sops aspect lives in modules/aspects/sops.nix and .sops.yaml holds the recipient
+  age key. keep secrets/ in the notion-sync ignore list so the encrypted file
+  never round-trips through Notion. to provision: derive the age key from the host
+  key, paste it into .sops.yaml, then `sops secrets/secrets.yaml`. rebuild with
+  `nixos-rebuild test` first and confirm login on a fresh tty before `switch`.

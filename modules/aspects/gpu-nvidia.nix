@@ -8,7 +8,7 @@ _: {
       # nvidia driver configuration
       hardware.nvidia = {
         modesetting.enable = true;
-        open = false;
+        open = true; # required for the rtx 4060 (ada) on current drivers
         package = config.boot.kernelPackages.nvidiaPackages.stable;
         nvidiaSettings = true;
         nvidiaPersistenced = true;
@@ -31,7 +31,6 @@ _: {
       boot.kernelParams = [
         "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
         "nvidia.NVreg_TemporaryFilePath=/var/tmp"
-        "nowatchdog"
       ];
 
       # load nvidia uvm module for cuda support

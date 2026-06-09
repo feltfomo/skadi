@@ -6,6 +6,7 @@
       den.aspects.thunar
       den.aspects.impermanence
       den.aspects.graalvm-oracle-21
+      den.aspects.sops
     ];
 
     nixos = {

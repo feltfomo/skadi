@@ -41,6 +41,9 @@ _: {
         };
       };
 
+      # host-agnostic kernel watchdog disable (previously misfiled under gpu-nvidia)
+      boot.kernelParams = [ "nowatchdog" ];
+
       boot.loader = {
         grub = {
           enable = true;

@@ -3,13 +3,10 @@ _: {
     nixos =
       { pkgs, ... }:
       {
-        # enable qt and set style and platformTheme
-        qt = {
-          enable = true;
-          style = "kvantum";
-          platformTheme = "qt5ct";
-        };
-
+        # Qt theming is owned entirely by the qt-hm aspect (home-manager), which
+        # sets platformTheme = "qtct". the old system-level qt block set
+        # platformTheme = "qt5ct" here, which disagreed with home-manager; only
+        # the qt5ct/qt6ct/kvantum packages stay at the system level.
         environment.systemPackages = with pkgs; [
           libsForQt5.qt5ct
           qt6Packages.qt6ct
