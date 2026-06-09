@@ -20,14 +20,37 @@
   # flake inputs
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    hyprland.url = "github:hyprwm/Hyprland";
-    elephant.url = "github:abenz1267/elephant";
+    hyprland = {
+      url = "github:hyprwm/Hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    elephant = {
+      url = "github:abenz1267/elephant";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     import-tree.url = "github:vic/import-tree";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    # impermanence only ships nixosModules and declares no nixpkgs input,
+    # so there is no nixpkgs for it to follow.
     impermanence.url = "github:nix-community/impermanence";
-    spicetify-nix.url = "github:Gerg-L/spicetify-nix";
+    spicetify-nix = {
+      url = "github:Gerg-L/spicetify-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     den.url = "github:denful/den/v0.17.0";
-    hermes-agent.url = "github:NousResearch/hermes-agent";
+    hermes-agent = {
+      # pinned to a tagged release instead of the moving main branch
+      url = "github:NousResearch/hermes-agent/v2026.6.5";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    notion-sync = {
+      url = "github:feltfomo/notion-sync/v0.3.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -37,14 +60,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     noctalia = {
-      # v5 branch, nixpkgs follows omitted to keep the binary cache
-      url = "github:noctalia-dev/noctalia-shell/v5";
+      url = "github:noctalia-dev/noctalia";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     lix = {
+      # tracks Lix HEAD; exact commit is pinned in flake.lock
       url = "https://git.lix.systems/lix-project/lix/archive/main.tar.gz";
       flake = false;
     };
@@ -55,6 +79,7 @@
     };
     walker = {
       url = "github:abenz1267/walker";
+      inputs.nixpkgs.follows = "nixpkgs";
       inputs.elephant.follows = "elephant";
     };
     hjem = {
