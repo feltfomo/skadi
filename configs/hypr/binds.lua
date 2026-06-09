@@ -15,7 +15,7 @@ hl.bind(Mod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 hl.bind(Mod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 
 -- Noctalia Binds
-hl.bind(Mod .. " + C", hl.dsp.exec_cmd(NotcaliaShellClipper))
+hl.bind(Mod .. " + C", hl.dsp.exec_cmd(NoctaliaShellClipper))
 
 for dir, keys in pairs(Directions) do
 	-- focus
@@ -33,7 +33,7 @@ hl.bind(Mod .. " + SHIFT + l", hl.dsp.focus({ monitor = "DP-2" }))
 -- Log Out Bind
 hl.bind(
 	Mod .. " + M",
-	hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'")
+	hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit")
 )
 
 -- Switch workspaces with mainMod + [0-9]
