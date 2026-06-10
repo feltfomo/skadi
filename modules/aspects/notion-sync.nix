@@ -17,6 +17,18 @@
 
         logLevel = "info";
 
+        # push path: Notion -> Funnel (tailscale) -> this loopback listener, so
+        # remote edits land in seconds instead of waiting on the 45s poll. the
+        # poller stays on as the fallback for missed deliveries. funnel terminates
+        # TLS and forwards to 127.0.0.1:8080, so the listener defaults already
+        # match -- just flip it on. the signing secret isn't set here: Notion posts
+        # its verification_token on first connect and the daemon persists it under
+        # ~/.local/state/notion-sync/webhook_secret (user service, so that's writable).
+        settings.webhook = {
+          enabled = true;
+          port = 8080;
+        };
+
         # declarative config -- the module renders this to a store-side config.toml
         # and passes it via --config. NO secrets land here (the token only ever
         # comes from environmentFile above), so a world-readable store path is fine.
@@ -39,7 +51,7 @@
             name = "multiloader-template";
             local_root = "/home/feltfomo/Projects/multiloader-template";
             parent_page_id = "37af23c5af9580d7a823f972170f2a5b";
-            ignore = [ ".git" "build" ".gradle" ".kotlin" ".idea" "result" "result-*" "node_modules" "run" "*.salive" ".notion-sync" ];
+            ignore = [ ".git" "build" ".gradle" ".kotlin" ".pkl-generated" ".idea" "result" "result-*" "node_modules" "run" "*.salive" ".notion-sync" ];
           }
         ];
       };
