@@ -14,6 +14,7 @@
       den.aspects.hermes
       den.aspects.notion-sync
       den.aspects.steam
+      den.aspects.tailscale
       den.aspects.wayland
     ];
 
