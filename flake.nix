@@ -48,7 +48,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     notion-sync = {
-      url = "github:feltfomo/notion-sync/v0.3.0";
+      url = "github:feltfomo/notion-sync/v0.5.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     treefmt-nix = {
