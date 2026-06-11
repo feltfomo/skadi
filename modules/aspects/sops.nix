@@ -10,7 +10,10 @@
         age.sshKeyPaths = [ "/persist/etc/ssh/ssh_host_ed25519_key" ];
         secrets = {
           "feltfomo-password".neededForUsers = true;
-          "notion-token" = { owner = "feltfomo"; mode = "0400"; };
+          "notion-token" = {
+            owner = "feltfomo";
+            mode = "0400";
+          };
           "hermes-secrets" = { };
         };
       };

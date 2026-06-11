@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # tailscale's here for Funnel: it puts notion-sync's localhost webhook
   # listener on a stable *.ts.net name so Notion stops pausing the subscription
   # every time an ephemeral tunnel url churns. funnel itself isn't a nix option,

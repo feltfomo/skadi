@@ -31,6 +31,42 @@ _: {
       # sudo needs a password
       security.sudo.wheelNeedsPassword = true;
 
+      # audio. pipewire replaces pulseaudio; the pulse shim is what provides
+      # pactl, which the steam runtime shells out to -- without it steam logged
+      # "pactl: command not found" and skipped audio device setup.
+      services.pulseaudio.enable = false;
+      security.rtkit.enable = true;
+      services.pipewire = {
+        enable = true;
+        alsa.enable = true;
+        alsa.support32Bit = true;
+        pulse.enable = true;
+      };
+
+      # bluetooth. /var/lib/bluetooth is already in the impermanence persist
+      # list, so pairings were meant to survive the rollback -- but the radio
+      # itself was never turned on. blueman is the manager for the hyprland
+      # session; gnome brings its own.
+      hardware.bluetooth = {
+        enable = true;
+        powerOnBoot = true;
+      };
+      services.blueman.enable = true;
+
+      # weekly trim for the luks+btrfs ssd root
+      services.fstrim.enable = true;
+
+      # base fonts: noto for broad coverage + color emoji, a nerd font for the
+      # ricing glyphs (eza, fastfetch, noctalia), liberation for office docs.
+      fonts.packages = with pkgs; [
+        noto-fonts
+        noto-fonts-cjk-sans
+        noto-fonts-color-emoji
+        liberation_ttf
+        nerd-fonts.jetbrains-mono
+        nerd-fonts.symbols-only
+      ];
+
       services.openssh = {
         enable = true;
         settings = {
@@ -66,6 +102,9 @@ _: {
         xclip
         ffmpeg
         cliphist
+        # pactl: pipewire ships the pulse server, not the cli, and the steam
+        # runtime shells out to pactl
+        pulseaudio
         grub2_efi
         efibootmgr
         gsettings-desktop-schemas
