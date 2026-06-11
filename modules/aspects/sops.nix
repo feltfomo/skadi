@@ -7,7 +7,7 @@
       sops = {
         defaultSopsFile = ../../secrets/secrets.yaml;
         validateSopsFiles = false;
-        age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+        age.sshKeyPaths = [ "/persist/etc/ssh/ssh_host_ed25519_key" ];
         secrets = {
           "feltfomo-password".neededForUsers = true;
           "notion-token" = { owner = "feltfomo"; mode = "0400"; };
