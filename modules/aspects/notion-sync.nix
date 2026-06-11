@@ -45,13 +45,13 @@
             name = "skadi";
             local_root = "/etc/skadi";
             parent_page_id = "37af23c5af95803ba445d8dc595ac03b";
-            ignore = [ ".git" "result" "node_modules" "*.lock" ".direnv" "assets" ".notion-sync" ];
+            ignore = [ ".git" "result" "node_modules" "*.lock" ".direnv" "assets" "secrets" ".notion-sync" ];
           }
           {
             name = "multiloader-template";
             local_root = "/home/feltfomo/Projects/multiloader-template";
             parent_page_id = "37af23c5af9580d7a823f972170f2a5b";
-            ignore = [ ".git" "build" ".gradle" ".kotlin" ".pkl-generated" ".idea" "result" "result-*" "node_modules" "run" "*.salive" ".notion-sync" ];
+            ignore = [ ".git" "build" ".gradle" ".kotlin" ".pkl-generated" "generated" ".idea" "result" "result-*" "node_modules" "run" "*.salive" ".notion-sync" ];
           }
         ];
       };
