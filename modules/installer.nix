@@ -17,17 +17,27 @@
       # just the Nix impl, no base/home-manager/desktop.
       inputs.lix-module.nixosModules.default
       (
-        { pkgs, lib, ... }:
+        { pkgs, lib, config, ... }:
         let
           # match the disko CLI to the disko module the fleet configs use,
           # so `disko --mode ... --flake` agrees with the host's disko.devices.
-          disko = inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko;
+          # Rebuilt against Lix (config.nix.package): the fleet's flake.lock is
+          # Lix-dialect, but disko's wrapper otherwise bundles the CppNix from
+          # nixpkgs, so `disko --flake` evaluates the lock with CppNix and dies
+          # on "mismatch in field 'url'". The system Lix reads the lock fine
+          # (verified with `nix flake metadata`), so point disko at it too.
+          disko = (inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko).override {
+            nix = config.nix.package;
+          };
 
           # skadi-install lives in the repo (scripts/skadi-install.sh) and is
           # baked into the ISO as a first-class command.
           skadi-install = pkgs.writeShellApplication {
             name = "skadi-install";
             runtimeInputs = [
+              # Lix first so nixos-install (step 3) also evaluates the
+              # Lix-dialect lock with Lix, not a CppNix picked up from PATH.
+              config.nix.package
               disko
             ]
             ++ (with pkgs; [
