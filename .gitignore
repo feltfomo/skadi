@@ -1,3 +1,5 @@
 modules/users/grandpa.nix
 result
 *.qcow2
+*.fd
+ovmf

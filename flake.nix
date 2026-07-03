@@ -24,6 +24,10 @@
     # (nixpkgs #536292) reaches that branch; pull logseq from master meanwhile.
     # drop this input and revert feltfomo.nix once nixos-unstable has the fix.
     nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
+    # stable pin for the reinstall ISO only (nixosConfigurations.installer),
+    # independent of the unstable channel the fleet tracks so the installer
+    # stays reproducible while the main config churns.
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
     hyprland = {
       url = "github:hyprwm/Hyprland";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -18,6 +18,9 @@
       den.aspects.walker
       den.aspects.firefox
       den.aspects.qt-hm
+
+      # first-boot: clone wallpaper + notion-sync mapping repos if missing
+      den.aspects.bootstrap-repos
     ];
 
     # define-user makes a normal user and sets the home dir,
