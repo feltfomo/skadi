@@ -788,16 +788,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1781063412,
-        "narHash": "sha256-RBVeCrhV8TDX9Qbqth2DCSiivpRJdD8gzO8d06WWqjU=",
+        "lastModified": 1783108786,
+        "narHash": "sha256-kcowOXVlY0p3kINovHFU6vEfK4XAUfQuhgisnQyGTJs=",
         "owner": "feltfomo",
         "repo": "notion-sync",
-        "rev": "3bcceb7b13ca235df90c71a135dc7311045280f2",
+        "rev": "ae50c28438c23801d1b4918ac6fe5edafa9086c2",
         "type": "github"
       },
       "original": {
         "owner": "feltfomo",
-        "ref": "v0.5.0",
         "repo": "notion-sync",
         "type": "github"
       }

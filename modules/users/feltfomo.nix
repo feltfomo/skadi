@@ -91,6 +91,22 @@
           };
         };
 
+        # ssh client: a user-service agent auto-loads the key so git pushes work
+        # after a fresh boot with no manual ssh-add. the key lives in ~/.ssh
+        # (persisted above); this only wires the agent and points github at it.
+        services.ssh-agent.enable = true;
+        programs.ssh = {
+          enable = true;
+          enableDefaultConfig = false;
+          settings = {
+            "*".AddKeysToAgent = "yes";
+            "github.com" = {
+              IdentityFile = "~/.ssh/id_ed25519";
+              IdentitiesOnly = true;
+            };
+          };
+        };
+
         home.packages = with pkgs; [
           vlc
           grim
