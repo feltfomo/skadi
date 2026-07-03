@@ -80,6 +80,10 @@ _: {
       # host-agnostic kernel watchdog disable (previously misfiled under gpu-nvidia)
       boot.kernelParams = [ "nowatchdog" ];
 
+      # make /etc/skadi user-editable without sudo (Zed "Permission denied" on save).
+      # Z recursively re-owns on every activation, self-healing after a root-cp install.
+      systemd.tmpfiles.rules = [ "Z /etc/skadi - feltfomo feltfomo - -" ];
+
       boot.loader = {
         grub = {
           enable = true;

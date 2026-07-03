@@ -70,6 +70,17 @@
 
     homeManager =
       { pkgs, ... }:
+      let
+        # logseq's buildPhase hangs on nixos-unstable until nixpkgs #536292 lands
+        # there; pull it from master (which has the fix) meanwhile.
+        logseqPkgs = import inputs.nixpkgs-logseq {
+          system = pkgs.stdenv.hostPlatform.system;
+          config = {
+            allowUnfree = true;
+            allowInsecurePredicate = p: builtins.elem (pkgs.lib.getName p) [ "electron" ];
+          };
+        };
+      in
       {
         # git identity
         programs.git = {
@@ -89,7 +100,7 @@
           heroic
           gifski
           zenity
-          logseq
+          logseqPkgs.logseq
           python3
           equibop
           gamemode

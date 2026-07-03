@@ -8,7 +8,9 @@
     { pkgs, ... }:
     let
       spicePkgs = inputs.spicetify-nix.legacyPackages.${pkgs.stdenv.hostPlatform.system};
-      lucid = pkgs.callPackage "${rootPath}/modules/_pkgs/lucid.nix" { };
+      lucid = pkgs.callPackage "${rootPath}/modules/_pkgs/lucid.nix" {
+        src = inputs.spicetify-lucid;
+      };
     in
     {
       imports = [ inputs.spicetify-nix.homeManagerModules.default ];

@@ -1,14 +1,13 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  src,
+  ...
+}:
 pkgs.buildNpmPackage {
   pname = "spicetify-lucid";
   version = "unstable-2026-05-26";
 
-  src = pkgs.fetchFromGitLab {
-    owner = "sanoojes";
-    repo = "spicetify-lucid";
-    rev = "main";
-    hash = "sha256-B/gAm4wd520OZMyimj8Bes4UxYcZ/++100a+R4T7a1M=";
-  };
+  inherit src;
 
   npmDepsHash = "sha256-ooG9SInExQudTJd5ey7hw7JBd2RI8lZzypiOa7HszZw=";
 

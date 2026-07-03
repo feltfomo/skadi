@@ -20,6 +20,10 @@
   # flake inputs
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # temporary: logseq's buildPhase hangs on nixos-unstable until the yauzl fix
+    # (nixpkgs #536292) reaches that branch; pull logseq from master meanwhile.
+    # drop this input and revert feltfomo.nix once nixos-unstable has the fix.
+    nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
     hyprland = {
       url = "github:hyprwm/Hyprland";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -36,6 +40,10 @@
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+    spicetify-lucid = {
+      url = "gitlab:sanoojes/spicetify-lucid?ref=main";
+      flake = false;
     };
     den.url = "github:denful/den/v0.17.0";
     hermes-agent = {
