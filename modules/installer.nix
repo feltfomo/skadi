@@ -10,6 +10,12 @@
     system = "x86_64-linux";
     modules = [
       (inputs.nixpkgs-stable + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
+      # Lix, matching the fleet. flake.lock is written by Lix, so the ISO's
+      # nix/disko/nixos-install must also be Lix -- otherwise getFlake rejects
+      # the lock ("mismatch in field 'url'" on the git.lix.systems tarball
+      # inputs, which carry Lix's __final/?rev= dialect). Stays thin otherwise:
+      # just the Nix impl, no base/home-manager/desktop.
+      inputs.lix-module.nixosModules.default
       (
         { pkgs, lib, ... }:
         let
