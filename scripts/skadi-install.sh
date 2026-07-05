@@ -38,6 +38,21 @@ nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
+# 0b. read this host's installer tunables as data (one narrow eval -- never the
+#     whole config, so it can't touch a package src / trip gitTracked). every
+#     value defaults in modules/aspects/installer-tunables.nix to the literal it
+#     replaces, so behavior is identical to the old hardcoded script.
+log "reading installer tunables from ${HOST} config"
+TUNABLES="$(nix eval --json "${WORK}#nixosConfigurations.${HOST}.config.skadi.installer")"
+SWAP_SIZE_GIB=$(jq -r '.swapSizeGiB'                <<<"$TUNABLES")
+LOW_RAM_THRESHOLD_GIB=$(jq -r '.lowRamThresholdGiB' <<<"$TUNABLES")
+MIN_FREE_GIB=$(jq -r '.minFreeGiB'                  <<<"$TUNABLES")
+MAX_FREE_GIB=$(jq -r '.maxFreeGiB'                  <<<"$TUNABLES")
+DISK_FLOOR_GIB=$(jq -r '.diskFloorGiB'              <<<"$TUNABLES")
+DISK_WARN_GIB=$(jq -r '.diskWarnGiB'                <<<"$TUNABLES")
+MAX_JOBS=$(jq -r '.maxJobs'                         <<<"$TUNABLES")
+CORES=$(jq -r '.cores'                              <<<"$TUNABLES")
+
 # 1. disko: destroy + format + mount at /mnt.
 #    (older disko: swap the mode for `--mode disko`.)
 lsblk
@@ -67,15 +82,15 @@ teardown() {
 }
 trap teardown EXIT
 mem_gib=$(( $(awk '/MemTotal/{print $2}' /proc/meminfo) / 1024 / 1024 ))
-if [ "$mem_gib" -lt 16 ]; then
-  log "low RAM (${mem_gib}G): adding temporary 8G build swap at $SWAPFILE"
-  btrfs filesystem mkswapfile --size 8g "$SWAPFILE" 2>/dev/null || {
+if [ "$mem_gib" -lt "$LOW_RAM_THRESHOLD_GIB" ]; then
+  log "low RAM (${mem_gib}G): adding temporary ${SWAP_SIZE_GIB}G build swap at $SWAPFILE"
+  btrfs filesystem mkswapfile --size "${SWAP_SIZE_GIB}g" "$SWAPFILE" 2>/dev/null || {
     truncate -s 0 "$SWAPFILE"; chattr +C "$SWAPFILE" 2>/dev/null || true
-    fallocate -l 8G "$SWAPFILE"; chmod 600 "$SWAPFILE"; mkswap "$SWAPFILE"
+    fallocate -l "${SWAP_SIZE_GIB}G" "$SWAPFILE"; chmod 600 "$SWAPFILE"; mkswap "$SWAPFILE"
   }
   swapon "$SWAPFILE"
 else
-  log "RAM ${mem_gib}G >= 16G: skipping build swap"
+  log "RAM ${mem_gib}G >= ${LOW_RAM_THRESHOLD_GIB}G: skipping build swap"
 fi
 
 # 1c. relocate the Nix store's writable layer onto the target DISK.
@@ -249,14 +264,14 @@ cp -a "$WORK" "$MNT/persist/etc/skadi"
 #   * preflight: fail fast BEFORE the long build if the disk clearly can't hold it.
 #   * min/max-free: nix GCs unneeded store paths mid-build when space gets tight.
 avail_gib=$(( $(df -B1 --output=avail "$MNT" | tail -1) / 1024 / 1024 / 1024 ))
-if [ "$avail_gib" -lt 30 ]; then
-  die "only ${avail_gib}G free on $MNT -- too small for the system closure (30G floor)."
-elif [ "$avail_gib" -lt 80 ]; then
+if [ "$avail_gib" -lt "$DISK_FLOOR_GIB" ]; then
+  die "only ${avail_gib}G free on $MNT -- too small for the system closure (${DISK_FLOOR_GIB}G floor)."
+elif [ "$avail_gib" -lt "$DISK_WARN_GIB" ]; then
   warn "only ${avail_gib}G free on $MNT -- ok for a cached install, tight for a COLD from-source build."
 fi
 log "disk preflight: ${avail_gib}G free on $MNT"
-MIN_FREE=$((5 * 1024 * 1024 * 1024))    # 5 GiB: below this, nix GCs mid-build
-MAX_FREE=$((10 * 1024 * 1024 * 1024))   # 10 GiB: GC target ceiling
+MIN_FREE=$((MIN_FREE_GIB * 1024 * 1024 * 1024))    # below this, nix GCs mid-build
+MAX_FREE=$((MAX_FREE_GIB * 1024 * 1024 * 1024))    # GC target ceiling
 
 log "building system closure for $HOST onto the target disk (RAM-lean, cached)"
 # --max-jobs 1: serialize derivations so only ONE big source build holds scratch
@@ -275,7 +290,7 @@ log "building system closure for $HOST onto the target disk (RAM-lean, cached)"
 #   of the root local-store build -- khion builds the identical drv fine as
 #   nixbld, so building its way avoids it with no root build needed.
 if ! SYS_PATH="$(nix build --no-link --print-out-paths \
-  --max-jobs 1 --cores 0 \
+  --max-jobs "$MAX_JOBS" --cores "$CORES" \
   --min-free "$MIN_FREE" --max-free "$MAX_FREE" \
   "${WORK}#nixosConfigurations.${HOST}.config.system.build.toplevel")"; then
   warn "system build FAILED -- disk / OOM post-mortem:"
