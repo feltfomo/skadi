@@ -16,7 +16,7 @@ jobs:
       # differently and aborts `nix flake check` with "mismatch in field 'url'
       # of input". Evaluating with Lix (the lock's owner) makes CI agree with
       # how the fleet is actually built. (Lix GHA installer: lix.systems/install)
-      - uses: samueldr/lix-gha-installer-action@main
+      - uses: samueldr/lix-gha-installer-action@v2026-06-15
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: flake check
         run: nix flake check --print-build-logs
