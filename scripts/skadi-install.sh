@@ -191,9 +191,15 @@ provision_secrets() {
       placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
       paste)
         read -r -p "paste $prompt: " raw
-        if [ -n "$raw" ]; then value=$(printf "$format" "$raw")
-        elif [ "$optional" = true ]; then value="$placeholder"
-        else die "$name is required"; fi ;;
+        if [ -n "$raw" ]; then
+          # shellcheck disable=SC2059  # $format is a trusted template like NOTION_TOKEN=%s
+          value=$(printf "$format" "$raw")
+        elif [ "$optional" = true ]; then
+          value="$placeholder"
+        else
+          die "$name is required"
+        fi
+        ;;
       *) die "unknown provision method '$method' for $name" ;;
     esac
     printf '%s: "%s"\n' "$name" "$value" >> secrets/secrets.yaml
