@@ -18,6 +18,15 @@ jobs:
       # how the fleet is actually built. (Lix GHA installer: lix.systems/install)
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
       - uses: DeterminateSystems/magic-nix-cache-action@main
+      # GitHub's ubuntu-latest (24.04) sets
+      # kernel.apparmor_restrict_unprivileged_userns=1, which blocks unprivileged
+      # user namespaces. Lix is built from source here (HEAD pin, uncached) and its
+      # functional2 suite spawns nested build sandboxes via `unshare`, which fail
+      # with "cannot change root filesystem propagation: Permission denied" and
+      # break the IFD golden-snapshot tests. Re-allow unprivileged userns so the
+      # nested sandbox works. (lix-project/lix#545)
+      - name: Allow unprivileged user namespaces
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: flake check
         run: nix flake check --print-build-logs
       - name: build khion
