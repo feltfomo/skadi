@@ -6,24 +6,19 @@
 # ISO-mode / Ventoy break the by-label device (see frictions log #1).
 { inputs, ... }:
 {
-  flake.nixosConfigurations.installer = inputs.nixpkgs-stable.lib.nixosSystem {
-    system = "x86_64-linux";
-    modules = [
-      (inputs.nixpkgs-stable + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
-      # Lix, matching the fleet. flake.lock is written by Lix, so the ISO's
-      # nix/disko/nixos-install must also be Lix -- otherwise getFlake rejects
-      # the lock ("mismatch in field 'url'" on the git.lix.systems tarball
-      # inputs, which carry Lix's __final/?rev= dialect). Stays thin otherwise:
-      # just the Nix impl, no base/home-manager/desktop.
-      inputs.lix-module.nixosModules.default
-      (
-        {
-          pkgs,
-          lib,
-          config,
-          ...
-        }:
-        let
+  # installer pins to stable 26.05 while the fleet tracks unstable: den's
+  # per-host `instantiate` is meant to be overridden for exactly this, keeping
+  # the ISO reproducible. output still lands at nixosConfigurations.installer.
+  den.hosts.x86_64-linux.installer.instantiate = inputs.nixpkgs-stable.lib.nixosSystem;
+
+  den.aspects.installer.nixos =
+    {
+      pkgs,
+      lib,
+      config,
+      ...
+    }:
+    let
           # match the disko CLI to the disko module the fleet configs use,
           # so `disko --mode ... --flake` agrees with the host's disko.devices.
           # Rebuilt against Lix (config.nix.package): the fleet's flake.lock is
@@ -61,6 +56,16 @@
           };
         in
         {
+          imports = [
+            (inputs.nixpkgs-stable + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
+            # Lix, matching the fleet. flake.lock is written by Lix, so the ISO's
+            # nix/disko/nixos-install must also be Lix -- otherwise getFlake rejects
+            # the lock ("mismatch in field 'url'" on the git.lix.systems tarball
+            # inputs, which carry Lix's __final/?rev= dialect). Stays thin otherwise:
+            # just the Nix impl, no base/home-manager/desktop.
+            inputs.lix-module.nixosModules.default
+          ];
+
           networking.hostName = "skadi-installer";
 
           # NetworkManager so `nmtui` works for the laptop; LAN is automatic.
@@ -178,9 +183,8 @@
           ]);
 
           # pin to the ISO's channel; unrelated to the fleet's stateVersion.
-          system.stateVersion = "26.05";
-        }
-      )
-    ];
-  };
+          # den.default pins the fleet to 25.11; the installer sets the ISO's own
+          # channel explicitly. mkForce because den.default already defines it.
+          system.stateVersion = lib.mkForce "26.05";
+        };
 }

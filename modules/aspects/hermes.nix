@@ -5,6 +5,14 @@
     {
       imports = [ inputs.hermes-agent.nixosModules.default ];
 
+      # bot tokens + nvidia build key secret and how the installer provisions it,
+      # owned here next to the service (moved out of the monolithic sops.nix)
+      sops.secrets."hermes-secrets" = { };
+      skadi.provision.secrets.hermes-secrets = {
+        method = "placeholder";
+        value = "GROQ_API_KEY=REPLACE_ME";
+      };
+
       services.hermes-agent = {
         enable = true;
         addToSystemPackages = true;

@@ -7,6 +7,7 @@
       den.aspects.impermanence
       den.aspects.graalvm-oracle-21
       den.aspects.sops
+      den.aspects.provision
     ];
 
     nixos = {

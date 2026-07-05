@@ -5,6 +5,21 @@
     {
       imports = [ inputs.notion-sync.nixosModules.notion-sync ];
 
+      # the token secret + how the installer provisions it, owned here next to
+      # the service that consumes it (moved out of the monolithic sops.nix).
+      # optional: a blank paste falls back to the REPLACE_ME placeholder.
+      sops.secrets."notion-token" = {
+        owner = "feltfomo";
+        mode = "0400";
+      };
+      skadi.provision.secrets.notion-token = {
+        method = "paste";
+        prompt = "NOTION_TOKEN (ntn_…) — blank for placeholder";
+        format = "NOTION_TOKEN=%s";
+        optional = true;
+        placeholder = "NOTION_TOKEN=REPLACE_ME";
+      };
+
       environment.systemPackages = [ config.services.notion-sync.package ];
 
       services.notion-sync = {

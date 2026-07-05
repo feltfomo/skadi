@@ -31,7 +31,12 @@ rm -rf "$WORK"
 log "cloning skadi from $SKADI_REMOTE"
 git clone "$SKADI_REMOTE" "$WORK"
 cd "$WORK"
+# cheap pre-check, then the authoritative den-aware check: the host must actually
+# resolve to a nixosConfigurations.<host>, not merely have a file by that name.
 test -f "modules/hosts/${HOST}.nix" || die "unknown host '$HOST' (no modules/hosts/${HOST}.nix)"
+nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
+  | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
+  || die "unknown host '$HOST' (not in nixosConfigurations)"
 
 # 1. disko: destroy + format + mount at /mnt.
 #    (older disko: swap the mode for `--mode disko`.)
@@ -164,22 +169,41 @@ creation_rules:
     age: $AGE_RECIP
 EOF
 
-# 3. provision secrets: password hash (mkpasswd) + token + placeholders.
-log "set the login password for feltfomo"
-PW_HASH="$(mkpasswd -m sha-512)"
-NOTION_LINE="NOTION_TOKEN=REPLACE_ME"
-read -r -p "paste NOTION_TOKEN (ntn_...) or leave blank for placeholder: " ntn
-[ -n "$ntn" ] && NOTION_LINE="NOTION_TOKEN=$ntn"
+# 3. provision secrets: derive the set + how to fill each one from the host
+#    config, then write + encrypt secrets/secrets.yaml. replaces the old
+#    hand-written per-user block -- adding a user or a secret-bearing aspect
+#    teaches this loop automatically, no edit here. eval a NARROW attr
+#    (skadi.provision.secrets), never the whole config, so it never touches a
+#    package src and can't trip Hyprland's gitTracked.
+provision_secrets() {
+  local host="$1" plan name method prompt format optional placeholder value raw
+  plan="$(nix eval --json "${WORK}#nixosConfigurations.${host}.config.skadi.provision.secrets")"
+  install -d -m0755 secrets
+  : > secrets/secrets.yaml
+  for name in $(jq -r 'keys[]' <<<"$plan"); do
+    method=$(jq -r --arg n "$name" '.[$n].method'           <<<"$plan")
+    prompt=$(jq -r --arg n "$name" '.[$n].prompt'           <<<"$plan")
+    format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
+    optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
+    placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
+    case "$method" in
+      mkpasswd)    log "set the $name"; value=$(mkpasswd -m sha-512) ;;
+      placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
+      paste)
+        read -r -p "paste $prompt: " raw
+        if [ -n "$raw" ]; then value=$(printf "$format" "$raw")
+        elif [ "$optional" = true ]; then value="$placeholder"
+        else die "$name is required"; fi ;;
+      *) die "unknown provision method '$method' for $name" ;;
+    esac
+    printf '%s: "%s"\n' "$name" "$value" >> secrets/secrets.yaml
+  done
+  log "encrypting secrets/secrets.yaml to $AGE_RECIP"
+  sops --encrypt --in-place secrets/secrets.yaml
+  git add -A .sops.yaml secrets/secrets.yaml
+}
 
-install -d -m0755 secrets
-cat > secrets/secrets.yaml <<EOF
-feltfomo-password: "$PW_HASH"
-notion-token: "$NOTION_LINE"
-hermes-secrets: "GROQ_API_KEY=REPLACE_ME"
-EOF
-log "encrypting secrets/secrets.yaml to $AGE_RECIP"
-sops --encrypt --in-place secrets/secrets.yaml
-git add -A .sops.yaml secrets/secrets.yaml
+provision_secrets "$HOST"
 
 # 4. copy flake to /persist/etc/skadi (impermanence-persisted) and install.
 install -d -m0755 "$MNT/persist/etc"

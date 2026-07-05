@@ -28,6 +28,14 @@
     nixos =
       { pkgs, config, ... }:
       {
+        # the login password + how the installer provisions it, owned here next
+        # to the user that needs it (moved out of the monolithic sops.nix)
+        sops.secrets."feltfomo-password".neededForUsers = true;
+        skadi.provision.secrets.feltfomo-password = {
+          method = "mkpasswd";
+          prompt = "login password for feltfomo";
+        };
+
         # logseq pulls an eol electron
         nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
 
@@ -65,6 +73,10 @@
           "Music"
           ".config"
           ".local"
+          # ~/.steam holds the symlinks steam rebuilds each launch; ~/.local
+          # persists the install. persist only one and they drift out of sync
+          # after a wipe -> "Couldn't set up Steam data". keep both.
+          ".steam"
           ".ssh"
           # notion-sync dirs
           "Projects"
