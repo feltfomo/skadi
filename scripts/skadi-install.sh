@@ -57,7 +57,13 @@ CORES=$(jq -r '.cores'                              <<<"$TUNABLES")
 #    (older disko: swap the mode for `--mode disko`.)
 lsblk
 warn "about to DESTROY and repartition the disk in modules/hosts/_${HOST}/disko.nix"
-read -r -p "type '$HOST' to confirm: " confirm
+if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
+  # unattended: the harness has already committed to destroying this disk.
+  log "unattended: auto-confirming disk destroy for '$HOST'"
+  confirm="$HOST"
+else
+  read -r -p "type '$HOST' to confirm: " confirm
+fi
 [ "$confirm" = "$HOST" ] || die "aborted"
 log "running disko (destroy,format,mount)"
 disko --mode destroy,format,mount --flake ".#${HOST}"
@@ -191,7 +197,7 @@ EOF
 #    (skadi.provision.secrets), never the whole config, so it never touches a
 #    package src and can't trip Hyprland's gitTracked.
 provision_secrets() {
-  local host="$1" plan name method prompt format optional placeholder value raw
+  local host="$1" plan name method prompt format optional placeholder value raw envvar
   plan="$(nix eval --json "${WORK}#nixosConfigurations.${host}.config.skadi.provision.secrets")"
   install -d -m0755 secrets
   : > secrets/secrets.yaml
@@ -201,11 +207,26 @@ provision_secrets() {
     format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
     optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
     placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
+    # unattended (SKADI_INSTALL_UNATTENDED=1): each secret <name> is supplied via
+    # env SKADI_SECRET_<NAME> (name uppercased, '-' -> '_'). mkpasswd expects the
+    # final sha-512 hash; paste expects the raw token (its format is still applied).
+    envvar="SKADI_SECRET_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
     case "$method" in
-      mkpasswd)    log "set the $name"; value=$(mkpasswd -m sha-512) ;;
+      mkpasswd)
+        if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
+          value="${!envvar:-}"
+          [ -n "$value" ] || die "$name is required (set $envvar to a sha-512 hash)"
+        else
+          log "set the $name"; value=$(mkpasswd -m sha-512)
+        fi
+        ;;
       placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
       paste)
-        read -r -p "paste $prompt: " raw
+        if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
+          raw="${!envvar:-}"
+        else
+          read -r -p "paste $prompt: " raw
+        fi
         if [ -n "$raw" ]; then
           # shellcheck disable=SC2059  # $format is a trusted template like NOTION_TOKEN=%s
           value=$(printf "$format" "$raw")

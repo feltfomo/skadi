@@ -1,5 +1,8 @@
 modules/users/grandpa.nix
 result
+result-*
 *.qcow2
+*.iso
+*.img
 *.fd
 ovmf*
