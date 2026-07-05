@@ -7,9 +7,14 @@ _: {
     { pkgs, lib, ... }:
     let
       repos = {
-        "Projects/notion-sync" = "https://github.com/feltfomo/notion-sync";
-        "Projects/multiloader-template" = "https://github.com/feltfomo/multiloader-template";
-        "Wallpapers" = "https://github.com/feltfomo/Wallpapers";
+        "Projects/notion-sync".url = "https://github.com/feltfomo/notion-sync";
+        "Projects/multiloader-template".url = "https://github.com/feltfomo/multiloader-template";
+        # This repo wraps its images in an inner Wallpapers/ dir; promote that
+        # subdir so they land flat at ~/Wallpapers, not ~/Wallpapers/Wallpapers.
+        "Wallpapers" = {
+          url = "https://github.com/feltfomo/Wallpapers";
+          subdir = "Wallpapers";
+        };
       };
       bootstrap = pkgs.writeShellApplication {
         name = "bootstrap-repos";
@@ -18,24 +23,57 @@ _: {
           pkgs.openssh
         ];
         text = lib.concatStringsSep "\n" (
-          lib.mapAttrsToList (rel: url: ''
-            dest="$HOME/${rel}"
-            if [ ! -e "$dest/.git" ]; then
-              mkdir -p "$(dirname "$dest")"
-              # user services can't reliably wait on the system network-online
-              # target (and feltfomo lingers), so retry instead of failing early.
-              for attempt in $(seq 1 30); do
-                echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
-                if git clone "${url}" "$dest"; then
-                  break
+          lib.mapAttrsToList (
+            rel: spec:
+            let
+              inherit (spec) url;
+              subdir = spec.subdir or null;
+            in
+            if subdir == null then
+              ''
+                dest="$HOME/${rel}"
+                if [ ! -e "$dest/.git" ]; then
+                  mkdir -p "$(dirname "$dest")"
+                  # user services can't reliably wait on the system network-online
+                  # target (and feltfomo lingers), so retry instead of failing early.
+                  for attempt in $(seq 1 30); do
+                    echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
+                    if git clone "${url}" "$dest"; then
+                      break
+                    fi
+                    echo "bootstrap-repos: clone failed, retrying in 10s"
+                    rm -rf "$dest"
+                    sleep 10
+                  done
+                  [ -e "$dest/.git" ] || echo "bootstrap-repos: WARN gave up on ${url}"
                 fi
-                echo "bootstrap-repos: clone failed, retrying in 10s"
-                rm -rf "$dest"
-                sleep 10
-              done
-              [ -e "$dest/.git" ] || echo "bootstrap-repos: WARN gave up on ${url}"
-            fi
-          '') repos
+              ''
+            else
+              ''
+                dest="$HOME/${rel}"
+                # ${url} nests its content under ${subdir}/; promote that subdir so
+                # files land flat at $dest. The flattened tree keeps no top-level
+                # .git, so non-emptiness is the "already cloned" sentinel.
+                if [ -z "$(ls -A "$dest" 2>/dev/null || true)" ]; then
+                  mkdir -p "$(dirname "$dest")"
+                  for attempt in $(seq 1 30); do
+                    echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
+                    tmp="$(mktemp -d)"
+                    if git clone --depth 1 "${url}" "$tmp/repo" && [ -d "$tmp/repo/${subdir}" ]; then
+                      rm -rf "$dest"
+                      mkdir -p "$(dirname "$dest")"
+                      mv "$tmp/repo/${subdir}" "$dest"
+                      rm -rf "$tmp"
+                      break
+                    fi
+                    echo "bootstrap-repos: clone failed, retrying in 10s"
+                    rm -rf "$tmp" "$dest"
+                    sleep 10
+                  done
+                  [ -n "$(ls -A "$dest" 2>/dev/null || true)" ] || echo "bootstrap-repos: WARN gave up on ${url}"
+                fi
+              ''
+          ) repos
         );
       };
     in
