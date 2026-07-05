@@ -26,7 +26,7 @@ if [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
   die "this looks like a booted skadi system, not the ISO -- refusing to repartition."
 fi
 
-# 0. clone the flake we install from (writable tree with .git for notion-sync).
+# clone the flake we install from (writable tree with .git for notion-sync).
 rm -rf "$WORK"
 log "cloning skadi from $SKADI_REMOTE"
 git clone "$SKADI_REMOTE" "$WORK"
@@ -38,7 +38,7 @@ nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
-# 0b. read this host's installer tunables as data (one narrow eval -- never the
+# read this host's installer tunables as data (one narrow eval, never the
 #     whole config, so it can't touch a package src / trip gitTracked). every
 #     value defaults in modules/aspects/installer-tunables.nix to the literal it
 #     replaces, so behavior is identical to the old hardcoded script.
@@ -53,7 +53,7 @@ DISK_WARN_GIB=$(jq -r '.diskWarnGiB'                <<<"$TUNABLES")
 MAX_JOBS=$(jq -r '.maxJobs'                         <<<"$TUNABLES")
 CORES=$(jq -r '.cores'                              <<<"$TUNABLES")
 
-# 1. disko: destroy + format + mount at /mnt.
+# disko: destroy + format + mount at /mnt.
 #    (older disko: swap the mode for `--mode disko`.)
 lsblk
 warn "about to DESTROY and repartition the disk in modules/hosts/_${HOST}/disko.nix"
@@ -68,7 +68,7 @@ fi
 log "running disko (destroy,format,mount)"
 disko --mode destroy,format,mount --flake ".#${HOST}"
 
-# 1b. temporary build swap: guaranteed headroom so a from-source compile can never
+# temporary build swap: guaranteed headroom so a from-source compile can never
 #     OOM-kill the install on a lean-RAM box. Lix (deliberately uncached -- the
 #     disk canary) and the first-party notion-sync daemon always build from source
 #     here; on 8-16 GB that needs swap to survive. Placed on the target
@@ -99,7 +99,7 @@ else
   log "RAM ${mem_gib}G >= ${LOW_RAM_THRESHOLD_GIB}G: skipping build swap"
 fi
 
-# 1c. relocate the Nix store's writable layer onto the target DISK.
+# relocate the Nix store's writable layer onto the target DISK.
 #     The installer ISO mounts /nix/store as an overlay whose upper/work live on
 #     a RAM-backed tmpfs (/nix/.rw-store; see nixpkgs iso-image.nix). That RAM
 #     ceiling -- NOT the disk -- is what OOMs a cold from-source build. We stack
@@ -123,7 +123,7 @@ fi
 #     cross-store copy, gitTracked stays git-aware). NOTE: non-diverted is NOT
 #     what fixes the logseq `EACCES ... unlink esbuild_*.tgz` -- that turned out
 #     to be a build-user privilege artifact of the old root local-store build;
-#     building like khion (daemon + nixbld + sandbox, section 4) avoids it, no
+#     building like khion (daemon + nixbld + sandbox) avoids it, no
 #     root build needed. This overlay's only job is to move
 #     the writable store off the RAM tmpfs onto disk so a cold from-source build
 #     can't OOM the ISO's RAM ceiling (verified: hello built from source, output
@@ -141,7 +141,7 @@ chmod 1775 "$STORE_RW/store"
 # that tmpfs layer from the overlay's lowerdir (it poisons root chown), so its
 # contents must be migrated into our disk-backed upper FIRST. Otherwise those
 # paths vanish from /nix/store while the DB still lists them as valid, so the
-# section-4 `nix build` skips re-copying the flake source and dies with
+# the later `nix build` skips re-copying the flake source and dies with
 # "getting status of '/nix/store/<hash>-source/flake.nix': No such file or
 # directory". Store writes are pure additions (no overlay whiteouts), so a plain
 # cp -a of the delta into our upper is safe.
@@ -162,7 +162,7 @@ STORE_RELOCATED=1
 # their scratch and outputs on the target disk, sandboxed, as stock nixbld users.
 systemctl restart nix-daemon
 
-# 1d. daemon build scratch on the target disk. build-dir=/mnt/nix-build-tmp is
+# daemon build scratch on the target disk. build-dir=/mnt/nix-build-tmp is
 #     baked into installer.nix; the daemon createDirs() it on first build, but
 #     make it here too so it's unambiguous. NOTE: the client TMPDIR does NOT
 #     reach the daemon builder (startBuilder unpacks into settings.build-dir), so
@@ -172,7 +172,7 @@ systemctl restart nix-daemon
 mkdir -p "$MNT/nix-build-tmp"
 log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 
-# 2. host keys -> /persist, derive age recipient, rewrite .sops.yaml.
+# host keys -> /persist, derive age recipient, rewrite .sops.yaml.
 install -d -m0755 "$MNT/persist/etc/ssh"
 log "generating host SSH keys into /persist/etc/ssh"
 ssh-keygen -t ed25519 -N "" -C "root@${HOST}" -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key"
@@ -190,7 +190,7 @@ creation_rules:
     age: $AGE_RECIP
 EOF
 
-# 3. provision secrets: derive the set + how to fill each one from the host
+# provision secrets: derive the set + how to fill each one from the host
 #    config, then write + encrypt secrets/secrets.yaml. replaces the old
 #    hand-written per-user block -- adding a user or a secret-bearing aspect
 #    teaches this loop automatically, no edit here. eval a NARROW attr
@@ -247,7 +247,7 @@ provision_secrets() {
 
 provision_secrets "$HOST"
 
-# 4. copy flake to /persist/etc/skadi (impermanence-persisted) and install.
+# copy flake to /persist/etc/skadi (impermanence-persisted) and install.
 install -d -m0755 "$MNT/persist/etc"
 rm -rf "$MNT/persist/etc/skadi"
 cp -a "$WORK" "$MNT/persist/etc/skadi"
@@ -261,13 +261,13 @@ cp -a "$WORK" "$MNT/persist/etc/skadi"
 # so there is no gitTracked and no from-source Hyprland build.
 #
 # The build runs through the nix-daemon in the DEFAULT (non-diverted) store,
-# which section 1c relocated onto the target disk. Two things matter here:
+# which the store relocation above moved onto the target disk. Two things matter here:
 #   * NON-DIVERTED (note: NO `--store local`, NO `--store "local?root=/mnt"`):
 #     realStoreDir == storeDir, so build + eval share one store -- gitTracked
 #     stays git-aware and there's no unsigned cross-store copy. It also means
 #     Lix does NOT auto-enable the sandbox for a diverted store; ours is on
 #     because installer.nix asks for it.
-#   * DISK-BACKED (via the 1c overlay): OUTPUTS land on /mnt, not the ISO's RAM
+#   * DISK-BACKED (via the overlay above): OUTPUTS land on /mnt, not the ISO's RAM
 #     tmpfs, so a cold from-source build survives lean 8-16 GB machines. Build
 #     SCRATCH is handled separately by build-dir=/mnt/nix-build-tmp in
 #     installer.nix -- the daemon unpacks there, NOT under the client TMPDIR.
@@ -277,7 +277,7 @@ cp -a "$WORK" "$MNT/persist/etc/skadi"
 # target is the disk-pressure canary, so it builds from source every install --
 # that's the point. notion-sync and the rest of the fleet closure build from
 # source too; only third-party upstreams are fetched.
-# 4a. basic disk resilience (see roadmap "Disk-pressure resilience"). NO Lix
+# basic disk resilience. NO Lix
 #     cache on purpose -- Lix builds from source (its cargo target is the biggest
 #     disk hog and the ENOSPC canary), alongside notion-sync + the fleet closure,
 #     so the cold-build stress path stays fully exercised. Only base + the desktop
@@ -306,7 +306,7 @@ log "building system closure for $HOST onto the target disk (RAM-lean, cached)"
 #   exactly like khion: that's what gives FODs a real userns (pasta works, no
 #   "sandbox network setup timed out") and keeps builds pure (no /homeless-shelter
 #   carryover between derivations). Caches + build-dir + sandbox are baked into
-#   installer.nix; section 1c gives the daemon a writable on-disk store. The old
+#   installer.nix; the store relocation above gives the daemon a writable on-disk store. The old
 #   logseq `EACCES ... unlink esbuild_*.tgz` was a build-user privilege artifact
 #   of the root local-store build -- khion builds the identical drv fine as
 #   nixbld, so building its way avoids it with no root build needed.

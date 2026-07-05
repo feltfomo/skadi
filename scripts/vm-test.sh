@@ -1,29 +1,21 @@
 #!/usr/bin/env bash
-# vm-test -- one-command VM test harness for the skadi installer (Phase 2b).
+# Build the installer ISO, boot it in a throwaway localhost VM, optionally run
+# an unattended skadi-install, and confirm the result boots to a login prompt.
+# Everything lives under ~/.cache/skadi-vm; the repo tree is never touched.
 #
-# Reproduces "tonight's cold install" end to end on a disposable localhost VM:
-#   build installer ISO -> fresh qcow2 -> boot headless UEFI/OVMF QEMU
-#   -> (optional) drive an UNATTENDED cold-from-source `skadi-install <host>`
-#      over ssh -> grep the serial console for boot + login -> teardown.
+# The install runs cold on purpose. Lix and notion-sync are uncached, so this
+# exercises the real worst case (a from-source build on a small box), not a
+# cache-warm happy path.
 #
-# The permanent gate this exists to reproduce is COLD-FROM-SOURCE on 8 GB:
-# Lix (deliberately uncached), notion-sync, and the fleet closure all build
-# from source inside the VM. There is NO cache shortcut here, on purpose.
-#
-# Artifacts hygiene: EVERYTHING lives under ~/.cache/skadi-vm; nothing is ever
-# written into the repo tree. The ISO is built with -o <cache>/iso-result.
-#
-# `set -euo pipefail` and PATH (qemu, openssh, coreutils, grep) are injected by
-# writeShellApplication. OVMF_FD (the OVMF firmware store path) is exported by
-# modules/vm-test.nix, so this script never has to guess where OVMF lives. The
-# ISO build uses the CALLER's `nix` (Lix) from PATH -- never a bundled CppNix --
-# so the Lix-dialect flake.lock keeps evaluating cleanly and git-aware.
+# set -euo pipefail and PATH come from writeShellApplication. OVMF_FD comes from
+# the nix wrapper. The ISO build reuses the caller's Lix so the Lix-dialect
+# flake.lock still evaluates.
 
 CACHE="${SKADI_VM_CACHE:-$HOME/.cache/skadi-vm}"
 SSH_PORT=2222
 SSH_KEY="$CACHE/vm-test-key"
 
-# --- ssh helper subcommand: `nix run .#vm-test -- ssh [args...]` -------------
+# ssh subcommand: shell into the running VM
 if [ "${1:-}" = ssh ]; then
   shift
   exec ssh -i "$SSH_KEY" -p "$SSH_PORT" \
@@ -33,19 +25,17 @@ if [ "${1:-}" = ssh ]; then
     root@localhost "$@"
 fi
 
-# --- defaults (all overridable by flags) ------------------------------------
 HOST="vm"
-RAM="8192"           # MiB. MUST allow lower -- the 8 GB cold gate is the default.
+RAM="8192"           # MiB; keep it low, the small-RAM cold build is the point
 CORES="4"
 DISK="100G"
-FLAKE="$(pwd)"       # git-aware flake ref for the ISO build; override with --flake.
-KEEP=0               # keep the qcow2 after the run instead of deleting it
-RESET=0              # discard any existing qcow2 (+ OVMF vars) and start clean
-DO_INSTALL=1         # drive the unattended install; --no-install just boots the ISO
+FLAKE="$(pwd)"
+KEEP=0
+RESET=0
+DO_INSTALL=1
 
-# Throwaway feltfomo login hash, baked in on purpose: this VM is a disposable
-# localhost target with no network and only the NOTION_TOKEN *placeholder*, so
-# it guards nothing real. Plaintext is "skadi". Override via SKADI_FELTFOMO_PW_HASH.
+# The VM has no network and only a placeholder token, so this login hash guards
+# nothing. Plaintext is "skadi". Override with SKADI_FELTFOMO_PW_HASH.
 : "${SKADI_FELTFOMO_PW_HASH:=}"
 if [ -n "$SKADI_FELTFOMO_PW_HASH" ]; then
   PW_HASH="$SKADI_FELTFOMO_PW_HASH"
@@ -87,7 +77,6 @@ ssh_vm() {
     root@localhost "$@"
 }
 
-# --- parse flags ------------------------------------------------------------
 while [ $# -gt 0 ]; do
   case "$1" in
     --host)  HOST="$2"; shift 2 ;;
@@ -103,22 +92,20 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# --- preflight --------------------------------------------------------------
 command -v nix >/dev/null || die "no 'nix' on PATH -- run this via 'nix run .#vm-test'"
-[ -n "${OVMF_FD:-}" ] || die "OVMF_FD not set (it is exported by modules/vm-test.nix)"
+[ -n "${OVMF_FD:-}" ] || die "OVMF_FD not set (should come from the nix wrapper)"
 OVMF_CODE="$OVMF_FD/FV/OVMF_CODE.fd"
 OVMF_VARS_SRC="$OVMF_FD/FV/OVMF_VARS.fd"
 [ -f "$OVMF_CODE" ] || die "OVMF_CODE.fd not found at $OVMF_CODE"
 
 mkdir -p "$CACHE"
 
-# vm-test private key: dedicated throwaway, NEVER a synced repo file. Its public
-# half is committed in modules/installer.nix authorizedKeys. Missing -> the
-# harness can't drive the install, so fail loudly with placement help.
+# Dedicated throwaway key, never committed. Its public half is in the installer's
+# authorizedKeys; without it we can't drive the install, so fail loudly.
 if [ ! -f "$SSH_KEY" ]; then
   die "missing vm-test private key at $SSH_KEY
   -> place the dedicated throwaway private key there (chmod 600) and re-run.
-     Its public half is baked into modules/installer.nix; this key must never
+     Its public half is in the installer's authorizedKeys; this key must never
      live in the repo / notion-sync tree."
 fi
 chmod 600 "$SSH_KEY" 2>/dev/null || true
@@ -129,7 +116,6 @@ VARS="$CACHE/vm-vars.fd"
 SERIAL="$CACHE/$HOST-serial.log"
 INSTALL_LOG="$CACHE/$HOST-install.log"
 
-# 1. build the installer ISO (cold; caller's Lix; git-aware ref).
 log "building installer ISO ($FLAKE) -> $ISO_LINK"
 nix build "$FLAKE#nixosConfigurations.installer.config.system.build.isoImage" -o "$ISO_LINK"
 shopt -s nullglob
@@ -139,10 +125,10 @@ shopt -u nullglob
 ISO="${isos[0]}"
 log "ISO: $ISO"
 
-# 2. qcow2 + OVMF vars, kept in lockstep. A fresh disk MUST get fresh NVRAM: a
-#    stale OVMF_VARS that still lists a previous install's boot entry (pointing
-#    at a now-gone disk GUID) makes the firmware try the empty disk/PXE instead
-#    of the ISO -- exactly the "failed to load NixOS-boot ... Not Found" hang.
+# Fresh disk needs fresh NVRAM. A stale OVMF_VARS still listing a previous
+# install's boot entry (pointing at a gone disk GUID) makes the firmware try the
+# empty disk or PXE instead of the ISO: the "failed to load NixOS-boot / Not
+# Found" hang.
 if [ "$RESET" = 1 ]; then rm -f "$DISK_IMG"; fi
 fresh_disk=0
 if [ ! -f "$DISK_IMG" ]; then
@@ -157,7 +143,7 @@ fi
 
 : > "$SERIAL"
 
-# 4. boot the installer VM headless (UEFI/OVMF; serial captured to a log file).
+# headless UEFI boot; serial is captured to a log file
 QEMU_COMMON=(
   -machine "q35,accel=kvm"
   -cpu host
@@ -193,7 +179,6 @@ log "serial console -> $SERIAL   (tail -f to watch the cold build)"
 qemu-system-x86_64 "${QEMU_COMMON[@]}" -boot order=dc -cdrom "$ISO" &
 QEMU_PID=$!
 
-# 5. wait for the ISO's sshd (root + vm-test key).
 log "waiting for the installer VM to accept ssh on :$SSH_PORT ..."
 up=0
 for ((i = 0; i < 60; i++)); do
@@ -212,11 +197,9 @@ if [ "$DO_INSTALL" != 1 ]; then
   exit 0
 fi
 
-# 6. drive the UNATTENDED cold install over ssh. ONE attempt, run to completion
-#    -- never interrupt it (a killed heavy derivation discards all progress).
-#    feltfomo password: throwaway hash via env. notion-token: left UNSET, so the
-#    installer keeps its placeholder (NOTION_TOKEN=REPLACE_ME). Cold-from-source
-#    is inherited from the ISO's own nix.settings (Lix uncached), not forced here.
+# One attempt, run to completion; killing a heavy derivation throws away all its
+# progress. The token is left unset so the installer keeps its placeholder, and
+# cold-from-source comes from the ISO's own nix settings, not from here.
 log "driving unattended 'skadi-install $HOST' (cold, from source) ..."
 log "install log -> $INSTALL_LOG"
 remote="env SKADI_INSTALL_UNATTENDED=1 SKADI_SECRET_FELTFOMO_PASSWORD='${PW_HASH}' skadi-install '${HOST}'"
@@ -225,7 +208,6 @@ rc="${PIPESTATUS[0]}"
 [ "$rc" = 0 ] || die "unattended skadi-install failed (rc=$rc); see $INSTALL_LOG and $SERIAL."
 log "install finished (rc=0). powering the ISO down to boot the installed disk."
 
-# 7. power the ISO VM off, then boot the INSTALLED disk (no cdrom).
 ssh_vm poweroff 2>/dev/null || true
 wait "$QEMU_PID" 2>/dev/null || true
 QEMU_PID=""
@@ -235,10 +217,9 @@ log "booting the installed disk (no ISO) to verify $HOST comes up ..."
 qemu-system-x86_64 "${QEMU_COMMON[@]}" -boot order=cd &
 QEMU_PID=$!
 
-# 8. verification: watch the serial log for a boot-complete + login marker.
-#    NOTE: depends on the installed host putting a console on ttyS0. If it does
-#    not, this times out to a WARN (the install already succeeded above) -- re-run
-#    with --keep and inspect the console yourself.
+# Watch the serial log for a login marker. This only works if the installed host
+# puts a console on ttyS0; if it doesn't we time out to a WARN (the install
+# itself already succeeded) and you can re-run with --keep to inspect it.
 log "watching $SERIAL for a login prompt ..."
 verified=0
 for ((i = 0; i < 60; i++)); do

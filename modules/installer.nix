@@ -84,11 +84,10 @@
       };
       users.users.root.openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINKAWZ+4L7E0osgTA8eybrsmUoTUtBSzEaE4ytD+rcPO 241195017+feltfomo@users.noreply.github.com"
-        # vm-test harness (Phase 2b): dedicated THROWAWAY keypair used ONLY by
-        # scripts/vm-test.sh to drive the unattended install on a disposable
-        # localhost VM. The private half lives in ~/.cache/skadi-vm (gitignored +
-        # notion-sync-ignored, never a synced file); it guards nothing real
-        # (localhost-only, no network, NOTION_TOKEN stays the placeholder).
+        # Throwaway keypair the VM harness uses to drive an unattended install on
+        # a disposable localhost VM. The private half lives in ~/.cache/skadi-vm
+        # (never committed) and guards nothing real: the VM has no network and
+        # keeps the placeholder token.
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIElUx+G8NdV6W0NVEh3wpOg33mBnHY0oG9b31eds/LSs skadi-vm-test"
       ];
 

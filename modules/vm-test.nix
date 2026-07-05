@@ -1,20 +1,8 @@
-# One-command VM test harness for the skadi installer (Phase 2b).
-#
-#   nix run .#vm-test -- --host vm
-#
-# Builds the installer ISO, boots a headless UEFI/OVMF QEMU VM, drives an
-# UNATTENDED cold-from-source `skadi-install <host>` over ssh, greps the serial
-# console to confirm the installed host boots to a login prompt, then tears the
-# VM down. Every artifact lives under ~/.cache/skadi-vm; nothing touches the repo.
-#
-# The bash lives in scripts/vm-test.sh and is readFile'd in here -- mirroring how
-# modules/installer.nix bakes scripts/skadi-install.sh -- so it stays editable,
-# testable, and cleanly synced by notion-sync (do NOT inline it).
-#
-# OVMF's firmware store path is resolved at build time and exported as OVMF_FD,
-# so the harness auto-resolves OVMF instead of guessing. The ISO build itself
-# uses the CALLER's `nix` (Lix) from PATH -- deliberately NOT a bundled nix in
-# runtimeInputs -- so the Lix-dialect flake.lock keeps evaluating git-aware.
+# Packages scripts/vm-test.sh as `nix run .#vm-test`. The bash is kept in its
+# own file instead of inlined so it stays readable and syncs cleanly. The one
+# thing nix does that the script can't is resolve the OVMF firmware path at
+# build time and pass it in as OVMF_FD. runtimeInputs deliberately omits nix so
+# the ISO build uses the caller's Lix and the Lix-dialect flake.lock evaluates.
 _: {
   perSystem =
     { pkgs, ... }:
@@ -28,7 +16,7 @@ _: {
           gnugrep
         ];
         text = ''
-          # OVMF firmware path, resolved at build time (auto-resolve; no guessing).
+          # resolved here so the script doesn't have to hunt for OVMF
           OVMF_FD='${pkgs.OVMF.fd}'
           export OVMF_FD
         ''
