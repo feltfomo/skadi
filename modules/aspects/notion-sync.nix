@@ -38,37 +38,55 @@
           {
             name = "notion-sync";
             local_root = "/home/feltfomo/Projects/notion-sync";
-            parent_page_id = "378f23c5af9580a59a6dc218fa24b366";
+            parent_page_id = "39320fa1c54580fbb131d699f23675a5";
             ignore = [
               ".git"
               "target"
               "node_modules"
               "*.lock"
               "result"
+              "result-*"
               "dist"
               ".notion-sync"
               "config.toml"
+              # VM / build binaries -- never sync large images (they OOM-balloon the daemon)
+              "*.qcow2"
+              "*.iso"
+              "*.img"
+              "*.raw"
+              "*.fd"
             ];
           }
           {
             name = "skadi";
             local_root = "/etc/skadi";
-            parent_page_id = "37af23c5af95803ba445d8dc595ac03b";
+            parent_page_id = "39320fa1c545803cbf5fd2e299bbe199";
             ignore = [
               ".git"
               "result"
+              "result-*"
               "node_modules"
               "*.lock"
               ".direnv"
               "assets"
               "secrets"
               ".notion-sync"
+              # VM / build binaries -- never sync large images. the qcow2 disk +
+              # `result` ISO grow on every build/install; syncing them ballooned the
+              # daemon to ~19G RAM and triggered a kernel OOM crash-loop (restart x22).
+              "*.qcow2"
+              "*.iso"
+              "*.img"
+              "*.raw"
+              "*.fd"
+              "*.ova"
+              "*.vdi"
             ];
           }
           {
             name = "multiloader-template";
             local_root = "/home/feltfomo/Projects/multiloader-template";
-            parent_page_id = "37af23c5af9580d7a823f972170f2a5b";
+            parent_page_id = "39320fa1c54580d48175d24cbe21212c";
             ignore = [
               ".git"
               "build"
@@ -83,6 +101,12 @@
               "run"
               "*.salive"
               ".notion-sync"
+              # VM / build binaries -- never sync large images (OOM guard)
+              "*.qcow2"
+              "*.iso"
+              "*.img"
+              "*.raw"
+              "*.fd"
             ];
           }
         ];
