@@ -17,7 +17,12 @@
       # just the Nix impl, no base/home-manager/desktop.
       inputs.lix-module.nixosModules.default
       (
-        { pkgs, lib, config, ... }:
+        {
+          pkgs,
+          lib,
+          config,
+          ...
+        }:
         let
           # match the disko CLI to the disko module the fleet configs use,
           # so `disko --mode ... --flake` agrees with the host's disko.devices.
@@ -26,7 +31,7 @@
           # nixpkgs, so `disko --flake` evaluates the lock with CppNix and dies
           # on "mismatch in field 'url'". The system Lix reads the lock fine
           # (verified with `nix flake metadata`), so point disko at it too.
-          disko = (inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko).override {
+          disko = inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko.override {
             nix = config.nix.package;
           };
 
@@ -76,10 +81,86 @@
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINKAWZ+4L7E0osgTA8eybrsmUoTUtBSzEaE4ytD+rcPO 241195017+feltfomo@users.noreply.github.com"
           ];
 
-          nix.settings.experimental-features = [
-            "nix-command"
-            "flakes"
-          ];
+          nix.settings = {
+            experimental-features = [
+              "nix-command"
+              "flakes"
+            ];
+
+            # Build the fleet closure the way khion does: nix-daemon + stock
+            # nixbld users + sandbox on. The old ISO built as root via
+            # `--store local` with the sandbox off, which cascaded into pasta/
+            # userns FOD failures ("sandbox network setup timed out") and
+            # /homeless-shelter purity breaks. sandbox already defaults on, but
+            # pin it so a stray `--option sandbox false` can't quietly flip it.
+            # userns is available on the live ISO, so daemon nixbld builds get a
+            # real one and FODs work.
+            sandbox = true;
+
+            # Cache the third-party upstreams we don't build ourselves: the base
+            # closure (cache.nixos.org, always hits) and the desktop projects
+            # (Hyprland/walker/noctalia). These are OPPORTUNISTIC -- each input
+            # follows our nixpkgs, so when our pin diverges from what upstream
+            # published to their cachix the derivation hash misses and they build
+            # from source anyway (expected, seen in practice; not a failure).
+            # Building them from source via `nix build` is fine -- the
+            # `src = fs.gitTracked` "not a local working tree of a Git repository"
+            # error only bites `nixos-install --flake` (re-evals in a git-less
+            # /mnt); the two-step build in skadi-install.sh avoids it. So these
+            # caches are speed-when-they-hit, NOT load-bearing. Also in flake.nix's
+            # nixConfig (via accept-flake-config below); listed here too so the
+            # install doesn't lean on that acceptance.
+            #
+            # Lix is NOT cached, and wouldn't hit anyway: we pin Lix HEAD
+            # (inputs.lix = .../main.tar.gz, a -dev build) and compile it against
+            # our nixpkgs, so the derivation doesn't match upstream's own
+            # cache.lix.systems builds -- it compiles from source every install
+            # (verified: the VM builds lix-*-dev from source even with
+            # cache.lix.systems still trusted). That's fine and wanted: its
+            # doubled-debuginfo cargo/C++ target is the biggest from-source
+            # derivation and the exact disk-pressure canary that ENOSPC'd the VM,
+            # so it's what actually exercises build-dir=/mnt + --max-jobs 1 + GC
+            # below. Leaving cache.lix.systems out just makes that explicit -- no
+            # phantom safety net. Fleet code (notion-sync, the configs, the
+            # closure assembly) is never cached either.
+            substituters = [
+              "https://cache.nixos.org"
+              "https://hyprland.cachix.org"
+              "https://walker.cachix.org"
+              "https://walker-git.cachix.org"
+              "https://noctalia.cachix.org"
+            ];
+            trusted-public-keys = [
+              "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
+              "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+              "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
+              "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
+              "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+            ];
+
+            # Daemon build scratch on the target disk, not the ISO's tmpfs
+            # (default build-dir=/nix/var/nix/b lives on the RAM store). Once the
+            # build runs through the daemon instead of `--store local`, the
+            # client's TMPDIR no longer reaches the builder -- startBuilder()
+            # unpacks into settings.build-dir, and its only fallback is the
+            # daemon's own /tmp (tmpfs -> OOM). The daemon createDirs() this
+            # itself on first build; /mnt just has to exist (true after disko
+            # mounts) and be on disk.
+            build-dir = "/mnt/nix-build-tmp";
+
+            # Trust the fleet flake's declared binary caches (hyprland / walker /
+            # noctalia) so nixos-install SUBSTITUTES the desktop closure rather
+            # than compiling it from source. This is how these flakes are meant
+            # to be consumed -- and it sidesteps upstream Hyprland's
+            # `src = fs.intersection (fs.gitTracked ../.) ...` (nix/default.nix),
+            # which throws "not a local working tree of a Git repository"
+            # whenever Hyprland is built from source from a .git-less flake
+            # input -- exactly what nixos-install does on a fresh /mnt. Trusting
+            # the cache means that from-source branch never runs. accept-flake-
+            # config also drops the interactive "allow these settings?" prompt so
+            # an unattended skadi-install run needs no keypress.
+            accept-flake-config = true;
+          };
 
           environment.systemPackages = [
             skadi-install
