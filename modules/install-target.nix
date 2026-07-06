@@ -20,6 +20,21 @@
 let
   systems = [ "x86_64-linux" ];
 
+  # The droppable top-level aspect names of a den host record: the .name of
+  # every named entry in its aspect's top-level includes. Shared by the
+  # mkInstallTarget fail-loud check AND the flake.lib.hostAspects output the
+  # installer's interactive menu reads, so the menu, the --drop validation, and
+  # the "have: ..." error message can never drift apart. Nameless includes
+  # (policy records, bare functions) have no .name and are never listed --
+  # `==` on an aspect record throws (they carry functions), so we key on .name.
+  topLevelAspectNames =
+    h:
+    let
+      includes = h.aspect.includes or [ ];
+      aspectName = a: if builtins.isAttrs a then a.name or null else null;
+    in
+    builtins.filter (n: n != null) (map aspectName includes);
+
   mkInstallTarget =
     system:
     {
@@ -35,7 +50,7 @@ let
       # records, bare functions) have no name and are always kept; only named
       # top-level aspects are droppable.
       aspectName = a: if builtins.isAttrs a then a.name or null else null;
-      topLevelNames = builtins.filter (n: n != null) (map aspectName includes);
+      topLevelNames = topLevelAspectNames h;
       topLevelNameSet = lib.genAttrs topLevelNames (_: true);
 
       # Fail loud on a drop that matches no top-level aspect (a typo, or a
@@ -90,5 +105,13 @@ in
 {
   flake.lib = lib.genAttrs systems (system: {
     mkInstallTarget = mkInstallTarget system;
+
+    # Introspection for the installer's interactive menu: the droppable
+    # top-level aspect names per host. This is the SAME list mkInstallTarget
+    # validates --drop against, so a menu built from it can never produce an
+    # invalid drop -- the fail-loud assertion only ever guards the explicit
+    # --drop path. Lazy per host (mapAttrs); reading one host's entry only
+    # forces that host's includes' .names, never a resolved config.
+    hostAspects = lib.mapAttrs (_: topLevelAspectNames) den.hosts.${system};
   });
 }

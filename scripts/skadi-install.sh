@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
-# skadi-install <host> [--drop a,b,c]  -- two-phase reinstall, run from the
-#   skadi installer ISO.  --drop removes named TOP-LEVEL aspects from the host
-#   for this install only (via the mkInstallTarget factory); the committed
-#   nixosConfigurations.<host> and modules/hosts/<host>.nix are never touched.
+# skadi-install [<host>] [--drop a,b,c] [--print-target]  -- two-phase reinstall,
+#   run from the skadi installer ISO.  --drop removes named TOP-LEVEL aspects
+#   from the host for this install only (via the mkInstallTarget factory); the
+#   committed nixosConfigurations.<host> and modules/hosts/<host>.nix are never
+#   touched.
 #   1. disko format+mount   2. host key + sops secrets into /persist
 #   3. nixos-install
+#
+#   With NO <host> on a TTY it drops into an interactive picker (host, then
+#   which top-level aspects to drop) that dispatches into the exact same path as
+#   an explicit `<host> --drop ...`.  --print-target is a read-only dry run:
+#   print the resolved invocation + the composed system's toplevel drvPath and
+#   exit, with no disk writes (so it runs on a booted host too -- handy for
+#   proving an interactive pick resolves to the same drvPath as `--drop`).
 #
 # Home repos (Wallpapers + notion-sync mappings) are cloned on first boot by the
 # bootstrap-repos aspect, not here -- so this stays a pure OS bootstrapper.
@@ -21,11 +29,104 @@ log()  { printf '\033[0;32m[skadi-install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[skadi-install]\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m[skadi-install]\033[0m %s\n' "$*" >&2; exit 1; }
 
+# interactive target selection (no host arg, on a TTY): pick a host, toggle
+# which of its TOP-LEVEL aspects to drop, confirm, then set HOST + DROP and let
+# the normal path take over. Everything is enumerated from real config via
+# narrow `nix eval` -- never a hardcoded menu. The aspect list is
+# flake.lib.<system>.hostAspects, the SAME list mkInstallTarget validates --drop
+# against (modules/install-target.nix), so an interactive pick can never produce
+# an invalid drop: the fail-loud assertion only ever needs to guard the explicit
+# --drop path. `base` is structurally required and is never offered as a toggle.
+select_target() {
+  local all=() hosts=() aspects=() drop_flag=() hosts_json aspects_json h i n choice csv
+
+  # host list = nixosConfigurations that also have a modules/hosts/<h>.nix -- the
+  # same filter the explicit path validates against, so the ISO's own `installer`
+  # config (modules/installer.nix, no hosts/ file) never shows up as a target.
+  hosts_json="$(nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames')" \
+    || die "could not enumerate hosts (nix eval failed)"
+  mapfile -t all < <(jq -r '.[]' <<<"$hosts_json")
+  for h in "${all[@]}"; do
+    if [ -f "modules/hosts/${h}.nix" ]; then hosts+=("$h"); fi
+  done
+  [ "${#hosts[@]}" -gt 0 ] || die "no installable hosts (nixosConfigurations with a modules/hosts/<host>.nix)"
+
+  echo "Select a host to install:" >&2
+  for i in "${!hosts[@]}"; do printf '  %d) %s\n' "$((i + 1))" "${hosts[$i]}" >&2; done
+  while :; do
+    read -r -p "host [1-${#hosts[@]}]: " choice
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#hosts[@]}" ]; then
+      HOST="${hosts[$((choice - 1))]}"; break
+    fi
+    echo "  enter a number between 1 and ${#hosts[@]}" >&2
+  done
+
+  # top-level aspects for the chosen host, from the shared introspection output
+  # (the SAME list --drop is validated against, so this menu can't misfire).
+  aspects_json="$(nix eval --json "${WORK}#lib.${SYSTEM}.hostAspects.${HOST}")" \
+    || die "could not read top-level aspects for '$HOST' (nix eval failed)"
+  mapfile -t aspects < <(jq -r '.[]' <<<"$aspects_json")
+  for _ in "${aspects[@]}"; do drop_flag+=(0); done
+
+  echo >&2
+  echo "Top-level aspects for '$HOST' -- number toggles drop, blank continues:" >&2
+  while :; do
+    for i in "${!aspects[@]}"; do
+      n="${aspects[$i]}"
+      if [ "$n" = base ]; then
+        printf '  %2d) [keep] %s (required)\n' "$((i + 1))" "$n" >&2
+      elif [ "${drop_flag[$i]}" = 1 ]; then
+        printf '  %2d) [DROP] %s\n' "$((i + 1))" "$n" >&2
+      else
+        printf '  %2d) [keep] %s\n' "$((i + 1))" "$n" >&2
+      fi
+    done
+    read -r -p "toggle # (blank = done): " choice
+    [ -z "$choice" ] && break
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#aspects[@]}" ]; then
+      echo "  enter a number between 1 and ${#aspects[@]}, or blank to continue" >&2
+      continue
+    fi
+    i=$((choice - 1))
+    if [ "${aspects[$i]}" = base ]; then
+      echo "  base is required and cannot be dropped" >&2
+      continue
+    fi
+    if [ "${drop_flag[$i]}" = 1 ]; then drop_flag[$i]=0; else drop_flag[$i]=1; fi
+  done
+
+  DROP=()
+  for i in "${!aspects[@]}"; do
+    if [ "${drop_flag[$i]}" = 1 ]; then DROP+=("${aspects[$i]}"); fi
+  done
+
+  # confirmation summary + the equivalent explicit invocation (teaches the CLI
+  # and doubles as a sanity check that interactive resolves to the same target
+  # as `--drop`).
+  csv=""
+  for n in "${DROP[@]}"; do csv+="${csv:+,}$n"; done
+  echo >&2
+  echo "About to install:" >&2
+  echo "  host: $HOST" >&2
+  echo "  drop: ${csv:-(none)}" >&2
+  if [ -n "$csv" ]; then
+    echo "  equivalent to: skadi-install $HOST --drop $csv" >&2
+  else
+    echo "  equivalent to: skadi-install $HOST" >&2
+  fi
+  read -r -p "proceed? [y/N]: " choice
+  case "$choice" in
+    y | Y | yes | YES) ;;
+    *) die "aborted" ;;
+  esac
+}
+
 # skadi-install <host> [--drop a,b,c]: <host> is positional; --drop takes a
 # comma/space-separated list of TOP-LEVEL aspects to remove from this host for
 # this install only (see modules/install-target.nix).
 HOST=""
 DROP=()
+PRINT_TARGET=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --drop)
@@ -35,19 +136,19 @@ while [ $# -gt 0 ]; do
     --drop=*)
       IFS=', ' read -r -a _drop_raw <<<"${1#--drop=}"; shift
       for a in "${_drop_raw[@]}"; do [ -n "$a" ] || continue; DROP+=("$a"); done ;;
-    -*) die "unknown flag: $1 (usage: skadi-install <host> [--drop a,b,c])" ;;
+    --print-target) PRINT_TARGET=1; shift ;;
+    -*) die "unknown flag: $1 (usage: skadi-install [<host>] [--drop a,b,c] [--print-target])" ;;
     *)  [ -z "$HOST" ] || die "unexpected extra argument: $1"; HOST="$1"; shift ;;
   esac
 done
-[ -n "$HOST" ] || die "usage: skadi-install <host> [--drop a,b,c]   (e.g. skadi-install khion --drop gpu-nvidia)"
-
-# Render the drop list once: a nix list fragment ("a" "b" ) and a human CSV.
-DROP_NIX=""
-DROP_CSV=""
-for a in "${DROP[@]}"; do DROP_NIX+="\"$a\" "; DROP_CSV+="${DROP_CSV:+,}$a"; done
+# NOTE: no mandatory-host check here. A missing host is resolved AFTER the clone:
+# interactively on a TTY, otherwise a usage die. (DROP_NIX/DROP_CSV are rendered
+# there too, once interactive selection has had its say.)
 
 # guard: refuse to run on a booted skadi install (disko would repartition it).
-if [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
+# --print-target is a read-only dry run (no disk writes at all), so it bypasses
+# this guard on purpose -- that's what lets it resolve a drvPath on khion itself.
+if [ "$PRINT_TARGET" != 1 ] && [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
   die "this looks like a booted skadi system, not the ISO -- refusing to repartition."
 fi
 
@@ -56,8 +157,46 @@ rm -rf "$WORK"
 log "cloning skadi from $SKADI_REMOTE"
 git clone "$SKADI_REMOTE" "$WORK"
 cd "$WORK"
+
+# the builder's system, used to address flake.lib.<system>.* -- the interactive
+# menu's hostAspects introspection, --print-target, and the mkInstallTarget
+# factory all live there. Computed unconditionally now that the menu needs it.
+SYSTEM="$(nix eval --raw --impure --expr builtins.currentSystem)"
+
+# Resolve the host. With a host arg, use it as-is. With NO host arg, drop into
+# interactive selection -- but ONLY on a real TTY and only when NOT unattended,
+# so the harness / any piped or unattended caller stays fully non-interactive.
+# The two non-interactive corners -- SKADI_INSTALL_UNATTENDED=1 + no host, and a
+# piped / non-TTY caller + no host -- both fall through to the usage die rather
+# than hang waiting on stdin.
+if [ -z "$HOST" ]; then
+  if [ "${SKADI_INSTALL_UNATTENDED:-}" != 1 ] && [ -t 0 ]; then
+    select_target
+  else
+    die "usage: skadi-install <host> [--drop a,b,c] [--print-target]   (e.g. skadi-install khion --drop gpu-nvidia)"
+  fi
+fi
+
+# `base` is structurally required -- it carries skadi.installer + provision and
+# every host needs it to boot. Dropping it PASSES the top-level-name assertion in
+# mkInstallTarget (base is a real top-level include) but yields a broken host, so
+# reject it explicitly. The interactive menu never offers base, so this only ever
+# fires on an explicit `--drop base`.
+for a in "${DROP[@]}"; do
+  if [ "$a" = base ]; then
+    die "'base' is required and cannot be dropped"
+  fi
+done
+
+# Render the drop list once: a nix list fragment ("a" "b" ) and a human CSV.
+DROP_NIX=""
+DROP_CSV=""
+for a in "${DROP[@]}"; do DROP_NIX+="\"$a\" "; DROP_CSV+="${DROP_CSV:+,}$a"; done
+
 # cheap pre-check, then the authoritative den-aware check: the host must actually
 # resolve to a nixosConfigurations.<host>, not merely have a file by that name.
+# (An interactive host already came from this exact list, so this just re-affirms
+# it; an explicit `<host>` arg is validated here for the first time.)
 test -f "modules/hosts/${HOST}.nix" || die "unknown host '$HOST' (no modules/hosts/${HOST}.nix)"
 nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
@@ -72,9 +211,8 @@ nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
 #     branch is an --impure --expr over the same git-aware $WORK clone (so
 #     Hyprland's gitTracked still holds), mirroring the proven spike invocation.
 if [ "${#DROP[@]}" -gt 0 ]; then
-  # local install: the builder's system is the target host's system, and the
-  # flake exposes the factory under lib.<system>.mkInstallTarget.
-  SYSTEM="$(nix eval --raw --impure --expr builtins.currentSystem)"
+  # composing: the flake exposes the factory under lib.<system>.mkInstallTarget
+  # (SYSTEM was resolved above; the menu and --print-target need it too).
   log "composing '$HOST' minus top-level aspect(s): $DROP_CSV"
   log "  (canonical nixosConfigurations.$HOST and modules/hosts/$HOST.nix stay untouched)"
 fi
@@ -103,6 +241,26 @@ build_target() {
       --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX}]; }).config.system.build.toplevel"
   fi
 }
+
+# --print-target: read-only dry run. Print the resolved invocation + the composed
+#     system's toplevel drvPath, then exit BEFORE any disk work (it already
+#     bypassed the booted-skadi guard above, so this also runs on khion itself).
+#     This is the machine-checkable proof that interactive selection resolves to
+#     the IDENTICAL target as an explicit `--drop`: pick the same host + aspects
+#     both ways, and the drvPaths are equal. Evaluating .drvPath does NOT build.
+if [ "$PRINT_TARGET" = 1 ]; then
+  if [ "${#DROP[@]}" -gt 0 ]; then
+    echo "resolved: skadi-install $HOST --drop $DROP_CSV"
+  else
+    echo "resolved: skadi-install $HOST"
+  fi
+  if ! drv="$(eval_target .config.system.build.toplevel.drvPath)"; then
+    die "could not evaluate the composed target's drvPath (see nix error above)."
+  fi
+  # eval_target returns the drvPath as a JSON string; unwrap it for a clean line.
+  echo "drvPath: $(jq -r . <<<"$drv")"
+  exit 0
+fi
 
 # read this host's installer tunables as data (one narrow eval, never the
 #     whole config, so it can't touch a package src / trip gitTracked). every
