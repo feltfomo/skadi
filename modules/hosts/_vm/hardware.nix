@@ -12,5 +12,12 @@
     "sr_mod"
   ];
   boot.kernelModules = [ ];
+
+  # vm-test runs QEMU headless with ttyS0 redirected to a file and greps it for
+  # a login prompt; with no serial console the guest reaches userspace but the
+  # harness can't see it. Real hosts never import this module, so it stays
+  # VM-only. tty0 first so a graphical console still works if one is attached.
+  boot.kernelParams = [ "console=tty0" "console=ttyS0,115200" ];
+
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
 }
