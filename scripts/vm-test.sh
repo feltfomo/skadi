@@ -212,7 +212,34 @@ log "install log -> $INSTALL_LOG"
 # its initrd (modules/hosts/_vm/hardware.nix), so the disk auto-unlocks on the
 # post-install boot and this harness can watch for a real login prompt. VM-only:
 # real `skadi-install <host>` runs never set it, so khion keeps its passphrase.
-remote="env IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1 SKADI_SECRET_FELTFOMO_PASSWORD='${PW_HASH}' skadi-install '${HOST}'"
+# Feed every mkpasswd-provisioned secret on THIS host the deterministic test
+# hash, derived from the host's own config instead of hardcoding one user --
+# so `generic` gets owner-password, khion gets feltfomo-password, and any future
+# host gets whatever it declares, all filled the same way. Only method ==
+# "mkpasswd" secrets are forced; paste/optional ones (e.g. notion-token)
+# self-placeholder when unset, so we leave them be. Env var names match
+# skadi-install's own derivation: SKADI_SECRET_<NAME>, name uppercased, '-' ->
+# '_'. Evaluated against $FLAKE (the same tree the ISO is built from); the VM
+# installs the same commit once it's pushed. This evals the canonical host; a
+# --drop run's secret set is only ever a SUBSET, so any extra env var is ignored.
+log "resolving mkpasswd secrets for '$HOST' from its config"
+mkpasswd_secrets="$(nix eval --raw "${FLAKE}#nixosConfigurations.${HOST}.config.skadi.provision.secrets" \
+  --apply 's: builtins.concatStringsSep "\n" (builtins.filter (n: (builtins.getAttr n s).method == "mkpasswd") (builtins.attrNames s))')" \
+  || die "could not read skadi.provision.secrets for '$HOST' (nix eval failed)"
+SECRET_ENV=""
+while IFS= read -r secret; do
+  [ -n "$secret" ] || continue
+  envvar="SKADI_SECRET_$(printf '%s' "$secret" | tr 'a-z-' 'A-Z_')"
+  # single-quote the hash so the REMOTE shell doesn't expand the $6$... in it,
+  # exactly like the old hardcoded SKADI_SECRET_FELTFOMO_PASSWORD line did.
+  # shellcheck disable=SC2089
+  SECRET_ENV="$SECRET_ENV $envvar='${PW_HASH}'"
+  log "  $secret -> $envvar"
+done <<SECRETS
+$mkpasswd_secrets
+SECRETS
+# shellcheck disable=SC2090
+remote="env IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1${SECRET_ENV} skadi-install '${HOST}'"
 if [ -n "$DROP" ]; then
   remote="$remote --drop '${DROP}'"
   log "composed install: dropping top-level aspect(s): $DROP"
@@ -245,7 +272,7 @@ for ((i = 0; i < 60; i++)); do
 done
 
 if [ "$verified" = 1 ]; then
-  log "installed $HOST reached a login prompt -- feltfomo can log in. PASS."
+  log "installed $HOST reached a login prompt -- the primary user can log in. PASS."
 else
   warn "no login marker seen on serial within timeout."
   warn "the install itself succeeded (rc=0); the installed host may not log to ttyS0."

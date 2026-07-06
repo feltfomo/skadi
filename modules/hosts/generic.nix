@@ -10,7 +10,7 @@
 { den, inputs, ... }:
 {
   den.hosts.x86_64-linux.generic = {
-    users.feltfomo = { };
+    users.owner = { };
   };
 
   den.aspects.generic = {
