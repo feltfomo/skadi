@@ -19,6 +19,12 @@ in
           portalPackage =
             inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
         };
+
+        # flatpak lives with the desktop that provides its xdg portal, not in
+        # base. programs.hyprland already enables xdg.portal (+ the hyprland
+        # backend), so flatpak's only hard dependency is satisfied right here.
+        # a lean base install (generic/owner) has no desktop -> no app-store.
+        services.flatpak.enable = true;
       };
   }
   // program {

@@ -6,6 +6,9 @@ _: {
         services = {
           displayManager.gdm.enable = true;
           desktopManager.gnome.enable = true;
+          # flatpak lives with the desktop that provides its xdg portal (gnome
+          # ships its own), not in base -- a lean base install has no app-store.
+          flatpak.enable = true;
         };
 
         # exclude gnome apps that are not needed
