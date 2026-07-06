@@ -52,7 +52,7 @@ select_target() {
   [ "${#hosts[@]}" -gt 0 ] || die "no installable hosts (nixosConfigurations with a modules/hosts/<host>.nix)"
 
   echo "Select a host to install:" >&2
-  for i in "${!hosts[@]}"; do printf '  %d) %s\n' "$((i + 1))" "${hosts[$i]}" >&2; done
+  for i in "${!hosts[@]}"; do printf '  %d) %s\n' "$((i + 1))" "${hosts[i]}" >&2; done
   while :; do
     read -r -p "host [1-${#hosts[@]}]: " choice
     if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le "${#hosts[@]}" ]; then
@@ -72,10 +72,10 @@ select_target() {
   echo "Top-level aspects for '$HOST' -- number toggles drop, blank continues:" >&2
   while :; do
     for i in "${!aspects[@]}"; do
-      n="${aspects[$i]}"
+      n="${aspects[i]}"
       if [ "$n" = base ]; then
         printf '  %2d) [keep] %s (required)\n' "$((i + 1))" "$n" >&2
-      elif [ "${drop_flag[$i]}" = 1 ]; then
+      elif [ "${drop_flag[i]}" = 1 ]; then
         printf '  %2d) [DROP] %s\n' "$((i + 1))" "$n" >&2
       else
         printf '  %2d) [keep] %s\n' "$((i + 1))" "$n" >&2
@@ -88,16 +88,16 @@ select_target() {
       continue
     fi
     i=$((choice - 1))
-    if [ "${aspects[$i]}" = base ]; then
+    if [ "${aspects[i]}" = base ]; then
       echo "  base is required and cannot be dropped" >&2
       continue
     fi
-    if [ "${drop_flag[$i]}" = 1 ]; then drop_flag[$i]=0; else drop_flag[$i]=1; fi
+    if [ "${drop_flag[i]}" = 1 ]; then drop_flag[i]=0; else drop_flag[i]=1; fi
   done
 
   DROP=()
   for i in "${!aspects[@]}"; do
-    if [ "${drop_flag[$i]}" = 1 ]; then DROP+=("${aspects[$i]}"); fi
+    if [ "${drop_flag[i]}" = 1 ]; then DROP+=("${aspects[i]}"); fi
   done
 
   # confirmation summary + the equivalent explicit invocation (teaches the CLI
