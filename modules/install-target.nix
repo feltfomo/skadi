@@ -63,7 +63,9 @@ let
         if unmatched == [ ] then
           drop
         else
-          throw "den: --drop ${lib.concatMapStringsSep ", " quote unmatched} matched no top-level aspect on host ${host} (have: ${lib.concatStringsSep ", " topLevelNames})";
+          throw "den: --drop ${
+            lib.concatMapStringsSep ", " quote unmatched
+          } matched no top-level aspect on host ${host} (have: ${lib.concatStringsSep ", " topLevelNames})";
 
       dropSet = lib.genAttrs checkedDrop (_: true);
       keep =
