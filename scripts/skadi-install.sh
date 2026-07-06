@@ -29,6 +29,27 @@ log()  { printf '\033[0;32m[skadi-install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[skadi-install]\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m[skadi-install]\033[0m %s\n' "$*" >&2; exit 1; }
 
+# Generic host disk detection ([C]/[G1]): the generic target ships NO committed
+# _generic/{device,hardware}.nix for the machine in front of us -- discover them
+# at install time. Enumerate whole disks (lsblk type=disk excludes the ISO's
+# sr0/rom + loop devices), require EXACTLY one, set GENERIC_DEVICE. Multi-disk
+# metal deliberately dies pointing at the deferred interactive-generic follow-on
+# rather than guessing which disk to destroy.
+detect_generic_disk() {
+  local disks_json disks=() n
+  disks_json="$(lsblk --json --nodeps --output NAME,TYPE)" || die "generic: lsblk failed enumerating disks"
+  mapfile -t disks < <(jq -r '.blockdevices[] | select(.type=="disk") | .name' <<<"$disks_json")
+  n="${#disks[@]}"
+  if [ "$n" -eq 0 ]; then
+    die "generic: no whole-disk device detected (lsblk saw none). This slice installs to a single internal disk -- attach one and retry."
+  elif [ "$n" -gt 1 ]; then
+    lsblk --nodeps --output NAME,SIZE,TYPE,MODEL >&2
+    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection for 'generic' is a planned 2e follow-on and isn't wired yet -- for multi-disk hardware add an explicit per-host layout (khion/lumi-style modules/hosts/_<host>/{disko,hardware}.nix)."
+  fi
+  GENERIC_DEVICE="/dev/${disks[0]}"
+  log "generic: detected sole target disk $GENERIC_DEVICE"
+}
+
 # interactive target selection (no host arg, on a TTY): pick a host, toggle
 # which of its TOP-LEVEL aspects to drop, confirm, then set HOST + DROP and let
 # the normal path take over. Everything is enumerated from real config via
@@ -47,6 +68,10 @@ select_target() {
     || die "could not enumerate hosts (nix eval failed)"
   mapfile -t all < <(jq -r '.[]' <<<"$hosts_json")
   for h in "${all[@]}"; do
+    # generic is an explicit-trigger-only target (`skadi-install generic`): it has
+    # a modules/hosts/generic.nix so it'd pass this filter, but its disk + hardware
+    # are DISCOVERED at install time, so it must never appear as a menu pick ([G2]).
+    if [ "$h" = generic ]; then continue; fi
     if [ -f "modules/hosts/${h}.nix" ]; then hosts+=("$h"); fi
   done
   [ "${#hosts[@]}" -gt 0 ] || die "no installable hosts (nixosConfigurations with a modules/hosts/<host>.nix)"
@@ -202,6 +227,24 @@ nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
+# Generic host ([C]/[G1]): no committed _generic/{device,hardware}.nix describes
+# THIS machine, so discover them. Detect the disk, write _generic/device, and
+# write the vm-test sentinel from EXACTLY the IN_DISKO_TEST signal disko's key
+# enroll uses (so the format-time key and the boot-time keyFile can never
+# disagree), then git-add so the git+file flake eval + `disko --flake` see them.
+# hardware.nix is generated later, once disko has mounted /mnt. Skipped under
+# --print-target (that stays a read-only eval of the committed sentinel).
+if [ "$HOST" = generic ] && [ "$PRINT_TARGET" != 1 ]; then
+  detect_generic_disk
+  printf '%s' "$GENERIC_DEVICE" > modules/hosts/_generic/device
+  if [ "${IN_DISKO_TEST:-}" = 1 ]; then
+    printf '1' > modules/hosts/_generic/vm-test
+  else
+    printf '0' > modules/hosts/_generic/vm-test
+  fi
+  git add -A modules/hosts/_generic/device modules/hosts/_generic/vm-test
+fi
+
 # Select the install target: the canonical host, or -- with --drop -- that host
 #     composed with named top-level aspects removed, via the mkInstallTarget
 #     factory (modules/install-target.nix). eval_target and build_target below
@@ -298,6 +341,17 @@ fi
 [ "$confirm" = "$HOST" ] || die "aborted"
 log "running disko (destroy,format,mount)"
 disko --mode destroy,format,mount --flake ".#${HOST}"
+
+# Generic host ([C]/[G1]): the target is now partitioned + mounted at /mnt, so
+# generate its hardware profile from THIS machine and stage it over the committed
+# placeholder BEFORE the closure build reads it. disko owns the filesystems, so
+# --no-filesystems; the generated file stays pure (no fileSystems, no ttyS0 /
+# keyfile -- those live in the IN_DISKO_TEST-gated vm-test-hooks.nix).
+if [ "$HOST" = generic ]; then
+  log "generic: generating hardware.nix from detected hardware"
+  nixos-generate-config --no-filesystems --root "$MNT" --show-hardware-config > modules/hosts/_generic/hardware.nix || die "generic: nixos-generate-config failed"
+  git add -A modules/hosts/_generic/hardware.nix
+fi
 
 # temporary build swap: guaranteed headroom so a from-source compile can never
 #     OOM-kill the install on a lean-RAM box. Lix (deliberately uncached -- the
