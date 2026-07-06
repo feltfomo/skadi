@@ -205,7 +205,14 @@ fi
 # cold-from-source comes from the ISO's own nix settings, not from here.
 log "driving unattended 'skadi-install $HOST' (cold, from source) ..."
 log "install log -> $INSTALL_LOG"
-remote="env SKADI_INSTALL_UNATTENDED=1 SKADI_SECRET_FELTFOMO_PASSWORD='${PW_HASH}' skadi-install '${HOST}'"
+# IN_DISKO_TEST=1 is disko's own hook: its generated luks script then keys the
+# cryptroot slot with the deterministic passphrase `disko` (via
+# --key-file <(echo -n ..), no trailing newline) instead of prompting on a tty
+# we don't have here. The installed _vm host embeds a byte-identical keyfile in
+# its initrd (modules/hosts/_vm/hardware.nix), so the disk auto-unlocks on the
+# post-install boot and this harness can watch for a real login prompt. VM-only:
+# real `skadi-install <host>` runs never set it, so khion keeps its passphrase.
+remote="env IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1 SKADI_SECRET_FELTFOMO_PASSWORD='${PW_HASH}' skadi-install '${HOST}'"
 if [ -n "$DROP" ]; then
   remote="$remote --drop '${DROP}'"
   log "composed install: dropping top-level aspect(s): $DROP"
