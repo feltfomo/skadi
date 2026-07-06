@@ -9,7 +9,7 @@ in
 {
   disko.devices.disk.main = {
     type = "disk";
-    device = device;
+    inherit device;
     content = {
       type = "gpt";
       partitions = {
@@ -31,13 +31,44 @@ in
             settings.allowDiscards = true;
             content = {
               type = "btrfs";
-              extraArgs = [ "-L" "nixos" "-f" ];
+              extraArgs = [
+                "-L"
+                "nixos"
+                "-f"
+              ];
               subvolumes = {
-                "@" = { mountpoint = "/"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                "@nix" = { mountpoint = "/nix"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                "@persist" = { mountpoint = "/persist"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                "@home" = { mountpoint = "/home"; mountOptions = [ "compress=zstd" "noatime" ]; };
-                "@swap" = { mountpoint = "/.swapvol"; swap.swapfile.size = "8G"; };
+                "@" = {
+                  mountpoint = "/";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                };
+                "@nix" = {
+                  mountpoint = "/nix";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                };
+                "@persist" = {
+                  mountpoint = "/persist";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                };
+                "@home" = {
+                  mountpoint = "/home";
+                  mountOptions = [
+                    "compress=zstd"
+                    "noatime"
+                  ];
+                };
+                "@swap" = {
+                  mountpoint = "/.swapvol";
+                  swap.swapfile.size = "8G";
+                };
                 "@blank" = { };
               };
             };
