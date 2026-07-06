@@ -30,11 +30,20 @@ jobs:
       # nested sandbox works. (lix-project/lix#545)
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      # --no-build: evaluate every flake output and confirm each derivation
-      # resolves, but don't build them. Pure eval, so a broken module or bad
-      # attr fails in seconds rather than after a full realise.
-      - name: flake eval (no build)
-        run: nix flake check --no-build --accept-flake-config --print-build-logs
+      # instantiate both host toplevels (compute their .drvPath) instead of
+      # `nix flake check --no-build`. --no-build refuses to realise the small
+      # import-from-derivation deps this config needs during eval (a
+      # home-manager generation), so it dies with a bogus "path ... did not
+      # exist in the store". Evaluating the drvPath forces the full module eval
+      # -- so real errors still fail fast -- while only building those tiny IFD
+      # inputs, never the heavy packages. magic-nix-cache keeps them warm for
+      # the build jobs below.
+      - name: eval hosts (instantiate, no realise)
+        run: |
+          nix eval .#nixosConfigurations.khion.config.system.build.toplevel.drvPath --accept-flake-config --raw
+          echo
+          nix eval .#nixosConfigurations.lumi.config.system.build.toplevel.drvPath --accept-flake-config --raw
+          echo
       # treefmt in check mode (--ci = no cache + fail on change). Same
       # nixfmt/deadnix/statix/stylua set as `nix fmt`, so this catches exactly
       # what the local formatter would have fixed.
