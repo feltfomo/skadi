@@ -41,6 +41,10 @@
           "/var/log"
           "/var/lib/bluetooth"
           "/var/lib/systemd/coredump"
+          # tailscale node identity + funnel/serve config -- without this, khion
+          # re-registers as a brand-new node every boot (khion-1, khion-2, ...)
+          # and loses the funnel, forcing a fresh `tailscale up` + funnel setup
+          "/var/lib/tailscale"
           "/etc/NetworkManager/system-connections"
           "/var/lib/nixos"
         ];
