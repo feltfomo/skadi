@@ -33,6 +33,7 @@ FLAKE="$(pwd)"
 KEEP=0
 RESET=0
 DO_INSTALL=1
+DROP=""              # comma/space list of top-level aspects to drop (composed install)
 
 # The VM has no network and only a placeholder token, so this login hash guards
 # nothing. Plaintext is "skadi". Override with SKADI_FELTFOMO_PW_HASH.
@@ -64,6 +65,7 @@ flags:
   --keep           keep the qcow2 after the run (default: delete on success)
   --reset          discard any existing qcow2 + OVMF vars and start clean
   --no-install     just build the ISO and boot it; skip the unattended install
+  --drop <a,b,c>   drop top-level aspects from the host (composed install via mkInstallTarget)
   -h, --help       show this help
 USAGE
 }
@@ -87,6 +89,7 @@ while [ $# -gt 0 ]; do
     --keep)  KEEP=1; shift ;;
     --reset) RESET=1; shift ;;
     --no-install) DO_INSTALL=0; shift ;;
+    --drop)  DROP="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown argument: $1 (see --help)" ;;
   esac
@@ -203,6 +206,10 @@ fi
 log "driving unattended 'skadi-install $HOST' (cold, from source) ..."
 log "install log -> $INSTALL_LOG"
 remote="env SKADI_INSTALL_UNATTENDED=1 SKADI_SECRET_FELTFOMO_PASSWORD='${PW_HASH}' skadi-install '${HOST}'"
+if [ -n "$DROP" ]; then
+  remote="$remote --drop '${DROP}'"
+  log "composed install: dropping top-level aspect(s): $DROP"
+fi
 ssh_vm "$remote" 2>&1 | tee "$INSTALL_LOG"
 rc="${PIPESTATUS[0]}"
 [ "$rc" = 0 ] || die "unattended skadi-install failed (rc=$rc); see $INSTALL_LOG and $SERIAL."

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# skadi-install <host>  -- two-phase reinstall, run from the skadi installer ISO.
+# skadi-install <host> [--drop a,b,c]  -- two-phase reinstall, run from the
+#   skadi installer ISO.  --drop removes named TOP-LEVEL aspects from the host
+#   for this install only (via the mkInstallTarget factory); the committed
+#   nixosConfigurations.<host> and modules/hosts/<host>.nix are never touched.
 #   1. disko format+mount   2. host key + sops secrets into /persist
 #   3. nixos-install
 #
@@ -18,8 +21,30 @@ log()  { printf '\033[0;32m[skadi-install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[skadi-install]\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m[skadi-install]\033[0m %s\n' "$*" >&2; exit 1; }
 
-HOST="${1:-}"
-[ -n "$HOST" ] || die "usage: skadi-install <host>   (e.g. skadi-install khion)"
+# skadi-install <host> [--drop a,b,c]: <host> is positional; --drop takes a
+# comma/space-separated list of TOP-LEVEL aspects to remove from this host for
+# this install only (see modules/install-target.nix).
+HOST=""
+DROP=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --drop)
+      [ -n "${2:-}" ] || die "--drop needs a comma-separated aspect list (e.g. --drop gpu-nvidia)"
+      IFS=', ' read -r -a _drop_raw <<<"$2"; shift 2
+      for a in "${_drop_raw[@]}"; do [ -n "$a" ] || continue; DROP+=("$a"); done ;;
+    --drop=*)
+      IFS=', ' read -r -a _drop_raw <<<"${1#--drop=}"; shift
+      for a in "${_drop_raw[@]}"; do [ -n "$a" ] || continue; DROP+=("$a"); done ;;
+    -*) die "unknown flag: $1 (usage: skadi-install <host> [--drop a,b,c])" ;;
+    *)  [ -z "$HOST" ] || die "unexpected extra argument: $1"; HOST="$1"; shift ;;
+  esac
+done
+[ -n "$HOST" ] || die "usage: skadi-install <host> [--drop a,b,c]   (e.g. skadi-install khion --drop gpu-nvidia)"
+
+# Render the drop list once: a nix list fragment ("a" "b" ) and a human CSV.
+DROP_NIX=""
+DROP_CSV=""
+for a in "${DROP[@]}"; do DROP_NIX+="\"$a\" "; DROP_CSV+="${DROP_CSV:+,}$a"; done
 
 # guard: refuse to run on a booted skadi install (disko would repartition it).
 if [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
@@ -38,12 +63,60 @@ nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
+# Select the install target: the canonical host, or -- with --drop -- that host
+#     composed with named top-level aspects removed, via the mkInstallTarget
+#     factory (modules/install-target.nix). eval_target and build_target below
+#     BOTH point at the same target, so a dropped aspect's tunables, secrets, and
+#     closure all disappear together: we never prompt for a secret whose aspect
+#     was dropped. The canonical branch is the exact old attr path; the --drop
+#     branch is an --impure --expr over the same git-aware $WORK clone (so
+#     Hyprland's gitTracked still holds), mirroring the proven spike invocation.
+if [ "${#DROP[@]}" -gt 0 ]; then
+  # local install: the builder's system is the target host's system, and the
+  # flake exposes the factory under lib.<system>.mkInstallTarget.
+  SYSTEM="$(nix eval --raw --impure --expr builtins.currentSystem)"
+  log "composing '$HOST' minus top-level aspect(s): $DROP_CSV"
+  log "  (canonical nixosConfigurations.$HOST and modules/hosts/$HOST.nix stay untouched)"
+fi
+
+# nix eval --json of a <selector> (e.g. .config.skadi.installer) on the target.
+eval_target() {
+  if [ "${#DROP[@]}" -eq 0 ]; then
+    nix eval --json "${WORK}#nixosConfigurations.${HOST}${1}"
+  else
+    nix eval --impure --json \
+      --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX}]; })${1}"
+  fi
+}
+
+# nix build of the target's system.build.toplevel (same RAM/disk-lean flags).
+build_target() {
+  if [ "${#DROP[@]}" -eq 0 ]; then
+    nix build --no-link --print-out-paths \
+      --max-jobs "$MAX_JOBS" --cores "$CORES" \
+      --min-free "$MIN_FREE" --max-free "$MAX_FREE" \
+      "${WORK}#nixosConfigurations.${HOST}.config.system.build.toplevel"
+  else
+    nix build --no-link --print-out-paths --impure \
+      --max-jobs "$MAX_JOBS" --cores "$CORES" \
+      --min-free "$MIN_FREE" --max-free "$MAX_FREE" \
+      --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX}]; }).config.system.build.toplevel"
+  fi
+}
+
 # read this host's installer tunables as data (one narrow eval, never the
 #     whole config, so it can't touch a package src / trip gitTracked). every
 #     value defaults in modules/aspects/installer-tunables.nix to the literal it
-#     replaces, so behavior is identical to the old hardcoded script.
+#     replaces, so behavior is identical to the old hardcoded script. On --drop
+#     this evals the COMPOSED target and is the FIRST thing to force the factory,
+#     so a bad --drop name fails loud HERE -- before disko touches the disk.
 log "reading installer tunables from ${HOST} config"
-TUNABLES="$(nix eval --json "${WORK}#nixosConfigurations.${HOST}.config.skadi.installer")"
+if ! TUNABLES="$(eval_target .config.skadi.installer)"; then
+  if [ "${#DROP[@]}" -gt 0 ]; then
+    die "could not compose '$HOST' minus [$DROP_CSV] -- see the den error above (each --drop name must match a top-level aspect on $HOST)."
+  fi
+  die "could not read installer config for '$HOST' (see nix error above)."
+fi
 SWAP_SIZE_GIB=$(jq -r '.swapSizeGiB'                <<<"$TUNABLES")
 LOW_RAM_THRESHOLD_GIB=$(jq -r '.lowRamThresholdGiB' <<<"$TUNABLES")
 MIN_FREE_GIB=$(jq -r '.minFreeGiB'                  <<<"$TUNABLES")
@@ -197,8 +270,8 @@ EOF
 #    (skadi.provision.secrets), never the whole config, so it never touches a
 #    package src and can't trip Hyprland's gitTracked.
 provision_secrets() {
-  local host="$1" plan name method prompt format optional placeholder value raw envvar
-  plan="$(nix eval --json "${WORK}#nixosConfigurations.${host}.config.skadi.provision.secrets")"
+  local plan name method prompt format optional placeholder value raw envvar
+  plan="$(eval_target .config.skadi.provision.secrets)"
   install -d -m0755 secrets
   : > secrets/secrets.yaml
   for name in $(jq -r 'keys[]' <<<"$plan"); do
@@ -245,7 +318,7 @@ provision_secrets() {
   git add -A .sops.yaml secrets/secrets.yaml
 }
 
-provision_secrets "$HOST"
+provision_secrets
 
 # copy flake to /persist/etc/skadi (impermanence-persisted) and install.
 install -d -m0755 "$MNT/persist/etc"
@@ -310,10 +383,7 @@ log "building system closure for $HOST onto the target disk (RAM-lean, cached)"
 #   logseq `EACCES ... unlink esbuild_*.tgz` was a build-user privilege artifact
 #   of the root local-store build -- khion builds the identical drv fine as
 #   nixbld, so building its way avoids it with no root build needed.
-if ! SYS_PATH="$(nix build --no-link --print-out-paths \
-  --max-jobs "$MAX_JOBS" --cores "$CORES" \
-  --min-free "$MIN_FREE" --max-free "$MAX_FREE" \
-  "${WORK}#nixosConfigurations.${HOST}.config.system.build.toplevel")"; then
+if ! SYS_PATH="$(build_target)"; then
   warn "system build FAILED -- disk / OOM post-mortem:"
   df -h "$MNT" / || true
   dmesg 2>/dev/null | tail -n 30 | grep -iE 'out of memory|oom-kill|no space' || true
