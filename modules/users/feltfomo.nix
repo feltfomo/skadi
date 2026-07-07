@@ -89,7 +89,7 @@
       };
 
     homeManager =
-      { pkgs, ... }:
+      { pkgs, lib, ... }:
       let
         # logseq's buildPhase hangs on nixos-unstable until nixpkgs #536292 lands
         # there; pull it from master (which has the fix) meanwhile.
@@ -102,6 +102,20 @@
         };
       in
       {
+        # ~/.steam is not persisted (see the persist list above), so it is gone
+        # on the freshly-wiped root each boot, and the nixos steam wrapper's
+        # "Repairing installation" step does not mkdir it -> "ln: failed to
+        # create symbolic link '~/.steam/steam': No such file or directory".
+        # recreate the symlinks steam needs on every activation with ln -sfn
+        # (idempotent; overwrites whatever is there, so it can never freeze a
+        # bad ~/.steam/steam like persisting it did). they point at the
+        # persisted install; steam adds bin32/bin64/pid alongside them fine.
+        home.activation.steamSymlinks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          run mkdir -p "$HOME/.steam"
+          run ln -sfn "$HOME/.local/share/Steam" "$HOME/.steam/steam"
+          run ln -sfn "$HOME/.local/share/Steam" "$HOME/.steam/root"
+        '';
+
         # git identity
         programs.git = {
           enable = true;
