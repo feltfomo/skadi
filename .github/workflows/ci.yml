@@ -6,55 +6,51 @@ on:
   workflow_dispatch:
 
 jobs:
-  # fast gate (~1-2 min): evaluate the whole flake and check formatting WITHOUT
-  # realising the world. Eval errors and treefmt drift fail here immediately
-  # instead of surfacing two hours into the heavy build.
+  # fast gate (~1-2 min): eval the whole flake + check formatting without
+  # realising the world, so eval errors and treefmt drift fail here immediately
+  # instead of two hours into the heavy build.
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Install Lix, not upstream/Determinate CppNix. Our flake.lock is written
-      # by the system Lix on khion, and the lix / lix-module inputs are Lix
-      # Forgejo tarballs; CppNix canonicalizes those tarball `url` fields
-      # differently and aborts `nix flake check` with "mismatch in field 'url'
-      # of input". Evaluating with Lix (the lock's owner) makes CI agree with
-      # how the fleet is actually built. (Lix GHA installer: lix.systems/install)
+      # install Lix, not upstream/Determinate CppNix. our flake.lock is written by
+      # the system Lix on khion, and the lix / lix-module inputs are Lix Forgejo
+      # tarballs; CppNix canonicalizes those `url` fields differently and aborts
+      # `nix flake check` with "mismatch in field 'url' of input". evaluating with
+      # Lix (the lock's owner) makes CI agree with how the fleet is actually built.
+      # (Lix GHA installer: lix.systems/install)
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      # GitHub's ubuntu-latest (24.04) sets
-      # kernel.apparmor_restrict_unprivileged_userns=1, which blocks unprivileged
-      # user namespaces. Lix is built from source here (HEAD pin, uncached) and its
-      # functional2 suite spawns nested build sandboxes via `unshare`, which fail
-      # with "cannot change root filesystem propagation: Permission denied" and
-      # break the IFD golden-snapshot tests. Re-allow unprivileged userns so the
-      # nested sandbox works. (lix-project/lix#545)
+      # github's ubuntu-latest (24.04) sets
+      # kernel.apparmor_restrict_unprivileged_userns=1, blocking unprivileged user
+      # namespaces. Lix builds from source here (HEAD pin, uncached) and its
+      # functional2 suite spawns nested build sandboxes via `unshare`, which then
+      # fail with "cannot change root filesystem propagation: Permission denied"
+      # and break the IFD golden-snapshot tests. re-allow userns so the nested
+      # sandbox works. (lix-project/lix#545)
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       # instantiate both host toplevels (compute their .drvPath) instead of
       # `nix flake check --no-build`. --no-build refuses to realise the small
-      # import-from-derivation deps this config needs during eval (a
-      # home-manager generation), so it dies with a bogus "path ... did not
-      # exist in the store". Evaluating the drvPath forces the full module eval
-      # -- so real errors still fail fast -- while only building those tiny IFD
-      # inputs, never the heavy packages. magic-nix-cache keeps them warm for
-      # the build jobs below.
+      # import-from-derivation deps this config needs during eval (a home-manager
+      # generation), so it dies with a bogus "path ... did not exist in the store".
+      # evaluating the drvPath forces the full module eval -- so real errors still
+      # fail fast -- while only building those tiny IFD inputs, never the heavy
+      # packages. magic-nix-cache keeps them warm for the build jobs below.
       - name: eval hosts (instantiate, no realise)
         run: |
           nix eval .#nixosConfigurations.khion.config.system.build.toplevel.drvPath --accept-flake-config --raw
           echo
           nix eval .#nixosConfigurations.lumi.config.system.build.toplevel.drvPath --accept-flake-config --raw
           echo
-      # treefmt in check mode (--ci = no cache + fail on change). Same
-      # nixfmt/deadnix/statix/stylua set as `nix fmt`, so this catches exactly
-      # what the local formatter would have fixed.
+      # treefmt in check mode (--ci = no cache + fail on change). same
+      # nixfmt/deadnix/statix/stylua set as `nix fmt`, so this catches exactly what
+      # the local formatter would have fixed.
       - name: formatting (treefmt)
         run: nix fmt -- --ci
 
-  # heavy builds run only after lint is green, and the two hosts build in
-  # parallel on separate runners instead of back-to-back on one.
-  # the two hosts build as separate parallel jobs (not a matrix) so they run
-  # on their own runners at the same time without needing any workflow
-  # expressions, and each only starts once lint is green.
+  # heavy builds run only after lint is green; the two hosts build as separate
+  # parallel jobs (not a matrix) so they run on their own runners at once.
   build-khion:
     needs: lint
     runs-on: ubuntu-latest
@@ -64,11 +60,11 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      # --accept-flake-config trusts the flake's declared cachix caches
-      # (hyprland / walker / noctalia), so anything already published is
-      # substituted instead of compiled. Versions with no cache (e.g. a freshly
-      # bumped noctalia) still build from source, but magic-nix-cache keeps that
-      # result across runs so it's only paid once.
+      # --accept-flake-config trusts the flake's declared cachix caches (hyprland /
+      # walker / noctalia), so anything already published is substituted instead of
+      # compiled. versions with no cache (e.g. a freshly bumped noctalia) still
+      # build from source, but magic-nix-cache keeps that result across runs so it's
+      # only paid once.
       - name: build khion
         run: nix build .#nixosConfigurations.khion.config.system.build.toplevel --accept-flake-config --print-out-paths --print-build-logs
 
