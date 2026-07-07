@@ -16,7 +16,7 @@ LUCID_NIX="modules/_pkgs/lucid.nix"
 LOCKFILE="modules/_pkgs/package-lock.json"
 GITLAB_API="https://gitlab.com/api/v4/projects/sanoojes%2Fspicetify-lucid/repository/commits?ref_name=main&per_page=1"
 
-# ── 1. Get latest commit from GitLab ────────────────────────────────────────
+# get latest commit from gitlab
 log_info "Fetching latest Lucid commit from GitLab..."
 LATEST_REV=$(curl -sL "$GITLAB_API" | jq -r '.[0].id')
 
@@ -27,7 +27,7 @@ fi
 
 log_info "Latest commit: $LATEST_REV"
 
-# ── 2. Check if already up to date ──────────────────────────────────────────
+# skip if already up to date
 CURRENT_REV=$(grep 'rev = ' "$LUCID_NIX" 2>/dev/null | head -1 | grep -oP '"[^"]+"' | tr -d '"' || true)
 
 if [[ "$CURRENT_REV" == "$LATEST_REV" ]]; then
@@ -37,14 +37,14 @@ fi
 
 log_warn "Update available: $CURRENT_REV → $LATEST_REV"
 
-# ── 3. Prefetch new source hash ──────────────────────────────────────────────
+# prefetch new source hash
 log_info "Prefetching source hash..."
 TARBALL_URL="https://gitlab.com/sanoojes/spicetify-lucid/-/archive/${LATEST_REV}/spicetify-lucid-${LATEST_REV}.tar.gz"
 RAW_HASH=$(nix-prefetch-url --unpack "$TARBALL_URL" 2>/dev/null)
 NEW_SRC_HASH=$(nix-hash --to-sri --type sha256 "$RAW_HASH")
 log_info "New source hash: $NEW_SRC_HASH"
 
-# ── 4. Regenerate package-lock.json from new source ─────────────────────────
+# regenerate package-lock.json from new source
 log_info "Regenerating package-lock.json..."
 WORKDIR=$(mktemp -d)
 trap 'rm -rf "$WORKDIR"' EXIT
@@ -58,12 +58,12 @@ popd > /dev/null
 cp "$WORKDIR/package-lock.json" "$LOCKFILE"
 log_info "package-lock.json updated"
 
-# ── 5. Prefetch new npmDepsHash ──────────────────────────────────────────────
+# prefetch new npmDepsHash
 log_info "Prefetching npm deps hash..."
 NEW_NPM_HASH=$(prefetch-npm-deps "$LOCKFILE" 2>/dev/null)
 log_info "New npmDepsHash: $NEW_NPM_HASH"
 
-# ── 6. Patch lucid.nix ───────────────────────────────────────────────────────
+# patch lucid.nix
 log_info "Patching lucid.nix..."
 CURRENT_SRC_HASH=$(grep 'hash = ' "$LUCID_NIX" | head -1 | grep -oP '"sha256-[^"]+"' | tr -d '"')
 CURRENT_NPM_HASH=$(grep 'npmDepsHash' "$LUCID_NIX" | grep -oP '"sha256-[^"]+"' | tr -d '"')
@@ -74,7 +74,7 @@ sed -i "s|rev = \"[^\"]*\";|rev = \"$LATEST_REV\";|" "$LUCID_NIX"
 
 log_info "lucid.nix patched"
 
-# ── 7. Summary ───────────────────────────────────────────────────────────────
+# summary
 echo ""
 log_info "Done! Changes:"
 echo "  rev:         $CURRENT_REV → $LATEST_REV"

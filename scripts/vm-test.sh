@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
-# Build the installer ISO, boot it in a throwaway localhost VM, optionally run
-# an unattended skadi-install, and confirm the result boots to a login prompt.
-# Everything lives under ~/.cache/skadi-vm; the repo tree is never touched.
+# build the installer iso, boot it in a throwaway localhost vm, optionally run an
+# unattended skadi-install, and confirm the result boots to a login prompt.
+# everything lives under ~/.cache/skadi-vm; the repo tree is never touched.
 #
-# The install runs cold on purpose. Lix and notion-sync are uncached, so this
-# exercises the real worst case (a from-source build on a small box), not a
-# cache-warm happy path.
+# the install runs cold on purpose: lix and notion-sync are uncached, so this
+# exercises the real worst case (a from-source build on a small box).
 #
 # set -euo pipefail and PATH come from writeShellApplication. OVMF_FD comes from
-# the nix wrapper. The ISO build reuses the caller's Lix so the Lix-dialect
+# the nix wrapper. the iso build reuses the caller's lix so the lix-dialect
 # flake.lock still evaluates.
 
 CACHE="${SKADI_VM_CACHE:-$HOME/.cache/skadi-vm}"
 SSH_PORT=2222
 SSH_KEY="$CACHE/vm-test-key"
 
-# ssh subcommand: shell into the running VM
+# ssh subcommand: shell into the running vm
 if [ "${1:-}" = ssh ]; then
   shift
   exec ssh -i "$SSH_KEY" -p "$SSH_PORT" \
@@ -35,8 +34,8 @@ RESET=0
 DO_INSTALL=1
 DROP=""              # comma/space list of top-level aspects to drop (composed install)
 
-# The VM has no network and only a placeholder token, so this login hash guards
-# nothing. Plaintext is "skadi". Override with SKADI_FELTFOMO_PW_HASH.
+# the vm has no network and only a placeholder token, so this login hash guards
+# nothing. plaintext is "skadi". override with SKADI_FELTFOMO_PW_HASH.
 : "${SKADI_FELTFOMO_PW_HASH:=}"
 if [ -n "$SKADI_FELTFOMO_PW_HASH" ]; then
   PW_HASH="$SKADI_FELTFOMO_PW_HASH"
@@ -103,7 +102,7 @@ OVMF_VARS_SRC="$OVMF_FD/FV/OVMF_VARS.fd"
 
 mkdir -p "$CACHE"
 
-# Dedicated throwaway key, never committed. Its public half is in the installer's
+# dedicated throwaway key, never committed. its public half is in the installer's
 # authorizedKeys; without it we can't drive the install, so fail loudly.
 if [ ! -f "$SSH_KEY" ]; then
   die "missing vm-test private key at $SSH_KEY
@@ -128,9 +127,9 @@ shopt -u nullglob
 ISO="${isos[0]}"
 log "ISO: $ISO"
 
-# Fresh disk needs fresh NVRAM. A stale OVMF_VARS still listing a previous
-# install's boot entry (pointing at a gone disk GUID) makes the firmware try the
-# empty disk or PXE instead of the ISO: the "failed to load NixOS-boot / Not
+# fresh disk needs fresh nvram. a stale OVMF_VARS still listing a previous
+# install's boot entry (pointing at a gone disk guid) makes the firmware try the
+# empty disk or pxe instead of the iso: the "failed to load NixOS-boot / Not
 # Found" hang.
 if [ "$RESET" = 1 ]; then rm -f "$DISK_IMG"; fi
 fresh_disk=0
@@ -146,7 +145,7 @@ fi
 
 : > "$SERIAL"
 
-# headless UEFI boot; serial is captured to a log file
+# headless uefi boot; serial is captured to a log file
 QEMU_COMMON=(
   -machine "q35,accel=kvm"
   -cpu host
@@ -200,28 +199,24 @@ if [ "$DO_INSTALL" != 1 ]; then
   exit 0
 fi
 
-# One attempt, run to completion; killing a heavy derivation throws away all its
-# progress. The token is left unset so the installer keeps its placeholder, and
-# cold-from-source comes from the ISO's own nix settings, not from here.
+# one attempt, run to completion; killing a heavy derivation throws away its
+# progress. the token is left unset so the installer keeps its placeholder, and
+# cold-from-source comes from the iso's own nix settings, not from here.
 log "driving unattended 'skadi-install $HOST' (cold, from source) ..."
 log "install log -> $INSTALL_LOG"
-# IN_DISKO_TEST=1 is disko's own hook: its generated luks script then keys the
-# cryptroot slot with the deterministic passphrase `disko` (via
-# --key-file <(echo -n ..), no trailing newline) instead of prompting on a tty
-# we don't have here. The installed _vm host embeds a byte-identical keyfile in
-# its initrd (modules/hosts/_vm/hardware.nix), so the disk auto-unlocks on the
-# post-install boot and this harness can watch for a real login prompt. VM-only:
-# real `skadi-install <host>` runs never set it, so khion keeps its passphrase.
-# Feed every mkpasswd-provisioned secret on THIS host the deterministic test
-# hash, derived from the host's own config instead of hardcoding one user --
-# so `generic` gets owner-password, khion gets feltfomo-password, and any future
-# host gets whatever it declares, all filled the same way. Only method ==
-# "mkpasswd" secrets are forced; paste/optional ones (e.g. notion-token)
-# self-placeholder when unset, so we leave them be. Env var names match
-# skadi-install's own derivation: SKADI_SECRET_<NAME>, name uppercased, '-' ->
-# '_'. Evaluated against $FLAKE (the same tree the ISO is built from); the VM
-# installs the same commit once it's pushed. This evals the canonical host; a
-# --drop run's secret set is only ever a SUBSET, so any extra env var is ignored.
+# IN_DISKO_TEST=1 is disko's own hook: its luks script keys the cryptroot slot
+# with the deterministic passphrase `disko` (--key-file <(echo -n ..), no trailing
+# newline) instead of prompting on a tty we don't have. the installed _vm host
+# embeds a byte-identical keyfile in its initrd, so the disk auto-unlocks on the
+# post-install boot and the harness can watch for a login prompt. vm-only: real
+# skadi-install runs never set it, so khion keeps its passphrase.
+# feed every mkpasswd secret on this host the deterministic test hash, derived
+# from the host's own config, so generic gets owner-password, khion gets
+# feltfomo-password, and any future host gets whatever it declares. only
+# method == "mkpasswd" secrets are forced; paste/optional ones self-placeholder
+# when unset. env var names match skadi-install: SKADI_SECRET_<NAME>, uppercased,
+# '-' -> '_'. evaluated against $FLAKE; a --drop run's secret set is only ever a
+# subset, so any extra env var is ignored.
 log "resolving mkpasswd secrets for '$HOST' from its config"
 mkpasswd_secrets="$(nix eval --raw "${FLAKE}#nixosConfigurations.${HOST}.config.skadi.provision.secrets" \
   --apply 's: builtins.concatStringsSep "\n" (builtins.filter (n: (builtins.getAttr n s).method == "mkpasswd") (builtins.attrNames s))')" \
@@ -230,8 +225,7 @@ SECRET_ENV=""
 while IFS= read -r secret; do
   [ -n "$secret" ] || continue
   envvar="SKADI_SECRET_$(printf '%s' "$secret" | tr 'a-z-' 'A-Z_')"
-  # single-quote the hash so the REMOTE shell doesn't expand the $6$... in it,
-  # exactly like the old hardcoded SKADI_SECRET_FELTFOMO_PASSWORD line did.
+  # single-quote the hash so the remote shell doesn't expand the $6$... in it.
   # shellcheck disable=SC2089
   SECRET_ENV="$SECRET_ENV $envvar='${PW_HASH}'"
   log "  $secret -> $envvar"
@@ -258,9 +252,9 @@ log "booting the installed disk (no ISO) to verify $HOST comes up ..."
 qemu-system-x86_64 "${QEMU_COMMON[@]}" -boot order=cd &
 QEMU_PID=$!
 
-# Watch the serial log for a login marker. This only works if the installed host
-# puts a console on ttyS0; if it doesn't we time out to a WARN (the install
-# itself already succeeded) and you can re-run with --keep to inspect it.
+# watch the serial log for a login marker. only works if the installed host puts a
+# console on ttyS0; if it doesn't we time out to a warn (the install already
+# succeeded) and you can re-run with --keep to inspect it.
 log "watching $SERIAL for a login prompt ..."
 verified=0
 for ((i = 0; i < 60; i++)); do

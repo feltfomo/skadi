@@ -28,8 +28,8 @@
     nixos =
       { pkgs, config, ... }:
       {
-        # the login password + how the installer provisions it, owned here next
-        # to the user that needs it (moved out of the monolithic sops.nix)
+        # login password + how the installer provisions it, owned next to the
+        # user that needs it
         sops.secrets."feltfomo-password".neededForUsers = true;
         skadi.provision.secrets.feltfomo-password = {
           method = "mkpasswd";
@@ -73,14 +73,14 @@
           "Music"
           ".config"
           # ~/.local persists the real Steam install + games at
-          # ~/.local/share/Steam. do NOT persist ~/.steam -- it holds only
+          # ~/.local/share/Steam. do not persist ~/.steam -- it holds only
           # regenerable symlinks that steam relinks to ~/.local on every launch
           # ("Repairing installation, linking ..."). persisting it once froze a
           # malformed ~/.steam/steam (a real dir where the symlink belongs)
           # across reboots -> recurring "Couldn't set up Steam data". leaving
           # ~/.steam on the wiped root clears any bad state each boot so steam
           # rebuilds it clean. drift only happens if you persist ~/.steam
-          # WITHOUT ~/.local, not this way around.
+          # without ~/.local, not this way around.
           ".local"
           ".ssh"
           # notion-sync dirs

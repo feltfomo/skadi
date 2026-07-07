@@ -1,6 +1,5 @@
 _: {
   den.aspects.fuzzel.homeManager = {
-    # enable and config fuzzel
     programs.fuzzel = {
       enable = true;
       settings = {

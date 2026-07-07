@@ -3,10 +3,9 @@ _: {
     nixos =
       { pkgs, ... }:
       {
-        # Qt theming is owned entirely by the qt-hm aspect (home-manager), which
-        # sets platformTheme = "qtct". the old system-level qt block set
-        # platformTheme = "qt5ct" here, which disagreed with home-manager; only
-        # the qt5ct/qt6ct/kvantum packages stay at the system level.
+        # qt theming is owned by the qt-hm aspect (home-manager), which sets
+        # platformTheme = "qtct". only the qt5ct/qt6ct/kvantum packages stay at
+        # system level; a system-level platformTheme would disagree with it.
         environment.systemPackages = with pkgs; [
           libsForQt5.qt5ct
           qt6Packages.qt6ct
@@ -37,7 +36,7 @@ _: {
           };
         };
 
-        # cursor theme for gtk, x11/xwayland and wayland (from wiki)
+        # cursor theme for gtk + x11/xwayland/wayland
         home.pointerCursor =
           let
             getFrom = url: hash: name: {

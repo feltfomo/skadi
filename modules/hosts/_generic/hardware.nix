@@ -1,10 +1,10 @@
 { lib, modulesPath, ... }:
 {
-  # PLACEHOLDER. skadi-install overwrites this with `nixos-generate-config
-  # --show-hardware-config` for the real target at install time. Committed only
+  # placeholder. skadi-install overwrites this with `nixos-generate-config
+  # --show-hardware-config` for the real target at install time. committed only
   # so `nix flake check` can evaluate nixosConfigurations.generic; kept minimal +
-  # plain UEFI/x86_64. Test-only console/keyfile hooks live in ./vm-test-hooks.nix,
-  # NOT here, so the regenerated file stays pure (per [G3]).
+  # plain UEFI/x86_64. test-only console/keyfile hooks live in ./vm-test-hooks.nix,
+  # not here, so the regenerated file stays pure.
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
   boot.initrd.availableKernelModules = [
     "nvme"

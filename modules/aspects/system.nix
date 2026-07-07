@@ -13,14 +13,12 @@ _: {
         connect-timeout = 5;
       };
 
-      # automatic garbage collection (from wiki)
       nix.gc = {
         automatic = true;
         dates = "weekly";
         options = "--delete-older-than 30d";
       };
-      # deduplicate store with hardlinks on a schedule
-      # better than auto-optimise-store which slows down every build
+      # hardlink dedup on a schedule; auto-optimise-store would slow every build
       nix.optimise.automatic = true;
 
       nixpkgs.config.allowUnfree = true;
@@ -28,7 +26,6 @@ _: {
       time.timeZone = "America/Los_Angeles";
       i18n.defaultLocale = "en_US.UTF-8";
 
-      # sudo needs a password
       security.sudo.wheelNeedsPassword = true;
 
       # audio. pipewire replaces pulseaudio; the pulse shim is what provides
@@ -70,18 +67,17 @@ _: {
       services.openssh = {
         enable = true;
         settings = {
-          # disable password auth, require keys
           PasswordAuthentication = false;
           KbdInteractiveAuthentication = false;
           PermitRootLogin = "no";
         };
       };
 
-      # host-agnostic kernel watchdog disable (previously misfiled under gpu-nvidia)
+      # host-agnostic kernel watchdog disable
       boot.kernelParams = [ "nowatchdog" ];
 
-      # make /etc/skadi user-editable without sudo (Zed "Permission denied" on save).
-      # Z recursively re-owns on every activation, self-healing after a root-cp install.
+      # make /etc/skadi user-editable without sudo (zed "permission denied" on save).
+      # the Z rule re-owns on every activation, self-healing after a root-cp install.
       systemd.tmpfiles.rules = [ "Z /etc/skadi - feltfomo feltfomo - -" ];
 
       boot.loader = {
@@ -114,7 +110,6 @@ _: {
         gsettings-desktop-schemas
       ];
 
-      # enable dconf, neovim, fish, and nix-ld
       programs = {
         dconf.enable = true;
         neovim = {

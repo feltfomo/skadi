@@ -5,7 +5,6 @@ _: {
       programs.fish = {
         enable = true;
 
-        # launch terminal with fastfetch
         interactiveShellInit = ''
           fastfetch
         '';
@@ -18,7 +17,6 @@ _: {
         };
       };
 
-      # nix your shell
       programs.nix-your-shell = {
         enable = true;
         enableFishIntegration = true;

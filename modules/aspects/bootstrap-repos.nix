@@ -1,7 +1,7 @@
-# First-boot bootstrap: clone the wallpaper repo + notion-sync mapping repos
-# into feltfomo's home if missing. Runs as the user on the booted system, so
-# paths resolve in the real namespace (no impermanence bind-mount guessing) and
-# ownership is correct with no chown. Self-healing: re-clones anything deleted.
+# first-boot bootstrap: clone the wallpaper repo + notion-sync mapping repos into
+# feltfomo's home if missing. runs as the user on the booted system, so paths
+# resolve in the real namespace (no impermanence bind-mount guessing) and
+# ownership is correct with no chown. self-healing: re-clones anything deleted.
 _: {
   den.aspects.bootstrap-repos.homeManager =
     { pkgs, lib, ... }:
@@ -9,7 +9,7 @@ _: {
       repos = {
         "Projects/notion-sync".url = "https://github.com/feltfomo/notion-sync";
         "Projects/multiloader-template".url = "https://github.com/feltfomo/multiloader-template";
-        # This repo wraps its images in an inner Wallpapers/ dir; promote that
+        # this repo wraps its images in an inner Wallpapers/ dir; promote that
         # subdir so they land flat at ~/Wallpapers, not ~/Wallpapers/Wallpapers.
         "Wallpapers" = {
           url = "https://github.com/feltfomo/Wallpapers";
@@ -52,7 +52,7 @@ _: {
               ''
                 dest="$HOME/${rel}"
                 # ${url} nests its content under ${subdir}/; promote that subdir so
-                # files land flat at $dest. The flattened tree keeps no top-level
+                # files land flat at $dest. the flattened tree keeps no top-level
                 # .git, so non-emptiness is the "already cloned" sentinel.
                 if [ -z "$(ls -A "$dest" 2>/dev/null || true)" ]; then
                   mkdir -p "$(dirname "$dest")"

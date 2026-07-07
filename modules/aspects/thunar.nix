@@ -1,6 +1,4 @@
 _: {
-  # the old thunar.nix was a copy of wayland-packages and never defined thunar.
-  # this is the intended file manager.
   den.aspects.thunar.nixos =
     { pkgs, ... }:
     {

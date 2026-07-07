@@ -1,8 +1,7 @@
-# Packages scripts/vm-test.sh as `nix run .#vm-test`. The bash is kept in its
-# own file instead of inlined so it stays readable and syncs cleanly. The one
-# thing nix does that the script can't is resolve the OVMF firmware path at
-# build time and pass it in as OVMF_FD. runtimeInputs deliberately omits nix so
-# the ISO build uses the caller's Lix and the Lix-dialect flake.lock evaluates.
+# packages scripts/vm-test.sh as `nix run .#vm-test`. the bash lives in its own
+# file so it stays readable and syncs cleanly. nix resolves the ovmf firmware path
+# at build time and passes it in as OVMF_FD. runtimeInputs omits nix so the iso
+# build uses the caller's lix and the lix-dialect flake.lock evaluates.
 _: {
   perSystem =
     { pkgs, ... }:
@@ -16,7 +15,7 @@ _: {
           gnugrep
         ];
         text = ''
-          # resolved here so the script doesn't have to hunt for OVMF
+          # resolved here so the script doesn't have to hunt for ovmf
           OVMF_FD='${pkgs.OVMF.fd}'
           export OVMF_FD
         ''

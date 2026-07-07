@@ -2,10 +2,8 @@ _: {
   den.aspects.gpu-nvidia.nixos =
     { config, pkgs, ... }:
     {
-      # use nvidia driver for xserver
       services.xserver.videoDrivers = [ "nvidia" ];
 
-      # nvidia driver configuration
       hardware.nvidia = {
         modesetting.enable = true;
         open = true; # required for the rtx 4060 (ada) on current drivers
@@ -18,7 +16,6 @@ _: {
         };
       };
 
-      # graphics/opengl support including 32bit for games
       hardware.graphics = {
         enable = true;
         enable32Bit = true;
@@ -27,16 +24,14 @@ _: {
         ];
       };
 
-      # kernel params for nvidia power management
       boot.kernelParams = [
         "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
         "nvidia.NVreg_TemporaryFilePath=/var/tmp"
       ];
 
-      # load nvidia uvm module for cuda support
-      boot.kernelModules = [ "nvidia-uvm" ];
+      boot.kernelModules = [ "nvidia-uvm" ]; # cuda
 
-      # enable fan control via coolbits
+      # coolbits enables the fan-control knob the service below drives
       environment.etc."X11/xorg.conf.d/20-nvidia.conf".text = ''
         Section "Device"
         Identifier "NVIDIA Card"
@@ -45,7 +40,6 @@ _: {
         EndSection
       '';
 
-      # custom fan curve service
       systemd.services.nvidia-fan-control = {
         description = "NVIDIA Custom Fan Curve";
         wantedBy = [ "multi-user.target" ];
@@ -80,7 +74,6 @@ _: {
         };
       };
 
-      # vulkan tools and drivers
       environment.systemPackages = with pkgs; [
         vulkan-tools
         vulkan-loader

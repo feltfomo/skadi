@@ -3,7 +3,6 @@
   den.aspects.impermanence.nixos =
     { ... }:
     {
-      # provides environment.persistence option
       imports = [ inputs.impermanence.nixosModules.impermanence ];
 
       # persist and home must be available early in boot
@@ -32,7 +31,6 @@
         '';
       };
 
-      # what gets persisted across reboots
       environment.persistence."/persist" = {
         hideMounts = true;
         directories = [

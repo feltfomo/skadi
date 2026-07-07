@@ -1,23 +1,15 @@
 #!/usr/bin/env bash
-# skadi-install [<host>] [--drop a,b,c] [--print-target]  -- two-phase reinstall,
-#   run from the skadi installer ISO.  --drop removes named TOP-LEVEL aspects
-#   from the host for this install only (via the mkInstallTarget factory); the
-#   committed nixosConfigurations.<host> and modules/hosts/<host>.nix are never
-#   touched.
-#   1. disko format+mount   2. host key + sops secrets into /persist
-#   3. nixos-install
+# skadi-install [<host>] [--drop a,b,c] [--print-target]: two-phase reinstall from
+# the installer iso. steps: disko format+mount, host key + sops secrets into
+# /persist, nixos-install. --drop removes named top-level aspects for this install
+# only via mkInstallTarget; the committed nixosConfigurations.<host> and
+# modules/hosts/<host>.nix are never touched. no host on a tty opens an
+# interactive picker that resolves to the same path as an explicit --drop.
+# --print-target is a read-only dry run: prints the resolved invocation and the
+# composed toplevel drvPath, no disk writes.
 #
-#   With NO <host> on a TTY it drops into an interactive picker (host, then
-#   which top-level aspects to drop) that dispatches into the exact same path as
-#   an explicit `<host> --drop ...`.  --print-target is a read-only dry run:
-#   print the resolved invocation + the composed system's toplevel drvPath and
-#   exit, with no disk writes (so it runs on a booted host too -- handy for
-#   proving an interactive pick resolves to the same drvPath as `--drop`).
-#
-# Home repos (Wallpapers + notion-sync mappings) are cloned on first boot by the
-# bootstrap-repos aspect, not here -- so this stays a pure OS bootstrapper.
-#
-# NEVER run against a booted skadi system -- disko repartitions. Guarded below.
+# home repos clone on first boot via bootstrap-repos, not here.
+# never run against a booted skadi system -- disko repartitions. guarded below.
 # set -euo pipefail is injected by writeShellApplication.
 
 SKADI_REMOTE="https://github.com/feltfomo/skadi"
@@ -29,12 +21,11 @@ log()  { printf '\033[0;32m[skadi-install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[skadi-install]\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m[skadi-install]\033[0m %s\n' "$*" >&2; exit 1; }
 
-# Generic host disk detection ([C]/[G1]): the generic target ships NO committed
-# _generic/{device,hardware}.nix for the machine in front of us -- discover them
-# at install time. Enumerate whole disks (lsblk type=disk excludes the ISO's
-# sr0/rom + loop devices), require EXACTLY one, set GENERIC_DEVICE. Multi-disk
-# metal deliberately dies pointing at the deferred interactive-generic follow-on
-# rather than guessing which disk to destroy.
+# generic ships no committed _generic/{device,hardware}.nix for the machine in
+# front of us, so discover the disk at install time. enumerate whole disks
+# (lsblk type=disk excludes the iso's sr0/rom + loop devices), require exactly
+# one, set GENERIC_DEVICE. multi-disk metal dies rather than guess which disk to
+# destroy.
 detect_generic_disk() {
   local disks_json disks=() n
   disks_json="$(lsblk --json --nodeps --output NAME,TYPE)" || die "generic: lsblk failed enumerating disks"
@@ -50,27 +41,22 @@ detect_generic_disk() {
   log "generic: detected sole target disk $GENERIC_DEVICE"
 }
 
-# interactive target selection (no host arg, on a TTY): pick a host, toggle
-# which of its TOP-LEVEL aspects to drop, confirm, then set HOST + DROP and let
-# the normal path take over. Everything is enumerated from real config via
-# narrow `nix eval` -- never a hardcoded menu. The aspect list is
-# flake.lib.<system>.hostAspects, the SAME list mkInstallTarget validates --drop
-# against (modules/install-target.nix), so an interactive pick can never produce
-# an invalid drop: the fail-loud assertion only ever needs to guard the explicit
-# --drop path. `base` is structurally required and is never offered as a toggle.
+# interactive target selection when no host arg on a tty: pick a host, toggle
+# which top-level aspects to drop, then set HOST + DROP and hand off to the normal
+# path. the menu is enumerated from flake.lib.<system>.hostAspects, the same list
+# mkInstallTarget validates --drop against, so an interactive pick can't produce
+# an invalid drop. base is required and never offered as a toggle.
 select_target() {
   local all=() hosts=() aspects=() drop_flag=() hosts_json aspects_json h i n choice csv
 
-  # host list = nixosConfigurations that also have a modules/hosts/<h>.nix -- the
-  # same filter the explicit path validates against, so the ISO's own `installer`
-  # config (modules/installer.nix, no hosts/ file) never shows up as a target.
+  # hosts = nixosConfigurations that also have a modules/hosts/<h>.nix, so the
+  # iso's own installer config (no hosts/ file) never shows up as a target.
   hosts_json="$(nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames')" \
     || die "could not enumerate hosts (nix eval failed)"
   mapfile -t all < <(jq -r '.[]' <<<"$hosts_json")
   for h in "${all[@]}"; do
-    # generic is an explicit-trigger-only target (`skadi-install generic`): it has
-    # a modules/hosts/generic.nix so it'd pass this filter, but its disk + hardware
-    # are DISCOVERED at install time, so it must never appear as a menu pick ([G2]).
+    # generic is explicit-trigger-only: it passes this filter but its disk and
+    # hardware are discovered at install time, so never offer it in the menu.
     if [ "$h" = generic ]; then continue; fi
     if [ -f "modules/hosts/${h}.nix" ]; then hosts+=("$h"); fi
   done
@@ -86,8 +72,7 @@ select_target() {
     echo "  enter a number between 1 and ${#hosts[@]}" >&2
   done
 
-  # top-level aspects for the chosen host, from the shared introspection output
-  # (the SAME list --drop is validated against, so this menu can't misfire).
+  # top-level aspects for the chosen host, the same list --drop is validated against.
   aspects_json="$(nix eval --json "${WORK}#lib.${SYSTEM}.hostAspects.${HOST}")" \
     || die "could not read top-level aspects for '$HOST' (nix eval failed)"
   mapfile -t aspects < <(jq -r '.[]' <<<"$aspects_json")
@@ -125,9 +110,7 @@ select_target() {
     if [ "${drop_flag[i]}" = 1 ]; then DROP+=("${aspects[i]}"); fi
   done
 
-  # confirmation summary + the equivalent explicit invocation (teaches the CLI
-  # and doubles as a sanity check that interactive resolves to the same target
-  # as `--drop`).
+  # confirmation summary + the equivalent explicit invocation.
   csv=""
   for n in "${DROP[@]}"; do csv+="${csv:+,}$n"; done
   echo >&2
@@ -146,9 +129,8 @@ select_target() {
   esac
 }
 
-# skadi-install <host> [--drop a,b,c]: <host> is positional; --drop takes a
-# comma/space-separated list of TOP-LEVEL aspects to remove from this host for
-# this install only (see modules/install-target.nix).
+# <host> is positional; --drop takes a comma/space-separated list of top-level
+# aspects to remove from this host for this install only.
 HOST=""
 DROP=()
 PRINT_TARGET=0
@@ -166,13 +148,12 @@ while [ $# -gt 0 ]; do
     *)  [ -z "$HOST" ] || die "unexpected extra argument: $1"; HOST="$1"; shift ;;
   esac
 done
-# NOTE: no mandatory-host check here. A missing host is resolved AFTER the clone:
-# interactively on a TTY, otherwise a usage die. (DROP_NIX/DROP_CSV are rendered
-# there too, once interactive selection has had its say.)
+# no host check here: a missing host is resolved after the clone, interactively on
+# a tty or a usage die otherwise.
 
-# guard: refuse to run on a booted skadi install (disko would repartition it).
-# --print-target is a read-only dry run (no disk writes at all), so it bypasses
-# this guard on purpose -- that's what lets it resolve a drvPath on khion itself.
+# refuse to run on a booted skadi install -- disko would repartition it.
+# --print-target is read-only so it bypasses this guard on purpose, which is what
+# lets it resolve a drvPath on khion itself.
 if [ "$PRINT_TARGET" != 1 ] && [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
   die "this looks like a booted skadi system, not the ISO -- refusing to repartition."
 fi
@@ -183,17 +164,13 @@ log "cloning skadi from $SKADI_REMOTE"
 git clone "$SKADI_REMOTE" "$WORK"
 cd "$WORK"
 
-# the builder's system, used to address flake.lib.<system>.* -- the interactive
-# menu's hostAspects introspection, --print-target, and the mkInstallTarget
-# factory all live there. Computed unconditionally now that the menu needs it.
+# the builder's system, used to address flake.lib.<system>.* (the menu's
+# hostAspects, --print-target, and mkInstallTarget all live there).
 SYSTEM="$(nix eval --raw --impure --expr builtins.currentSystem)"
 
-# Resolve the host. With a host arg, use it as-is. With NO host arg, drop into
-# interactive selection -- but ONLY on a real TTY and only when NOT unattended,
-# so the harness / any piped or unattended caller stays fully non-interactive.
-# The two non-interactive corners -- SKADI_INSTALL_UNATTENDED=1 + no host, and a
-# piped / non-TTY caller + no host -- both fall through to the usage die rather
-# than hang waiting on stdin.
+# resolve the host. with a host arg use it as-is. with no host arg, only drop into
+# interactive selection on a real tty and when not unattended, so a piped or
+# unattended caller falls through to the usage die instead of hanging on stdin.
 if [ -z "$HOST" ]; then
   if [ "${SKADI_INSTALL_UNATTENDED:-}" != 1 ] && [ -t 0 ]; then
     select_target
@@ -202,11 +179,9 @@ if [ -z "$HOST" ]; then
   fi
 fi
 
-# `base` is structurally required -- it carries skadi.installer + provision and
-# every host needs it to boot. Dropping it PASSES the top-level-name assertion in
-# mkInstallTarget (base is a real top-level include) but yields a broken host, so
-# reject it explicitly. The interactive menu never offers base, so this only ever
-# fires on an explicit `--drop base`.
+# base is required -- it carries skadi.installer + provision and every host needs
+# it to boot. dropping it passes the mkInstallTarget name check but yields a broken
+# host, so reject it explicitly.
 for a in "${DROP[@]}"; do
   if [ "$a" = base ]; then
     die "'base' is required and cannot be dropped"
@@ -218,22 +193,19 @@ DROP_NIX=""
 DROP_CSV=""
 for a in "${DROP[@]}"; do DROP_NIX+="\"$a\" "; DROP_CSV+="${DROP_CSV:+,}$a"; done
 
-# cheap pre-check, then the authoritative den-aware check: the host must actually
-# resolve to a nixosConfigurations.<host>, not merely have a file by that name.
-# (An interactive host already came from this exact list, so this just re-affirms
-# it; an explicit `<host>` arg is validated here for the first time.)
+# cheap pre-check then the authoritative check: the host must resolve to a
+# nixosConfigurations.<host>, not merely have a file by that name.
 test -f "modules/hosts/${HOST}.nix" || die "unknown host '$HOST' (no modules/hosts/${HOST}.nix)"
 nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
-# Generic host ([C]/[G1]): no committed _generic/{device,hardware}.nix describes
-# THIS machine, so discover them. Detect the disk, write _generic/device, and
-# write the vm-test sentinel from EXACTLY the IN_DISKO_TEST signal disko's key
-# enroll uses (so the format-time key and the boot-time keyFile can never
-# disagree), then git-add so the git+file flake eval + `disko --flake` see them.
-# hardware.nix is generated later, once disko has mounted /mnt. Skipped under
-# --print-target (that stays a read-only eval of the committed sentinel).
+# generic: no committed _generic/{device,hardware}.nix describes this machine, so
+# discover it. detect the disk, write _generic/device, and write the vm-test
+# sentinel from the same IN_DISKO_TEST signal disko's key enroll uses so the
+# format-time key and boot-time keyFile can't disagree, then git-add so the
+# git+file flake eval and disko --flake see them. hardware.nix comes later once
+# disko has mounted /mnt. skipped under --print-target.
 if [ "$HOST" = generic ] && [ "$PRINT_TARGET" != 1 ]; then
   detect_generic_disk
   printf '%s' "$GENERIC_DEVICE" > modules/hosts/_generic/device
@@ -245,14 +217,12 @@ if [ "$HOST" = generic ] && [ "$PRINT_TARGET" != 1 ]; then
   git add -A modules/hosts/_generic/device modules/hosts/_generic/vm-test
 fi
 
-# Select the install target: the canonical host, or -- with --drop -- that host
-#     composed with named top-level aspects removed, via the mkInstallTarget
-#     factory (modules/install-target.nix). eval_target and build_target below
-#     BOTH point at the same target, so a dropped aspect's tunables, secrets, and
-#     closure all disappear together: we never prompt for a secret whose aspect
-#     was dropped. The canonical branch is the exact old attr path; the --drop
-#     branch is an --impure --expr over the same git-aware $WORK clone (so
-#     Hyprland's gitTracked still holds), mirroring the proven spike invocation.
+# select the install target: the canonical host, or with --drop that host minus
+# named top-level aspects via mkInstallTarget. eval_target and build_target both
+# point at the same target, so a dropped aspect's tunables, secrets and closure
+# disappear together and we never prompt for a secret whose aspect was dropped.
+# the --drop branch uses --impure --expr over the same git-aware $WORK clone so
+# hyprland's gitTracked still holds.
 if [ "${#DROP[@]}" -gt 0 ]; then
   # composing: the flake exposes the factory under lib.<system>.mkInstallTarget
   # (SYSTEM was resolved above; the menu and --print-target need it too).
@@ -285,12 +255,9 @@ build_target() {
   fi
 }
 
-# --print-target: read-only dry run. Print the resolved invocation + the composed
-#     system's toplevel drvPath, then exit BEFORE any disk work (it already
-#     bypassed the booted-skadi guard above, so this also runs on khion itself).
-#     This is the machine-checkable proof that interactive selection resolves to
-#     the IDENTICAL target as an explicit `--drop`: pick the same host + aspects
-#     both ways, and the drvPaths are equal. Evaluating .drvPath does NOT build.
+# --print-target: read-only dry run. print the resolved invocation and the composed
+# toplevel drvPath, then exit before any disk work (it bypassed the booted-skadi
+# guard above so it runs on khion too). evaluating .drvPath does not build.
 if [ "$PRINT_TARGET" = 1 ]; then
   if [ "${#DROP[@]}" -gt 0 ]; then
     echo "resolved: skadi-install $HOST --drop $DROP_CSV"
@@ -305,12 +272,10 @@ if [ "$PRINT_TARGET" = 1 ]; then
   exit 0
 fi
 
-# read this host's installer tunables as data (one narrow eval, never the
-#     whole config, so it can't touch a package src / trip gitTracked). every
-#     value defaults in modules/aspects/installer-tunables.nix to the literal it
-#     replaces, so behavior is identical to the old hardcoded script. On --drop
-#     this evals the COMPOSED target and is the FIRST thing to force the factory,
-#     so a bad --drop name fails loud HERE -- before disko touches the disk.
+# read this host's installer tunables as data via one narrow eval, never the whole
+# config so it can't touch a package src or trip gitTracked. on --drop this is the
+# first thing to force the factory, so a bad --drop name fails loud here before
+# disko touches the disk.
 log "reading installer tunables from ${HOST} config"
 if ! TUNABLES="$(eval_target .config.skadi.installer)"; then
   if [ "${#DROP[@]}" -gt 0 ]; then
@@ -342,23 +307,19 @@ fi
 log "running disko (destroy,format,mount)"
 disko --mode destroy,format,mount --flake ".#${HOST}"
 
-# Generic host ([C]/[G1]): the target is now partitioned + mounted at /mnt, so
-# generate its hardware profile from THIS machine and stage it over the committed
-# placeholder BEFORE the closure build reads it. disko owns the filesystems, so
-# --no-filesystems; the generated file stays pure (no fileSystems, no ttyS0 /
-# keyfile -- those live in the IN_DISKO_TEST-gated vm-test-hooks.nix).
+# generic: /mnt is now mounted, so generate hardware.nix from this machine and
+# stage it over the placeholder before the closure build reads it. disko owns the
+# filesystems so --no-filesystems; the generated file stays pure (no fileSystems,
+# no ttyS0/keyfile -- those live in the IN_DISKO_TEST-gated vm-test-hooks.nix).
 if [ "$HOST" = generic ]; then
   log "generic: generating hardware.nix from detected hardware"
   nixos-generate-config --no-filesystems --root "$MNT" --show-hardware-config > modules/hosts/_generic/hardware.nix || die "generic: nixos-generate-config failed"
   git add -A modules/hosts/_generic/hardware.nix
 fi
 
-# temporary build swap: guaranteed headroom so a from-source compile can never
-#     OOM-kill the install on a lean-RAM box. Lix (deliberately uncached -- the
-#     disk canary) and the first-party notion-sync daemon always build from source
-#     here; on 8-16 GB that needs swap to survive. Placed on the target
-#     btrfs (no-COW via mkswapfile) and torn down on exit (impermanence would drop
-#     it on first boot anyway, but we clean it up regardless).
+# temporary build swap so a from-source compile can't oom-kill the install on a
+# lean-ram box. lix and notion-sync always build from source here; on 8-16g that
+# needs swap. placed on the target btrfs (no-cow via mkswapfile) and torn down on exit.
 SWAPFILE="$MNT/swapfile"
 STORE_RELOCATED=0
 teardown() {
@@ -384,35 +345,21 @@ else
   log "RAM ${mem_gib}G >= ${LOW_RAM_THRESHOLD_GIB}G: skipping build swap"
 fi
 
-# relocate the Nix store's writable layer onto the target DISK.
-#     The installer ISO mounts /nix/store as an overlay whose upper/work live on
-#     a RAM-backed tmpfs (/nix/.rw-store; see nixpkgs iso-image.nix). That RAM
-#     ceiling -- NOT the disk -- is what OOMs a cold from-source build. We stack
-#     a SECOND overlay over /nix/store with upper/work on /mnt, layered ONLY over
-#     the squashfs base (/nix/.ro-store).
+# relocate the nix store's writable layer onto the target disk. the iso mounts
+# /nix/store as an overlay whose upper/work live on a ram tmpfs (/nix/.rw-store),
+# and that ram ceiling is what ooms a cold from-source build. stack a second
+# overlay over /nix/store with upper/work on /mnt, layered only over the squashfs
+# base (/nix/.ro-store).
 #
-#     CRITICAL -- lowerdir is the squashfs ALONE; we deliberately do NOT include
-#     the ISO's tmpfs rw layer (/nix/.rw-store/store) as a lower. Stacking that
-#     tmpfs layer poisons root chown on the merged store: even full-cap real root
-#     then gets EPERM chown'ing store files, which breaks `tar --same-owner`
-#     during rust vendoring (codemap: "tar: .gitignore: Cannot change ownership
-#     to uid 1000 ... Operation not permitted"). Proven on the live installer: an
-#     overlay with lowerdir=/nix/.ro-store + a btrfs upper accepts `chown 1000`,
-#     while the tmpfs-lower'd store rejects it. The squashfs holds the ISO's base
-#     closure; the only thing in the tmpfs layer is post-boot writes (notably the
-#     flake source disko copies in), which we migrate into our disk upper below
-#     before mounting so the RAM-resident Nix DB stays consistent.
+# lowerdir MUST be the squashfs alone -- do not include the iso's tmpfs rw layer.
+# stacking it poisons root chown on the merged store: even full-cap root gets
+# EPERM chown'ing store files, which breaks `tar --same-owner` during rust
+# vendoring. the only thing in the tmpfs layer is post-boot writes (the flake
+# source disko copies in), which we migrate into the disk upper below before
+# mounting so the ram-resident nix db stays consistent.
 #
-#     This keeps the store path literally "/nix/store", i.e. NON-DIVERTED
-#     (realStoreDir == storeDir), so build + eval share one store (no unsigned
-#     cross-store copy, gitTracked stays git-aware). NOTE: non-diverted is NOT
-#     what fixes the logseq `EACCES ... unlink esbuild_*.tgz` -- that turned out
-#     to be a build-user privilege artifact of the old root local-store build;
-#     building like khion (daemon + nixbld + sandbox) avoids it, no
-#     root build needed. This overlay's only job is to move
-#     the writable store off the RAM tmpfs onto disk so a cold from-source build
-#     can't OOM the ISO's RAM ceiling (verified: hello built from source, output
-#     landing on /mnt, not RAM).
+# keeps the path literally /nix/store, i.e. non-diverted, so build and eval share
+# one store (no unsigned cross-store copy, gitTracked stays git-aware).
 STORE_RW="$MNT/nix-build-rw"
 mkdir -p "$STORE_RW/store" "$STORE_RW/work"
 # canonical /nix/store perms so the daemon's nixbld builders can write the merged
@@ -420,16 +367,12 @@ mkdir -p "$STORE_RW/store" "$STORE_RW/work"
 # the disk upper is what the daemon and its build users see after the mount.
 chown root:nixbld "$STORE_RW/store"
 chmod 1775 "$STORE_RW/store"
-# Carry over anything already written to the store's current writable (tmpfs)
-# layer since boot -- CRUCIALLY the flake source that `disko --flake` (section 1)
-# just copied in and REGISTERED in the RAM-resident Nix DB. We are about to drop
-# that tmpfs layer from the overlay's lowerdir (it poisons root chown), so its
-# contents must be migrated into our disk-backed upper FIRST. Otherwise those
-# paths vanish from /nix/store while the DB still lists them as valid, so the
-# the later `nix build` skips re-copying the flake source and dies with
-# "getting status of '/nix/store/<hash>-source/flake.nix': No such file or
-# directory". Store writes are pure additions (no overlay whiteouts), so a plain
-# cp -a of the delta into our upper is safe.
+# carry over post-boot tmpfs writes, crucially the flake source disko registered
+# in the ram-resident nix db. we're about to drop the tmpfs layer, so migrate its
+# contents into the disk upper first -- otherwise those paths vanish from
+# /nix/store while the db still lists them valid and the later nix build dies with
+# "No such file or directory" on the flake source. store writes are pure additions
+# so a plain cp -a of the delta is safe.
 if [ -d /nix/.rw-store/store ]; then
   log "migrating post-boot store writes (disko flake source, etc.) -> $STORE_RW/store"
   cp -a /nix/.rw-store/store/. "$STORE_RW/store/" 2>/dev/null || true
@@ -447,13 +390,10 @@ STORE_RELOCATED=1
 # their scratch and outputs on the target disk, sandboxed, as stock nixbld users.
 systemctl restart nix-daemon
 
-# daemon build scratch on the target disk. build-dir=/mnt/nix-build-tmp is
-#     baked into installer.nix; the daemon createDirs() it on first build, but
-#     make it here too so it's unambiguous. NOTE: the client TMPDIR does NOT
-#     reach the daemon builder (startBuilder unpacks into settings.build-dir), so
-#     the old `export TMPDIR` was a no-op for the from-source builds once the
-#     build stopped using --store local -- the setting is what moves scratch off
-#     the ISO tmpfs (logseq node_modules, Lix cargo target, spicetify npm-deps).
+# daemon build scratch on the target disk. build-dir=/mnt/nix-build-tmp is baked
+# into installer.nix; make the dir here too so it's unambiguous. the client TMPDIR
+# doesn't reach the daemon builder (it unpacks into build-dir), so the setting is
+# what moves scratch off the iso tmpfs.
 mkdir -p "$MNT/nix-build-tmp"
 log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 
@@ -475,12 +415,10 @@ creation_rules:
     age: $AGE_RECIP
 EOF
 
-# provision secrets: derive the set + how to fill each one from the host
-#    config, then write + encrypt secrets/secrets.yaml. replaces the old
-#    hand-written per-user block -- adding a user or a secret-bearing aspect
-#    teaches this loop automatically, no edit here. eval a NARROW attr
-#    (skadi.provision.secrets), never the whole config, so it never touches a
-#    package src and can't trip Hyprland's gitTracked.
+# provision secrets: derive the set and how to fill each one from the host config,
+# then write + encrypt secrets/secrets.yaml. adding a user or a secret-bearing
+# aspect teaches this loop automatically. eval a narrow attr, never the whole
+# config, so it can't touch a package src or trip gitTracked.
 provision_secrets() {
   local plan name method prompt format optional placeholder value raw envvar
   plan="$(eval_target .config.skadi.provision.secrets)"
@@ -492,9 +430,8 @@ provision_secrets() {
     format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
     optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
     placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
-    # unattended (SKADI_INSTALL_UNATTENDED=1): each secret <name> is supplied via
-    # env SKADI_SECRET_<NAME> (name uppercased, '-' -> '_'). mkpasswd expects the
-    # final sha-512 hash; paste expects the raw token (its format is still applied).
+    # unattended: each secret is supplied via env SKADI_SECRET_<NAME> (uppercased,
+    # '-' -> '_'). mkpasswd expects the final sha-512 hash; paste expects the raw token.
     envvar="SKADI_SECRET_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
     case "$method" in
       mkpasswd)
@@ -536,39 +473,23 @@ provision_secrets
 install -d -m0755 "$MNT/persist/etc"
 rm -rf "$MNT/persist/etc/skadi"
 cp -a "$WORK" "$MNT/persist/etc/skadi"
-# Build the system closure with `nix build` FIRST, then install the prebuilt
-# closure with `nixos-install --system`. We must NOT use `nixos-install --flake`
-# here: it copies the flake + its inputs into the TARGET store (/mnt) and
-# re-evaluates there, so upstream Hyprland's `src = fs.gitTracked ../.` runs
-# against a .git-less /mnt copy and hard-fails ("not a local working tree of a
-# Git repository"). `nix build` evaluates against the installer's own store
-# (inputs still git-aware) and substitutes the desktop from the trusted caches,
-# so there is no gitTracked and no from-source Hyprland build.
+# build the closure with `nix build` first, then install it with
+# `nixos-install --system`. do NOT use `nixos-install --flake`: it copies the
+# flake + inputs into the target store (/mnt) and re-evaluates there, so upstream
+# hyprland's `src = fs.gitTracked ../.` runs against a .git-less /mnt copy and
+# hard-fails ("not a local working tree of a Git repository"). nix build evaluates
+# against the installer's own git-aware store and substitutes the desktop from the
+# trusted caches, so that branch never runs.
 #
-# The build runs through the nix-daemon in the DEFAULT (non-diverted) store,
-# which the store relocation above moved onto the target disk. Two things matter here:
-#   * NON-DIVERTED (note: NO `--store local`, NO `--store "local?root=/mnt"`):
-#     realStoreDir == storeDir, so build + eval share one store -- gitTracked
-#     stays git-aware and there's no unsigned cross-store copy. It also means
-#     Lix does NOT auto-enable the sandbox for a diverted store; ours is on
-#     because installer.nix asks for it.
-#   * DISK-BACKED (via the overlay above): OUTPUTS land on /mnt, not the ISO's RAM
-#     tmpfs, so a cold from-source build survives lean 8-16 GB machines. Build
-#     SCRATCH is handled separately by build-dir=/mnt/nix-build-tmp in
-#     installer.nix -- the daemon unpacks there, NOT under the client TMPDIR.
-# Substituters + trusted keys now live in installer.nix (base + the desktop
-# upstreams: Hyprland/walker/noctalia), so the daemon substitutes those with no
-# inline --substituters here. Lix is deliberately NOT among them: its cargo
-# target is the disk-pressure canary, so it builds from source every install --
-# that's the point. notion-sync and the rest of the fleet closure build from
-# source too; only third-party upstreams are fetched.
-# basic disk resilience. NO Lix
-#     cache on purpose -- Lix builds from source (its cargo target is the biggest
-#     disk hog and the ENOSPC canary), alongside notion-sync + the fleet closure,
-#     so the cold-build stress path stays fully exercised. Only base + the desktop
-#     upstreams are substituted.
-#   * preflight: fail fast BEFORE the long build if the disk clearly can't hold it.
-#   * min/max-free: nix GCs unneeded store paths mid-build when space gets tight.
+# the build goes through the daemon in the default non-diverted store (moved onto
+# the target disk by the relocation above): build and eval share one store so
+# gitTracked stays git-aware, and outputs land on /mnt not the iso's ram tmpfs so a
+# cold from-source build survives lean 8-16g machines. substituters live in
+# installer.nix; lix is not among them and builds from source every install (the
+# disk canary), as does the rest of the fleet closure.
+# disk resilience:
+#   * preflight: fail fast before the long build if the disk can't hold it.
+#   * min/max-free: nix gcs unneeded store paths mid-build when space gets tight.
 avail_gib=$(( $(df -B1 --output=avail "$MNT" | tail -1) / 1024 / 1024 / 1024 ))
 if [ "$avail_gib" -lt "$DISK_FLOOR_GIB" ]; then
   die "only ${avail_gib}G free on $MNT -- too small for the system closure (${DISK_FLOOR_GIB}G floor)."
@@ -580,21 +501,12 @@ MIN_FREE=$((MIN_FREE_GIB * 1024 * 1024 * 1024))    # below this, nix GCs mid-bui
 MAX_FREE=$((MAX_FREE_GIB * 1024 * 1024 * 1024))    # GC target ceiling
 
 log "building system closure for $HOST onto the target disk (RAM-lean, cached)"
-# --max-jobs 1: serialize derivations so only ONE big source build holds scratch
-#   at a time (the multi-build pile-up + Lix's doubled debuginfo target ENOSPC'd
-#   the 100 GB VM). --cores 0 keeps each package on all cores (per-build speed
-#   unchanged); we only drop cross-package parallelism -- leaner, slower.
-# --min-free/--max-free: nix GCs unneeded store paths mid-build when disk is tight.
-# Everything that used to live here -- --store local, build-users-group "",
-#   sandbox false, inline --substituters/--trusted-public-keys -- is GONE. The
-#   build now goes through the daemon with stock nixbld users and the sandbox ON,
-#   exactly like khion: that's what gives FODs a real userns (pasta works, no
-#   "sandbox network setup timed out") and keeps builds pure (no /homeless-shelter
-#   carryover between derivations). Caches + build-dir + sandbox are baked into
-#   installer.nix; the store relocation above gives the daemon a writable on-disk store. The old
-#   logseq `EACCES ... unlink esbuild_*.tgz` was a build-user privilege artifact
-#   of the root local-store build -- khion builds the identical drv fine as
-#   nixbld, so building its way avoids it with no root build needed.
+# --max-jobs 1: serialize derivations so only one big source build holds scratch at
+#   a time (the pile-up + lix's doubled debuginfo target enospc'd the 100g vm).
+#   --cores 0 keeps each package on all cores; we only drop cross-package parallelism.
+# --min-free/--max-free: nix gcs unneeded store paths mid-build when disk is tight.
+# the build goes through the daemon with stock nixbld users and sandbox on, like
+# khion: that gives fods a real userns (pasta works) and keeps builds pure.
 if ! SYS_PATH="$(build_target)"; then
   warn "system build FAILED -- disk / OOM post-mortem:"
   df -h "$MNT" / || true

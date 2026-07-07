@@ -1,7 +1,7 @@
 { lib, ... }:
 let
-  # DISCOVERED at install time: skadi-install writes the detected disk here
-  # (git-added) before `disko --flake .#generic`. The committed sentinel is ONLY
+  # discovered at install time: skadi-install writes the detected disk here
+  # (git-added) before `disko --flake .#generic`. the committed sentinel is only
   # for `nix flake check`; the installer asserts a real device first, so this
   # value never reaches a live disko run. fileContents strips the trailing NL.
   device = lib.fileContents ./device;

@@ -7,7 +7,7 @@
     ];
 
     # define-user makes a normal user and sets the home dir; primary-user adds
-    # wheel + networkmanager. NO home aspects on purpose: the generic install is
+    # wheel + networkmanager. no home aspects on purpose: the generic install is
     # a lean base for a stranger's machine, so `owner` is the machine's clean
     # primary admin account -- no desktop / home-manager closure. CLI essentials
     # (shell, git, editor) come from base at the system level, not per-user.
