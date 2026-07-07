@@ -114,9 +114,17 @@
   # den drives the fleet, flake-parts kept for perSystem devshells
   outputs =
     inputs:
-    inputs.flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [ (inputs.import-tree ./modules) ];
-      systems = [ "x86_64-linux" ];
-      _module.args.rootPath = ./.;
-    };
+    inputs.flake-parts.lib.mkFlake { inherit inputs; } (
+      { lib, ... }:
+      {
+        imports = [ (inputs.import-tree ./modules) ];
+        systems = [ "x86_64-linux" ];
+        # rootPath + scoped ride the same _module.args seam so every aspect gets
+        # them like lib. scoped stays a pure lib -- no den plumbing on this path.
+        _module.args = {
+          rootPath = ./.;
+          scoped = import ./modules/_lib/scoped.nix { inherit lib; };
+        };
+      }
+    );
 }

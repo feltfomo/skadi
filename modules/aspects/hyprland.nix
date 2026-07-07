@@ -2,13 +2,11 @@
   inputs,
   lib,
   rootPath,
+  scoped,
   ...
 }:
 let
   program = import ../_lib/program.nix { inherit lib; };
-
-  # khion-only; off-host the aspect is { }.
-  onKhion = host: host != null && host.name == "khion";
 
   # keep audio-playing windows opaque while inactive.
   audioOpacityService =
@@ -62,7 +60,12 @@ in
   # add `users = [ ... ];` to a file to give it to only those users.
   den.aspects.hyprland =
     { host, user }:
-    lib.optionalAttrs (onKhion host) (
+    # khion-only; off-host `for` collapses the aspect to {}. matches short-
+    # circuits a null host to false, the same guard the old onKhion had.
+    let
+      for = scoped.for { inherit host user; };
+    in
+    for { hosts = [ "khion" ]; } (
       let
         base = program {
           inherit host user;
