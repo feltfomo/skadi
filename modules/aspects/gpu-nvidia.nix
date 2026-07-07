@@ -31,6 +31,14 @@ _: {
 
       boot.kernelModules = [ "nvidia-uvm" ]; # cuda
 
+      # steer the userspace gl/va/gbm stack at the nvidia driver
+      environment.variables = {
+        LIBVA_DRIVER_NAME = "nvidia";
+        __GLX_VENDOR_LIBRARY_NAME = "nvidia";
+        NVD_BACKEND = "direct";
+        GBM_BACKEND = "nvidia-drm";
+      };
+
       # coolbits enables the fan-control knob the service below drives
       environment.etc."X11/xorg.conf.d/20-nvidia.conf".text = ''
         Section "Device"

@@ -12,6 +12,7 @@
       den.aspects.docker
       den.aspects.gpu-nvidia
       den.aspects.hermes
+      den.aspects.networking
       den.aspects.notion-sync
       den.aspects.steam
       den.aspects.tailscale
@@ -24,8 +25,6 @@
       inputs.disko.nixosModules.disko
       ./_khion/disko.nix
       ./_khion/hardware.nix
-      ./_khion/networking.nix
-      ./_khion/environment.nix
     ];
   };
 }

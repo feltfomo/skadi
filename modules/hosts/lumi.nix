@@ -10,6 +10,7 @@
     includes = [
       den.aspects.base
       den.aspects.gnome
+      den.aspects.networking
     ];
 
     # disko's nixos module must sit with the disko.devices it enables
@@ -17,8 +18,6 @@
       inputs.disko.nixosModules.disko
       ./_lumi/disko.nix
       ./_lumi/hardware.nix
-      ./_lumi/networking.nix
-      ./_lumi/environment.nix
     ];
   };
 }
