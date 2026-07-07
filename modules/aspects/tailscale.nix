@@ -7,7 +7,7 @@ _: {
   # /var/lib/tailscale. Drop that persist line and khion re-registers as a new
   # node (khion-1, khion-2, ...) and loses the funnel on every reboot.
   den.aspects.tailscale.nixos =
-    { pkgs, lib, config, ... }:
+    { lib, config, ... }:
     {
       services.tailscale.enable = true;
 
