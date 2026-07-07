@@ -5,9 +5,9 @@
     {
       imports = [ inputs.notion-sync.nixosModules.notion-sync ];
 
-      # the token secret + how the installer provisions it, owned here next to
-      # the service that consumes it (moved out of the monolithic sops.nix).
-      # optional: a blank paste falls back to the REPLACE_ME placeholder.
+      # the token secret + how the installer provisions it, owned next to the
+      # service that consumes it. optional: a blank paste falls back to the
+      # REPLACE_ME placeholder.
       sops.secrets."notion-token" = {
         owner = "feltfomo";
         mode = "0400";
@@ -32,13 +32,9 @@
 
         logLevel = "info";
 
-        # push path: Notion -> Funnel (tailscale) -> this loopback listener, so
-        # remote edits land in seconds instead of waiting on the 45s poll. the
-        # poller stays on as the fallback for missed deliveries. funnel terminates
-        # TLS and forwards to 127.0.0.1:8080, so the listener defaults already
-        # match -- just flip it on. the signing secret isn't set here: Notion posts
-        # its verification_token on first connect and the daemon persists it under
-        # ~/.local/state/notion-sync/webhook_secret (user service, so that's writable).
+        # funnel already terminates TLS and forwards to 127.0.0.1:8080, so the
+        # listener defaults match -- just enable it. no signing secret here: the
+        # daemon persists notion's first-connect verification_token itself.
         settings.webhook = {
           enabled = true;
           port = 8080;
@@ -54,9 +50,6 @@
           forcePublicPath = true;
         };
 
-        # declarative config -- the module renders this to a store-side config.toml
-        # and passes it via --config. NO secrets land here (the token only ever
-        # comes from environmentFile above), so a world-readable store path is fine.
         # mapping names derive from the last path component; state.db rows are
         # namespaced under exactly those names, so keep the names + roots stable.
         settings.mapping = [
