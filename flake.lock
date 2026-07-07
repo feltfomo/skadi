@@ -804,11 +804,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783375394,
-        "narHash": "sha256-mM40SfJReJfobBtieA/Q2dBl+93Ex3C0yIzrC/u+oOk=",
+        "lastModified": 1783385420,
+        "narHash": "sha256-WSloND334RqFiEqT5Qomo/nVsiToHe9XlmkDIGNhsG0=",
         "owner": "feltfomo",
         "repo": "notion-sync",
-        "rev": "98a34b1efc5479893e355bbffa4cf2bf5f6a4c71",
+        "rev": "d9cf13f2de4dc9ffe1fe83e2906824f261814c43",
         "type": "github"
       },
       "original": {
