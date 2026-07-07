@@ -72,11 +72,16 @@
           "Videos"
           "Music"
           ".config"
+          # ~/.local persists the real Steam install + games at
+          # ~/.local/share/Steam. do NOT persist ~/.steam -- it holds only
+          # regenerable symlinks that steam relinks to ~/.local on every launch
+          # ("Repairing installation, linking ..."). persisting it once froze a
+          # malformed ~/.steam/steam (a real dir where the symlink belongs)
+          # across reboots -> recurring "Couldn't set up Steam data". leaving
+          # ~/.steam on the wiped root clears any bad state each boot so steam
+          # rebuilds it clean. drift only happens if you persist ~/.steam
+          # WITHOUT ~/.local, not this way around.
           ".local"
-          # ~/.steam holds the symlinks steam rebuilds each launch; ~/.local
-          # persists the install. persist only one and they drift out of sync
-          # after a wipe -> "Couldn't set up Steam data". keep both.
-          ".steam"
           ".ssh"
           # notion-sync dirs
           "Projects"
