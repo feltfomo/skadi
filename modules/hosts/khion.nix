@@ -16,6 +16,7 @@
       den.aspects.steam
       den.aspects.tailscale
       den.aspects.wayland
+      den.aspects.noctalia-greeter
     ];
 
     # disko's nixos module must sit with the disko.devices it enables

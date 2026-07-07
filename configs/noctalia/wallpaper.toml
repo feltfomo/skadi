@@ -1,0 +1,14 @@
+[wallpaper]
+directory = "/home/feltfomo/Wallpapers"
+
+[wallpaper.default]
+path = "/home/feltfomo/Wallpapers/Wallpapers/Pictures/wallhaven-vmrv15_2560x1440.png"
+
+[wallpaper.last]
+path = "/home/feltfomo/Wallpapers/Wallpapers/Pictures/wallhaven-vmrv15_2560x1440.png"
+
+[wallpaper.monitors.DP-1]
+path = "/home/feltfomo/Wallpapers/Wallpapers/Pictures/wallhaven-vmrv15_2560x1440.png"
+
+[wallpaper.monitors.DP-2]
+path = "/home/feltfomo/Wallpapers/Wallpapers/Pictures/wallhaven-vmrv15_2560x1440.png"

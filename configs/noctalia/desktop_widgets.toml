@@ -1,0 +1,21 @@
+[desktop_widgets]
+schema_version = 2
+widget_order = ["desktop-widget-0000000000000001"]
+
+[desktop_widgets.grid]
+cell_size = 16
+major_interval = 4
+visible = true
+
+[desktop_widgets.widget.desktop-widget-0000000000000001]
+box_height = 128.0
+box_width = 384.0
+cx = 2304.0
+cy = 1344.0
+output = "DP-2"
+rotation = 0.0
+type = "audio_visualizer"
+
+[desktop_widgets.widget.desktop-widget-0000000000000001.settings]
+bands = 32
+show_when_idle = true

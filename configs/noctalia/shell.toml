@@ -1,10 +1,25 @@
 [shell]
+app_icon_color = "primary"
 clipboard_history_max_entries = 100.0
 launch_apps_as_systemd_services = true
+polkit_agent = true
 screen_time_enabled = true
 telemetry_enabled = false
+
+[shell.greeter_sync]
+auto_sync = true
+
+[shell.launcher]
+session_search = true
 
 [shell.panel]
 clipboard_placement = "attached"
 launcher_placement = "attached"
 transparency_mode = "glass"
+
+[shell.screen_corners]
+enabled = true
+
+[shell.screenshot]
+confirm_region = true
+pipe_command = "satty"

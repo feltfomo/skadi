@@ -25,6 +25,22 @@ in
         dest = ".config/noctalia/dock.toml";
         src = "${rootPath}/configs/noctalia/dock.toml";
       }
+      {
+        dest = ".config/noctalia/control_center.toml";
+        src = "${rootPath}/configs/noctalia/control_center.toml";
+      }
+      {
+        dest = ".config/noctalia/desktop_widgets.toml";
+        src = "${rootPath}/configs/noctalia/desktop_widgets.toml";
+      }
+      {
+        dest = ".config/noctalia/lockscreen_widgets.toml";
+        src = "${rootPath}/configs/noctalia/lockscreen_widgets.toml";
+      }
+      {
+        dest = ".config/noctalia/wallpaper.toml";
+        src = "${rootPath}/configs/noctalia/wallpaper.toml";
+      }
     ];
   };
 }

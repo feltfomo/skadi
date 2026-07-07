@@ -47,6 +47,8 @@
           "/var/lib/tailscale"
           "/etc/NetworkManager/system-connections"
           "/var/lib/nixos"
+          # synced greeter appearance + remembered session/scheme (noctalia-greeter)
+          "/var/lib/noctalia-greeter"
         ];
         files = [
           "/etc/machine-id"
