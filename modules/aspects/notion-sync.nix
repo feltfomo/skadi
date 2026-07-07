@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   den.aspects.notion-sync.nixos =
-    { config, ... }:
+    { config, lib, ... }:
     {
       imports = [ inputs.notion-sync.nixosModules.notion-sync ];
 
@@ -42,6 +42,16 @@
         settings.webhook = {
           enabled = true;
           port = 8080;
+        };
+
+        # only khion keeps warm -- it owns the funnel. an idle funnel ingress goes
+        # cold and 502s the next request, dropping notion's one-shot webhook
+        # deliveries. forcePublicPath is required: a ping from khion itself never
+        # crosses the ingress (direct tailnet path).
+        keepWarm = lib.mkIf (config.networking.hostName == "khion") {
+          enable = true;
+          url = "https://khion.tail4f0c8e.ts.net/notion-webhook";
+          forcePublicPath = true;
         };
 
         # declarative config -- the module renders this to a store-side config.toml
