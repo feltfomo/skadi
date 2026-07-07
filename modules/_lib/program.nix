@@ -2,23 +2,23 @@
 let
   scoped = import ./scoped.nix { inherit lib; };
 
-  # home-manager CONFIG for a spec fragment: package install + noctalia template
-  # activation scripts. Returns a plain config attrset so fragments merge cleanly.
+  # home-manager CONFIG for a resolved spec: package install + noctalia template
+  # activation scripts. spec is already filtered by scoped.resolve, so pkg is
+  # absent when narrowed out and templates are pre-selected.
   hmConfig =
     # home-manager's extended lib (provides lib.hm.dag for activation scripts); a
     # superset of the file-level nixpkgs lib, so mkMerge / mkIf still resolve.
-    lib:
-    {
-      pkg ? null,
-      templates ? [ ],
-      ...
-    }:
-    pkgs:
+    lib: spec: pkgs:
     lib.mkMerge [
-      # install the package if one was given
-      (lib.mkIf (pkg != null) {
-        home.packages = [ (pkg pkgs) ];
-      })
+      # install the package if one survived resolve
+      (
+        let
+          pkg = spec.pkg or null;
+        in
+        lib.mkIf (pkg != null) {
+          home.packages = [ (pkg pkgs) ];
+        }
+      )
 
       # write each noctalia template into ~/.config/noctalia/templates/
       (lib.mkMerge (
@@ -29,37 +29,24 @@ let
             ${builtins.readFile t.templateFile}
             EOF
           '';
-        }) templates
+        }) spec.templates
       ))
     ];
 
-  # hjem file links for a spec fragment. Each file entry may carry an optional
-  # `users` / `hosts` list -- the register for who gets that file. Omit them and
-  # the file links for everyone the aspect resolves for; set them and the file
-  # self-selects via scoped.matches against `ctx` (the { host, user } den resolved
-  # for this home). One line per file, no duplication.
+  # hjem file links for a resolved spec. scoped.resolve already dropped files
+  # whose users/hosts miss and stripped those keys off survivors, so each entry
+  # is just { dest; src; }. noctaliaConfig is absent when narrowed out.
   hjemFiles =
-    ctx:
-    {
-      files ? [ ],
-      noctaliaConfig ? { },
-      ...
-    }:
-    pkgs:
+    spec: pkgs:
+    let
+      noctaliaConfig = spec.noctaliaConfig or { };
+    in
     lib.mkMerge [
-      # link static config files straight into home, filtered per entry
+      # link static config files straight into home
       (lib.mkMerge (
-        map (
-          f:
-          lib.mkIf
-            (scoped.matches {
-              hosts = f.hosts or null;
-              users = f.users or null;
-            } ctx)
-            {
-              ${f.dest}.source = f.src;
-            }
-        ) files
+        map (f: {
+          ${f.dest}.source = f.src;
+        }) spec.files
       ))
 
       # serialise noctaliaConfig to toml and link it so noctalia merges it
@@ -71,8 +58,10 @@ let
     ];
 in
 {
-  # { host, user } is the den context the aspect resolved for. Slices close over
-  # it so per-file `users` / `hosts` tags can select without any extra wiring.
+  # { host, user } is the den context the aspect resolved for. scoped.resolve
+  # filters every field against it up front -- per-entry users/hosts on files and
+  # templates, for-gated pkg/noctaliaConfig -- so the slices just consume what
+  # survived. imports pass through untouched (no per-import selector yet).
   host ? null,
   user ? null,
   pkg ? null,
@@ -83,11 +72,12 @@ in
 }:
 let
   ctx = { inherit host user; };
-  spec = {
+  resolved = scoped.resolve ctx {
     inherit
       pkg
       files
       templates
+      imports
       noctaliaConfig
       ;
   };
@@ -100,8 +90,8 @@ in
       ...
     }:
     {
-      inherit imports;
-      config = hmConfig lib spec pkgs;
+      inherit (resolved) imports;
+      config = hmConfig lib resolved pkgs;
     };
 
   hjem =
@@ -110,6 +100,6 @@ in
       ...
     }:
     {
-      files = hjemFiles ctx spec pkgs;
+      files = hjemFiles resolved pkgs;
     };
 }
