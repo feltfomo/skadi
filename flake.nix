@@ -119,11 +119,13 @@
       {
         imports = [ (inputs.import-tree ./modules) ];
         systems = [ "x86_64-linux" ];
-        # rootPath + scoped ride the same _module.args seam so every aspect gets
-        # them like lib. scoped stays a pure lib -- no den plumbing on this path.
+        # rootPath, scoped, program ride the same _module.args seam so every
+        # aspect gets them like lib. scoped/program stay pure libs -- no den
+        # plumbing on this path.
         _module.args = {
           rootPath = ./.;
           scoped = import ./modules/_lib/scoped.nix { inherit lib; };
+          program = import ./modules/_lib/program.nix { inherit lib; };
         };
       }
     );

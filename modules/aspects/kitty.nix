@@ -1,11 +1,8 @@
 {
-  lib,
+  program,
   rootPath,
   ...
 }:
-let
-  program = import ../_lib/program.nix { inherit lib; };
-in
 {
   den.aspects.kitty = program {
     pkg = pkgs: pkgs.kitty;

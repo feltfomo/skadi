@@ -1,11 +1,8 @@
 {
-  lib,
+  program,
   rootPath,
   ...
 }:
-let
-  program = import ../_lib/program.nix { inherit lib; };
-in
 {
   # firefox is managed by home-manager's programs.firefox so the profile
   # directory is deterministic (~/.mozilla/firefox/feltfomo) instead of the old

@@ -1,13 +1,11 @@
 {
   inputs,
-  lib,
   rootPath,
   scoped,
+  program,
   ...
 }:
 let
-  program = import ../_lib/program.nix { inherit lib; };
-
   # keep audio-playing windows opaque while inactive.
   audioOpacityService =
     { pkgs, ... }:
