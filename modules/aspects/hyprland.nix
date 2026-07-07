@@ -6,27 +6,7 @@
 }:
 let
   program = import ../_lib/program.nix { inherit lib; };
-in
-{
-  den.aspects.hyprland = {
-    nixos =
-      { pkgs, ... }:
-      {
-        programs.hyprland = {
-          enable = true;
-          package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-          portalPackage =
-            inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-        };
-
-        # flatpak lives with the desktop that provides its xdg portal, not in
-        # base. programs.hyprland already enables xdg.portal (+ the hyprland
-        # backend), so flatpak's only hard dependency is satisfied right here.
-        # a lean base install (generic/owner) has no desktop -> no app-store.
-        services.flatpak.enable = true;
-      };
-  }
-  // program {
+  base = program {
     files = [
       {
         dest = ".config/hypr/hyprland.lua";
@@ -64,10 +44,6 @@ in
         dest = ".config/hypr/helpers/workspace.lua";
         src = "${rootPath}/configs/hypr/helpers/workspace.lua";
       }
-      {
-        dest = ".config/hypr/helpers/scratchpad.lua";
-        src = "${rootPath}/configs/hypr/helpers/scratchpad.lua";
-      }
     ];
     templates = [
       {
@@ -83,5 +59,25 @@ in
         output_path = "~/.config/hypr/colors.lua";
       };
     };
+  };
+in
+{
+  den.aspects.hyprland = base // {
+    nixos =
+      { pkgs, ... }:
+      {
+        programs.hyprland = {
+          enable = true;
+          package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+          portalPackage =
+            inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+        };
+
+        # flatpak lives with the desktop that provides its xdg portal, not in
+        # base. programs.hyprland already enables xdg.portal (+ the hyprland
+        # backend), so flatpak's only hard dependency is satisfied right here.
+        # a lean base install (generic/owner) has no desktop -> no app-store.
+        services.flatpak.enable = true;
+      };
   };
 }
