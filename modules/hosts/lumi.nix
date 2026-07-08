@@ -21,11 +21,17 @@
       ./_lumi/hardware.nix
     ];
 
-    # bootloader is a per-host machine fact. lumi was installed with
-    # systemd-boot (EFI vars written, ESP at /boot), so it keeps systemd-boot
-    # rather than inheriting the universal GRUB -- matches the live install.
+    # bootloader is a per-host machine fact. lumi is a UEFI laptop (ESP at
+    # /boot) and uses EFI GRUB, same as khion. an earlier scout wrongly assumed
+    # systemd-boot; the machine actually booted GRUB before the catch-up, so
+    # this matches reality (and preference). apply with `nixos-rebuild boot` +
+    # reboot, never a live `switch`, since it swaps the bootloader on the ESP.
     nixos.boot.loader = {
-      systemd-boot.enable = true;
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+      };
       efi.canTouchEfiVariables = true;
     };
 
