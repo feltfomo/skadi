@@ -2,6 +2,7 @@
 {
   den.hosts.x86_64-linux.lumi = {
     users.feltfomo = { };
+    users.grandpa = { };
   };
 
   # den activates the host aspect, so feature includes go here. includes on

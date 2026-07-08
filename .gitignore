@@ -1,4 +1,3 @@
-modules/users/grandpa.nix
 result
 result-*
 *.qcow2
