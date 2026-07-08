@@ -28,5 +28,15 @@
       systemd-boot.enable = true;
       efi.canTouchEfiVariables = true;
     };
+
+    # first-activation collision nets for the 123-commit catch-up switch.
+    # feltfomo's dotfiles change ownership between home-manager and hjem across
+    # the jump (e.g. fuzzel/walker move to hjem), so let each tool take over the
+    # other's pre-existing files instead of aborting the first activation:
+    # home-manager backs up any foreign file it must replace (*.hm-bak), and hjem
+    # clobbers any foreign file it must replace. lumi-only -- khion keeps the
+    # defaults (no backup extension, clobber off).
+    nixos.home-manager.backupFileExtension = "hm-bak";
+    nixos.hjem.clobberByDefault = true;
   };
 }
