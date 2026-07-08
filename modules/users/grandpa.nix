@@ -13,9 +13,13 @@
       {
         # login password lives in sops, decrypted at activation. neededForUsers
         # so it is present when the account is created; such secrets take no
-        # owner/mode. the encrypted value is added to secrets/secrets.yaml out
-        # of band, and lumi must be a recipient in .sops.yaml to decrypt it.
-        sops.secrets."grandpa-password".neededForUsers = true;
+        # owner/mode. it rides secrets/lumi.yaml (encrypted to khion + lumi), not
+        # khion's secrets.yaml -- so a lost laptop decrypts only this hash, never
+        # khion's feltfomo/notion/hermes secrets.
+        sops.secrets."grandpa-password" = {
+          neededForUsers = true;
+          sopsFile = ../../secrets/lumi.yaml;
+        };
 
         users.users.grandpa = {
           isNormalUser = true;

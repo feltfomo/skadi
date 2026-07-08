@@ -1,3 +1,7 @@
 creation_rules:
+  - path_regex: secrets/lumi\.yaml$
+    age: >-
+      age10snd2yk5wfsfz64j8jnwghqptsm0xja7hwgxf3mg4y8s0lq64enqaxsj6u,
+      age1t38qt4q32zrdjwqwlek7nxac4734sn7s5w0theaepxusvx2jlu4qc79mla
   - path_regex: secrets/secrets.yaml$
     age: age10snd2yk5wfsfz64j8jnwghqptsm0xja7hwgxf3mg4y8s0lq64enqaxsj6u
