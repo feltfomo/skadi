@@ -25,5 +25,18 @@
       ./_generic/networking.nix
       ./_generic/vm-test-hooks.nix
     ];
+
+    # bootloader relocated out of the universal system aspect (khion/lumi now
+    # own theirs). generic keeps the previous universal GRUB unchanged. it lives
+    # here, not in _generic/hardware.nix, because the installer regenerates that
+    # file via nixos-generate-config and would clobber it.
+    nixos.boot.loader = {
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+      };
+      efi.canTouchEfiVariables = true;
+    };
   };
 }

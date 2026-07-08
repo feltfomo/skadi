@@ -26,5 +26,17 @@
       ./_khion/disko.nix
       ./_khion/hardware.nix
     ];
+
+    # bootloader is a per-host machine fact. relocated verbatim out of the
+    # universal system aspect so lumi can use systemd-boot without inheriting
+    # khion's GRUB; khion's resolved boot.loader is unchanged (byte-identical).
+    nixos.boot.loader = {
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+      };
+      efi.canTouchEfiVariables = true;
+    };
   };
 }

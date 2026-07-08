@@ -20,5 +20,17 @@
       ./_vm/hardware.nix
       ./_vm/networking.nix
     ];
+
+    # bootloader relocated out of the universal system aspect (khion/lumi now
+    # own theirs). the installer-test vm keeps the previous universal GRUB
+    # unchanged so it still boots end-to-end in qemu.
+    nixos.boot.loader = {
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+      };
+      efi.canTouchEfiVariables = true;
+    };
   };
 }

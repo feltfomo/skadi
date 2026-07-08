@@ -20,5 +20,13 @@
       ./_lumi/disko.nix
       ./_lumi/hardware.nix
     ];
+
+    # bootloader is a per-host machine fact. lumi was installed with
+    # systemd-boot (EFI vars written, ESP at /boot), so it keeps systemd-boot
+    # rather than inheriting the universal GRUB -- matches the live install.
+    nixos.boot.loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
+    };
   };
 }

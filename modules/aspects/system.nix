@@ -80,15 +80,6 @@ _: {
       # the Z rule re-owns on every activation, self-healing after a root-cp install.
       systemd.tmpfiles.rules = [ "Z /etc/skadi - feltfomo feltfomo - -" ];
 
-      boot.loader = {
-        grub = {
-          enable = true;
-          device = "nodev";
-          efiSupport = true;
-        };
-        efi.canTouchEfiVariables = true;
-      };
-
       environment.systemPackages = with pkgs; [
         jq
         gcc

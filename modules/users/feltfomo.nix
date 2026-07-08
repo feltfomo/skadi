@@ -29,8 +29,15 @@
       { pkgs, config, ... }:
       {
         # login password + how the installer provisions it, owned next to the
-        # user that needs it
-        sops.secrets."feltfomo-password".neededForUsers = true;
+        # user that needs it. feltfomo exists on BOTH khion and lumi, so the
+        # hash rides secrets/lumi.yaml (encrypted to khion + lumi) instead of
+        # khion-only secrets.yaml -- otherwise sops-nix cannot decrypt it on
+        # lumi at activation and the account boots with no password. mirrors
+        # grandpa; khion-only secrets (notion-token, hermes) stay in secrets.yaml.
+        sops.secrets."feltfomo-password" = {
+          neededForUsers = true;
+          sopsFile = ../../secrets/lumi.yaml;
+        };
         skadi.provision.secrets.feltfomo-password = {
           method = "mkpasswd";
           prompt = "login password for feltfomo";
@@ -50,9 +57,10 @@
 
         users.users.feltfomo = {
           group = "feltfomo";
-          # decrypted by sops-nix from secrets/secrets.yaml. provision it BEFORE
-          # rebuilding or the account has no password -- use `nixos-rebuild test`
-          # and confirm login on a fresh tty before `switch` (see README).
+          # decrypted by sops-nix from secrets/lumi.yaml (khion + lumi).
+          # provision it BEFORE rebuilding or the account has no password --
+          # use `nixos-rebuild test` and confirm login on a fresh tty before
+          # `switch` (see README).
           hashedPasswordFile = config.sops.secrets."feltfomo-password".path;
           shell = pkgs.fish;
           extraGroups = [
