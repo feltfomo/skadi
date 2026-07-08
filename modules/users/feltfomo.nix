@@ -69,6 +69,13 @@
           ];
           # lingering lets the notion-sync user service start at boot, no login needed
           linger = true;
+
+          # ssh in from khion. system.nix sets PasswordAuthentication = false
+          # (key-only), so khion's key must be authorized explicitly -- this is
+          # the same ~/.ssh/id_ed25519 feltfomo pushes to github with.
+          openssh.authorizedKeys.keys = [
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINKAWZ+4L7E0osgTA8eybrsmUoTUtBSzEaE4ytD+rcPO 241195017+feltfomo@users.noreply.github.com"
+          ];
         };
         users.groups.feltfomo = { };
 
