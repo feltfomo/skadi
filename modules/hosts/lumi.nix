@@ -22,10 +22,13 @@
     ];
 
     # bootloader is a per-host machine fact. lumi is a UEFI laptop (ESP at
-    # /boot) and uses EFI GRUB, same as khion. an earlier scout wrongly assumed
-    # systemd-boot; the machine actually booted GRUB before the catch-up, so
-    # this matches reality (and preference). apply with `nixos-rebuild boot` +
-    # reboot, never a live `switch`, since it swaps the bootloader on the ESP.
+    # /boot) using EFI GRUB. the firmware honors the UEFI BootOrder (confirmed:
+    # lumi booted its first BootOrder entry), so GRUB gets a real NVRAM entry
+    # that NixOS manages via canTouchEfiVariables -- no removable-fallback hack.
+    # NOTE: the wrong-scout catch-up briefly installed systemd-boot here; a
+    # leftover /EFI/systemd + /boot/loader + "Linux Boot Manager" NVRAM entry
+    # must be removed by hand (NixOS never uninstalls a foreign loader). apply
+    # with `nixos-rebuild boot` + reboot, never a live `switch`.
     nixos.boot.loader = {
       grub = {
         enable = true;
