@@ -116,6 +116,12 @@
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } (
       { lib, ... }:
+      let
+        # one scoped instance, shared by the module arg and program.nix so it
+        # isn't imported twice. siblings in _module.args can't cross-reference,
+        # hence the let.
+        scoped = import ./modules/_lib/scoped.nix { inherit lib; };
+      in
       {
         imports = [ (inputs.import-tree ./modules) ];
         systems = [ "x86_64-linux" ];
@@ -124,8 +130,8 @@
         # plumbing on this path.
         _module.args = {
           rootPath = ./.;
-          scoped = import ./modules/_lib/scoped.nix { inherit lib; };
-          program = import ./modules/_lib/program.nix { inherit lib; };
+          inherit scoped;
+          program = import ./modules/_lib/program.nix { inherit lib scoped; };
         };
       }
     );

@@ -1,7 +1,5 @@
-{ lib }:
+{ lib, scoped }:
 let
-  scoped = import ./scoped.nix { inherit lib; };
-
   # home-manager CONFIG for a resolved spec: package install + noctalia template
   # activation scripts. spec is already filtered by scoped.resolve, so pkg is
   # absent when narrowed out and templates are pre-selected.
