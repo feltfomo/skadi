@@ -3,6 +3,7 @@
   den.aspects.base = {
     includes = [
       den.aspects.system
+      den.aspects.audio
       den.aspects.thunar
       den.aspects.impermanence
       den.aspects.graalvm-oracle-21
