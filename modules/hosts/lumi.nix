@@ -12,6 +12,7 @@
       den.aspects.base
       den.aspects.gnome
       den.aspects.networking
+      den.aspects.wayland
     ];
 
     # disko's nixos module must sit with the disko.devices it enables
