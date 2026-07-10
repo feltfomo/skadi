@@ -1,7 +1,7 @@
 # _lib/ownerships/axes.nix
 #
 # The set-axis value type (a polarity set) plus host + user registered on the
-# engine, and the select-only predicate-axis constructor the `when` claim runs
+# engine, and the select-only predicate axis the `when` claim runs
 # on. This is the one file allowed to name host/user; the engine below never
 # does. A set axis carries a polarity set and reads an entity's identity
 # (ctx.<axis>.name); a predicate axis reads no entity of its own (ctxKey =
@@ -61,8 +61,14 @@ let
       narrow = meet;
       satisfiable = v: resolveMembers members v != [ ];
       select = v: ctx: elem ctx.${key}.name (resolveMembers members v);
-      # the ctx attribute this axis reads its entity from -- assertCtx requires
-      # a ctx entry here and nowhere else, so a set axis stays a loud miss.
+      # is this claim the global (exclude []) identity? the engine asks isTop
+      # before select, so a globally-owned axis never reads ctx, and before
+      # demanding a ctx entity, so an untagged axis demands none. exclude
+      # ["lumi"] and include [...] are NOT global -- they narrow, so they still
+      # read ctx and still demand an entity.
+      isTop = isGlobal;
+      # the ctx attribute this axis reads its entity from -- assertCtx requires a
+      # ctx entry here only when a claim actually narrows on this axis.
       ctxKey = key;
     };
 
@@ -71,11 +77,23 @@ let
   # the set axes -- narrow conjoins nested predicates, satisfiable is constant
   # since there's no roster to contradict against, and ctxKey = null is what
   # tells assertCtx this axis needs nothing added to the build ctx.
-  mkPredicateAxis = {
+  predicateAxis = {
     top = _: true;
     narrow = a: b: (ctx: a ctx && b ctx);
     satisfiable = _: true;
+    # a predicate reads ctx freeform, so which entities it touches can't be
+    # derived from the claim -- it just runs against whatever ctx the scope that
+    # binds it assembles. a scope that owns no host won't populate ctx.host, so a
+    # predicate reading it there fails inside the predicate itself; honoring the
+    # ctx its scope provides is the predicate's own contract, not something the
+    # engine guards -- catching it would swallow genuine predicate bugs too.
     select = pred: pred;
+    # functions can't be compared in nix, so a predicate can't test itself
+    # against the top predicate -- and it needs no ctx entity anyway (ctxKey =
+    # null keeps it out of assertCtx), so it never reports itself top. the
+    # identity predicate _: true ignores ctx, so running it is safe even under a
+    # null build context.
+    isTop = _: false;
     ctxKey = null;
   };
 
@@ -130,7 +148,7 @@ in
     exclude
     global
     mkSetAxis
-    mkPredicateAxis
+    predicateAxis
     mkMembershipCheck
     ;
 

@@ -22,7 +22,7 @@ let
     # `when` lives in the shared registry now, not surface-local, so any caller
     # of engineArgsFor gets the predicate axis for free.
     registry = axes.registry { inherit (roster) hosts users; } // {
-      when = axes.mkPredicateAxis;
+      when = axes.predicateAxis;
     };
     checks = [
       engine.satisfiableCheck

@@ -16,7 +16,7 @@ let
     exclude
     global
     mkSetAxis
-    mkPredicateAxis
+    predicateAxis
     ;
 
   # stubbed roster -- the real den-backed one replaces this later.
@@ -236,7 +236,12 @@ let
             global
             (include [ ])
           ];
-          law = axis: lib.all (v: axis.narrow axis.top v == v && axis.narrow v axis.top == v) samples;
+          law =
+            axis:
+            # a set axis's top is its global identity, so isTop must accept it;
+            # the narrow identity law then holds for every sample around it.
+            axis.isTop axis.top
+            && lib.all (v: axis.narrow axis.top v == v && axis.narrow v axis.top == v) samples;
         in
         lib.all law [
           registry.host
@@ -249,18 +254,39 @@ let
     }
 
     {
-      name = "ctx missing a set axis's key still throws";
+      name = "ctx missing a set axis's key still throws when a claim narrows on it";
       pass = throws (
+        engine.resolve
+          {
+            inherit registry;
+            merge = defaultMerge;
+            ctx = {
+              host = {
+                name = "khion";
+              };
+            };
+          }
+          {
+            claim.user = include [ "feltfomo" ];
+            value.x = 1;
+          }
+      );
+    }
+
+    {
+      name = "untagged claim tolerates a null-or-absent ctx entity";
+      pass =
         engine.resolve {
           inherit registry;
           merge = defaultMerge;
+          # exactly what a bare program.nix caller passes -- keys present, null.
           ctx = {
-            host = {
-              name = "khion";
-            };
+            host = null;
+            user = null;
           };
-        } { value.x = 1; }
-      );
+        } { value.x = 1; } == {
+          x = 1;
+        };
     }
 
     {
@@ -269,7 +295,7 @@ let
         engine.resolve
           {
             registry = registry // {
-              when = mkPredicateAxis;
+              when = predicateAxis;
             };
             merge = defaultMerge;
             inherit ctx;

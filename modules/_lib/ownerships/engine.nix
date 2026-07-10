@@ -68,11 +68,21 @@ let
   # keep the leaves this build's ctx falls under on every axis; dropped leaves are
   # inactive -- silent, not an error. runs AFTER check, so an impossible leaf
   # errors for everyone regardless of who is building, while a satisfiable leaf
-  # that just doesn't match this build falls away quietly.
+  # that just doesn't match this build falls away quietly. a top (global) claim
+  # owns everyone, so isTop short-circuits it in before select runs -- that's
+  # what keeps an untagged unit safe against a null or absent ctx entity, since
+  # only a narrowing claim ever reaches the axis's select and reads the entity.
   runSelect =
     registry: ctx: leaves:
     filter (
-      leaf: all (name: registry.${name}.select leaf.claim.${name} ctx) (attrNames registry)
+      leaf:
+      all (
+        name:
+        let
+          axis = registry.${name};
+        in
+        axis.isTop leaf.claim.${name} || axis.select leaf.claim.${name} ctx
+      ) (attrNames registry)
     ) leaves;
 
   strip = leaves: map (leaf: leaf.value) leaves;
@@ -95,28 +105,55 @@ let
 
   defaultChecks = [ satisfiableCheck ];
 
-  # the build ctx must carry an entity for every axis that declares a ctxKey; an
-  # axis with ctxKey = null (a predicate axis, which has no entity of its own)
-  # needs nothing here. reads axis.ctxKey off each registered axis rather than
-  # the registry's own attr names, so the engine still never hardcodes host,
-  # user, or when.
+  # the build ctx must carry an entity only for an axis that (a) reads one
+  # (ctxKey != null) and (b) is actually narrowed on by some leaf. a fully
+  # untagged (global) axis reads no entity in select, so a null or absent ctx
+  # entry for it is fine -- that's what lets a bare, owner-less spec resolve with
+  # no build context at all. a claim that does narrow on an axis whose entity is
+  # missing or present-but-null is still a loud, structured error. the demand is
+  # derived per-resolve from the composed leaves, so it never consults the
+  # registry as a whole and still never hardcodes host, user, or when.
   assertCtx =
-    registry: ctx:
+    registry: ctx: leaves:
     let
-      needed = filter (axis: axis.ctxKey != null) (lib.attrValues registry);
-      missing = filter (axis: !(ctx ? ${axis.ctxKey})) needed;
+      ctxAxes = filter (name: registry.${name}.ctxKey != null) (attrNames registry);
+      narrowsOn = name: leaf: !(registry.${name}.isTop leaf.claim.${name});
+      entityMissing =
+        name:
+        let
+          key = registry.${name}.ctxKey;
+        in
+        !(ctx ? ${key}) || ctx.${key} == null;
+      # one diagnostic per (leaf, axis) where a leaf narrows on a ctx-reading
+      # axis whose entity this build ctx doesn't provide. it carries the
+      # offending unit and its claims and renders the narrowing claim value, so an
+      # author can trace the miss back to the exact spec -- the same { kind; unit;
+      # axis; claims; reason } shape satisfiableCheck emits, through the same
+      # renderer for one consistent structured error.
+      diags = concatMap (
+        leaf:
+        concatMap (
+          name:
+          lib.optional (narrowsOn name leaf && entityMissing name) {
+            kind = "missing-ctx";
+            unit = leaf.value;
+            axis = name;
+            claims = leaf.claim;
+            reason = "axis '${name}' is narrowed on by claim ${
+              lib.generators.toPretty { multiline = false; } leaf.claim.${name}
+            } but the build ctx provides no entity for key '${registry.${name}.ctxKey}' -- only untagged (global) claims resolve without a build context";
+          }
+        ) ctxAxes
+      ) leaves;
     in
-    if missing == [ ] then
-      ctx
-    else
-      throw "ownerships: build ctx is missing an entity for key(s): ${
-        lib.concatStringsSep ", " (map (axis: axis.ctxKey) missing)
-      }";
+    if diags == [ ] then ctx else throw (renderDiags diags);
 
   # the one entry point: compose -> check -> select -> strip -> merge. merge is
   # supplied (a values -> value fold from merge.nix) so its strategy table and
   # conflict policy stay pluggable; checks default to the registered list but can
-  # be extended by a caller without touching anything here.
+  # be extended by a caller without touching anything here. ctx is asserted after
+  # compose because which entities a build needs depends on what the claims narrow
+  # on, not on the registry as a whole -- so assertCtx reads the composed leaves.
   resolve =
     {
       registry,
@@ -126,9 +163,10 @@ let
     }:
     unit:
     let
-      ctx' = assertCtx registry ctx;
       leaves = compose registry unit;
-      selected = runSelect registry ctx' (runCheck checks registry leaves);
+      checked = runCheck checks registry leaves;
+      ctx' = assertCtx registry ctx checked;
+      selected = runSelect registry ctx' checked;
     in
     merge (strip selected);
 in
