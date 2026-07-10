@@ -133,6 +133,27 @@
                   "*.fd"
                 ];
               }
+              # reference clone of den -- read-only source exploration (see "Exploring den")
+              {
+                name = "den";
+                local_root = "/home/feltfomo/Reference-Projects/den";
+                parent_page_id = "39820fa1c545807390dbe045848a4d47";
+                ignore = [
+                  ".git"
+                  "result"
+                  "result-*"
+                  "node_modules"
+                  "*.lock"
+                  ".direnv"
+                  ".notion-sync"
+                  # VM / build binaries -- never sync large images (OOM guard)
+                  "*.qcow2"
+                  "*.iso"
+                  "*.img"
+                  "*.raw"
+                  "*.fd"
+                ];
+              }
             ];
           };
         };
