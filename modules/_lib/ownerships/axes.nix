@@ -15,6 +15,7 @@ let
   include = mk "include";
   exclude = mk "exclude";
   global = exclude [ ];
+  isGlobal = v: v.tag == "exclude" && v.set == [ ];
 
   # plain set ops on name lists, order-preserving so merges stay deterministic.
   inter = a: b: filter (x: elem x b) a;
@@ -60,6 +61,51 @@ let
       satisfiable = v: resolveMembers members v != [ ];
       select = v: ctx: elem ctx.${key}.name (resolveMembers members v);
     };
+
+  # host<->user membership as a cross-axis check. the set axes already guarantee
+  # each axis resolves to at least one entity; this catches the pair that cannot
+  # co-exist -- a user claimed under a host it does not live on. it names host
+  # and user because membership is a relation between exactly those two axes, so
+  # it belongs here rather than in the axis-agnostic engine. the returned
+  # function matches the engine's check shape: registry -> leaf -> [ diagnostic ].
+  mkMembershipCheck =
+    {
+      hosts ? [ ],
+      users ? [ ],
+      membership ? { },
+      usersWithUnknownMembership ? [ ],
+    }:
+    _registry: leaf:
+    let
+      hostClaim = leaf.claim.host;
+      userClaim = leaf.claim.user;
+      hs = resolveMembers hosts hostClaim;
+      us = resolveMembers users userClaim;
+      # a user whose host membership is unknown (a define.* user that named no
+      # hosts) could live anywhere, so it always admits a pairing -- this is the
+      # degrade-to-same-axis-only path.
+      rescued = builtins.any (u: elem u usersWithUnknownMembership) us;
+      pairs = builtins.any (h: builtins.any (u: elem u (membership.${h} or [ ])) us) hs;
+    in
+    # a global claim on either axis means the unit is not asserting host x user
+    # co-ownership there, so membership cannot contradict it; and an empty hs/us
+    # is a single-axis miss that satisfiableCheck already reports, so skip both
+    # to keep one root cause to one diagnostic.
+    if isGlobal hostClaim || isGlobal userClaim || hs == [ ] || us == [ ] || rescued || pairs then
+      [ ]
+    else
+      [
+        {
+          kind = "impossible";
+          unit = leaf.value;
+          axes = [
+            "host"
+            "user"
+          ];
+          claims = leaf.claim;
+          reason = "no user in { ${builtins.concatStringsSep ", " us} } lives on any host in { ${builtins.concatStringsSep ", " hs} } -- this host/user co-ownership can never apply";
+        }
+      ];
 in
 {
   inherit
@@ -67,6 +113,7 @@ in
     exclude
     global
     mkSetAxis
+    mkMembershipCheck
     ;
 
   # host + user. members come from the roster, stubbed here for now; the real

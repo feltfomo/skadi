@@ -92,18 +92,7 @@ let
       }
     ) (attrNames registry);
 
-  # cross-axis contradiction hook (e.g. a user not of a host). stubbed to an
-  # empty relation for now -- a structural no-op; the real host<->user membership
-  # plugs in behind _lib/den.nix later, editing data rather than this stage.
-  # diagnostic is the cross-axis form { axes; entities; relation; reason }.
-  mkRelationCheck =
-    _relation: _registry: _leaf:
-    [ ];
-
-  defaultChecks = [
-    satisfiableCheck
-    (mkRelationCheck { })
-  ];
+  defaultChecks = [ satisfiableCheck ];
 
   # the build ctx must carry an entity for every registered axis; a missing axis
   # is a loud error, never a silently skipped or over-applied one.
@@ -142,7 +131,6 @@ in
     strip
     resolve
     satisfiableCheck
-    mkRelationCheck
     defaultChecks
     topClaim
     ;

@@ -107,6 +107,30 @@ let
 
   # droppable top-level aspect names per host on a system, for the install menu.
   hostAspects = system: lib.mapAttrs (_: topLevelAspectNames) den.hosts.${system};
+
+  # the ownerships roster, read straight off den's public entity surface: a user
+  # is declared inline on its host (den.hosts.<system>.<host>.users), so which
+  # users live on which host is already here -- no den internals to reach for.
+  # this is the den-backed source for the roster interface; a den-free define.*
+  # source produces the same { hosts; users; membership; usersWithUnknownMembership }
+  # shape.
+  roster =
+    system:
+    let
+      hosts = den.hosts.${system} or { };
+      names = builtins.attrNames hosts;
+      usersOf = h: builtins.attrNames (hosts.${h}.users or { });
+      membership = lib.genAttrs names usersOf;
+    in
+    {
+      hosts = names;
+      users = lib.unique (builtins.concatLists (map usersOf names));
+      inherit membership;
+      # den declares every user on its host, so membership is always known; the
+      # unknown set is here only so this shape matches the den-free define.*
+      # backend, which can carry users that named no host.
+      usersWithUnknownMembership = [ ];
+    };
 in
 {
   inherit
@@ -114,5 +138,6 @@ in
     drop
     hostAspects
     topLevelAspectNames
+    roster
     ;
 }
