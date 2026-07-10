@@ -2,8 +2,9 @@
 #
 # The pure ownerships engine: a fixed pipeline over an axis REGISTRY. It never
 # inspects a claim value and never names an axis -- every axis owns its value
-# type entirely and the engine only ever calls the axis's four methods (top,
-# narrow, satisfiable, select). That is what lets a new axis of any value shape
+# type entirely and the engine only ever calls the axis's methods (top, narrow,
+# satisfiable, select) and reads its declared ctxKey to know whether the build
+# ctx needs an entity for it. That is what lets a new axis of any value shape
 # (a set axis, a predicate axis, a future role/trait axis) compose with zero
 # edits here. Roster access lives behind satisfiable/select only; compose/narrow
 # are roster-independent, so the whole thing runs against a stubbed roster.
@@ -94,17 +95,23 @@ let
 
   defaultChecks = [ satisfiableCheck ];
 
-  # the build ctx must carry an entity for every registered axis; a missing axis
-  # is a loud error, never a silently skipped or over-applied one.
+  # the build ctx must carry an entity for every axis that declares a ctxKey; an
+  # axis with ctxKey = null (a predicate axis, which has no entity of its own)
+  # needs nothing here. reads axis.ctxKey off each registered axis rather than
+  # the registry's own attr names, so the engine still never hardcodes host,
+  # user, or when.
   assertCtx =
     registry: ctx:
     let
-      missing = filter (name: !(ctx ? ${name})) (attrNames registry);
+      needed = filter (axis: axis.ctxKey != null) (lib.attrValues registry);
+      missing = filter (axis: !(ctx ? ${axis.ctxKey})) needed;
     in
     if missing == [ ] then
       ctx
     else
-      throw "ownerships: build ctx is missing an entity for axis(es): ${lib.concatStringsSep ", " missing}";
+      throw "ownerships: build ctx is missing an entity for key(s): ${
+        lib.concatStringsSep ", " (map (axis: axis.ctxKey) missing)
+      }";
 
   # the one entry point: compose -> check -> select -> strip -> merge. merge is
   # supplied (a values -> value fold from merge.nix) so its strategy table and

@@ -19,18 +19,6 @@ let
 
   defaultMerge = (mergeLib.mkMerge { }).mergeAll;
 
-  # the predicate axis. it owns nothing on the roster: an always-false `when` is
-  # just inactive for this build, never a contradiction, so satisfiable is
-  # constant and narrow only conjoins. select does the sole real work -- run the
-  # predicate against the build context. its value being a function is exactly
-  # why the engine keeps every axis value opaque.
-  whenAxis = {
-    top = _: true;
-    narrow = a: b: (ctx: a ctx && b ctx);
-    satisfiable = _: true;
-    select = pred: pred;
-  };
-
   # keys that mean ownership rather than config. everything else on a unit is
   # its value; children nests. the tradeoff: a unit can't also carry a config
   # value whose first path segment is one of these words. in practice that's
@@ -114,18 +102,15 @@ let
   # bind the surface to a roster once -- the fleet the owners are checked against.
   # the returned resolve takes the authored units and yields a context-consuming
   # function; den fills host/user, so the aspect never destructures them. the
-  # engine args come from resolve.nix so the host/user axes and membership check
-  # stay defined in one place; the predicate axis is layered on here. `resolve`
-  # is a name at three layers -- this public one an aspect calls, resolve.nix's
-  # `resolveWith`, and the engine's own `resolve` invoked below; only this one is
-  # meant for aspects.
+  # engine args -- registry (host, user, and the shared `when` predicate axis)
+  # and the membership check -- all come from resolve.nix's engineArgsFor, so
+  # nothing here is surface-local anymore. `resolve` is a name at three layers --
+  # this public one an aspect calls, resolve.nix's `resolveWith`, and the
+  # engine's own `resolve` invoked below; only this one is meant for aspects.
   mkResolve =
     roster:
     let
       base = resolveLib.engineArgsFor roster;
-      registry = base.registry // {
-        when = whenAxis;
-      };
     in
     units:
     {
@@ -134,15 +119,10 @@ let
       ...
     }:
     engine.resolve {
-      inherit registry;
-      inherit (base) checks;
+      inherit (base) registry checks;
       merge = defaultMerge;
-      # the predicate axis reads host/user straight off the context, so it has no
-      # entity of its own; this key exists only so the engine's per-axis context
-      # assertion is satisfied.
       ctx = {
         inherit host user;
-        when = null;
       };
     } { children = map translate units; };
 in

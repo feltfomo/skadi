@@ -16,6 +16,7 @@ let
     exclude
     global
     mkSetAxis
+    mkPredicateAxis
     ;
 
   # stubbed roster -- the real den-backed one replaces this later.
@@ -245,6 +246,40 @@ let
             members = [ "laptop" ];
           })
         ];
+    }
+
+    {
+      name = "ctx missing a set axis's key still throws";
+      pass = throws (
+        engine.resolve {
+          inherit registry;
+          merge = defaultMerge;
+          ctx = {
+            host = {
+              name = "khion";
+            };
+          };
+        } { value.x = 1; }
+      );
+    }
+
+    {
+      name = "predicate axis needs no ctx entity of its own";
+      pass =
+        engine.resolve
+          {
+            registry = registry // {
+              when = mkPredicateAxis;
+            };
+            merge = defaultMerge;
+            inherit ctx;
+          }
+          {
+            claim.when = c: c.host.name == "khion";
+            value.enable = true;
+          } == {
+          enable = true;
+        };
     }
   ];
 

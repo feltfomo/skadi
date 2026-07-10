@@ -19,7 +19,11 @@ let
   # roster shape, so this is where den and standalone define.* become
   # indistinguishable to the engine.
   engineArgsFor = roster: {
-    registry = axes.registry { inherit (roster) hosts users; };
+    # `when` lives in the shared registry now, not surface-local, so any caller
+    # of engineArgsFor gets the predicate axis for free.
+    registry = axes.registry { inherit (roster) hosts users; } // {
+      when = axes.mkPredicateAxis;
+    };
     checks = [
       engine.satisfiableCheck
       (axes.mkMembershipCheck {

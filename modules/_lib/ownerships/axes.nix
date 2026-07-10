@@ -1,10 +1,11 @@
 # _lib/ownerships/axes.nix
 #
 # The set-axis value type (a polarity set) plus host + user registered on the
-# engine -- the first two axes, and the only two shipped so far. This is the one
-# file allowed to name host/user; the engine below never does. A set axis carries
-# a polarity set and reads an entity's identity (ctx.<axis>.name); a predicate
-# (`when`) axis could be added later with no engine change to slot in.
+# engine, and the select-only predicate-axis constructor the `when` claim runs
+# on. This is the one file allowed to name host/user; the engine below never
+# does. A set axis carries a polarity set and reads an entity's identity
+# (ctx.<axis>.name); a predicate axis reads no entity of its own (ctxKey =
+# null) and just runs its function against whatever ctx the caller assembles.
 _:
 let
   inherit (builtins) elem filter;
@@ -60,7 +61,23 @@ let
       narrow = meet;
       satisfiable = v: resolveMembers members v != [ ];
       select = v: ctx: elem ctx.${key}.name (resolveMembers members v);
+      # the ctx attribute this axis reads its entity from -- assertCtx requires
+      # a ctx entry here and nowhere else, so a set axis stays a loud miss.
+      ctxKey = key;
     };
+
+  # a select-only axis: no roster members, no ctx entity of its own. its whole
+  # job is running a predicate against whatever ctx the caller assembles for
+  # the set axes -- narrow conjoins nested predicates, satisfiable is constant
+  # since there's no roster to contradict against, and ctxKey = null is what
+  # tells assertCtx this axis needs nothing added to the build ctx.
+  mkPredicateAxis = {
+    top = _: true;
+    narrow = a: b: (ctx: a ctx && b ctx);
+    satisfiable = _: true;
+    select = pred: pred;
+    ctxKey = null;
+  };
 
   # host<->user membership as a cross-axis check. the set axes already guarantee
   # each axis resolves to at least one entity; this catches the pair that cannot
@@ -113,6 +130,7 @@ in
     exclude
     global
     mkSetAxis
+    mkPredicateAxis
     mkMembershipCheck
     ;
 
