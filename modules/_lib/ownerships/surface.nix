@@ -1,0 +1,152 @@
+# _lib/ownerships/surface.nix
+#
+# The surface aspects author against. Its only job is to erase the ceremony the
+# old scoped path needed -- instead of `{ host, user }: let for = scoped.for ...`
+# an aspect hands `resolve` a plain list of self-labeling units, and the build
+# context is read in here, not by the author. A unit carries its owners as
+# ordinary keys (hosts / users / exceptHosts / exceptUsers / when); whatever's
+# left is its config. Untagged means globally owned. This is a thin translator
+# onto the engine's claim tree and holds no resolution logic of its own, so every
+# nesting and conflict guarantee still comes from the engine.
+{ lib }:
+let
+  engine = import ./engine.nix { inherit lib; };
+  axes = import ./axes.nix { inherit lib; };
+  resolveLib = import ./resolve.nix { inherit lib; };
+  mergeLib = import ./merge.nix { inherit lib; };
+
+  inherit (axes) include exclude;
+
+  defaultMerge = (mergeLib.mkMerge { }).mergeAll;
+
+  # the predicate axis. it owns nothing on the roster: an always-false `when` is
+  # just inactive for this build, never a contradiction, so satisfiable is
+  # constant and narrow only conjoins. select does the sole real work -- run the
+  # predicate against the build context. its value being a function is exactly
+  # why the engine keeps every axis value opaque.
+  whenAxis = {
+    top = _: true;
+    narrow = a: b: (ctx: a ctx && b ctx);
+    satisfiable = _: true;
+    select = pred: pred;
+  };
+
+  # keys that mean ownership rather than config. everything else on a unit is
+  # its value; children nests. the tradeoff: a unit can't also carry a config
+  # value whose first path segment is one of these words. in practice that's
+  # only `users.*` (NixOS user management); the others never name a real option
+  # path. nothing being migrated hits it, so there's no `value = {...}` escape
+  # key yet -- add one if a user-management aspect ever needs to own `users.*`.
+  claimKeys = [
+    "hosts"
+    "users"
+    "exceptHosts"
+    "exceptUsers"
+    "when"
+  ];
+  reserved = claimKeys ++ [ "children" ];
+
+  # ownership keys are read by name off a unit's top level, so a config value
+  # sitting on a reserved key would be silently swallowed as a claim. the one
+  # realistic collision is a NixOS `users` attrset landing where the `users`
+  # name-list belongs, so shape-check the claim keys and fail at author time
+  # rather than resolve something the author never meant.
+  isNameList = v: builtins.isList v && lib.all builtins.isString v;
+  checkShape =
+    unit:
+    let
+      badList = builtins.filter (k: unit ? ${k} && !isNameList unit.${k}) [
+        "hosts"
+        "users"
+        "exceptHosts"
+        "exceptUsers"
+      ];
+      badWhen = unit ? when && !builtins.isFunction unit.when;
+    in
+    if badList != [ ] then
+      throw "ownerships: '${builtins.head badList}' must be a list of names; got ${
+        builtins.typeOf unit.${builtins.head badList}
+      }. a reserved ownership key can't also be a config path on the same unit."
+    else if badWhen then
+      throw "ownerships: 'when' must be a predicate function of the build context"
+    else
+      unit;
+
+  # one axis' claim from its include/exclude key pair. naming both a set and its
+  # complement on the same axis is rejected here instead of silently picking one,
+  # and it costs no expressiveness: "own by A except B" is written by nesting an
+  # exceptHosts child under a hosts parent, which the engine's polarity meet
+  # resolves to include(A minus B). an axis the unit doesn't tag returns null and
+  # is left off the claim, so the engine fills it with that axis' identity (global).
+  polarityFor =
+    unit: positive: negative:
+    if unit ? ${positive} && unit ? ${negative} then
+      throw "ownerships: a unit cannot set both '${positive}' and '${negative}' -- pick the set or its complement"
+    else if unit ? ${positive} then
+      include unit.${positive}
+    else if unit ? ${negative} then
+      exclude unit.${negative}
+    else
+      null;
+
+  claimOf =
+    unit:
+    let
+      host = polarityFor unit "hosts" "exceptHosts";
+      user = polarityFor unit "users" "exceptUsers";
+    in
+    lib.optionalAttrs (host != null) { inherit host; }
+    // lib.optionalAttrs (user != null) { inherit user; }
+    // lib.optionalAttrs (unit ? when) { inherit (unit) when; };
+
+  translate =
+    unit:
+    let
+      checked = checkShape unit;
+      value = removeAttrs checked reserved;
+    in
+    {
+      claim = claimOf checked;
+    }
+    // lib.optionalAttrs (value != { }) { inherit value; }
+    // lib.optionalAttrs (checked ? children) { children = map translate checked.children; };
+
+  # bind the surface to a roster once -- the fleet the owners are checked against.
+  # the returned resolve takes the authored units and yields a context-consuming
+  # function; den fills host/user, so the aspect never destructures them. the
+  # engine args come from resolve.nix so the host/user axes and membership check
+  # stay defined in one place; the predicate axis is layered on here. `resolve`
+  # is a name at three layers -- this public one an aspect calls, resolve.nix's
+  # `resolveWith`, and the engine's own `resolve` invoked below; only this one is
+  # meant for aspects.
+  mkResolve =
+    roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+      registry = base.registry // {
+        when = whenAxis;
+      };
+    in
+    units:
+    {
+      host,
+      user,
+      ...
+    }:
+    engine.resolve {
+      inherit registry;
+      inherit (base) checks;
+      merge = defaultMerge;
+      # the predicate axis reads host/user straight off the context, so it has no
+      # entity of its own; this key exists only so the engine's per-axis context
+      # assertion is satisfied.
+      ctx = {
+        inherit host user;
+        when = null;
+      };
+    } { children = map translate units; };
+in
+{
+  inherit mkResolve;
+  inherit (resolveLib) define toRoster;
+}
