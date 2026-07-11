@@ -57,6 +57,40 @@ let
   # tryEval actually catches the impossible/conflict cases.
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
+  # the meet law suite runs over a small closed universe, not sampled -- narrow
+  # and top touch no roster, so exhaustive is cheap and actually proves the
+  # laws instead of hoping a handful of samples happened to cover what matters.
+  lawUniverse = [
+    "a"
+    "b"
+    "c"
+  ];
+  subsetsOf =
+    xs:
+    if xs == [ ] then
+      [ [ ] ]
+    else
+      let
+        rest = subsetsOf (builtins.tail xs);
+      in
+      rest ++ map (s: [ (builtins.head xs) ] ++ s) rest;
+  # every polarity value over the universe: both tags, every subset.
+  lawValues = builtins.concatMap (s: [
+    (include s)
+    (exclude s)
+  ]) (subsetsOf lawUniverse);
+  # a throwaway axis just to reach `narrow` (== meet) and `top` -- narrow is
+  # roster-independent, so which members this axis carries never matters here.
+  lawAxis = mkSetAxis {
+    key = "law";
+    members = lawUniverse;
+  };
+  # `.set` is a set, not an ordered list -- exclude/exclude narrowing unions it
+  # via ++, which can reorder. sort before comparing so the laws test the
+  # value, not the union's incidental order.
+  canon = v: v // { set = builtins.sort (a: b: a < b) v.set; };
+  eqPolarity = a: b: canon a == canon b;
+
   cases = [
     {
       name = "host+user nest resolves";
@@ -251,6 +285,38 @@ let
             members = [ "laptop" ];
           })
         ];
+    }
+
+    {
+      name = "polarity meet: identity law, exhaustive over {a,b,c}";
+      pass = lib.all (
+        v: eqPolarity (lawAxis.narrow lawAxis.top v) v && eqPolarity (lawAxis.narrow v lawAxis.top) v
+      ) lawValues;
+    }
+
+    {
+      name = "polarity meet: commutativity law, exhaustive over {a,b,c}";
+      pass = lib.all (
+        a: lib.all (b: eqPolarity (lawAxis.narrow a b) (lawAxis.narrow b a)) lawValues
+      ) lawValues;
+    }
+
+    {
+      name = "polarity meet: idempotence law, exhaustive over {a,b,c}";
+      pass = lib.all (v: eqPolarity (lawAxis.narrow v v) v) lawValues;
+    }
+
+    {
+      name = "polarity meet: associativity law, exhaustive over {a,b,c}";
+      pass = lib.all (
+        a:
+        lib.all (
+          b:
+          lib.all (
+            c: eqPolarity (lawAxis.narrow (lawAxis.narrow a b) c) (lawAxis.narrow a (lawAxis.narrow b c))
+          ) lawValues
+        ) lawValues
+      ) lawValues;
     }
 
     {
