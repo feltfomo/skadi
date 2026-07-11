@@ -117,13 +117,9 @@
     inputs.flake-parts.lib.mkFlake { inherit inputs; } (
       { lib, den, ... }:
       let
-        # one scoped instance, shared by the module arg and program.nix so it
-        # isn't imported twice. siblings in _module.args can't cross-reference,
-        # hence the let.
-        scoped = import ./modules/_lib/scoped.nix { inherit lib; };
         # the ownerships surface bound to the fleet roster, read once through
         # the one sanctioned den touch-site so program.nix (and any future
-        # aspect) reach it the same way scoped/program already do.
+        # aspect) reach it the same way resolve/resolveSystem already do.
         denApi = import ./modules/_lib/den.nix { inherit den lib; };
         roster = denApi.roster "x86_64-linux";
         ownershipsSurface = import ./modules/_lib/ownerships/surface.nix { inherit lib; };
@@ -136,12 +132,12 @@
       {
         imports = [ (inputs.import-tree ./modules) ];
         systems = [ "x86_64-linux" ];
-        # rootPath, scoped, program, resolve, resolveSystem ride the same
-        # _module.args seam so every aspect gets them like lib. they stay pure
-        # libs -- no den plumbing on this path.
+        # rootPath, program, resolve, resolveSystem ride the same _module.args
+        # seam so every aspect gets them like lib. they stay pure libs -- no
+        # den plumbing on this path.
         _module.args = {
           rootPath = ./.;
-          inherit scoped resolve resolveSystem;
+          inherit resolve resolveSystem;
           program = import ./modules/_lib/program.nix { inherit lib resolve; };
         };
       }

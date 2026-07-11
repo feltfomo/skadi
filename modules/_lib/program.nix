@@ -128,8 +128,8 @@ in
   # fields (pkg/files/templates/imports/noctaliaConfig) arrive inside `spec`
   # through the `...` below and are read off it by specUnit -- they are NOT
   # named formals. untagged on all of these means globally owned. keeping `...`
-  # also means a still-scoped caller like hyprland.nix that passes
-  # host/user/files keeps working unchanged.
+  # also means a caller like hyprland.nix that passes host/user/files keeps
+  # working unchanged.
   ...
 }@spec:
 let

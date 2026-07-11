@@ -1,8 +1,8 @@
 # the den-internals boundary: the ONE file allowed to touch den's guts
 # (den.hosts, den.lib.resolveEntity, den.lib.aspects.resolve, h.instantiate,
-# h.aspect.includes). everything else -- scoped, program, install-target, any
-# future den-built framework -- calls these wrappers, never den.lib directly, so
-# a den version bump is absorbed here in one place.
+# h.aspect.includes). everything else -- program, install-target, any future
+# den-built framework -- calls these wrappers, never den.lib directly, so a den
+# version bump is absorbed here in one place.
 {
   den,
   lib,
