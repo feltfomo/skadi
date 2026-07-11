@@ -21,6 +21,12 @@ forward home-manager config from a host to its users, so home aspects are listed
 on the user in modules/users/feltfomo.nix, not on the host. nixos-only aspects
 stay on the host.
 
+aspects also say who they are for, right on the config. a hosts or users list on
+a block, file, or option path claims it for those hosts or users; untagged
+config is for everyone. the ownerships engine in modules/_lib/ownerships/ reads
+those claims and merges what survives: resolve builds the per-user view,
+resolveSystem the per-host one. see modules/_lib/ownerships/ownerships.md.
+
 the username lives in exactly one file: modules/users/feltfomo.nix.
 
 ## layout
@@ -36,8 +42,10 @@ the username lives in exactly one file: modules/users/feltfomo.nix.
                                   _khion/ and _lumi/ (disko, hardware,
                                   networking, environment)
     modules/users/feltfomo.nix    the user, and the home aspects it includes
-    modules/_lib/program.nix      turns a small spec into matching home-manager
-                                  and hjem config
+    modules/_lib/program.nix      turns a small spec into matching home-manager,
+                                  hjem, and host-only nixos config
+    modules/_lib/ownerships/      ownership engine: aspects claim config for
+                                  hosts or users; ownerships.md is the how-to
     modules/_pkgs/lucid.nix       spicetify Lucid theme, built from source
     modules/graalvm-oracle-21/    graalvm overlay
     modules/formatting.nix        treefmt config
