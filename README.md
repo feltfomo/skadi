@@ -25,32 +25,32 @@ aspects also say who they are for, right on the config. a hosts or users list on
 a block, file, or option path claims it for those hosts or users; untagged
 config is for everyone. the ownerships engine in modules/_lib/ownerships/ reads
 those claims and merges what survives: resolve builds the per-user view,
-resolveSystem the per-host one. see modules/_lib/ownerships/ownerships.md.
+resolveSystem the per-host one. see docs/ownerships/README.md.
 
 the username lives in exactly one file: modules/users/feltfomo.nix.
 
 ## layout
 
-    flake.nix                     inputs and Den wiring
-    modules/den.nix               Den schema, host and user classes, stateVersion
-    modules/aspects/              feature modules (base, system, shell, theming,
-                                  hyprland, kitty, fuzzel, walker, thunar,
-                                  spicetify, noctalia, firefox, steam, gnome,
-                                  wayland, qt-hm, impermanence, gpu-nvidia,
-                                  docker, hermes, notion-sync, sops)
-    modules/hosts/                khion.nix, lumi.nix, and per-host hardware in
-                                  _khion/ and _lumi/ (disko, hardware,
-                                  networking, environment)
-    modules/users/feltfomo.nix    the user, and the home aspects it includes
-    modules/_lib/program.nix      turns a small spec into matching home-manager,
-                                  hjem, and host-only nixos config
-    modules/_lib/ownerships/      ownership engine: aspects claim config for
-                                  hosts or users; ownerships.md is the how-to
-    modules/_pkgs/lucid.nix       spicetify Lucid theme, built from source
-    modules/graalvm-oracle-21/    graalvm overlay
-    modules/formatting.nix        treefmt config
-    modules/checks.nix            per-host build and treefmt checks
-    .github/workflows/ci.yml      CI
+flake.nix                     inputs and Den wiring
+modules/den.nix               Den schema, host and user classes, stateVersion
+modules/aspects/              feature modules (base, system, shell, theming,
+                              hyprland, kitty, fuzzel, walker, thunar,
+                              spicetify, noctalia, firefox, steam, gnome,
+                              wayland, qt-hm, impermanence, gpu-nvidia,
+                              docker, hermes, notion-sync, sops)
+modules/hosts/                khion.nix, lumi.nix, and per-host hardware in
+                              _khion/ and _lumi/ (disko, hardware,
+                              networking, environment)
+modules/users/feltfomo.nix    the user, and the home aspects it includes
+modules/_lib/program.nix      turns a small spec into matching home-manager,
+                              hjem, and host-only nixos config
+modules/_lib/ownerships/      ownership engine: aspects claim config for
+                              hosts or users; see docs/ownerships/ for the how-to
+modules/_pkgs/lucid.nix       spicetify Lucid theme, built from source
+modules/graalvm-oracle-21/    graalvm overlay
+modules/formatting.nix        treefmt config
+modules/checks.nix            per-host build and treefmt checks
+.github/workflows/ci.yml      CI
 
 ## build and deploy
 
