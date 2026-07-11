@@ -151,17 +151,6 @@ Only two things ever raise an error. Everything else that doesn't match this bui
 
 Both survive `select`; `merge` recurses into the shared attrset path down to the scalar, finds `true != false`, and throws `strictScalar`'s structured message instead of picking a winner. Attrsets merge (union of keys, recursing into shared ones) and lists concatenate in order by default — only a genuine scalar clash between real co-owners is a conflict.
 
-## Extension points
-
-The rule the whole design leans on: add a feature by handing the engine more *data*, never by editing `compose`/`narrowClaim`/`resolve` in `engine.nix`.
-
-- **A new axis** is a registration, not an engine edit. `axes.nix` builds `host`/`user` with `mkSetAxis { key; members; }` and registers the select-only `when` axis with `predicateAxis` — both just implement `{ top; narrow; satisfiable; select; isTop; ctxKey }`. A `role`/`trait` axis is the same four methods plus a `ctxKey`, added to the registry `resolve.nix` builds in `engineArgsFor`.
-- **A new merge strategy** is a table entry in `merge.nix`'s `builtinStrategies`, picked per path via `listStrategyFor`. Shipped default is `"ordered-concat"`; `"dedup-union"` is opt-in for set-like lists. Passing a different `strategies`/`listStrategyFor` to `mkMerge` never touches `mergeTwo`'s recursion.
-- **A new conflict policy** replaces `strictScalar` with a different `path: a: b: ...` function passed as `mkMerge`'s `conflictPolicy` — the deferred "lock" (owner wins, foreign write throws) is exactly this, no engine change.
-- **A new pipeline stage or check** — `checks` is a list (`defaultChecks = [ satisfiableCheck ]`), and `resolve.nix` already appends `mkMembershipCheck` to it. A coverage assertion ("exactly one bootloader") is another list entry, not a new branch inside `runCheck`.
-
-If a deferred feature can't attach this way — as a registered axis, strategy, policy, or check — that's a design bug in the engine to fix, not a reason to special-case it inline.
-
 ## The den boundary, and running without den
 
 A roster is exactly `{ hosts; users; membership; usersWithUnknownMembership }` — host and user name lists, `membership` as host → `[user]`, and `usersWithUnknownMembership` for a standalone user that never named its hosts. `resolve.nix`'s `engineArgsFor` builds the axis registry and the membership check from this shape; neither the engine nor the axes know or care where it came from.
@@ -183,3 +172,4 @@ toRoster [
 ```
 
 A user with `hosts = null` (the default) means "unknown", and the membership check lets it through anywhere (`usersWithUnknownMembership`); an explicit `hosts = []` means "known to live nowhere", and stays a real membership failure. Feed either roster into `resolveWith`/`mkResolve` and the claim vocabulary — `hosts`, `users`, `exceptHosts`, `exceptUsers`, `when` — doesn't change at all.
+
