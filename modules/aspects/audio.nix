@@ -1,27 +1,21 @@
-{ scoped, ... }:
+{ resolveSystem, ... }:
 {
   den.aspects.audio =
-    { host }:
-    let
-      for = scoped.for { inherit host; };
-    in
+    { host, ... }:
     {
-      # pavucontrol on the real machines only. the gate does the excluding, so
-      # vm/generic (which also pull base) collapse this module to {} -- a lean
-      # installer-test VM has no use for a volume GUI.
+      # pavucontrol on the real machines only. resolveSystem drops this unit on
+      # any host outside the claim, so vm/generic (which also pull base) collapse
+      # to {} -- a lean installer-test VM has no use for a volume GUI.
       nixos =
-        for
+        { pkgs, ... }:
+        resolveSystem [
           {
             hosts = [
               "khion"
               "lumi"
             ];
+            environment.systemPackages = [ pkgs.pavucontrol ];
           }
-          (
-            { pkgs, ... }:
-            {
-              environment.systemPackages = [ pkgs.pavucontrol ];
-            }
-          );
+        ] { inherit host; };
     };
 }
