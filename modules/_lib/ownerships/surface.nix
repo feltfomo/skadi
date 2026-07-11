@@ -23,8 +23,11 @@ let
   # its value; children nests. the tradeoff: a unit can't also carry a config
   # value whose first path segment is one of these words. in practice that's
   # only `users.*` (NixOS user management); the others never name a real option
-  # path. nothing being migrated hits it, so there's no `value = {...}` escape
-  # key yet -- add one if a user-management aspect ever needs to own `users.*`.
+  # path. a unit that needs to own a reserved-colliding path routes its config
+  # through `value = { ... }` instead (see translate below) -- claims still
+  # narrow around a value block exactly as they do around inline config.
+  # `value` is reserved too, so routing is a static lexical check on the
+  # unit's own keys, never a shape guess.
   claimKeys = [
     "hosts"
     "users"
@@ -32,7 +35,10 @@ let
     "exceptUsers"
     "when"
   ];
-  reserved = claimKeys ++ [ "children" ];
+  reserved = claimKeys ++ [
+    "children"
+    "value"
+  ];
 
   # ownership keys are read by name off a unit's top level, so a config value
   # sitting on a reserved key would be silently swallowed as a claim. the one
@@ -50,6 +56,12 @@ let
         "exceptUsers"
       ];
       badWhen = unit ? when && !builtins.isFunction unit.when;
+      # a value block routes unambiguously only when it's the sole non-reserved
+      # content on the unit -- claims and children still narrow around it
+      # exactly as they do around inline config, so only a genuine leftover
+      # inline key next to `value` is the ambiguous case.
+      leftover = removeAttrs unit reserved;
+      badMixed = unit ? value && leftover != { };
     in
     if badList != [ ] then
       throw "ownerships: '${builtins.head badList}' must be a list of names; got ${
@@ -57,6 +69,8 @@ let
       }. a reserved ownership key can't also be a config path on the same unit."
     else if badWhen then
       throw "ownerships: 'when' must be a predicate function of the build context"
+    else if badMixed then
+      throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
     else
       unit;
 
@@ -87,16 +101,22 @@ let
     // lib.optionalAttrs (user != null) { inherit user; }
     // lib.optionalAttrs (unit ? when) { inherit (unit) when; };
 
+  # the payload riding this leaf: the escape-hatch block verbatim when the unit
+  # used one, otherwise whatever's left after stripping the reserved keys --
+  # same rule as before the hatch existed. two different `value`s share the
+  # word, not the meaning: `checked.value` is the author-facing escape-hatch
+  # key, `payload` becomes the engine leaf's `value` field (the config every
+  # leaf carries, hatch or not) -- don't conflate them.
   translate =
     unit:
     let
       checked = checkShape unit;
-      value = removeAttrs checked reserved;
+      payload = checked.value or (removeAttrs checked reserved);
     in
     {
       claim = claimOf checked;
     }
-    // lib.optionalAttrs (value != { }) { inherit value; }
+    // lib.optionalAttrs (payload != { }) { value = payload; }
     // lib.optionalAttrs (checked ? children) { children = map translate checked.children; };
 
   # bind the surface to a roster once -- the fleet the owners are checked against.

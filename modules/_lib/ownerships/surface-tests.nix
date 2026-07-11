@@ -211,6 +211,83 @@ let
         programs.hyprland.enable = true;
       }
     ] ctxSystemVm;
+
+    # value escape hatch: users.* is both a claim key and a real NixOS option
+    # path, so this is the motivating collision -- global (untagged), so it's
+    # not run through a host/user claim at all.
+    valueEscapeHatch = run ctx [
+      {
+        value = {
+          users.users.alice = {
+            isNormalUser = true;
+          };
+        };
+      }
+    ];
+
+    # same payload, now narrowed by a host claim -- proves a claim still
+    # narrows around a value block instead of being swallowed by it.
+    valueEscapeHatchHit = run ctx [
+      {
+        hosts = [ "khion" ];
+        value = {
+          users.users.alice = {
+            isNormalUser = true;
+          };
+        };
+      }
+    ];
+    valueEscapeHatchMiss = run ctxLumi [
+      {
+        hosts = [ "khion" ];
+        value = {
+          users.users.alice = {
+            isNormalUser = true;
+          };
+        };
+      }
+    ];
+
+    # translate only intercepts a unit's own top-level keys -- reserved-looking
+    # names sitting *inside* a value block are never re-scanned as claims, so
+    # nothing here gets silently dropped despite the name collision.
+    valueNoSwallow = run ctx [
+      {
+        value = {
+          hosts = "not-a-claim-this-is-config";
+          when = "also-just-a-string";
+        };
+      }
+    ];
+
+    # a value + children node must merge identically to the pre-existing
+    # inline-config + children node above (`nested`) -- same claims, same
+    # shape, config just routed through the hatch instead of inline.
+    nestedViaValue = run ctx [
+      {
+        hosts = [
+          "khion"
+          "lumi"
+        ];
+        value = {
+          packages = [ "base" ];
+        };
+        children = [
+          {
+            users = [ "feltfomo" ];
+            value = {
+              packages = [ "feltfomo-extra" ];
+            };
+          }
+          {
+            hosts = [ "khion" ];
+            value = {
+              services.hypridle.enable = true;
+            };
+          }
+        ];
+      }
+    ];
   };
 
   # deepSeq drives the lazy check/merge throws so tryEval catches the impossible
@@ -350,6 +427,55 @@ let
             programs.hyprland.enable = true;
           }
         ] ctxSystemKhion
+      );
+    }
+    {
+      name = "value escape hatch routes users.* as ordinary config";
+      pass =
+        results.valueEscapeHatch == {
+          users.users.alice = {
+            isNormalUser = true;
+          };
+        };
+    }
+    {
+      name = "a claim narrows around a value block (hit)";
+      pass =
+        results.valueEscapeHatchHit == {
+          users.users.alice = {
+            isNormalUser = true;
+          };
+        };
+    }
+    {
+      name = "a claim narrows around a value block (miss drops)";
+      pass = results.valueEscapeHatchMiss == { };
+    }
+    {
+      name = "value block content is never re-scanned for claim keys";
+      pass =
+        results.valueNoSwallow == {
+          hosts = "not-a-claim-this-is-config";
+          when = "also-just-a-string";
+        };
+    }
+    {
+      name = "value + children matches the inline-config + children shape";
+      pass = results.nestedViaValue == results.nested;
+    }
+    {
+      name = "value mixed with inline config throws at author time";
+      pass = throws (
+        run ctx [
+          {
+            value = {
+              users.users.alice = {
+                isNormalUser = true;
+              };
+            };
+            pkg = "x";
+          }
+        ]
       );
     }
   ];
