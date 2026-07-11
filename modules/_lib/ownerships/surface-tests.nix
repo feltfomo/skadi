@@ -8,7 +8,12 @@
 { lib }:
 let
   surface = import ./surface.nix { inherit lib; };
-  inherit (surface) define toRoster mkResolve;
+  inherit (surface)
+    define
+    toRoster
+    mkResolve
+    mkResolveSystem
+    ;
 
   roster = toRoster [
     (define.host "khion")
@@ -23,6 +28,7 @@ let
   ];
 
   resolve = mkResolve roster;
+  resolveSystem = mkResolveSystem roster;
 
   # khion, as feltfomo, on an nvidia box -- enough to drive the host/user set
   # claims and a `when` predicate that reads a freeform host attribute.
@@ -53,6 +59,20 @@ let
     };
     user = {
       name = "grandpa";
+    };
+  };
+
+  # host-only (system-scope) ctx: a real host, no user -- what a nixos slice
+  # resolves under. "vm" is a host outside the claim, standing in for the
+  # headless installer-test VM the compositor must stay off.
+  ctxSystemKhion = {
+    host = {
+      name = "khion";
+    };
+  };
+  ctxSystemVm = {
+    host = {
+      name = "vm";
     };
   };
 
@@ -170,6 +190,27 @@ let
         ];
       }
     ];
+
+    # host-only system scope: a compositor-shaped unit owned by two hosts,
+    # resolved with only a host in ctx (no user), plus the off-claim miss.
+    systemHostHit = resolveSystem [
+      {
+        hosts = [
+          "khion"
+          "lumi"
+        ];
+        programs.hyprland.enable = true;
+      }
+    ] ctxSystemKhion;
+    systemHostMiss = resolveSystem [
+      {
+        hosts = [
+          "khion"
+          "lumi"
+        ];
+        programs.hyprland.enable = true;
+      }
+    ] ctxSystemVm;
   };
 
   # deepSeq drives the lazy check/merge throws so tryEval catches the impossible
@@ -275,6 +316,40 @@ let
             pkg = "x";
           }
         ]
+      );
+    }
+    {
+      name = "system scope resolves a host-narrowed unit with no user bound";
+      pass =
+        results.systemHostHit == {
+          programs.hyprland.enable = true;
+        };
+    }
+    {
+      name = "system scope drops a host-narrowed unit off its claimed hosts";
+      pass = results.systemHostMiss == { };
+    }
+    {
+      name = "system scope rejects a users claim at author time";
+      pass = throws (
+        resolveSystem [
+          {
+            hosts = [ "khion" ];
+            users = [ "feltfomo" ];
+            programs.hyprland.enable = true;
+          }
+        ] ctxSystemKhion
+      );
+    }
+    {
+      name = "system scope rejects an exceptUsers claim at author time";
+      pass = throws (
+        resolveSystem [
+          {
+            exceptUsers = [ "grandpa" ];
+            programs.hyprland.enable = true;
+          }
+        ] ctxSystemKhion
       );
     }
   ];

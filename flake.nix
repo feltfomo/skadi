@@ -125,18 +125,23 @@
         # the one sanctioned den touch-site so program.nix (and any future
         # aspect) reach it the same way scoped/program already do.
         denApi = import ./modules/_lib/den.nix { inherit den lib; };
+        roster = denApi.roster "x86_64-linux";
         ownershipsSurface = import ./modules/_lib/ownerships/surface.nix { inherit lib; };
-        resolve = ownershipsSurface.mkResolve (denApi.roster "x86_64-linux");
+        resolve = ownershipsSurface.mkResolve roster;
+        # host-only sibling for system/nixos slices that own by host with no
+        # user in scope (hyprland's compositor). a distinct door from mkResolve
+        # so the user-scope contract stays byte-identical.
+        resolveSystem = ownershipsSurface.mkResolveSystem roster;
       in
       {
         imports = [ (inputs.import-tree ./modules) ];
         systems = [ "x86_64-linux" ];
-        # rootPath, scoped, program, resolve ride the same _module.args seam so
-        # every aspect gets them like lib. scoped/program/resolve stay pure
+        # rootPath, scoped, program, resolve, resolveSystem ride the same
+        # _module.args seam so every aspect gets them like lib. they stay pure
         # libs -- no den plumbing on this path.
         _module.args = {
           rootPath = ./.;
-          inherit scoped resolve;
+          inherit scoped resolve resolveSystem;
           program = import ./modules/_lib/program.nix { inherit lib resolve; };
         };
       }

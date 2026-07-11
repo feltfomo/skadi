@@ -307,6 +307,32 @@ let
           enable = true;
         };
     }
+
+    {
+      name = "host-narrowed claim resolves with the user entity explicitly null";
+      pass =
+        engine.resolve
+          {
+            inherit registry;
+            merge = defaultMerge;
+            # a host-only build: real host, user absent from scope. the user axis
+            # stays global for this claim, so assertCtx never demands it and
+            # select never reads it -- the null-user tolerance the system binding
+            # rides on.
+            ctx = {
+              host = {
+                name = "khion";
+              };
+              user = null;
+            };
+          }
+          {
+            claim.host = include [ "khion" ];
+            value.x = 1;
+          } == {
+          x = 1;
+        };
+    }
   ];
 
   failing = builtins.filter (c: !c.pass) cases;

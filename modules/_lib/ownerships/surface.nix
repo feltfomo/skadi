@@ -125,8 +125,57 @@ let
         inherit host user;
       };
     } { children = map translate units; };
+
+  # a system-scope resolve binds a host but no user (ctx.user = null), so a
+  # `users` / `exceptUsers` claim anywhere in the tree can never own anything --
+  # a host-wide slice has no user to narrow to. reject that when the units are
+  # handed in, before resolve runs, naming the offending key and its value. the
+  # engine's resolve-time missing-ctx throw still backstops a miss here, so this
+  # is a clearer, earlier message rather than the only line of defense.
+  systemUserKeys = [
+    "users"
+    "exceptUsers"
+  ];
+  assertNoUserClaim =
+    unit:
+    let
+      offending = builtins.filter (k: unit ? ${k}) systemUserKeys;
+    in
+    if offending != [ ] then
+      throw "ownerships: a system-scope (host-only) unit sets '${builtins.head offending}' = ${
+        lib.generators.toPretty { multiline = false; } unit.${builtins.head offending}
+      } -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope."
+    else
+      lib.all assertNoUserClaim (unit.children or [ ]);
+
+  # host-only sibling of mkResolve: same roster-bound registry + checks, but the
+  # ctx carries only a host (user = null). the retained user axis stays global on
+  # every unit here -- the guard above forbids narrowing it -- so assertCtx never
+  # demands a user entity and the membership check (which reads claims and
+  # roster, never ctx) degrades to host-only on its own. mkResolve is left
+  # untouched, so every already-migrated user-scope aspect resolves identically.
+  mkResolveSystem =
+    roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+    in
+    units:
+    {
+      host,
+      ...
+    }:
+    builtins.seq (lib.all assertNoUserClaim units) (
+      engine.resolve {
+        inherit (base) registry checks;
+        merge = defaultMerge;
+        ctx = {
+          inherit host;
+          user = null;
+        };
+      } { children = map translate units; }
+    );
 in
 {
-  inherit mkResolve;
+  inherit mkResolve mkResolveSystem;
   inherit (resolveLib) define toRoster;
 }
