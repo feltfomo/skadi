@@ -5,3 +5,4 @@ result-*
 *.img
 *.fd
 ovmf*
+.notion-sync
