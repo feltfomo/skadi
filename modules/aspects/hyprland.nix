@@ -53,7 +53,7 @@ in
       "khion"
       "lumi"
     ];
-    nixos = pkgs: [
+    nixos = { pkgs, ... }: [
       {
         hosts = [
           "khion"

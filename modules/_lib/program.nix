@@ -172,16 +172,21 @@ in
 // lib.optionalAttrs (spec ? nixos) {
   # host-only system slice: resolves at HOST scope through resolveSystem,
   # reading host from its own args -- no user is in scope here, so user is never
-  # requested and resolveSystem pins user = null. `spec.nixos` is a pkgs: [ units ]
-  # function so a unit's system config can read pkgs; each unit carries its own
-  # hosts/... claim exactly as a standalone resolveSystem call would.
+  # requested and resolveSystem pins user = null. `spec.nixos` is a
+  # { pkgs, config }: [ units ] function, so a unit's system config can read pkgs
+  # and the host's resolved config (a service package, a sops secret path); each
+  # unit carries its own hosts/... claim exactly as a standalone resolveSystem
+  # call would. host is kept out of that args set -- it reaches the slice only
+  # through the resolveSystem ... { inherit host; } wrapper below, so a unit
+  # narrows through its own claim rather than reading a raw host.
   # only emitted when the aspect declares a nixos slice, so home-only callers
   # (kitty, noctalia, firefox) keep their exact { homeManager; hjem; } shape.
   nixos =
     {
       pkgs,
+      config,
       host ? null,
       ...
     }:
-    (resolveSystem (spec.nixos pkgs)) { inherit host; };
+    (resolveSystem (spec.nixos { inherit pkgs config; })) { inherit host; };
 }
