@@ -138,7 +138,7 @@
         _module.args = {
           rootPath = ./.;
           inherit resolve resolveSystem;
-          program = import ./modules/_lib/program.nix { inherit lib resolve; };
+          program = import ./modules/_lib/program.nix { inherit lib resolve resolveSystem; };
         };
       }
     );

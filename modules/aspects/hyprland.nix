@@ -2,7 +2,6 @@
   inputs,
   rootPath,
   program,
-  resolveSystem,
   ...
 }:
 let
@@ -42,97 +41,85 @@ let
 in
 {
   # nixos = compositor, homeManager = daemon, hjem = config files. all three are
-  # owned by khion + lumi -- the compositor through the host-only resolveSystem
-  # (no user in scope at the system slice), the home slices through the program
-  # spec's `hosts` claim. vm stays excluded so the headless installer-test VM
-  # never pulls the compositor closure. add `users = [ ... ];` to a file to give
-  # it to only those users.
-  den.aspects.hyprland =
-    { host, ... }:
-    let
-      base = program {
-        inherit host;
+  # owned by khion + lumi -- the compositor through program's host-only nixos
+  # path (resolveSystem, no user in scope at the system slice), the home slices
+  # through the spec's `hosts` claim. program reads host lazily from each class
+  # module's own args, so this is a bare `program { ... }` call with no
+  # { host, ... }: wrapper and no hand-split. vm stays excluded so the headless
+  # installer-test VM never pulls the compositor closure. add `users = [ ... ];`
+  # to a file to give it to only those users.
+  den.aspects.hyprland = program {
+    hosts = [
+      "khion"
+      "lumi"
+    ];
+    nixos = pkgs: [
+      {
         hosts = [
           "khion"
           "lumi"
         ];
-        imports = [ audioOpacityService ];
-        files = [
-          {
-            dest = ".config/hypr/hyprland.lua";
-            src = "${rootPath}/configs/hypr/hyprland.lua";
-          }
-          {
-            dest = ".config/hypr/autostart.lua";
-            src = "${rootPath}/configs/hypr/autostart.lua";
-          }
-          {
-            dest = ".config/hypr/binds.lua";
-            src = "${rootPath}/configs/hypr/binds.lua";
-          }
-          {
-            dest = ".config/hypr/decoration.lua";
-            src = "${rootPath}/configs/hypr/decoration.lua";
-          }
-          {
-            dest = ".config/hypr/environment.lua";
-            src = "${rootPath}/configs/hypr/environment.lua";
-          }
-          {
-            dest = ".config/hypr/globals.lua";
-            src = "${rootPath}/configs/hypr/globals.lua";
-          }
-          {
-            dest = ".config/hypr/monitor.lua";
-            src = "${rootPath}/configs/hypr/monitor.lua";
-          }
-          {
-            dest = ".config/hypr/hl.meta.lua";
-            src = "${rootPath}/configs/hypr/hl.meta.lua";
-          }
-          {
-            dest = ".config/hypr/helpers/workspace.lua";
-            src = "${rootPath}/configs/hypr/helpers/workspace.lua";
-          }
-        ];
-        templates = [
-          {
-            name = "colors.lua";
-            templateFile = "${rootPath}/configs/hypr/colors.lua";
-            subdir = "hyprland/";
-          }
-        ];
-        noctaliaConfig = {
-          _fileName = "hyprland";
-          theme.templates.user.hyprland = {
-            input_path = "~/.config/noctalia/templates/hyprland/colors.lua";
-            output_path = "~/.config/hypr/colors.lua";
-          };
+        programs.hyprland = {
+          enable = true;
+          package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+          portalPackage =
+            inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
         };
+        services.flatpak.enable = true;
+      }
+    ];
+    imports = [ audioOpacityService ];
+    files = [
+      {
+        dest = ".config/hypr/hyprland.lua";
+        src = "${rootPath}/configs/hypr/hyprland.lua";
+      }
+      {
+        dest = ".config/hypr/autostart.lua";
+        src = "${rootPath}/configs/hypr/autostart.lua";
+      }
+      {
+        dest = ".config/hypr/binds.lua";
+        src = "${rootPath}/configs/hypr/binds.lua";
+      }
+      {
+        dest = ".config/hypr/decoration.lua";
+        src = "${rootPath}/configs/hypr/decoration.lua";
+      }
+      {
+        dest = ".config/hypr/environment.lua";
+        src = "${rootPath}/configs/hypr/environment.lua";
+      }
+      {
+        dest = ".config/hypr/globals.lua";
+        src = "${rootPath}/configs/hypr/globals.lua";
+      }
+      {
+        dest = ".config/hypr/monitor.lua";
+        src = "${rootPath}/configs/hypr/monitor.lua";
+      }
+      {
+        dest = ".config/hypr/hl.meta.lua";
+        src = "${rootPath}/configs/hypr/hl.meta.lua";
+      }
+      {
+        dest = ".config/hypr/helpers/workspace.lua";
+        src = "${rootPath}/configs/hypr/helpers/workspace.lua";
+      }
+    ];
+    templates = [
+      {
+        name = "colors.lua";
+        templateFile = "${rootPath}/configs/hypr/colors.lua";
+        subdir = "hyprland/";
+      }
+    ];
+    noctaliaConfig = {
+      _fileName = "hyprland";
+      theme.templates.user.hyprland = {
+        input_path = "~/.config/noctalia/templates/hyprland/colors.lua";
+        output_path = "~/.config/hypr/colors.lua";
       };
-    in
-    {
-      nixos =
-        { pkgs, ... }:
-        resolveSystem
-          [
-            {
-              hosts = [
-                "khion"
-                "lumi"
-              ];
-              programs.hyprland = {
-                enable = true;
-                package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-                portalPackage =
-                  inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-              };
-              services.flatpak.enable = true;
-            }
-          ]
-          {
-            inherit host;
-          };
-      inherit (base) homeManager hjem;
     };
+  };
 }
