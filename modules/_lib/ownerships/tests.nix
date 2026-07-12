@@ -141,7 +141,198 @@ let
     + "\n"
     + "  - unit 'my-labeled-unit': axis 'user' claim can never be satisfied (disjoint nest or unknown name) (axis 'user', claim ${prettyClaim goldenLeafLabeled.claim})";
 
+  stageRegistry = axes.registry {
+    hosts = [
+      "khion"
+      "lumi"
+      "vm"
+    ];
+    users = [
+      "feltfomo"
+      "grandpa"
+    ];
+  };
+
+  # A greeter claimed for vm is invalid for the fleet even while another host
+  # is building, so this rule consumes the composed tree before selection.
+  greeterNeverOnVm = {
+    view = "tree";
+    run =
+      { registry, leaves }:
+      map
+        (leaf: {
+          kind = "impossible";
+          unit = leaf.value;
+          label = leaf.label or null;
+          source = leaf.source or null;
+          reason = "a greeter cannot be owned by vm";
+        })
+        (
+          builtins.filter (
+            leaf:
+            leaf.value.greeter or false
+            && builtins.elem "vm" (registry.host.observe leaf.claim.host).materializedMembers
+          ) leaves
+        );
+  };
+
+  # Coverage is about this build, not the fleet declaration. Only selected
+  # leaves can provide its one bootloader.
+  exactlyOneBootloader = {
+    view = "survivors";
+    run =
+      { survivors, ... }:
+      let
+        bootloaders = builtins.filter (leaf: leaf.value.bootloader or false) survivors;
+      in
+      lib.optional (builtins.length bootloaders != 1) {
+        kind = "coverage";
+        unit = { };
+        label = "bootloader coverage";
+        reason = "this build must have exactly one bootloader survivor";
+      };
+  };
+
+  stageArgs = {
+    registry = stageRegistry;
+    inherit ctx;
+    merge = defaultMerge;
+    stages = [
+      greeterNeverOnVm
+      exactlyOneBootloader
+    ];
+  };
+
+  mkOrderedDiagnosticStage = view: reason: {
+    inherit view;
+    run = _args: [
+      {
+        kind = "test";
+        unit = { };
+        label = "diagnostic ordering";
+        inherit reason;
+      }
+    ];
+  };
+
+  orderedTreeStages = [
+    (mkOrderedDiagnosticStage "tree" "first tree diagnostic")
+    (mkOrderedDiagnosticStage "survivors" "later survivor diagnostic")
+    (mkOrderedDiagnosticStage "tree" "second tree diagnostic")
+  ];
+
+  safeStageSet = [
+    {
+      view = "leaf";
+      run = _registry: leaf: builtins.seq (safeShape leaf.value) [ ];
+    }
+    {
+      view = "tree";
+      run = { leaves, ... }: builtins.deepSeq (map (leaf: safeShape leaf.value) leaves) [ ];
+    }
+    {
+      view = "survivors";
+      run =
+        { survivors, ... }:
+        builtins.deepSeq (map (leaf: safeShape leaf.value) survivors) [ ];
+    }
+  ];
+
   cases = [
+    {
+      name = "pre-select tree validity rejects a greeter claimed for vm before selection";
+      pass = throws (
+        engine.resolve stageArgs {
+          label = "vm greeter";
+          claim.host = include [ "vm" ];
+          value.greeter = true;
+        }
+      );
+    }
+
+    {
+      name = "post-select coverage ignores an inactive bootloader";
+      pass = throws (
+        engine.resolve stageArgs {
+          claim.host = include [ "lumi" ];
+          value.bootloader = true;
+        }
+      );
+    }
+
+    {
+      name = "post-select coverage accepts exactly one active bootloader";
+      pass =
+        engine.resolve stageArgs {
+          claim.host = include [ "khion" ];
+          value.bootloader = true;
+        } == {
+          bootloader = true;
+        };
+    }
+
+    {
+      name = "tree diagnostics aggregate in registration order independent of cross-view list position";
+      pass =
+        map (diagnostic: diagnostic.reason) (
+          engine.stageDiagnostics "tree" orderedTreeStages {
+            registry = stageRegistry;
+            leaves = [ ];
+          }
+        ) == [
+          "first tree diagnostic"
+          "second tree diagnostic"
+        ];
+    }
+
+    {
+      name = "an unknown stage view throws instead of silently failing open";
+      pass = throws (
+        engine.resolve {
+          inherit registry ctx;
+          merge = defaultMerge;
+          stages = [
+            {
+              view = "survivior";
+              run = _args: [ ];
+            }
+          ];
+        } { value.x = 1; }
+      );
+    }
+
+    {
+      name = "all stage views and their trace reports preserve payload laziness";
+      pass =
+        let
+          unit.value = {
+            pkg = poisonDerivation;
+            secret = poisonSecret;
+          };
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+            stages = safeStageSet;
+          };
+          plain = engine.resolve args unit;
+          traced = engine.trace args unit;
+          observed = {
+            plainKeys = builtins.attrNames plain;
+            tracedKeys = builtins.attrNames traced.value;
+            inherit (traced) stageReports;
+          };
+        in
+        (builtins.tryEval (builtins.deepSeq observed observed)).success
+        &&
+          observed.plainKeys == [
+            "pkg"
+            "secret"
+          ]
+        && observed.tracedKeys == observed.plainKeys
+        && map (report: report.view) observed.stageReports.leaf == [ "leaf" ]
+        && map (report: report.view) observed.stageReports.tree == [ "tree" ]
+        && map (report: report.view) observed.stageReports.survivors == [ "survivors" ];
+    }
     {
       name = "host+user nest resolves";
       pass =

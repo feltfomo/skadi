@@ -15,8 +15,8 @@ let
 
   defaultMerge = (mergeLib.mkMerge { }).mergeAll;
 
-  # registry + checks derived from a roster. both backends produce the same
-  # roster shape, so this is where den and standalone define.* become
+  # Registry + leaf stages derived from a roster. Both backends produce the
+  # same roster shape, so this is where den and standalone define.* become
   # indistinguishable to the engine.
   engineArgsFor = roster: {
     # `when` lives in the shared registry now, not surface-local, so any caller
@@ -24,23 +24,29 @@ let
     registry = axes.registry { inherit (roster) hosts users; } // {
       when = axes.predicateAxis;
     };
-    checks = [
-      engine.satisfiableCheck
-      (axes.mkMembershipCheck {
-        inherit (roster)
-          hosts
-          users
-          membership
-          usersWithUnknownMembership
-          ;
-      })
+    stages = [
+      {
+        view = "leaf";
+        run = engine.satisfiableCheck;
+      }
+      {
+        view = "leaf";
+        run = axes.mkMembershipCheck {
+          inherit (roster)
+            hosts
+            users
+            membership
+            usersWithUnknownMembership
+            ;
+        };
+      }
     ];
   };
 
   # Validate a standalone ctx's host/user names (+ their pairing) against the
   # roster before a strict resolve runs -- opt-in, so the core resolver's
   # claim-only contract stays untouched for every existing caller. Reuses the
-  # exact registry/checks engineArgsFor already builds for resolveWith: an
+  # exact registry/leaf stages engineArgsFor already builds for resolveWith: an
   # unknown name collapses through satisfiableCheck's own disjoint-nest
   # message, and an impossible host x user pairing (both names known, but
   # that user doesn't live on that host) collapses through
@@ -79,7 +85,7 @@ let
     # engine.check already throws its own rendered diagnostic on a miss and
     # returns the leaf list unchanged otherwise, so forcing it is the whole
     # validation -- there's nothing left to compute from its result.
-    builtins.seq (engine.check args.checks args.registry [ leaf ]) ctx;
+    builtins.seq (engine.check args.stages args.registry [ leaf ]) ctx;
 
   resolveWith =
     {
@@ -92,7 +98,7 @@ let
       args = engineArgsFor roster;
     in
     engine.resolve {
-      inherit (args) registry checks;
+      inherit (args) registry stages;
       inherit ctx merge;
     } unit;
 in

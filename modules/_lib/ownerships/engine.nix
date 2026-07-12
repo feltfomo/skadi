@@ -59,25 +59,88 @@ let
     in
     go (topClaim registry) unit;
 
-  # Checks keep their per-leaf results beside the unchanged leaf list. The
-  # ordinary path projects `value`; a trace reads the already-computed lists.
-  observeCheck =
-    subChecks: registry: leaves:
+  # Stages register against a closed set of pipeline views. Rejecting an
+  # unknown view keeps a misspelled coverage rule from silently failing open.
+  # A merged-output view can extend this set later with only the merged value
+  # and safe metadata; no such boundary exists until an invariant needs it.
+  knownViews = [
+    "leaf"
+    "tree"
+    "survivors"
+  ];
+
+  validateStages =
+    stages:
     let
-      entries = map (leaf: {
-        inherit leaf;
-        diagnostics = concatMap (c: c registry leaf) subChecks;
-      }) leaves;
-      diagnostics = concatMap (entry: entry.diagnostics) entries;
+      invalid = filter (
+        stage:
+        !(
+          builtins.isAttrs stage
+          && stage ? view
+          && builtins.isString stage.view
+          && builtins.elem stage.view knownViews
+        )
+      ) stages;
+      bad = if invalid == [ ] then null else builtins.head invalid;
+      shown =
+        if bad == null then
+          null
+        else if builtins.isAttrs bad && bad ? view then
+          builtins.toJSON bad.view
+        else
+          "<missing>";
+    in
+    if bad == null then stages else throw "ownerships: unknown stage view ${shown}";
+
+  stagesFor = view: stages: filter (stage: stage.view == view) (validateStages stages);
+
+  # Leaf stages retain one trace entry per leaf, but diagnostics flatten in
+  # stage-registration order so one rule reports every leaf it rejects before
+  # the next registered rule reports. The matrix is shared by both projections;
+  # callbacks aren't evaluated twice.
+  observeLeafStages =
+    stages: registry: leaves:
+    let
+      matrix = map (stage: map (leaf: stage.run registry leaf) leaves) (stagesFor "leaf" stages);
+      diagnostics = concatMap (row: lib.concatLists row) matrix;
     in
     {
       value = if diagnostics == [ ] then leaves else throw (renderDiags diagnostics);
-      trace = map (entry: entry.diagnostics) entries;
+      trace = builtins.genList (i: concatMap (row: builtins.elemAt row i) matrix) (length leaves);
+      reports = map (diagnosticsForStage: {
+        view = "leaf";
+        diagnostics = diagnosticsForStage;
+      }) (map lib.concatLists matrix);
     };
 
-  runCheck =
-    subChecks: registry: leaves:
-    (observeCheck subChecks registry leaves).value;
+  runLeafStages =
+    stages: registry: leaves:
+    (observeLeafStages stages registry leaves).value;
+
+  # Tree and survivor callbacks get different records on purpose: a tree rule
+  # has no ctx to consult, while a survivor rule is handed the post-selection
+  # set explicitly. Cross-view order comes from the pipeline, never list order.
+  observeViewStages =
+    view: stages: args:
+    let
+      entries = map (stage: {
+        inherit view;
+        diagnostics = stage.run args;
+      }) (stagesFor view stages);
+      diagnostics = concatMap (entry: entry.diagnostics) entries;
+      input = if view == "tree" then args.leaves else args.survivors;
+    in
+    {
+      value = if diagnostics == [ ] then input else throw (renderDiags diagnostics);
+      trace = entries;
+    };
+
+  stageDiagnostics =
+    view: stages: args:
+    if view == "leaf" then
+      concatMap (entry: entry.diagnostics) (observeLeafStages stages args.registry args.leaves).reports
+    else
+      concatMap (entry: entry.diagnostics) (observeViewStages view stages args).trace;
 
   # a diagnostic's unit is the leaf's raw config value -- it can carry a
   # package or a secret-backed value, so it's never safe to toJSON/toPretty in
@@ -216,7 +279,12 @@ let
       }
     ) (attrNames registry);
 
-  defaultChecks = [ satisfiableCheck ];
+  defaultStages = [
+    {
+      view = "leaf";
+      run = satisfiableCheck;
+    }
+  ];
 
   # the build ctx must carry an entity only for an axis that (a) reads one
   # (ctxKey != null) and (b) is actually narrowed on by some leaf. a fully
@@ -272,38 +340,51 @@ let
       trace = map (entry: entry.requirements) entries;
     };
 
-  # the one entry point: compose -> check -> select -> strip -> merge. merge is
-  # supplied (a values -> value fold from merge.nix) so its strategy table and
-  # conflict policy stay pluggable; checks default to the registered list but can
-  # be extended by a caller without touching anything here. ctx is asserted after
-  # compose because which entities a build needs depends on what the claims narrow
-  # on, not on the registry as a whole -- so assertCtx reads the composed leaves.
+  # The fixed order is leaf -> tree -> ctx -> select -> survivors -> strip ->
+  # merge. Each diagnostic phase aggregates fully before throwing, while a
+  # failed earlier phase prevents every later phase from being evaluated.
   pipeline =
     {
       registry,
       merge,
       ctx,
-      checks ? defaultChecks,
+      stages ? defaultStages,
     }:
     unit:
     let
       leaves = compose registry unit;
-      checkObservation = observeCheck checks registry leaves;
-      checked = checkObservation.value;
-      ctxObservation = observeCtx registry ctx checked;
+      leafObservation = observeLeafStages stages registry leaves;
+      leafChecked = leafObservation.value;
+      treeObservation = observeViewStages "tree" stages {
+        inherit registry;
+        leaves = leafChecked;
+      };
+      treeChecked = treeObservation.value;
+      ctxObservation = observeCtx registry ctx treeChecked;
       ctx' = ctxObservation.value;
-      selection = observeSelect registry ctx' checked;
+      selection = observeSelect registry ctx' treeChecked;
+      survivorObservation = observeViewStages "survivors" stages {
+        inherit registry;
+        ctx = ctx';
+        survivors = selection.selected;
+      };
+      survivors = survivorObservation.value;
     in
     {
-      value = merge (strip selection.selected);
+      value = merge (strip survivors);
       trace = builtins.genList (
         i:
         (builtins.elemAt selection.trace i)
         // {
-          checkResults = builtins.elemAt checkObservation.trace i;
+          checkResults = builtins.elemAt leafObservation.trace i;
           ctxRequirements = builtins.elemAt ctxObservation.trace i;
         }
       ) (length selection.trace);
+      stageReports = {
+        leaf = leafObservation.reports;
+        tree = treeObservation.trace;
+        survivors = survivorObservation.trace;
+      };
     };
 
   resolve = args: unit: (pipeline args unit).value;
@@ -316,13 +397,15 @@ in
     resolve
     trace
     satisfiableCheck
-    defaultChecks
+    defaultStages
+    knownViews
+    stageDiagnostics
     topClaim
     identifyUnit
     # exported so a golden-error test can assert its exact output against
     # crafted diagnostics while trace identity uses the same helper.
     renderDiags
     ;
-  check = runCheck;
+  check = runLeafStages;
   select = runSelect;
 }

@@ -153,7 +153,7 @@ let
       ...
     }:
     engine.resolve {
-      inherit (base) registry checks;
+      inherit (base) registry stages;
       merge = defaultMerge;
       ctx = {
         inherit host user;
@@ -175,7 +175,7 @@ let
       ...
     }:
     engine.trace {
-      inherit (base) registry checks;
+      inherit (base) registry stages;
       merge = defaultMerge;
       ctx = {
         inherit host user;
@@ -204,7 +204,7 @@ let
     else
       lib.all assertNoUserClaim (unit.children or [ ]);
 
-  # host-only sibling of mkResolve: same roster-bound registry + checks, but the
+  # host-only sibling of mkResolve: same roster-bound registry + stages, but the
   # ctx carries only a host (user = null). the retained user axis stays global on
   # every unit here -- the guard above forbids narrowing it -- so assertCtx never
   # demands a user entity and the membership check (which reads claims and
@@ -222,7 +222,7 @@ let
     }:
     builtins.seq (lib.all assertNoUserClaim units) (
       engine.resolve {
-        inherit (base) registry checks;
+        inherit (base) registry stages;
         merge = defaultMerge;
         ctx = {
           inherit host;
@@ -243,7 +243,7 @@ let
     }:
     builtins.seq (lib.all assertNoUserClaim units) (
       engine.trace {
-        inherit (base) registry checks;
+        inherit (base) registry stages;
         merge = defaultMerge;
         ctx = {
           inherit host;
