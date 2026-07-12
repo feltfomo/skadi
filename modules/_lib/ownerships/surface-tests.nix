@@ -241,7 +241,7 @@ let
       }
     ];
 
-    # a unit's label is author-facing identification only (I2) -- it must never
+    # a unit's label is author-facing identification only -- it must never
     # change what gets merged.
     labeledUnit = run ctx [
       {

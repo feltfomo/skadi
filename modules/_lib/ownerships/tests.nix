@@ -93,7 +93,7 @@ let
   canon = v: v // { set = builtins.sort (a: b: a < b) v.set; };
   eqPolarity = a: b: canon a == canon b;
 
-  # I2's laziness/secret guard fixtures: values whose unsafe fields throw if
+  # laziness/secret guard fixtures: values whose unsafe fields throw if
   # actually forced, standing in for a package or a secret that isn't
   # available at eval time. safeRender/safeShape must identify these by shape
   # alone and never touch the throwing fields.
@@ -107,7 +107,7 @@ let
     token = throw "forced a secret-shaped value";
   };
 
-  # I2 golden-error test: crafts two leaves directly (no compose, no throw) so
+  # golden-error test: crafts two leaves directly (no compose, no throw) so
   # the assertion pins exactly what an author sees on screen -- header count,
   # per-diagnostic bullet, the unit-identification branch (label vs unlabeled +
   # safeShape), and the axis/claim detail -- and proves the unlabeled branch

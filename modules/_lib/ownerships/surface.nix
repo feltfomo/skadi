@@ -35,7 +35,7 @@ let
     "exceptUsers"
     "when"
   ];
-  # label/source (I2) are reserved the same way `value`/`children` are: optional
+  # label/source are reserved the same way `value`/`children` are: optional
   # plain-string identification for diagnostics, never config, never merged --
   # they ride the leaf as siblings of `value`, and `strip` only ever pulls
   # `.value`, so they're dropped before merge with no extra work.

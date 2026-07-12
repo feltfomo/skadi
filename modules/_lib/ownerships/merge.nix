@@ -22,9 +22,10 @@ let
   # scalar conflict policy: equal survives, differ is a hard error. the
   # clashing values render through safeRender, not a raw toJSON -- a co-owned
   # scalar can be a package or a secret-backed value, and this throw is a live
-  # error path (I2/SP2). this is the render-safety half only: it never
-  # attributes a value to the unit that set it. attribution needs provenance
-  # and is A1's job (SP6) -- don't grow this into that here.
+  # error path. this is the render-safety half only: it never attributes a
+  # value to the unit that set it. attribution needs provenance carried
+  # through merge, which this layer deliberately doesn't do -- don't grow this
+  # into that here.
   strictScalar =
     path: a: b:
     if a == b then

@@ -35,7 +35,7 @@ let
 
   # walk the unit tree; emit one leaf { claim; value; } per config-bearing node,
   # each carrying its effective claim, plus optional label/source identity
-  # metadata (I2) carried through untouched. nesting is `children`; a child
+  # metadata carried through untouched. nesting is `children`; a child
   # narrows its parent. nodes without a value contribute only their claim to
   # descendants. label/source ride as leaf siblings, never inside `value`, so
   # `strip` (which only ever pulls `.value`) drops them before merge for free.
