@@ -33,7 +33,7 @@ let
     ];
   };
 
-  defaultMerge = (merge.mkMerge { }).mergeAll;
+  defaultMerge = (merge.mkMerge { }).mergeTracked;
 
   ctx = {
     host = {
@@ -441,6 +441,330 @@ let
     }
 
     {
+      name = "tracked merge preserves unlocked values and nested attr/list contributors";
+      pass =
+        let
+          merger = merge.mkMerge { };
+          contributor = identity: owners: { inherit identity owners; };
+          ownersA = {
+            host = include [ "khion" ];
+            user = global;
+          };
+          ownersB = {
+            host = global;
+            user = include [ "feltfomo" ];
+          };
+          values = [
+            {
+              scalar = "same";
+              nest = {
+                attrs.left = 1;
+                items = [ 1 ];
+              };
+            }
+            {
+              scalar = "same";
+              nest = {
+                attrs.right = 2;
+                items = [ 2 ];
+              };
+            }
+          ];
+          entries = [
+            {
+              value = builtins.elemAt values 0;
+              contributor = contributor "unit 'a'" ownersA;
+            }
+            {
+              value = builtins.elemAt values 1;
+              contributor = contributor "unit 'b'" ownersB;
+            }
+          ];
+          merged = merger.mergeTracked entries;
+          provenance = merged.provenance.children;
+          identities = xs: map (x: x.identity) xs;
+        in
+        merged.value == merger.mergeAll values
+        &&
+          identities provenance.scalar.contributors == [
+            "unit 'a'"
+            "unit 'b'"
+          ]
+        && identities provenance.nest.children.attrs.children.left.contributors == [ "unit 'a'" ]
+        && (builtins.head provenance.nest.children.attrs.children.left.contributors).owners == ownersA
+        && identities provenance.nest.children.attrs.children.right.contributors == [ "unit 'b'" ]
+        &&
+          identities provenance.nest.children.items.contributors == [
+            "unit 'a'"
+            "unit 'b'"
+          ]
+        && (builtins.head provenance.nest.children.items.contributors).owners == ownersA
+        && (builtins.elemAt provenance.nest.children.items.contributors 1).owners == ownersB;
+    }
+
+    {
+      name = "tracked scalar conflict policy receives both contributing units";
+      pass =
+        let
+          merger = merge.mkMerge {
+            conflictPolicy =
+              _path: _a: b:
+              b.value;
+          };
+          merged = merger.mergeTracked [
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'a'";
+                owners.host = include [ "khion" ];
+              };
+            }
+            {
+              value.port = 443;
+              contributor = {
+                identity = "unit 'b'";
+                owners.host = global;
+              };
+            }
+          ];
+        in
+        merged.value.port == 443
+        &&
+          map (x: x.identity) merged.provenance.children.port.contributors == [
+            "unit 'a'"
+            "unit 'b'"
+          ];
+    }
+
+    {
+      name = "ordinary resolve leaves merge provenance unforced";
+      pass =
+        let
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+          };
+          unit = {
+            label = throw "forced provenance identity";
+            value.nested.answer = 42;
+          };
+          plain = engine.resolve args unit;
+          traced = engine.trace args unit;
+        in
+        plain == { nested.answer = 42; } && throws traced.mergeProvenance;
+    }
+
+    {
+      name = "single-writer lock accepts its declared writer";
+      pass =
+        let
+          merger = merge.mkMerge {
+            lockFor = path: if path == "port" then contributor: contributor.identity == "unit 'a'" else null;
+          };
+          merged = merger.mergeTracked [
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'a'";
+                owners.host = include [ "khion" ];
+              };
+            }
+          ];
+        in
+        merged.value == {
+          port = 80;
+        };
+    }
+
+    {
+      name = "single-writer lock rejects an equal foreign write before scalar equality";
+      pass =
+        let
+          merger = merge.mkMerge {
+            lockFor = path: if path == "port" then contributor: contributor.identity == "unit 'a'" else null;
+            conflictPolicy =
+              _path: _a: _b:
+              throw "lock authorization reached conflict policy";
+          };
+        in
+        throws
+          (merger.mergeTracked [
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'a'";
+                owners.host = include [ "khion" ];
+              };
+            }
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'b'";
+                owners.host = global;
+              };
+            }
+          ]).value;
+    }
+
+    {
+      name = "single-writer lock applies the caller's subtree predicate to descendants";
+      pass =
+        let
+          merger = merge.mkMerge {
+            lockFor =
+              path:
+              if path == "services.foo" || lib.hasPrefix "services.foo." path then
+                contributor: contributor.identity == "unit 'a'"
+              else
+                null;
+          };
+        in
+        throws
+          (merger.mergeTracked [
+            {
+              value.services.foo.bar = true;
+              contributor = {
+                identity = "unit 'b'";
+                owners.host = global;
+              };
+            }
+          ]).value;
+    }
+
+    {
+      name = "default merge doesn't force contributor identity or owners";
+      pass =
+        let
+          merged = (merge.mkMerge { }).mergeTracked [
+            {
+              value.answer = 42;
+              contributor = {
+                identity = throw "forced default-path identity";
+                owners = throw "forced default-path owners";
+              };
+            }
+          ];
+        in
+        merged.value == { answer = 42; } && throws merged.provenance;
+    }
+
+    {
+      name = "golden attributed conflict and lock diagnostics name safe identities, not values";
+      pass =
+        let
+          a = {
+            identity = "unit 'a'";
+            owners.host = include [ "khion" ];
+          };
+          b = {
+            identity = "unit 'b'";
+            owners.host = global;
+          };
+        in
+        merge.renderConflict "port" [
+          a
+          b
+        ] == "ownerships: conflict at port: co-owners \"unit 'a'\", \"unit 'b'\" set differing values"
+        &&
+          merge.renderLockViolation "port" b
+          == "ownerships: single-writer lock violation at port: foreign contributor \"unit 'b'\""
+        && throws (
+          resolve { } {
+            children = [
+              {
+                label = "a";
+                value.port = 80;
+              }
+              {
+                label = "b";
+                value.port = 443;
+              }
+            ];
+          }
+        );
+    }
+
+    {
+      name = "merge trace attributes every nested path and keeps lists terminal";
+      pass =
+        let
+          traced =
+            engine.trace
+              {
+                inherit registry ctx;
+                merge = defaultMerge;
+              }
+              {
+                children = [
+                  {
+                    label = "global";
+                    value = {
+                      common = true;
+                      services.foo.items = [ 1 ];
+                    };
+                  }
+                  {
+                    label = "narrowed";
+                    claim.host = include [ "khion" ];
+                    value = {
+                      common = true;
+                      services.foo.items = [ 2 ];
+                    };
+                  }
+                ];
+              };
+          provenance = traced.mergeProvenance;
+          identities = contributors: map (contributor: contributor.identity) contributors;
+          items = provenance.children.services.children.foo.children.items;
+        in
+        traced.value == {
+          common = true;
+          services.foo.items = [
+            1
+            2
+          ];
+        }
+        && provenance.path == ""
+        && provenance.children.services.path == "services"
+        && provenance.children.services.children.foo.path == "services.foo"
+        && items.path == "services.foo.items"
+        && items.children == { }
+        &&
+          identities items.contributors == [
+            "unit 'global'"
+            "unit 'narrowed'"
+          ]
+        && (builtins.head items.contributors).owners.host == global
+        && (builtins.elemAt items.contributors 1).owners.host == include [ "khion" ];
+    }
+
+    {
+      name = "plain and trace pin the same rendered impossible diagnostic string";
+      pass =
+        let
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+          };
+          unit = {
+            label = "unknown-host";
+            claim.host = include [ "nobody" ];
+            value.x = 1;
+          };
+          leaves = engine.compose registry unit;
+          plainRendered = engine.renderDiags (
+            engine.stageDiagnostics "leaf" engine.defaultStages {
+              inherit registry leaves;
+            }
+          );
+          traceRendered = (engine.trace args unit).diagnosticText.leaf;
+        in
+        plainRendered == traceRendered
+        && throws (engine.resolve args unit)
+        && throws (engine.trace args unit);
+    }
+
+    {
       name = "inactive leaf drops silently";
       pass =
         resolve { } {
@@ -465,7 +789,7 @@ let
             merge =
               (merge.mkMerge {
                 listStrategyFor = path: if path == "tags" then "dedup-union" else "ordered-concat";
-              }).mergeAll;
+              }).mergeTracked;
           }
           {
             children = [

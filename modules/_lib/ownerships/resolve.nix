@@ -13,7 +13,7 @@ let
   mergeLib = import ./merge.nix { inherit lib; };
   rosterLib = import ./roster.nix { inherit lib; };
 
-  defaultMerge = (mergeLib.mkMerge { }).mergeAll;
+  defaultMerge = (mergeLib.mkMerge { }).mergeTracked;
 
   # Registry + leaf stages derived from a roster. Both backends produce the
   # same roster shape, so this is where den and standalone define.* become

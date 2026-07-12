@@ -261,6 +261,26 @@ let
 
   strip = leaves: map (leaf: leaf.value) leaves;
 
+  # Identity names the authoring leaf through identifyUnit; it doesn't inherit
+  # from a parent. Owners are that leaf's effective claim after every parent and
+  # child meet, so narrowing flows in while identity does not. An untagged set
+  # axis remains its exclude [] top: global and narrowed leaves are distinct
+  # contributors at one path. Merge preserves these claims as opaque data and
+  # never interprets or materializes them.
+  stripForMerge =
+    leaves:
+    map (leaf: {
+      inherit (leaf) value;
+      contributor = {
+        identity = identifyUnit {
+          unit = leaf.value;
+          label = leaf.label or null;
+          source = leaf.source or null;
+        };
+        owners = leaf.claim;
+      };
+    }) leaves;
+
   # per axis, the effective claim must be satisfiable against the roster; an empty
   # set (a disjoint nest or an unknown name) is impossible. diagnostic is the
   # per-axis form { unit; axis; claims; reason }.
@@ -369,9 +389,11 @@ let
         survivors = selection.selected;
       };
       survivors = survivorObservation.value;
+      merged = merge (stripForMerge survivors);
     in
     {
-      value = merge (strip survivors);
+      inherit (merged) value;
+      mergeProvenance = merged.provenance;
       trace = builtins.genList (
         i:
         (builtins.elemAt selection.trace i)
@@ -385,6 +407,13 @@ let
         tree = treeObservation.trace;
         survivors = survivorObservation.trace;
       };
+      # Kept lazy so a failing trace can expose the exact text its leaf phase
+      # would throw without forcing the phase's value projection.
+      diagnosticText.leaf =
+        let
+          diagnostics = concatMap (report: report.diagnostics) leafObservation.reports;
+        in
+        if diagnostics == [ ] then null else renderDiags diagnostics;
     };
 
   resolve = args: unit: (pipeline args unit).value;
@@ -394,6 +423,7 @@ in
   inherit
     compose
     strip
+    stripForMerge
     resolve
     trace
     satisfiableCheck

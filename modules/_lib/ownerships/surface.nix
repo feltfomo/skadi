@@ -17,7 +17,7 @@ let
 
   inherit (axes) include exclude;
 
-  defaultMerge = (mergeLib.mkMerge { }).mergeAll;
+  defaultMerge = (mergeLib.mkMerge { }).mergeTracked;
 
   # keys that mean ownership rather than config. everything else on a unit is
   # its value; children nests. the tradeoff: a unit can't also carry a config
