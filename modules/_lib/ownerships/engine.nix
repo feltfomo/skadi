@@ -59,15 +59,25 @@ let
     in
     go (topClaim registry) unit;
 
-  # run every sub-check over every leaf; any diagnostic is a hard error. checks
-  # are a LIST, so a new invariant (coverage assertions, etc.) is a new entry --
-  # never a branch in here. returns the leaves untouched when clean.
-  runCheck =
+  # Checks keep their per-leaf results beside the unchanged leaf list. The
+  # ordinary path projects `value`; a trace reads the already-computed lists.
+  observeCheck =
     subChecks: registry: leaves:
     let
-      diags = concatMap (leaf: concatMap (c: c registry leaf) subChecks) leaves;
+      entries = map (leaf: {
+        inherit leaf;
+        diagnostics = concatMap (c: c registry leaf) subChecks;
+      }) leaves;
+      diagnostics = concatMap (entry: entry.diagnostics) entries;
     in
-    if diags == [ ] then leaves else throw (renderDiags diags);
+    {
+      value = if diagnostics == [ ] then leaves else throw (renderDiags diagnostics);
+      trace = map (entry: entry.diagnostics) entries;
+    };
+
+  runCheck =
+    subChecks: registry: leaves:
+    (observeCheck subChecks registry leaves).value;
 
   # a diagnostic's unit is the leaf's raw config value -- it can carry a
   # package or a secret-backed value, so it's never safe to toJSON/toPretty in
@@ -117,18 +127,74 @@ let
   # owns everyone, so isTop short-circuits it in before select runs -- that's
   # what keeps an untagged unit safe against a null or absent ctx entity, since
   # only a narrowing claim ever reaches the axis's select and reads the entity.
+  # Selection returns both the surviving leaves and a lazy account of the same
+  # decisions. Normal resolution projects only `selected`, so unit identity and
+  # shape stay unforced unless a caller explicitly asks for the trace.
+  observeSelect =
+    registry: ctx: leaves:
+    let
+      traced = map (
+        leaf:
+        let
+          axisResults = lib.mapAttrs (
+            name: axis:
+            let
+              claim = leaf.claim.${name};
+              observation = axis.observe claim;
+              selection =
+                if axis.isTop claim then
+                  {
+                    selected = true;
+                    decision = "global";
+                  }
+                else
+                  observation.select ctx;
+            in
+            {
+              inherit claim;
+              inherit (selection) selected decision;
+              details = removeAttrs observation [ "select" ];
+            }
+          ) registry;
+          selected = all (name: axisResults.${name}.selected) (attrNames registry);
+        in
+        {
+          inherit leaf axisResults selected;
+          report = {
+            identity = identifyUnit {
+              unit = leaf.value;
+              label = leaf.label or null;
+              source = leaf.source or null;
+            };
+            effectiveClaim = leaf.claim;
+            inherit axisResults selected;
+            rejectedBy = filter (name: !axisResults.${name}.selected) (attrNames registry);
+            preMergeContribution =
+              if selected then
+                {
+                  stage = "pre-merge";
+                  meaning = "paths this leaf offers into the merge; not post-merge attribution";
+                  offeredPaths =
+                    if builtins.isAttrs leaf.value && (leaf.value.type or null) != "derivation" then
+                      attrNames leaf.value
+                    else
+                      [ "<root>" ];
+                  shape = safeShape leaf.value;
+                }
+              else
+                null;
+          };
+        }
+      ) leaves;
+    in
+    {
+      selected = map (entry: entry.leaf) (filter (entry: entry.selected) traced);
+      trace = map (entry: entry.report) traced;
+    };
+
   runSelect =
     registry: ctx: leaves:
-    filter (
-      leaf:
-      all (
-        name:
-        let
-          axis = registry.${name};
-        in
-        axis.isTop leaf.claim.${name} || axis.select leaf.claim.${name} ctx
-      ) (attrNames registry)
-    ) leaves;
+    (observeSelect registry ctx leaves).selected;
 
   strip = leaves: map (leaf: leaf.value) leaves;
 
@@ -160,42 +226,51 @@ let
   # missing or present-but-null is still a loud, structured error. the demand is
   # derived per-resolve from the composed leaves, so it never consults the
   # registry as a whole and still never hardcodes host, user, or when.
-  assertCtx =
+  observeCtx =
     registry: ctx: leaves:
     let
-      ctxAxes = filter (name: registry.${name}.ctxKey != null) (attrNames registry);
-      narrowsOn = name: leaf: !(registry.${name}.isTop leaf.claim.${name});
-      entityMissing =
-        name:
-        let
-          key = registry.${name}.ctxKey;
-        in
-        !(ctx ? ${key}) || ctx.${key} == null;
-      # one diagnostic per (leaf, axis) where a leaf narrows on a ctx-reading
-      # axis whose entity this build ctx doesn't provide. it carries the
-      # offending unit and its claims and renders the narrowing claim value, so an
-      # author can trace the miss back to the exact spec -- the same { kind; unit;
-      # axis; claims; reason } shape satisfiableCheck emits, through the same
-      # renderer for one consistent structured error.
-      diags = concatMap (
+      entries = map (
         leaf:
-        concatMap (
-          name:
-          lib.optional (narrowsOn name leaf && entityMissing name) {
-            kind = "missing-ctx";
-            unit = leaf.value;
-            label = leaf.label or null;
-            source = leaf.source or null;
-            axis = name;
-            claims = leaf.claim;
-            reason = "axis '${name}' is narrowed on by claim ${
-              lib.generators.toPretty { multiline = false; } leaf.claim.${name}
-            } but the build ctx provides no entity for key '${registry.${name}.ctxKey}' -- only untagged (global) claims resolve without a build context";
-          }
-        ) ctxAxes
+        let
+          requirements = lib.mapAttrs (
+            name: axis:
+            let
+              key = axis.ctxKey;
+            in
+            {
+              inherit key;
+              required = key != null && !(axis.isTop leaf.claim.${name});
+              available = if key == null then null else ctx ? ${key} && ctx.${key} != null;
+            }
+          ) registry;
+          diagnostics = concatMap (
+            name:
+            let
+              requirement = requirements.${name};
+            in
+            lib.optional (requirement.required && !requirement.available) {
+              kind = "missing-ctx";
+              unit = leaf.value;
+              label = leaf.label or null;
+              source = leaf.source or null;
+              axis = name;
+              claims = leaf.claim;
+              reason = "axis '${name}' is narrowed on by claim ${
+                lib.generators.toPretty { multiline = false; } leaf.claim.${name}
+              } but the build ctx provides no entity for key '${requirement.key}' -- only untagged (global) claims resolve without a build context";
+            }
+          ) (attrNames registry);
+        in
+        {
+          inherit diagnostics requirements;
+        }
       ) leaves;
+      diagnostics = concatMap (entry: entry.diagnostics) entries;
     in
-    if diags == [ ] then ctx else throw (renderDiags diags);
+    {
+      value = if diagnostics == [ ] then ctx else throw (renderDiags diagnostics);
+      trace = map (entry: entry.requirements) entries;
+    };
 
   # the one entry point: compose -> check -> select -> strip -> merge. merge is
   # supplied (a values -> value fold from merge.nix) so its strategy table and
@@ -203,7 +278,7 @@ let
   # be extended by a caller without touching anything here. ctx is asserted after
   # compose because which entities a build needs depends on what the claims narrow
   # on, not on the registry as a whole -- so assertCtx reads the composed leaves.
-  resolve =
+  pipeline =
     {
       registry,
       merge,
@@ -213,24 +288,39 @@ let
     unit:
     let
       leaves = compose registry unit;
-      checked = runCheck checks registry leaves;
-      ctx' = assertCtx registry ctx checked;
-      selected = runSelect registry ctx' checked;
+      checkObservation = observeCheck checks registry leaves;
+      checked = checkObservation.value;
+      ctxObservation = observeCtx registry ctx checked;
+      ctx' = ctxObservation.value;
+      selection = observeSelect registry ctx' checked;
     in
-    merge (strip selected);
+    {
+      value = merge (strip selection.selected);
+      trace = builtins.genList (
+        i:
+        (builtins.elemAt selection.trace i)
+        // {
+          checkResults = builtins.elemAt checkObservation.trace i;
+          ctxRequirements = builtins.elemAt ctxObservation.trace i;
+        }
+      ) (length selection.trace);
+    };
+
+  resolve = args: unit: (pipeline args unit).value;
+  trace = pipeline;
 in
 {
   inherit
     compose
     strip
     resolve
+    trace
     satisfiableCheck
     defaultChecks
     topClaim
+    identifyUnit
     # exported so a golden-error test can assert its exact output against
-    # crafted diagnostics -- renderDiag/identifyUnit stay internal, since
-    # renderDiags is the one entry point an author-facing message actually
-    # goes through.
+    # crafted diagnostics while trace identity uses the same helper.
     renderDiags
     ;
   check = runCheck;

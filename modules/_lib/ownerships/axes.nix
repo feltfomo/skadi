@@ -48,19 +48,40 @@ let
   # free -- the openness win over a frozen enumeration.
   resolveMembers = members: v: if v.tag == "include" then inter v.set members else diff members v.set;
 
-  # a set axis over one roster dimension. `key` is the ctx attr it reads
-  # (ctx.${key}.name); `members` is the roster's known names for the axis.
-  # narrow/top never touch members -- only satisfiable/select consult the roster.
+  # A set axis materializes a claim once, then all roster-dependent answers
+  # read that observation. Keeping selection and satisfiability on the same
+  # names prevents explanations from drifting from the decision they describe.
   mkSetAxis =
     {
       key,
       members ? [ ],
     }:
+    let
+      observe =
+        v:
+        let
+          materializedMembers = resolveMembers members v;
+        in
+        {
+          inherit materializedMembers;
+          satisfiable = materializedMembers != [ ];
+          select =
+            ctx:
+            let
+              selected = elem ctx.${key}.name materializedMembers;
+            in
+            {
+              inherit selected;
+              decision = if selected then "selected" else "rejected";
+            };
+        };
+    in
     {
       top = global;
       narrow = meet;
-      satisfiable = v: resolveMembers members v != [ ];
-      select = v: ctx: elem ctx.${key}.name (resolveMembers members v);
+      inherit observe;
+      satisfiable = v: (observe v).satisfiable;
+      select = v: ctx: ((observe v).select ctx).selected;
       # is this claim the global (exclude []) identity? the engine asks isTop
       # before select, so a globally-owned axis never reads ctx, and before
       # demanding a ctx entity, so an untagged axis demands none. exclude
@@ -72,30 +93,44 @@ let
       ctxKey = key;
     };
 
-  # a select-only axis: no roster members, no ctx entity of its own. its whole
-  # job is running a predicate against whatever ctx the caller assembles for
-  # the set axes -- narrow conjoins nested predicates, satisfiable is constant
-  # since there's no roster to contradict against, and ctxKey = null is what
-  # tells assertCtx this axis needs nothing added to the build ctx.
-  predicateAxis = {
-    top = _: true;
-    narrow = a: b: (ctx: a ctx && b ctx);
-    satisfiable = _: true;
-    # a predicate reads ctx freeform, so which entities it touches can't be
-    # derived from the claim -- it just runs against whatever ctx the scope that
-    # binds it assembles. a scope that owns no host won't populate ctx.host, so a
-    # predicate reading it there fails inside the predicate itself; honoring the
-    # ctx its scope provides is the predicate's own contract, not something the
-    # engine guards -- catching it would swallow genuine predicate bugs too.
-    select = pred: pred;
-    # functions can't be compared in nix, so a predicate can't test itself
-    # against the top predicate -- and it needs no ctx entity anyway (ctxKey =
-    # null keeps it out of assertCtx), so it never reports itself top. the
-    # identity predicate _: true ignores ctx, so running it is safe even under a
-    # null build context.
-    isTop = _: false;
-    ctxKey = null;
-  };
+  # A predicate has no member set to invent. Its observation carries only the
+  # real predicate decision, while satisfiability stays constant because no
+  # roster can contradict it.
+  predicateAxis =
+    let
+      observe = pred: {
+        satisfiable = true;
+        select =
+          ctx:
+          let
+            selected = pred ctx;
+          in
+          {
+            inherit selected;
+            decision = if selected then "selected" else "rejected";
+          };
+      };
+    in
+    {
+      top = _: true;
+      narrow = a: b: (ctx: a ctx && b ctx);
+      inherit observe;
+      satisfiable = pred: (observe pred).satisfiable;
+      # a predicate reads ctx freeform, so which entities it touches can't be
+      # derived from the claim -- it just runs against whatever ctx the scope that
+      # binds it assembles. a scope that owns no host won't populate ctx.host, so a
+      # predicate reading it there fails inside the predicate itself; honoring the
+      # ctx its scope provides is the predicate's own contract, not something the
+      # engine guards -- catching it would swallow genuine predicate bugs too.
+      select = pred: ctx: ((observe pred).select ctx).selected;
+      # functions can't be compared in nix, so a predicate can't test itself
+      # against the top predicate -- and it needs no ctx entity anyway (ctxKey =
+      # null keeps it out of assertCtx), so it never reports itself top. the
+      # identity predicate _: true ignores ctx, so running it is safe even under a
+      # null build context.
+      isTop = _: false;
+      ctxKey = null;
+    };
 
   # host<->user membership as a cross-axis check. the set axes already guarantee
   # each axis resolves to at least one entity; this catches the pair that cannot

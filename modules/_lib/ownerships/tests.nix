@@ -535,6 +535,150 @@ let
       name = "golden error: renderDiags exactly renders 2 diagnostics (unlabeled poison-carrying unit + labeled unit) without forcing either payload";
       pass = builtins.length goldenDiags == 2 && engine.renderDiags goldenDiags == goldenExpected;
     }
+
+    {
+      name = "trace and resolve share one selected output";
+      pass =
+        let
+          unit = {
+            claim.host = include [ "khion" ];
+            value.answer = 42;
+          };
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+          };
+          traced = engine.trace args unit;
+          leaf = builtins.head traced.trace;
+        in
+        traced.value == engine.resolve args unit
+        && leaf.selected
+        && leaf.axisResults.host.details.materializedMembers == [ "khion" ]
+        && leaf.axisResults.host.decision == "selected";
+    }
+
+    {
+      name = "trace observes names and value shape without forcing payload fields";
+      pass =
+        let
+          unit = {
+            claim.host = include [ "khion" ];
+            value = {
+              pkg = poisonDerivation;
+              secret = poisonSecret;
+            };
+          };
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+          };
+          plain = engine.resolve args unit;
+          traced = engine.trace args unit;
+          leaf = builtins.head traced.trace;
+          observed = {
+            plainKeys = builtins.attrNames plain;
+            tracedKeys = builtins.attrNames traced.value;
+            inherit (leaf)
+              identity
+              effectiveClaim
+              selected
+              rejectedBy
+              checkResults
+              ctxRequirements
+              preMergeContribution
+              ;
+            inherit (leaf) axisResults;
+          };
+        in
+        (builtins.tryEval (builtins.deepSeq observed observed)).success
+        &&
+          observed.plainKeys == [
+            "pkg"
+            "secret"
+          ]
+        && observed.tracedKeys == observed.plainKeys
+        && observed.identity == "unlabeled unit { pkg, secret }"
+        && observed.preMergeContribution.shape == "{ pkg, secret }"
+        &&
+          observed.preMergeContribution.offeredPaths == [
+            "pkg"
+            "secret"
+          ]
+        && observed.preMergeContribution.stage == "pre-merge"
+        && observed.axisResults.host.details.materializedMembers == [ "khion" ]
+        && observed.checkResults == [ ]
+        &&
+          observed.ctxRequirements.host == {
+            key = "host";
+            required = true;
+            available = true;
+          };
+    }
+
+    {
+      name = "trace reports identity, context requirements, and the exact rejecting axis";
+      pass =
+        let
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+          };
+          traced = engine.trace args {
+            label = "lumi-only";
+            claim.host = include [ "lumi" ];
+            value.services.example.enable = true;
+          };
+          leaf = builtins.head traced.trace;
+        in
+        traced.value == { }
+        && leaf.identity == "unit 'lumi-only'"
+        && leaf.effectiveClaim.host == include [ "lumi" ]
+        && leaf.checkResults == [ ]
+        && leaf.ctxRequirements.host.required
+        && leaf.ctxRequirements.host.available
+        && !leaf.selected
+        && leaf.rejectedBy == [ "host" ]
+        && leaf.axisResults.host.decision == "rejected"
+        && leaf.preMergeContribution == null;
+    }
+
+    {
+      name = "predicate observation reports its decision without fabricated members";
+      pass =
+        let
+          traced =
+            engine.trace
+              {
+                registry = registry // {
+                  when = predicateAxis;
+                };
+                merge = defaultMerge;
+                inherit ctx;
+              }
+              {
+                claim.when = c: c.host.name == "lumi";
+                value.x = 1;
+              };
+          result = (builtins.head traced.trace).axisResults.when;
+        in
+        !result.selected && result.decision == "rejected" && !(result.details ? materializedMembers);
+    }
+
+    {
+      name = "plain and traced impossible claims both preserve the error outcome";
+      pass =
+        let
+          args = {
+            inherit registry ctx;
+            merge = defaultMerge;
+          };
+          unit = {
+            claim.host = include [ "nobody" ];
+            value.x = 1;
+          };
+        in
+        throws (engine.resolve args unit) && throws (engine.trace args unit);
+    }
   ];
 
   failing = builtins.filter (c: !c.pass) cases;

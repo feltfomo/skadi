@@ -13,6 +13,8 @@ let
     toRoster
     mkResolve
     mkResolveSystem
+    mkResolveTrace
+    mkResolveSystemTrace
     mkResolveStrict
     mkResolveSystemStrict
     translate
@@ -35,6 +37,8 @@ let
 
   resolve = mkResolve roster;
   resolveSystem = mkResolveSystem roster;
+  resolveTrace = mkResolveTrace roster;
+  resolveSystemTrace = mkResolveSystemTrace roster;
   resolveStrict = mkResolveStrict roster;
   resolveSystemStrict = mkResolveSystemStrict roster;
 
@@ -126,7 +130,43 @@ let
     };
   };
 
-  run = c: units: resolve units c;
+  run =
+    c: units:
+    let
+      plain = resolve units c;
+      traced = resolveTrace units c;
+    in
+    assert traced.value == plain;
+    plain;
+
+  runSystem =
+    c: units:
+    let
+      plain = resolveSystem units c;
+      traced = resolveSystemTrace units c;
+    in
+    assert traced.value == plain;
+    plain;
+
+  hostMissTrace = resolveTrace [
+    {
+      hosts = [ "khion" ];
+      pkg = "khion-only";
+    }
+  ] ctxLumi;
+  whenMissTrace = resolveTrace [
+    {
+      when = { host, ... }: host.gpu == "nvidia";
+      pkg = "nvidia-only";
+    }
+  ] ctxLumi;
+  labeledTrace = resolveTrace [
+    {
+      label = "khion-only-unit";
+      hosts = [ "khion" ];
+      pkg = "khion-only";
+    }
+  ] ctx;
 
   results = {
     global = run ctx [ { pkg = "everyone"; } ];
@@ -253,7 +293,7 @@ let
 
     # host-only system scope: a compositor-shaped unit owned by two hosts,
     # resolved with only a host in ctx (no user), plus the off-claim miss.
-    systemHostHit = resolveSystem [
+    systemHostHit = runSystem ctxSystemKhion [
       {
         hosts = [
           "khion"
@@ -261,8 +301,8 @@ let
         ];
         programs.hyprland.enable = true;
       }
-    ] ctxSystemKhion;
-    systemHostMiss = resolveSystem [
+    ];
+    systemHostMiss = runSystem ctxSystemVm [
       {
         hosts = [
           "khion"
@@ -270,7 +310,7 @@ let
         ];
         programs.hyprland.enable = true;
       }
-    ] ctxSystemVm;
+    ];
 
     # value escape hatch: users.* is both a claim key and a real NixOS option
     # path, so this is the motivating collision -- global (untagged), so it's
@@ -640,6 +680,56 @@ let
           }
         ] ctxSystemUnknownHost
       );
+    }
+    {
+      name = "trace names host as the rejecting axis";
+      pass =
+        let
+          leaf = builtins.head hostMissTrace.trace;
+        in
+        hostMissTrace.value == results.hostMiss
+        && leaf.rejectedBy == [ "host" ]
+        && leaf.axisResults.host.decision == "rejected";
+    }
+    {
+      name = "trace names predicate rejection without inventing members";
+      pass =
+        let
+          leaf = builtins.head whenMissTrace.trace;
+        in
+        whenMissTrace.value == results.whenMiss
+        && leaf.rejectedBy == [ "when" ]
+        && leaf.axisResults.when.decision == "rejected"
+        && !(leaf.axisResults.when.details ? materializedMembers);
+    }
+    {
+      name = "trace reuses diagnostic identity and reports pre-merge contribution";
+      pass =
+        let
+          leaf = builtins.head labeledTrace.trace;
+        in
+        labeledTrace.value == results.labeledUnit
+        && leaf.identity == "unit 'khion-only-unit'"
+        && leaf.preMergeContribution.stage == "pre-merge"
+        && leaf.preMergeContribution.offeredPaths == [ "pkg" ];
+    }
+    {
+      name = "plain and trace surface entries both preserve impossible claims";
+      pass =
+        let
+          units = [
+            {
+              hosts = [ "khion" ];
+              children = [
+                {
+                  users = [ "grandpa" ];
+                  pkg = "x";
+                }
+              ];
+            }
+          ];
+        in
+        throws (resolve units ctx) && throws (resolveTrace units ctx);
     }
   ];
 

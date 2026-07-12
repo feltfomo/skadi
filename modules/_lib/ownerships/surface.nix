@@ -160,6 +160,28 @@ let
       };
     } { children = map translate units; };
 
+  # Trace siblings use the same translated tree and engine pipeline as their
+  # value-only counterparts. They are exported for manual inspection and tests;
+  # ordinary aspect bindings keep their existing return type.
+  mkResolveTrace =
+    roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+    in
+    units:
+    {
+      host,
+      user,
+      ...
+    }:
+    engine.trace {
+      inherit (base) registry checks;
+      merge = defaultMerge;
+      ctx = {
+        inherit host user;
+      };
+    } { children = map translate units; };
+
   # a system-scope resolve binds a host but no user (ctx.user = null), so a
   # `users` / `exceptUsers` claim anywhere in the tree can never own anything --
   # a host-wide slice has no user to narrow to. reject that when the units are
@@ -209,6 +231,27 @@ let
       } { children = map translate units; }
     );
 
+  mkResolveSystemTrace =
+    roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+    in
+    units:
+    {
+      host,
+      ...
+    }:
+    builtins.seq (lib.all assertNoUserClaim units) (
+      engine.trace {
+        inherit (base) registry checks;
+        merge = defaultMerge;
+        ctx = {
+          inherit host;
+          user = null;
+        };
+      } { children = map translate units; }
+    );
+
   # Opt-in strict siblings of mkResolve/mkResolveSystem: validate the ctx's
   # host/user names against the roster before delegating to the exact same
   # resolve function, so the permissive path is byte-identical by
@@ -243,6 +286,8 @@ in
   inherit
     mkResolve
     mkResolveSystem
+    mkResolveTrace
+    mkResolveSystemTrace
     mkResolveStrict
     mkResolveSystemStrict
     translate
