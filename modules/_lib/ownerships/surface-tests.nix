@@ -13,6 +13,8 @@ let
     toRoster
     mkResolve
     mkResolveSystem
+    mkResolveStrict
+    mkResolveSystemStrict
     translate
     ;
 
@@ -26,10 +28,15 @@ let
       ];
     })
     (define.user "grandpa" { hosts = [ "lumi" ]; })
+    # hosts = null (the default): unknown host membership, rescued through
+    # the membership check the same way strict validation must rescue it.
+    (define.user "nomad" { })
   ];
 
   resolve = mkResolve roster;
   resolveSystem = mkResolveSystem roster;
+  resolveStrict = mkResolveStrict roster;
+  resolveSystemStrict = mkResolveSystemStrict roster;
 
   # khion, as feltfomo, on an nvidia box -- enough to drive the host/user set
   # claims and a `when` predicate that reads a freeform host attribute.
@@ -74,6 +81,48 @@ let
   ctxSystemVm = {
     host = {
       name = "vm";
+    };
+  };
+
+  # strict-mode ctx fixtures: a host outside the roster, a user outside the
+  # roster, an impossible but individually-valid pair (grandpa lives on
+  # lumi, not khion), and an unknown-membership user (nomad, hosts = null)
+  # that strict validation must still rescue rather than reject.
+  ctxUnknownHost = {
+    host = {
+      name = "ghost";
+    };
+    user = {
+      name = "feltfomo";
+    };
+  };
+  ctxUnknownUser = {
+    host = {
+      name = "khion";
+    };
+    user = {
+      name = "nobody";
+    };
+  };
+  ctxImpossiblePair = {
+    host = {
+      name = "khion";
+    };
+    user = {
+      name = "grandpa";
+    };
+  };
+  ctxRescuedUnknownMembership = {
+    host = {
+      name = "khion";
+    };
+    user = {
+      name = "nomad";
+    };
+  };
+  ctxSystemUnknownHost = {
+    host = {
+      name = "ghost";
     };
   };
 
@@ -534,6 +583,62 @@ let
             pkg = "x";
           }
         ]
+      );
+    }
+    {
+      name = "strict rejects an unknown host name";
+      pass = throws (resolveStrict [ { pkg = "x"; } ] ctxUnknownHost);
+    }
+    {
+      name = "strict rejects an unknown user name";
+      pass = throws (resolveStrict [ { pkg = "x"; } ] ctxUnknownUser);
+    }
+    {
+      name = "strict rejects a known but impossible host x user pair";
+      pass = throws (resolveStrict [ { pkg = "x"; } ] ctxImpossiblePair);
+    }
+    {
+      name = "strict rescues an unknown-membership user instead of rejecting it";
+      pass =
+        resolveStrict [ { pkg = "x"; } ] ctxRescuedUnknownMembership == {
+          pkg = "x";
+        };
+    }
+    {
+      name = "strict permissive path is byte-identical to the non-strict resolve";
+      pass =
+        resolveStrict [
+          {
+            hosts = [ "khion" ];
+            pkg = "khion-only";
+          }
+        ] ctx == results.hostHit;
+    }
+    {
+      name = "system-scope strict validates the host only and still resolves";
+      pass =
+        resolveSystemStrict [
+          {
+            hosts = [
+              "khion"
+              "lumi"
+            ];
+            programs.hyprland.enable = true;
+          }
+        ] ctxSystemKhion == results.systemHostHit;
+    }
+    {
+      name = "system-scope strict rejects an unknown host";
+      pass = throws (
+        resolveSystemStrict [
+          {
+            hosts = [
+              "khion"
+              "lumi"
+            ];
+            programs.hyprland.enable = true;
+          }
+        ] ctxSystemUnknownHost
       );
     }
   ];

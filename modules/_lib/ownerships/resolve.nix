@@ -37,6 +37,50 @@ let
     ];
   };
 
+  # Validate a standalone ctx's host/user names (+ their pairing) against the
+  # roster before a strict resolve runs -- opt-in, so the core resolver's
+  # claim-only contract stays untouched for every existing caller. Reuses the
+  # exact registry/checks engineArgsFor already builds for resolveWith: an
+  # unknown name collapses through satisfiableCheck's own disjoint-nest
+  # message, and an impossible host x user pairing (both names known, but
+  # that user doesn't live on that host) collapses through
+  # mkMembershipCheck -- neither rule is re-derived here, so there is no
+  # second place a roster/membership check can drift out of sync with
+  # resolveWith's own. A host-only ctx (user = null) leaves the user axis at
+  # its identity (global): satisfiableCheck sees a constant-satisfiable claim
+  # and mkMembershipCheck skips a global side by its own existing rule, so
+  # "host-only validates host only" falls out of that shared machinery rather
+  # than a branch added here.
+  validateRosterCtx =
+    roster: ctx:
+    let
+      args = engineArgsFor roster;
+      hostName = ctx.host.name;
+      userName = if ctx.user == null then null else ctx.user.name;
+      claim =
+        (engine.topClaim args.registry)
+        // {
+          host = axes.include [ hostName ];
+        }
+        // lib.optionalAttrs (userName != null) { user = axes.include [ userName ]; };
+      # names the synthetic leaf as a ctx origin rather than an authored unit,
+      # so identifyUnit's label branch renders it as one instead of falling
+      # through to its unlabeled-unit shape, which is meant for real config.
+      label =
+        if userName == null then
+          "standalone ctx host '${hostName}'"
+        else
+          "standalone ctx host '${hostName}', user '${userName}'";
+      leaf = {
+        inherit claim label;
+        value = { };
+      };
+    in
+    # engine.check already throws its own rendered diagnostic on a miss and
+    # returns the leaf list unchanged otherwise, so forcing it is the whole
+    # validation -- there's nothing left to compute from its result.
+    builtins.seq (engine.check args.checks args.registry [ leaf ]) ctx;
+
   resolveWith =
     {
       roster,
@@ -54,5 +98,5 @@ let
 in
 {
   inherit (rosterLib) define toRoster;
-  inherit resolveWith engineArgsFor;
+  inherit resolveWith engineArgsFor validateRosterCtx;
 }

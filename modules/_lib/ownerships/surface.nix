@@ -208,8 +208,44 @@ let
         };
       } { children = map translate units; }
     );
+
+  # Opt-in strict siblings of mkResolve/mkResolveSystem: validate the ctx's
+  # host/user names against the roster before delegating to the exact same
+  # resolve function, so the permissive path is byte-identical by
+  # construction rather than kept in sync by hand. Mode is a separate
+  # function, not a flag -- the same precedent mkResolveSystem already set
+  # against mkResolve.
+  mkResolveStrict =
+    roster:
+    let
+      resolveFn = mkResolve roster;
+    in
+    units: ctx:
+    builtins.seq (resolveLib.validateRosterCtx roster { inherit (ctx) host user; }) (
+      resolveFn units ctx
+    );
+
+  # host-only sibling: mkResolveSystem's ctx never carries a user, so the
+  # validator is handed user = null directly rather than read off ctx --
+  # validateRosterCtx's own null-user branch is what keeps this host-only.
+  mkResolveSystemStrict =
+    roster:
+    let
+      resolveFn = mkResolveSystem roster;
+    in
+    units: ctx:
+    builtins.seq (resolveLib.validateRosterCtx roster {
+      inherit (ctx) host;
+      user = null;
+    }) (resolveFn units ctx);
 in
 {
-  inherit mkResolve mkResolveSystem translate;
+  inherit
+    mkResolve
+    mkResolveSystem
+    mkResolveStrict
+    mkResolveSystemStrict
+    translate
+    ;
   inherit (resolveLib) define toRoster;
 }

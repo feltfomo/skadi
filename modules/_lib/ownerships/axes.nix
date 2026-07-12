@@ -133,6 +133,12 @@ let
         {
           kind = "impossible";
           unit = leaf.value;
+          # same optional identity fields satisfiableCheck's diagnostic
+          # already carries, so a labeled synthetic leaf renders through
+          # identifyUnit here exactly as it does on the single-axis path --
+          # this check just hadn't picked them up yet.
+          label = leaf.label or null;
+          source = leaf.source or null;
           axes = [
             "host"
             "user"
