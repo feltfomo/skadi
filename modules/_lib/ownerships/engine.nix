@@ -18,6 +18,8 @@ let
     length
     ;
 
+  inherit (import ./safe-render.nix { inherit lib; }) safeShape;
+
   # every registered axis at its identity: globally owned on all axes. a claim
   # missing an axis key falls back to that axis's top, so untagged == global.
   topClaim = registry: lib.mapAttrs (_: axis: axis.top) registry;
@@ -32,8 +34,11 @@ let
     lib.mapAttrs (name: axis: axis.narrow parent.${name} (own.${name} or axis.top)) registry;
 
   # walk the unit tree; emit one leaf { claim; value; } per config-bearing node,
-  # each carrying its effective claim. nesting is `children`; a child narrows its
-  # parent. nodes without a value contribute only their claim to descendants.
+  # each carrying its effective claim, plus optional label/source identity
+  # metadata (I2) carried through untouched. nesting is `children`; a child
+  # narrows its parent. nodes without a value contribute only their claim to
+  # descendants. label/source ride as leaf siblings, never inside `value`, so
+  # `strip` (which only ever pulls `.value`) drops them before merge for free.
   compose =
     registry: unit:
     let
@@ -41,10 +46,14 @@ let
         parent: node:
         let
           eff = narrowClaim registry parent (node.claim or { });
-          self = lib.optional (node ? value) {
-            claim = eff;
-            inherit (node) value;
-          };
+          self = lib.optional (node ? value) (
+            {
+              claim = eff;
+              inherit (node) value;
+            }
+            // lib.optionalAttrs (node ? label) { inherit (node) label; }
+            // lib.optionalAttrs (node ? source) { inherit (node) source; }
+          );
         in
         self ++ concatMap (go eff) (node.children or [ ]);
     in
@@ -60,10 +69,46 @@ let
     in
     if diags == [ ] then leaves else throw (renderDiags diags);
 
+  # a diagnostic's unit is the leaf's raw config value -- it can carry a
+  # package or a secret-backed value, so it's never safe to toJSON/toPretty in
+  # full. identify it by label/source when the unit set one; otherwise fall
+  # back to safeShape, which only ever lists attribute names and never touches
+  # what they point to. axis/claims are always safe (polarity-set data, plain
+  # strings), so those render in full.
+  identifyUnit =
+    d:
+    if d.label or null != null then
+      "unit '${d.label}'"
+    else if d.source or null != null then
+      "unit at ${d.source}"
+    else
+      "unlabeled unit ${safeShape d.unit}";
+
+  renderDiag =
+    d:
+    let
+      axisPart =
+        if d ? axis then
+          "axis '${d.axis}'"
+        else if d ? axes then
+          "axes ${lib.concatStringsSep ", " d.axes}"
+        else
+          null;
+      claimsPart =
+        if d ? claims then "claim ${lib.generators.toPretty { multiline = false; } d.claims}" else null;
+      detail = lib.concatStringsSep ", " (
+        lib.filter (x: x != null) [
+          axisPart
+          claimsPart
+        ]
+      );
+    in
+    "  - ${identifyUnit d}: ${d.reason}" + (if detail == "" then "" else " (${detail})");
+
   renderDiags =
     diags:
     "ownerships: ${toString (length diags)} ownership error(s):\n"
-    + lib.concatMapStringsSep "\n" (d: "  - ${d.reason}") diags;
+    + lib.concatMapStringsSep "\n" renderDiag diags;
 
   # keep the leaves this build's ctx falls under on every axis; dropped leaves are
   # inactive -- silent, not an error. runs AFTER check, so an impossible leaf
@@ -97,6 +142,8 @@ let
       lib.optional (!registry.${name}.satisfiable leaf.claim.${name}) {
         kind = "impossible";
         unit = leaf.value;
+        label = leaf.label or null;
+        source = leaf.source or null;
         axis = name;
         claims = leaf.claim;
         reason = "axis '${name}' claim can never be satisfied (disjoint nest or unknown name)";
@@ -137,6 +184,8 @@ let
           lib.optional (narrowsOn name leaf && entityMissing name) {
             kind = "missing-ctx";
             unit = leaf.value;
+            label = leaf.label or null;
+            source = leaf.source or null;
             axis = name;
             claims = leaf.claim;
             reason = "axis '${name}' is narrowed on by claim ${
@@ -178,6 +227,11 @@ in
     satisfiableCheck
     defaultChecks
     topClaim
+    # exported so a golden-error test can assert its exact output against
+    # crafted diagnostics -- renderDiag/identifyUnit stay internal, since
+    # renderDiags is the one entry point an author-facing message actually
+    # goes through.
+    renderDiags
     ;
   check = runCheck;
   select = runSelect;

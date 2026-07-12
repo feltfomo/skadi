@@ -35,9 +35,15 @@ let
     "exceptUsers"
     "when"
   ];
+  # label/source (I2) are reserved the same way `value`/`children` are: optional
+  # plain-string identification for diagnostics, never config, never merged --
+  # they ride the leaf as siblings of `value`, and `strip` only ever pulls
+  # `.value`, so they're dropped before merge with no extra work.
   reserved = claimKeys ++ [
     "children"
     "value"
+    "label"
+    "source"
   ];
 
   # ownership keys are read by name off a unit's top level, so a config value
@@ -56,6 +62,8 @@ let
         "exceptUsers"
       ];
       badWhen = unit ? when && !builtins.isFunction unit.when;
+      badLabel = unit ? label && !builtins.isString unit.label;
+      badSource = unit ? source && !builtins.isString unit.source;
       # a value block routes unambiguously only when it's the sole non-reserved
       # content on the unit -- claims and children still narrow around it
       # exactly as they do around inline config, so only a genuine leftover
@@ -69,6 +77,10 @@ let
       }. a reserved ownership key can't also be a config path on the same unit."
     else if badWhen then
       throw "ownerships: 'when' must be a predicate function of the build context"
+    else if badLabel then
+      throw "ownerships: 'label' must be a plain string; got ${builtins.typeOf unit.label}"
+    else if badSource then
+      throw "ownerships: 'source' must be a plain string; got ${builtins.typeOf unit.source}"
     else if badMixed then
       throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
     else
@@ -117,7 +129,9 @@ let
       claim = claimOf checked;
     }
     // lib.optionalAttrs (payload != { }) { value = payload; }
-    // lib.optionalAttrs (checked ? children) { children = map translate checked.children; };
+    // lib.optionalAttrs (checked ? children) { children = map translate checked.children; }
+    // lib.optionalAttrs (checked ? label) { inherit (checked) label; }
+    // lib.optionalAttrs (checked ? source) { inherit (checked) source; };
 
   # bind the surface to a roster once -- the fleet the owners are checked against.
   # the returned resolve takes the authored units and yields a context-consuming
@@ -196,6 +210,6 @@ let
     );
 in
 {
-  inherit mkResolve mkResolveSystem;
+  inherit mkResolve mkResolveSystem translate;
   inherit (resolveLib) define toRoster;
 }

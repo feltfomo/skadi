@@ -13,6 +13,7 @@ let
     toRoster
     mkResolve
     mkResolveSystem
+    translate
     ;
 
   roster = toRoster [
@@ -191,6 +192,16 @@ let
       }
     ];
 
+    # a unit's label is author-facing identification only (I2) -- it must never
+    # change what gets merged.
+    labeledUnit = run ctx [
+      {
+        label = "khion-only-unit";
+        hosts = [ "khion" ];
+        pkg = "khion-only";
+      }
+    ];
+
     # host-only system scope: a compositor-shaped unit owned by two hosts,
     # resolved with only a host in ctx (no user), plus the off-claim miss.
     systemHostHit = resolveSystem [
@@ -365,6 +376,53 @@ let
             }
           ];
         };
+    }
+    {
+      name = "label never leaks into merged output";
+      pass = results.labeledUnit == { pkg = "khion-only"; };
+    }
+    {
+      name = "label/source are optional plain-string identification, not claims or config";
+      pass =
+        translate {
+          label = "my-unit";
+          source = "modules/foo.nix";
+          pkg = "x";
+        } == {
+          claim = { };
+          value = {
+            pkg = "x";
+          };
+          label = "my-unit";
+          source = "modules/foo.nix";
+        };
+    }
+    {
+      name = "a non-string label throws at author time";
+      pass = throws (translate {
+        label = 123;
+        pkg = "x";
+      });
+    }
+    {
+      name = "a non-string source throws at author time";
+      pass = throws (translate {
+        source = { };
+        pkg = "x";
+      });
+    }
+    {
+      name = "label/source don't inherit to children";
+      pass =
+        let
+          t = translate {
+            label = "parent";
+            pkg = "x";
+            children = [ { pkg = "y"; } ];
+          };
+          child = builtins.head t.children;
+        in
+        t.label == "parent" && !(child ? label);
     }
     {
       name = "cross-host user claim still impossible through the surface";

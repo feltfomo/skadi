@@ -10,6 +10,7 @@ let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   merge = import ./merge.nix { inherit lib; };
+  safeRenderLib = import ./safe-render.nix { inherit lib; };
 
   inherit (axes)
     include
@@ -18,6 +19,7 @@ let
     mkSetAxis
     predicateAxis
     ;
+  inherit (safeRenderLib) safeRender safeShape;
 
   # stubbed roster -- the real den-backed one replaces this later.
   registry = axes.registry {
@@ -90,6 +92,54 @@ let
   # value, not the union's incidental order.
   canon = v: v // { set = builtins.sort (a: b: a < b) v.set; };
   eqPolarity = a: b: canon a == canon b;
+
+  # I2's laziness/secret guard fixtures: values whose unsafe fields throw if
+  # actually forced, standing in for a package or a secret that isn't
+  # available at eval time. safeRender/safeShape must identify these by shape
+  # alone and never touch the throwing fields.
+  poisonDerivation = {
+    type = "derivation";
+    name = "poison-pkg";
+    drvPath = throw "forced a derivation-shaped value";
+    outPath = throw "forced a derivation-shaped value";
+  };
+  poisonSecret = {
+    token = throw "forced a secret-shaped value";
+  };
+
+  # I2 golden-error test: crafts two leaves directly (no compose, no throw) so
+  # the assertion pins exactly what an author sees on screen -- header count,
+  # per-diagnostic bullet, the unit-identification branch (label vs unlabeled +
+  # safeShape), and the axis/claim detail -- and proves the unlabeled branch
+  # never renders the leaf's real (poison) value, only its safe shape. The
+  # claim fragment below is rendered through the same toPretty call renderDiags
+  # itself uses -- that's a trusted formatting primitive, not the logic under
+  # test, so pinning it this way still exercises every line renderDiags/
+  # renderDiag/identifyUnit actually own.
+  goldenLeafUnlabeled = {
+    claim = {
+      host = include [ ];
+      user = global;
+    };
+    value = poisonDerivation;
+  };
+  goldenLeafLabeled = {
+    claim = {
+      host = global;
+      user = include [ "nobody" ];
+    };
+    value = poisonSecret;
+    label = "my-labeled-unit";
+  };
+  goldenDiags =
+    engine.satisfiableCheck registry goldenLeafUnlabeled
+    ++ engine.satisfiableCheck registry goldenLeafLabeled;
+  prettyClaim = c: lib.generators.toPretty { multiline = false; } c;
+  goldenExpected =
+    "ownerships: 2 ownership error(s):\n"
+    + "  - unlabeled unit ${safeShape poisonDerivation}: axis 'host' claim can never be satisfied (disjoint nest or unknown name) (axis 'host', claim ${prettyClaim goldenLeafUnlabeled.claim})"
+    + "\n"
+    + "  - unit 'my-labeled-unit': axis 'user' claim can never be satisfied (disjoint nest or unknown name) (axis 'user', claim ${prettyClaim goldenLeafLabeled.claim})";
 
   cases = [
     {
@@ -398,6 +448,92 @@ let
           } == {
           x = 1;
         };
+    }
+
+    {
+      name = "safeShape identifies a derivation by name, never touches its fields";
+      pass = safeShape poisonDerivation == "<derivation poison-pkg>";
+    }
+
+    {
+      name = "safeShape lists attribute names only, never forces their values";
+      pass = safeShape poisonSecret == "{ token }";
+    }
+
+    {
+      name = "safeRender identifies a derivation by name, never touches its fields";
+      pass = safeRender poisonDerivation == "<derivation poison-pkg>";
+    }
+
+    {
+      name = "safeRender falls back safely on a value that throws when serialized";
+      pass = safeRender poisonSecret == "<unrenderable value>";
+    }
+
+    {
+      name = "compose carries label/source as leaf-sibling fields; strip drops them before merge";
+      pass =
+        let
+          leaves = engine.compose registry {
+            label = "my-unit";
+            source = "modules/foo.nix";
+            value.x = 1;
+          };
+          leaf = builtins.head leaves;
+        in
+        leaf.label == "my-unit"
+        && leaf.source == "modules/foo.nix"
+        && engine.strip leaves == [ { x = 1; } ];
+    }
+
+    {
+      name = "a leaf's label rides through compose without disrupting an impossible resolve";
+      pass = throws (
+        resolve { } {
+          claim.host = include [ "khion" ];
+          children = [
+            {
+              claim.host = include [ "lumi" ];
+              label = "conflicting-unit";
+              value.x = 1;
+            }
+          ];
+        }
+      );
+    }
+
+    {
+      name = "impossible claim on a unit carrying a secret-shaped value still throws";
+      pass = throws (
+        resolve { } {
+          claim.host = include [ "khion" ];
+          children = [
+            {
+              claim.host = include [ "lumi" ];
+              value = {
+                secret = poisonSecret;
+              };
+            }
+          ];
+        }
+      );
+    }
+
+    {
+      name = "merge conflict between a plain value and a derivation-shaped value still throws";
+      pass = throws (
+        resolve { } {
+          children = [
+            { value.pkg = "not-a-package"; }
+            { value.pkg = poisonDerivation; }
+          ];
+        }
+      );
+    }
+
+    {
+      name = "golden error: renderDiags exactly renders 2 diagnostics (unlabeled poison-carrying unit + labeled unit) without forcing either payload";
+      pass = builtins.length goldenDiags == 2 && engine.renderDiags goldenDiags == goldenExpected;
     }
   ];
 

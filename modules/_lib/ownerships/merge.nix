@@ -17,8 +17,14 @@ let
     foldl'
     ;
 
-  # scalar conflict policy: equal survives, differ is a hard error. an alternative
-  # owner-wins policy can land with the same signature.
+  inherit (import ./safe-render.nix { inherit lib; }) safeRender;
+
+  # scalar conflict policy: equal survives, differ is a hard error. the
+  # clashing values render through safeRender, not a raw toJSON -- a co-owned
+  # scalar can be a package or a secret-backed value, and this throw is a live
+  # error path (I2/SP2). this is the render-safety half only: it never
+  # attributes a value to the unit that set it. attribution needs provenance
+  # and is A1's job (SP6) -- don't grow this into that here.
   strictScalar =
     path: a: b:
     if a == b then
@@ -26,7 +32,7 @@ let
     else
       throw "ownerships: conflict at ${
         if path == "" then "<root>" else path
-      }: co-owners set differing values (${builtins.toJSON a} vs ${builtins.toJSON b})";
+      }: co-owners set differing values (${safeRender a} vs ${safeRender b})";
 
   # list strategies, looked up by name. a new strategy is a new table entry.
   builtinStrategies = {
