@@ -1,55 +1,46 @@
 # _lib/ownerships/roster.nix
 #
-# The roster interface and its den-free backend. A roster is
-#   { hosts; users; membership; usersWithUnknownMembership }
-# -- host and user name lists, membership as host -> [ user ], and the users
-# whose host membership is unknown (declared without any host). Both backends
-# produce exactly this shape: the den adapter in ../den.nix reads it off
-# den.hosts, and define.* below builds it with no den present, so the engine
-# never learns which one it got.
-{ lib }:
+# Descriptor-driven roster construction and the den-free backend. Descriptors
+# with no roster projection are skipped, so select-only axes don't invent empty
+# roster fields. The den adapter feeds this same projector normalized standalone
+# declarations; den itself never leaks into this module.
+{
+  lib,
+  descriptors ? null,
+}:
 let
-  # define.host / define.user are the standalone declarations. A user names the
-  # hosts it lives on; omitting hosts (null) means "unknown", which the
-  # membership check treats as could-be-anywhere and lets through. An explicit
-  # empty list means "known to live on no host", which stays a real membership
-  # failure -- that null-vs-[] split is the whole reason the two forms differ.
-  define = {
-    host = name: {
-      kind = "host";
-      inherit name;
-    };
-    user =
-      name:
-      {
-        hosts ? null,
-      }:
-      {
-        kind = "user";
-        inherit name hosts;
-      };
-  };
+  axes = import ./axes.nix { inherit lib; };
+  axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
 
-  # fold a list of define.* declarations into one roster. hosts come from both
-  # explicit define.host calls and any host a user names, so a user can pull its
-  # host into existence without a separate declaration.
-  toRoster =
-    decls:
+  rosterDescriptors = builtins.filter (descriptor: descriptor.roster != null) axisDescriptors;
+
+  mkRoster =
+    descriptorSet:
     let
-      users = builtins.filter (d: d.kind == "user") decls;
-      hostDecls = builtins.filter (d: d.kind == "host") decls;
-      named = builtins.concatMap (u: if u.hosts == null then [ ] else u.hosts) users;
-      hostNames = lib.unique (map (d: d.name) hostDecls ++ named);
-      usersOn =
-        h: map (u: u.name) (builtins.filter (u: u.hosts != null && builtins.elem h u.hosts) users);
+      projected = builtins.filter (descriptor: descriptor.roster != null) descriptorSet;
+      define = builtins.listToAttrs (
+        map (descriptor: {
+          inherit (descriptor) name;
+          value = descriptor.roster.define;
+        }) projected
+      );
+      toRoster =
+        declarations:
+        lib.foldl' (
+          roster: descriptor:
+          roster
+          // descriptor.roster.project {
+            inherit declarations roster;
+          }
+        ) { } projected;
     in
     {
-      hosts = hostNames;
-      users = lib.unique (map (d: d.name) users);
-      membership = lib.genAttrs hostNames usersOn;
-      usersWithUnknownMembership = map (u: u.name) (builtins.filter (u: u.hosts == null) users);
+      inherit define toRoster;
     };
+
+  default = mkRoster axisDescriptors;
 in
 {
-  inherit define toRoster;
+  inherit mkRoster rosterDescriptors;
+  inherit (default) define toRoster;
 }

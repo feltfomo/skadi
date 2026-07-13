@@ -7,6 +7,8 @@
 # green run also proves the surface resolves standalone.
 { lib }:
 let
+  axes = import ./axes.nix { inherit lib; };
+  resolveLib = import ./resolve.nix { inherit lib; };
   surface = import ./surface.nix { inherit lib; };
   inherit (surface)
     define
@@ -18,6 +20,7 @@ let
     mkResolveStrict
     mkResolveSystemStrict
     translate
+    claimKeys
     ;
 
   roster = toRoster [
@@ -394,7 +397,49 @@ let
   # case below.
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
+  defaultEngineArgs = resolveLib.engineArgsFor roster;
+  projectedUserCtx = axes.contextFor defaultEngineArgs.registry (ctx // { unrelated = "private"; });
+  projectedSystemCtx = axes.contextFor defaultEngineArgs.registry (
+    ctxSystemKhion // { unrelated = "private"; }
+  );
+
   checks = [
+    {
+      name = "default registry projects the byte-identical bounded user and system contexts";
+      pass =
+        projectedUserCtx == {
+          inherit (ctx) host user;
+        }
+        &&
+          projectedSystemCtx == {
+            inherit (ctxSystemKhion) host;
+            user = null;
+          };
+    }
+    {
+      name = "default descriptors preserve the public key, registry, and roster shapes";
+      pass =
+        claimKeys == [
+          "hosts"
+          "users"
+          "exceptHosts"
+          "exceptUsers"
+          "when"
+        ]
+        &&
+          builtins.attrNames defaultEngineArgs.registry == [
+            "host"
+            "user"
+            "when"
+          ]
+        &&
+          builtins.attrNames roster == [
+            "hosts"
+            "membership"
+            "users"
+            "usersWithUnknownMembership"
+          ];
+    }
     {
       name = "untagged is global";
       pass = results.global == { pkg = "everyone"; };

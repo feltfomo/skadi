@@ -8,33 +8,25 @@
 # left is its config. Untagged means globally owned. This is a thin translator
 # onto the engine's claim tree and holds no resolution logic of its own, so every
 # nesting and conflict guarantee still comes from the engine.
-{ lib }:
+{
+  lib,
+  descriptors ? null,
+}:
 let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
-  resolveLib = import ./resolve.nix { inherit lib; };
+  axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
+  resolveLib = import ./resolve.nix {
+    inherit lib;
+    descriptors = axisDescriptors;
+  };
   mergeLib = import ./merge.nix { inherit lib; };
-
-  inherit (axes) include exclude;
 
   defaultMerge = (mergeLib.mkMerge { }).mergeTracked;
 
-  # keys that mean ownership rather than config. everything else on a unit is
-  # its value; children nests. the tradeoff: a unit can't also carry a config
-  # value whose first path segment is one of these words. in practice that's
-  # only `users.*` (NixOS user management); the others never name a real option
-  # path. a unit that needs to own a reserved-colliding path routes its config
-  # through `value = { ... }` instead (see translate below) -- claims still
-  # narrow around a value block exactly as they do around inline config.
-  # `value` is reserved too, so routing is a static lexical check on the
-  # unit's own keys, never a shape guess.
-  claimKeys = [
-    "hosts"
-    "users"
-    "exceptHosts"
-    "exceptUsers"
-    "when"
-  ];
+  # Descriptor key order is stable because it also controls which malformed key
+  # an author sees first when several are wrong.
+  claimKeys = axes.claimKeysFor axisDescriptors;
   # label/source are reserved the same way `value`/`children` are: optional
   # plain-string identification for diagnostics, never config, never merged --
   # they ride the leaf as siblings of `value`, and `strip` only ever pulls
@@ -51,17 +43,10 @@ let
   # realistic collision is a NixOS `users` attrset landing where the `users`
   # name-list belongs, so shape-check the claim keys and fail at author time
   # rather than resolve something the author never meant.
-  isNameList = v: builtins.isList v && lib.all builtins.isString v;
   checkShape =
     unit:
     let
-      badList = builtins.filter (k: unit ? ${k} && !isNameList unit.${k}) [
-        "hosts"
-        "users"
-        "exceptHosts"
-        "exceptUsers"
-      ];
-      badWhen = unit ? when && !builtins.isFunction unit.when;
+      checkedClaims = axes.validateUnit axisDescriptors unit;
       badLabel = unit ? label && !builtins.isString unit.label;
       badSource = unit ? source && !builtins.isString unit.source;
       # a value block routes unambiguously only when it's the sole non-reserved
@@ -71,47 +56,18 @@ let
       leftover = removeAttrs unit reserved;
       badMixed = unit ? value && leftover != { };
     in
-    if badList != [ ] then
-      throw "ownerships: '${builtins.head badList}' must be a list of names; got ${
-        builtins.typeOf unit.${builtins.head badList}
-      }. a reserved ownership key can't also be a config path on the same unit."
-    else if badWhen then
-      throw "ownerships: 'when' must be a predicate function of the build context"
-    else if badLabel then
-      throw "ownerships: 'label' must be a plain string; got ${builtins.typeOf unit.label}"
-    else if badSource then
-      throw "ownerships: 'source' must be a plain string; got ${builtins.typeOf unit.source}"
-    else if badMixed then
-      throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
-    else
-      unit;
+    builtins.seq checkedClaims (
+      if badLabel then
+        throw "ownerships: 'label' must be a plain string; got ${builtins.typeOf unit.label}"
+      else if badSource then
+        throw "ownerships: 'source' must be a plain string; got ${builtins.typeOf unit.source}"
+      else if badMixed then
+        throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
+      else
+        unit
+    );
 
-  # one axis' claim from its include/exclude key pair. naming both a set and its
-  # complement on the same axis is rejected here instead of silently picking one,
-  # and it costs no expressiveness: "own by A except B" is written by nesting an
-  # exceptHosts child under a hosts parent, which the engine's polarity meet
-  # resolves to include(A minus B). an axis the unit doesn't tag returns null and
-  # is left off the claim, so the engine fills it with that axis' identity (global).
-  polarityFor =
-    unit: positive: negative:
-    if unit ? ${positive} && unit ? ${negative} then
-      throw "ownerships: a unit cannot set both '${positive}' and '${negative}' -- pick the set or its complement"
-    else if unit ? ${positive} then
-      include unit.${positive}
-    else if unit ? ${negative} then
-      exclude unit.${negative}
-    else
-      null;
-
-  claimOf =
-    unit:
-    let
-      host = polarityFor unit "hosts" "exceptHosts";
-      user = polarityFor unit "users" "exceptUsers";
-    in
-    lib.optionalAttrs (host != null) { inherit host; }
-    // lib.optionalAttrs (user != null) { inherit user; }
-    // lib.optionalAttrs (unit ? when) { inherit (unit) when; };
+  claimOf = axes.claimOf axisDescriptors;
 
   # the payload riding this leaf: the escape-hatch block verbatim when the unit
   # used one, otherwise whatever's left after stripping the reserved keys --
@@ -146,18 +102,11 @@ let
     let
       base = resolveLib.engineArgsFor roster;
     in
-    units:
-    {
-      host,
-      user,
-      ...
-    }:
+    units: rawCtx:
     engine.resolve {
       inherit (base) registry stages;
       merge = defaultMerge;
-      ctx = {
-        inherit host user;
-      };
+      ctx = axes.contextFor base.registry rawCtx;
     } { children = map translate units; };
 
   # Trace siblings use the same translated tree and engine pipeline as their
@@ -168,18 +117,11 @@ let
     let
       base = resolveLib.engineArgsFor roster;
     in
-    units:
-    {
-      host,
-      user,
-      ...
-    }:
+    units: rawCtx:
     engine.trace {
       inherit (base) registry stages;
       merge = defaultMerge;
-      ctx = {
-        inherit host user;
-      };
+      ctx = axes.contextFor base.registry rawCtx;
     } { children = map translate units; };
 
   # a system-scope resolve binds a host but no user (ctx.user = null), so a
@@ -188,21 +130,17 @@ let
   # handed in, before resolve runs, naming the offending key and its value. the
   # engine's resolve-time missing-ctx throw still backstops a miss here, so this
   # is a clearer, earlier message rather than the only line of defense.
-  systemUserKeys = [
-    "users"
-    "exceptUsers"
-  ];
-  assertNoUserClaim =
-    unit:
+  assertScope =
+    scope: unit:
     let
-      offending = builtins.filter (k: unit ? ${k}) systemUserKeys;
+      forbidden = axes.forbiddenKeysFor axisDescriptors scope;
+      offending = builtins.filter (key: unit ? ${key.name}) forbidden;
+      bad = if offending == [ ] then null else builtins.head offending;
     in
-    if offending != [ ] then
-      throw "ownerships: a system-scope (host-only) unit sets '${builtins.head offending}' = ${
-        lib.generators.toPretty { multiline = false; } unit.${builtins.head offending}
-      } -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope."
+    if bad != null then
+      throw (bad.scopeError scope bad.name unit.${bad.name})
     else
-      lib.all assertNoUserClaim (unit.children or [ ]);
+      lib.all (assertScope scope) (unit.children or [ ]);
 
   # host-only sibling of mkResolve: same roster-bound registry + stages, but the
   # ctx carries only a host (user = null). the retained user axis stays global on
@@ -215,19 +153,12 @@ let
     let
       base = resolveLib.engineArgsFor roster;
     in
-    units:
-    {
-      host,
-      ...
-    }:
-    builtins.seq (lib.all assertNoUserClaim units) (
+    units: rawCtx:
+    builtins.seq (lib.all (assertScope "system") units) (
       engine.resolve {
         inherit (base) registry stages;
         merge = defaultMerge;
-        ctx = {
-          inherit host;
-          user = null;
-        };
+        ctx = axes.contextFor base.registry rawCtx;
       } { children = map translate units; }
     );
 
@@ -236,24 +167,17 @@ let
     let
       base = resolveLib.engineArgsFor roster;
     in
-    units:
-    {
-      host,
-      ...
-    }:
-    builtins.seq (lib.all assertNoUserClaim units) (
+    units: rawCtx:
+    builtins.seq (lib.all (assertScope "system") units) (
       engine.trace {
         inherit (base) registry stages;
         merge = defaultMerge;
-        ctx = {
-          inherit host;
-          user = null;
-        };
+        ctx = axes.contextFor base.registry rawCtx;
       } { children = map translate units; }
     );
 
   # Opt-in strict siblings of mkResolve/mkResolveSystem: validate the ctx's
-  # host/user names against the roster before delegating to the exact same
+  # roster-backed context names before delegating to the exact same
   # resolve function, so the permissive path is byte-identical by
   # construction rather than kept in sync by hand. Mode is a separate
   # function, not a flag -- the same precedent mkResolveSystem already set
@@ -261,26 +185,28 @@ let
   mkResolveStrict =
     roster:
     let
+      base = resolveLib.engineArgsFor roster;
       resolveFn = mkResolve roster;
     in
-    units: ctx:
-    builtins.seq (resolveLib.validateRosterCtx roster { inherit (ctx) host user; }) (
-      resolveFn units ctx
-    );
+    units: rawCtx:
+    let
+      ctx = axes.contextFor base.registry rawCtx;
+    in
+    builtins.seq (resolveLib.validateRosterCtx roster ctx) (resolveFn units rawCtx);
 
-  # host-only sibling: mkResolveSystem's ctx never carries a user, so the
-  # validator is handed user = null directly rather than read off ctx --
-  # validateRosterCtx's own null-user branch is what keeps this host-only.
+  # The descriptor projection fills unavailable entity keys with null, so strict
+  # system validation checks the host while every forbidden axis stays global.
   mkResolveSystemStrict =
     roster:
     let
+      base = resolveLib.engineArgsFor roster;
       resolveFn = mkResolveSystem roster;
     in
-    units: ctx:
-    builtins.seq (resolveLib.validateRosterCtx roster {
-      inherit (ctx) host;
-      user = null;
-    }) (resolveFn units ctx);
+    units: rawCtx:
+    let
+      ctx = axes.contextFor base.registry rawCtx;
+    in
+    builtins.seq (resolveLib.validateRosterCtx roster ctx) (resolveFn units rawCtx);
 in
 {
   inherit
@@ -291,6 +217,7 @@ in
     mkResolveStrict
     mkResolveSystemStrict
     translate
+    claimKeys
     ;
-  inherit (resolveLib) define toRoster;
+  inherit (resolveLib) define toRoster mkRoster;
 }
