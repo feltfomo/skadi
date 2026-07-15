@@ -15,6 +15,8 @@
           neovim
           ripgrep
           fd
+          gcc
+          tree-sitter
         ];
       };
     files = [
@@ -33,6 +35,10 @@
       {
         dest = ".config/nvim/lua/plugins/telescope.lua";
         src = "${rootPath}/configs/nvim/lua/plugins/telescope.lua";
+      }
+      {
+        dest = ".config/nvim/lua/plugins/treesitter.lua";
+        src = "${rootPath}/configs/nvim/lua/plugins/treesitter.lua";
       }
     ];
   };
