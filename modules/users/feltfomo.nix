@@ -12,6 +12,7 @@
       den.aspects.theming
       den.aspects.hyprland
       den.aspects.kitty
+      den.aspects.nvim
       den.aspects.fuzzel
       den.aspects.spicetify
       den.aspects.noctalia
