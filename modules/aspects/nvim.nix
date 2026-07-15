@@ -4,10 +4,8 @@
   ...
 }:
 {
-  # no hosts/users claim -- globally owned like kitty, resolved on whichever
-  # user includes it. plugin bootstrap starts self-managed (lazy.nvim clones
-  # itself); swap to nix-supplied vimPlugins store paths once the real plugin
-  # list is settled, same as kitty's static file + noctalia template split.
+  # lazy.nvim self-clones for now; swap to nix-supplied vimPlugins store
+  # paths once the plugin list actually settles.
   den.aspects.nvim = program {
     pkg = pkgs: pkgs.neovim;
     files = [

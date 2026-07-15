@@ -1,5 +1,5 @@
 return {
-  "nvim-lualine/lualine.nvim",
-  event = "VeryLazy",
-  opts = {},
+	"nvim-lualine/lualine.nvim",
+	event = "VeryLazy",
+	opts = {},
 }
