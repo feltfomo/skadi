@@ -140,6 +140,33 @@
                   "*.fd"
                 ];
               }
+              # workflow-workbench -- the spw build/publish tool (Sol dogfood). process
+              # docs (roadmap, maintainer guide) stay Notion-only; this mirrors the repo
+              # source. keep flake.lock synced -- do NOT ignore it.
+              {
+                name = "workflow-workbench";
+                local_root = "/home/feltfomo/Projects/workflow-workbench";
+                parent_page_id = "39c20fa1c54580cdb129caa73ccf230a";
+                ignore = [
+                  ".git"
+                  "result"
+                  "result-*"
+                  "__pycache__"
+                  ".pytest_cache"
+                  ".ruff_cache"
+                  ".mypy_cache"
+                  ".direnv"
+                  "dist"
+                  "*.pyz"
+                  ".notion-sync"
+                  # VM / build binaries -- never sync large images (OOM guard)
+                  "*.qcow2"
+                  "*.iso"
+                  "*.img"
+                  "*.raw"
+                  "*.fd"
+                ];
+              }
             ];
           };
         }
