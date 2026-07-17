@@ -54,15 +54,10 @@ _: {
 
       environment.systemPackages = [
         (pkgs.writeShellApplication {
-          name = "hypervisor-enable";
+          name = "hypervisor";
           # no runtimeInputs: sudo/modprobe must be the system setuid wrappers.
           runtimeInputs = [ ];
-          text = builtins.readFile ../../scripts/hypervisor-enable.sh;
-        })
-        (pkgs.writeShellApplication {
-          name = "hypervisor-disable";
-          runtimeInputs = [ ];
-          text = builtins.readFile ../../scripts/hypervisor-disable.sh;
+          text = builtins.readFile ../../scripts/hypervisor.sh;
         })
       ];
     };
