@@ -101,6 +101,9 @@ _: {
         gsettings-desktop-schemas
       ];
 
+      # iOS device support
+      services.usbmuxd.enable = true;
+
       programs = {
         dconf.enable = true;
         neovim = {

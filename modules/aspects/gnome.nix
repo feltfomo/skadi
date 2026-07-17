@@ -11,7 +11,6 @@ _: {
           flatpak.enable = true;
         };
 
-        # exclude gnome apps that are not needed
         environment.gnome.excludePackages = with pkgs; [
           atomix
           cheese

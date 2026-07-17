@@ -1,21 +1,20 @@
 { inputs, den, ... }:
 {
   den.aspects.base = {
-    includes = [
-      den.aspects.system
-      den.aspects.audio
-      den.aspects.thunar
-      den.aspects.impermanence
-      den.aspects.graalvm-oracle-21
-      den.aspects.sops
-      den.aspects.provision
-      den.aspects.installer-tunables
+    includes = with den.aspects; [
+      system
+      audio
+      thunar
+      impermanence
+      graalvm-oracle-21
+      sops
+      provision
+      installer-tunables
     ];
 
     nixos = {
-      # home-manager module for the homeManager class, lix as the nix impl.
-      # hjem is wired by den, so importing its module here declares hjem-lib
-      # twice. disko is imported per host, next to its disko.devices.
+      # home-manager + lix modules. hjem is already wired by den; disko is
+      # imported per host, next to its disko.devices.
       imports = [
         inputs.home-manager.nixosModules.home-manager
         inputs.lix-module.nixosModules.default

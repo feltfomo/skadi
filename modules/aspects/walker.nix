@@ -2,7 +2,7 @@
 {
   den.aspects.walker.homeManager = {
     imports = [ inputs.walker.homeManagerModules.walker ];
-    # temmplate from wiki havent configured yet
+    # template from wiki, haven't configured yet
     programs.walker = {
       enable = true;
       runAsService = true;

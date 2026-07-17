@@ -40,14 +40,9 @@ let
     };
 in
 {
-  # nixos = compositor, homeManager = daemon, hjem = config files. all three are
-  # owned by khion + lumi -- the compositor through program's host-only nixos
-  # path (resolveSystem, no user in scope at the system slice), the home slices
-  # through the spec's `hosts` claim. program reads host lazily from each class
-  # module's own args, so this is a bare `program { ... }` call with no
-  # { host, ... }: wrapper and no hand-split. vm stays excluded so the headless
-  # installer-test VM never pulls the compositor closure. add `users = [ ... ];`
-  # to a file to give it to only those users.
+  # nixos = compositor, homeManager = daemon, hjem = config files. owned by
+  # khion + lumi; vm stays excluded so the headless installer-test VM never
+  # pulls the compositor closure.
   den.aspects.hyprland = program {
     hosts = [
       "khion"

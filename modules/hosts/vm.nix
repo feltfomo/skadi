@@ -9,9 +9,9 @@
   };
 
   den.aspects.vm = {
-    includes = [
-      den.aspects.base # system + impermanence + sops + graalvm + thunar
-      den.aspects.notion-sync # exercises the notion-token secret + mappings
+    includes = with den.aspects; [
+      base # system + impermanence + sops + graalvm + thunar
+      notion-sync # exercises the notion-token secret + mappings
     ];
 
     nixos.imports = [

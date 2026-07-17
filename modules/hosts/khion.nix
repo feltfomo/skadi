@@ -7,18 +7,18 @@
   # den activates the host aspect, so feature includes go here. includes on
   # the host entity are inert freeform metadata.
   den.aspects.khion = {
-    includes = [
-      den.aspects.base
-      den.aspects.cpuid-hypervisor
-      den.aspects.docker
-      den.aspects.gpu-nvidia
-      den.aspects.hermes
-      den.aspects.networking
-      den.aspects.notion-sync
-      den.aspects.steam
-      den.aspects.tailscale
-      den.aspects.wayland
-      den.aspects.noctalia-greeter
+    includes = with den.aspects; [
+      base
+      cpuid-hypervisor
+      docker
+      gpu-nvidia
+      hermes
+      networking
+      notion-sync
+      steam
+      tailscale
+      wayland
+      noctalia-greeter
     ];
 
     # disko's nixos module must sit with the disko.devices it enables

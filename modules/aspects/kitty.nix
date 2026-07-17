@@ -4,12 +4,7 @@
   ...
 }:
 {
-  # kitty claims no host or user, so it is globally owned -- the ownerships
-  # engine resolves an untagged spec with no build ctx at all. narrowing
-  # wouldn't change this shape either: program.nix takes hosts/users as claim
-  # keys on the spec itself, and resolve threads host/user into the class
-  # modules lazily -- see hyprland.nix, which narrows on host and still stays a
-  # bare call with no { host, user }: wrapper.
+  # kitty claims no host or user, so it is globally owned.
   den.aspects.kitty = program {
     pkg = pkgs: pkgs.kitty;
     files = [

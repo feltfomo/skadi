@@ -1,27 +1,26 @@
 { inputs, den, ... }:
 {
   den.aspects.feltfomo = {
-    includes = [
+    includes = with den.aspects; [
       den.batteries.define-user
       den.batteries.primary-user
 
-      # home aspects must be included on the user. den dropped host to user
-      # homeManager forwarding in v0.13, so host aspects no longer reach this
-      # home. aspects that also define nixos still contribute it to the host.
-      den.aspects.shell
-      den.aspects.theming
-      den.aspects.hyprland
-      den.aspects.kitty
-      den.aspects.nvim
-      den.aspects.fuzzel
-      den.aspects.spicetify
-      den.aspects.noctalia
-      den.aspects.walker
-      den.aspects.firefox
-      den.aspects.qt-hm
+      # home aspects go on the user: den dropped host->user homeManager
+      # forwarding in v0.13. aspects that also define nixos still reach the host.
+      shell
+      theming
+      hyprland
+      kitty
+      nvim
+      fuzzel
+      spicetify
+      noctalia
+      walker
+      firefox
+      qt-hm
 
       # first-boot: clone wallpaper + notion-sync mapping repos if missing
-      den.aspects.bootstrap-repos
+      bootstrap-repos
     ];
 
     # define-user makes a normal user and sets the home dir,
@@ -164,6 +163,7 @@
           brave
           satty
           heroic
+          gamescope
           gifski
           zenity
           logseqPkgs.logseq

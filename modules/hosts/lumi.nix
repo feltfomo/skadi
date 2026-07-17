@@ -8,11 +8,11 @@
   # den activates the host aspect, so feature includes go here. includes on
   # the host entity are inert freeform metadata.
   den.aspects.lumi = {
-    includes = [
-      den.aspects.base
-      den.aspects.gnome
-      den.aspects.networking
-      den.aspects.wayland
+    includes = with den.aspects; [
+      base
+      gnome
+      networking
+      wayland
     ];
 
     # disko's nixos module must sit with the disko.devices it enables
