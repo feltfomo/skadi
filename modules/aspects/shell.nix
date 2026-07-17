@@ -25,6 +25,9 @@ _: {
 
       home.packages = with pkgs; [
         eza
+        # fd + ripgrep: general shell tools that also power nvim's telescope
+        fd
+        ripgrep
       ];
     };
 }

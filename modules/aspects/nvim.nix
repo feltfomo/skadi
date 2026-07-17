@@ -13,8 +13,6 @@
         name = "neovim-with-deps";
         paths = with pkgs; [
           neovim
-          ripgrep
-          fd
           gcc
           tree-sitter
           nixd
