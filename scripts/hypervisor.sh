@@ -11,7 +11,7 @@ case "${1:-}" in
     sudo modprobe kvm_amd kvm
     ;;
   status)
-    if lsmod | grep -q '^cpuid_fault_emulation'; then
+    if [ -d /sys/module/cpuid_fault_emulation ]; then
       echo "hypervisor: ENABLED (cpuid module loaded, kvm unloaded)"
     else
       echo "hypervisor: disabled (kvm loaded)"
