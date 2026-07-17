@@ -9,6 +9,7 @@
   den.aspects.khion = {
     includes = [
       den.aspects.base
+      den.aspects.cpuid-hypervisor
       den.aspects.docker
       den.aspects.gpu-nvidia
       den.aspects.hermes
