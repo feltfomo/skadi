@@ -1,6 +1,9 @@
 [dock]
 background_opacity = 0.6
+border_width = 1.0
 enabled = true
 launcher_position = "start"
+margin_edge = 10
 monitors = ["DP-1"]
 pinned = ["steam", "spotify", "firefox", "equibop", "zen-twilight"]
+show_dots = true

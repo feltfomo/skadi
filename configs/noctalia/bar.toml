@@ -1,5 +1,10 @@
 [bar.default]
 background_opacity = 0.6
-end = ["tray", "volume", "notifications", "clipboard", "bluetooth", "wallpaper", "control-center"]
+end = ["temp", "ram", "cpu", "tray", "volume", "wallpaper", "notifications", "control-center"]
+margin_edge = 6
 margin_ends = 10.0
-start = ["workspaces", "space", "media"]
+margin_opposite_edge = 1
+start = ["workspaces", "space", "media", "audio_visualizer"]
+
+[widget.volume]
+show_label = false
