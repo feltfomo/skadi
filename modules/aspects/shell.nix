@@ -10,10 +10,10 @@ _: {
         '';
 
         shellAliases = {
-          ls = "eza --icons";
-          ln = "eza --icons --long";
-          lt = "eza --icons --tree";
-          ltn = "eza --icons --tree -long";
+          ls = "eza --icons=always";
+          ln = "eza --icons=always --long";
+          lt = "eza --icons=always --tree";
+          ltn = "eza --icons=always --tree -long";
         };
       };
 
