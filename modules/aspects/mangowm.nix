@@ -5,11 +5,8 @@
   ...
 }:
 {
-  # nixos = compositor (programs.mango from the mango flake), hjem = config
-  # files. owned by khion + lumi; vm stays excluded so the headless
-  # installer-test VM never pulls the compositor closure. sits alongside
-  # hyprland -- both compositors install, the display manager lists both
-  # sessions, you pick one per login.
+  # vm excluded -- the installer-test VM doesn't need a compositor
+  # closure. coexists with hyprland, not a replacement.
   den.aspects.mangowm = program {
     hosts = [
       "khion"
@@ -26,9 +23,7 @@
           enable = true;
           package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
-        # wlr portal for screen sharing under mango. hyprland's portal stays
-        # wired by its own aspect; mango-portals.conf routes ScreenCast to wlr
-        # only when a mango session is running.
+        # wlr portal for mango sessions. hyprland's stays on its own aspect.
         environment.systemPackages = [ pkgs.xdg-desktop-portal-wlr ];
       }
     ];
@@ -85,8 +80,8 @@
       theme.templates.user.mango = {
         input_path = "~/.config/noctalia/templates/mango/colors.conf";
         output_path = "~/.config/mango/colors.conf";
-        # reload mango after rendering so the new palette applies live, same
-        # pattern as kitty's post_hook=pkill -SIGUSR1 kitty.
+        # reload so the new palette applies live (kitty does the same
+        # with pkill -SIGUSR1).
         post_hook = "mmsg -d reload_config";
       };
     };
