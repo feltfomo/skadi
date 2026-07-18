@@ -1367,6 +1367,449 @@ let
         in
         throws (engine.resolve args unit) && throws (engine.trace args unit);
     }
+
+    {
+      name = "default merger remains strict ordered and keeps contributor shape";
+      pass =
+        let
+          merger = merge.mkMerge { };
+          entries = [
+            {
+              value = {
+                tags = [ "a" ];
+                port = 80;
+              };
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+              };
+            }
+            {
+              value = {
+                tags = [ "b" ];
+                port = 80;
+              };
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+              };
+            }
+          ];
+          merged = merger.mergeTracked entries;
+          stripped = engine.stripForMerge [
+            {
+              claim = { };
+              value.answer = 42;
+            }
+          ];
+        in
+        merged.value == {
+          tags = [
+            "a"
+            "b"
+          ];
+          port = 80;
+        }
+        &&
+          builtins.attrNames (builtins.head stripped).contributor == [
+            "identity"
+            "owners"
+          ];
+    }
+
+    {
+      name = "different unit profiles on disjoint attrs fall back to deep cleanly";
+      pass =
+        let
+          merged = (merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.left = 1;
+              contributor = {
+                identity = "unit 'left'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value.right = 2;
+              contributor = {
+                identity = "unit 'right'";
+                owners = { };
+                mergeProfile = "strict-ordered";
+              };
+            }
+          ];
+        in
+        merged.value == {
+          left = 1;
+          right = 2;
+        };
+    }
+
+    {
+      name = "unanimous last-wins units deep-merge disjoint attrs";
+      pass =
+        let
+          merged = (merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.left = 1;
+              contributor = {
+                identity = "unit 'left'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value.right = 2;
+              contributor = {
+                identity = "unit 'right'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+          ];
+        in
+        merged.value == {
+          left = 1;
+          right = 2;
+        };
+    }
+
+    {
+      name = "different explicit profiles on one scalar throw loud";
+      pass =
+        throws
+          ((merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value.port = 443;
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+                mergeProfile = "strict-ordered";
+              };
+            }
+          ]).value;
+    }
+
+    {
+      name = "unanimous last-wins units select the right scalar";
+      pass =
+        let
+          merged = (merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value.port = 443;
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+          ];
+        in
+        merged.value.port == 443;
+    }
+
+    {
+      name = "one last-wins unit cannot override an unprofiled scalar co-owner";
+      pass =
+        throws
+          ((merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.port = 80;
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value.port = 443;
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+              };
+            }
+          ]).value;
+    }
+
+    {
+      name = "one last-wins list contributor cannot silently merge with an unprofiled co-owner";
+      pass =
+        throws
+          ((merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.tags = [ "a" ];
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value.tags = [ "b" ];
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+              };
+            }
+          ]).value;
+    }
+
+    {
+      name = "path profile is authoritative and isolated to its selected paths";
+      pass =
+        let
+          merger = merge.mkMerge {
+            profiles = merge.builtinProfiles;
+            profileForPath = path: if path == "tags" then "last-wins" else null;
+          };
+          merged = merger.mergeTracked [
+            {
+              value = {
+                tags = [ "old" ];
+                log = [ 1 ];
+                stable = true;
+              };
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+              };
+            }
+            {
+              value = {
+                tags = [ "new" ];
+                log = [ 2 ];
+                stable = true;
+              };
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+              };
+            }
+          ];
+        in
+        merged.value == {
+          tags = [ "new" ];
+          log = [
+            1
+            2
+          ];
+          stable = true;
+        };
+    }
+
+    {
+      name = "last-wins attrset treatment reuses the right tracked subtree";
+      pass =
+        let
+          merger = merge.mkMerge {
+            profiles = merge.builtinProfiles;
+            profileForPath = path: if path == "service" then "last-wins" else null;
+          };
+          merged = merger.mergeTracked [
+            {
+              value.service = {
+                port = 80;
+                left = true;
+              };
+              contributor = {
+                identity = "unit 'a'";
+                owners = { };
+              };
+            }
+            {
+              value.service = {
+                port = 443;
+                right = true;
+              };
+              contributor = {
+                identity = "unit 'b'";
+                owners = { };
+              };
+            }
+          ];
+          serviceProvenance = merged.provenance.children.service;
+        in
+        merged.value.service == {
+          port = 443;
+          right = true;
+        }
+        &&
+          map (contributor: contributor.identity) serviceProvenance.contributors == [
+            "unit 'a'"
+            "unit 'b'"
+          ]
+        &&
+          builtins.attrNames serviceProvenance.children == [
+            "port"
+            "right"
+          ];
+    }
+
+    {
+      name = "unknown contributor and path profile names fail closed";
+      pass =
+        throws
+          ((merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value.answer = 42;
+              contributor = {
+                identity = "unit 'bad'";
+                owners = { };
+                mergeProfile = "missing";
+              };
+            }
+          ]).value
+        &&
+          throws
+            (
+              (merge.mkMerge {
+                profiles = merge.builtinProfiles;
+                profileForPath = path: if path == "port" then "missing" else null;
+              }).mergeTracked
+              [
+                {
+                  value.port = 80;
+                  contributor = {
+                    identity = "unit 'a'";
+                    owners = { };
+                  };
+                }
+                {
+                  value.port = 443;
+                  contributor = {
+                    identity = "unit 'b'";
+                    owners = { };
+                  };
+                }
+              ]
+            ).value;
+    }
+
+    {
+      name = "lock authorization still precedes last-wins policy";
+      pass =
+        throws
+          (
+            (merge.mkMerge {
+              profiles = merge.builtinProfiles;
+              profileForPath = path: if path == "port" then "last-wins" else null;
+              lockFor = path: if path == "port" then contributor: contributor.identity == "unit 'a'" else null;
+            }).mergeTracked
+            [
+              {
+                value.port = 80;
+                contributor = {
+                  identity = "unit 'a'";
+                  owners = { };
+                };
+              }
+              {
+                value.port = 443;
+                contributor = {
+                  identity = "unit 'b'";
+                  owners = { };
+                };
+              }
+            ]
+          ).value;
+    }
+
+    {
+      name = "profiled merge doesn't force values, identity, or owners";
+      pass =
+        let
+          merged = (merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked [
+            {
+              value = {
+                answer = 1;
+                pkg = poisonDerivation;
+              };
+              contributor = {
+                identity = throw "forced profiled identity";
+                owners = throw "forced profiled owners";
+                mergeProfile = "last-wins";
+              };
+            }
+            {
+              value = {
+                answer = 2;
+                secret = poisonSecret;
+              };
+              contributor = {
+                identity = throw "forced profiled identity";
+                owners = throw "forced profiled owners";
+                mergeProfile = "last-wins";
+              };
+            }
+          ];
+          inherit (merged) value;
+        in
+        builtins.deepSeq value.answer (value.answer == 2)
+        && builtins.deepSeq (builtins.attrNames value) (
+          builtins.attrNames value == [
+            "answer"
+            "secret"
+          ]
+        );
+    }
+
+    {
+      name = "profiled resolve keeps poison payloads and contributor metadata lazy";
+      pass =
+        let
+          profiledMerge = (merge.mkMerge { profiles = merge.builtinProfiles; }).mergeTracked;
+          value =
+            engine.resolve
+              {
+                inherit registry ctx;
+                merge = profiledMerge;
+              }
+              {
+                children = [
+                  {
+                    label = throw "forced profiled resolve identity";
+                    mergeProfile = "last-wins";
+                    value = {
+                      answer = 1;
+                      pkg = poisonDerivation;
+                    };
+                  }
+                  {
+                    source = throw "forced profiled resolve identity";
+                    mergeProfile = "last-wins";
+                    value = {
+                      answer = 2;
+                      secret = poisonSecret;
+                    };
+                  }
+                ];
+              };
+        in
+        builtins.deepSeq value.answer (value.answer == 2)
+        && builtins.deepSeq (builtins.attrNames value) (
+          builtins.attrNames value == [
+            "answer"
+            "secret"
+          ]
+        );
+    }
   ];
 
   failing = builtins.filter (c: !c.pass) cases;

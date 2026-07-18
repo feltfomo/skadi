@@ -37,9 +37,27 @@ let
     else
       throw (renderConflict path (a.contributors ++ b.contributors));
 
+  takeRightScalar =
+    _path: _a: b:
+    b.value;
+
   builtinStrategies = {
     "ordered-concat" = a: b: a ++ b;
     "dedup-union" = a: b: lib.unique (a ++ b);
+    "take-right" = _a: b: b;
+  };
+
+  builtinProfiles = {
+    "strict-ordered" = {
+      listStrategy = "ordered-concat";
+      scalarPolicy = strictScalar;
+      attrsetTreatment = "deep";
+    };
+    "last-wins" = {
+      listStrategy = "take-right";
+      scalarPolicy = takeRightScalar;
+      attrsetTreatment = "take-right";
+    };
   };
 
   mkMerge =
@@ -48,11 +66,58 @@ let
       listStrategyFor ? (_path: "ordered-concat"),
       conflictPolicy ? strictScalar,
       lockFor ? (_path: null),
+      profiles ? builtinProfiles,
+      profileForPath ? (_path: null),
     }:
     let
       lockingEnabled = args ? lockFor;
+      profilingEnabled = args ? profiles;
       subPath = path: key: if path == "" then key else "${path}.${key}";
       provenanceAttrs = value: isAttrs value && (value.type or null) != "derivation";
+
+      profileNamed =
+        path: name:
+        if !builtins.isString name then
+          throw "ownerships: merge profile name at ${shownPath path} must be a string; got ${builtins.typeOf name}"
+        else
+          profiles.${name}
+            or (throw "ownerships: unknown merge profile ${safeRender name} at ${shownPath path}");
+
+      validateContributorProfile =
+        contributor:
+        if contributor ? mergeProfile then
+          builtins.seq (profileNamed "<unit>" contributor.mergeProfile) true
+        else
+          true;
+
+      profileDecision =
+        path: contributors:
+        let
+          pathName = profileForPath path;
+          names = map (contributor: contributor.mergeProfile or null) contributors;
+          explicit = lib.unique (builtins.filter (name: name != null) names);
+          mixed = explicit != [ ] && builtins.any (name: name == null) names;
+          explicitDisagreement = builtins.length explicit > 1;
+          disagreement = explicitDisagreement || mixed;
+          selectedName =
+            if pathName != null then
+              pathName
+            else if !disagreement && explicit != [ ] then
+              head explicit
+            else
+              "strict-ordered";
+        in
+        {
+          name = selectedName;
+          profile = profileNamed path selectedName;
+          unitDisagreement = pathName == null && disagreement;
+          unitExplicitDisagreement = pathName == null && explicitDisagreement;
+          unitProfiles = explicit;
+        };
+
+      renderProfileDisagreement =
+        path: decision: contributors:
+        "ownerships: merge profile disagreement at ${shownPath path}: contributors ${lib.concatStringsSep ", " (contributorIdentities contributors)} selected incompatible unit profiles ${safeRender decision.unitProfiles}";
 
       authorize =
         path: contributors:
@@ -90,11 +155,13 @@ let
             children = lib.mapAttrs (_: child: child.provenance) children;
           };
           checkedValue =
-            if !lockingEnabled then
+            if !lockingEnabled && !profilingEnabled then
               node.value
             else
-              builtins.seq (authorize path node.contributors) (
-                if provenanceAttrs node.value then lib.mapAttrs (_: child: child.value) children else node.value
+              builtins.seq (if lockingEnabled then authorize path node.contributors else true) (
+                builtins.seq (
+                  if profilingEnabled then lib.all validateContributorProfile node.contributors else true
+                ) (if provenanceAttrs node.value then lib.mapAttrs (_: child: child.value) children else node.value)
               );
         in
         node
@@ -111,9 +178,22 @@ let
         let
           contributors = a.contributors ++ b.contributors;
           checked = if lockingEnabled then authorize path contributors else true;
-        in
-        builtins.seq checked (
-          if isAttrs a.value && isAttrs b.value then
+          profilesChecked =
+            if profilingEnabled then lib.all validateContributorProfile contributors else true;
+          decision = if profilingEnabled then profileDecision path contributors else null;
+          listProfile =
+            if decision.unitDisagreement then
+              throw (renderProfileDisagreement path decision contributors)
+            else
+              decision.profile;
+          scalarProfile =
+            if decision.unitExplicitDisagreement then
+              throw (renderProfileDisagreement path decision contributors)
+            else
+              decision.profile;
+          attrKeysOverlap = builtins.any (key: b.value ? ${key}) (builtins.attrNames a.value);
+
+          deepMerge =
             let
               keys = lib.attrNames (a.value // b.value);
               children = lib.genAttrs keys (
@@ -147,31 +227,63 @@ let
                 inherit path contributors;
                 children = lib.mapAttrs (_: child: child.provenance) children;
               };
-            }
-          else if isList a.value && isList b.value then
-            let
-              name = listStrategyFor path;
-              strategy = strategies.${name} or (throw "ownerships: no merge strategy '${name}' (at ${path})");
-            in
-            {
-              value = strategy a.value b.value;
-              inherit contributors;
-              # Lists are terminal because their strategy merges the list as a
-              # whole. Contributors are ordered leaves, never per-element owners.
-              provenance = {
-                inherit path contributors;
-                children = { };
-              };
-            }
-          else
-            {
-              value = conflictPolicy path a b;
-              inherit contributors;
-              provenance = {
-                inherit path contributors;
-                children = { };
-              };
-            }
+            };
+        in
+        builtins.seq checked (
+          builtins.seq profilesChecked (
+            if isAttrs a.value && isAttrs b.value then
+              if
+                profilingEnabled
+                && !decision.unitDisagreement
+                && decision.profile.attrsetTreatment == "take-right"
+                && attrKeysOverlap
+              then
+                let
+                  right = if b ? provenance then b else adoptNode path b;
+                in
+                {
+                  inherit (right) value;
+                  inherit contributors;
+                  provenance = {
+                    inherit path contributors;
+                    children = right.provenance.children;
+                  };
+                }
+              else if
+                profilingEnabled
+                && !builtins.elem decision.profile.attrsetTreatment [
+                  "deep"
+                  "take-right"
+                ]
+              then
+                throw "ownerships: unknown attrset treatment ${safeRender decision.profile.attrsetTreatment} in merge profile ${safeRender decision.name}"
+              else
+                deepMerge
+            else if isList a.value && isList b.value then
+              let
+                name = if profilingEnabled then listProfile.listStrategy else listStrategyFor path;
+                strategy = strategies.${name} or (throw "ownerships: no merge strategy '${name}' (at ${path})");
+              in
+              {
+                value = strategy a.value b.value;
+                inherit contributors;
+                # Lists are terminal because their strategy merges the list as a
+                # whole. Contributors are ordered leaves, never per-element owners.
+                provenance = {
+                  inherit path contributors;
+                  children = { };
+                };
+              }
+            else
+              {
+                value = if profilingEnabled then scalarProfile.scalarPolicy path a b else conflictPolicy path a b;
+                inherit contributors;
+                provenance = {
+                  inherit path contributors;
+                  children = { };
+                };
+              }
+          )
         );
 
       mergeTracked =
@@ -241,7 +353,9 @@ in
 {
   inherit
     builtinStrategies
+    builtinProfiles
     strictScalar
+    takeRightScalar
     renderConflict
     renderLockViolation
     mkMerge

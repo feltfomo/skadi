@@ -19,6 +19,8 @@ let
     mkResolveSystemTrace
     mkResolveStrict
     mkResolveSystemStrict
+    mkResolveProfiled
+    mkResolveSystemProfiled
     translate
     claimKeys
     ;
@@ -44,6 +46,8 @@ let
   resolveSystemTrace = mkResolveSystemTrace roster;
   resolveStrict = mkResolveStrict roster;
   resolveSystemStrict = mkResolveSystemStrict roster;
+  resolveProfiled = mkResolveProfiled { } roster;
+  resolveSystemProfiled = mkResolveSystemProfiled { } roster;
 
   # khion, as feltfomo, on an nvidia box -- enough to drive the host/user set
   # claims and a `when` predicate that reads a freeform host attribute.
@@ -775,6 +779,76 @@ let
           ];
         in
         throws (resolve units ctx) && throws (resolveTrace units ctx);
+    }
+    {
+      name = "profiled surface applies unanimous unit selection";
+      pass =
+        resolveProfiled [
+          {
+            mergeProfile = "last-wins";
+            port = 80;
+          }
+          {
+            mergeProfile = "last-wins";
+            port = 443;
+          }
+        ] ctx == {
+          port = 443;
+        };
+    }
+    {
+      name = "profiled system surface applies unanimous unit selection";
+      pass =
+        resolveSystemProfiled [
+          {
+            mergeProfile = "last-wins";
+            port = 80;
+          }
+          {
+            mergeProfile = "last-wins";
+            port = 443;
+          }
+        ] ctxSystemKhion == {
+          port = 443;
+        };
+    }
+    {
+      name = "profiled surface rejects unknown profiles on inactive units";
+      pass = throws (
+        resolveProfiled [
+          {
+            hosts = [ "lumi" ];
+            mergeProfile = "missing";
+            pkg = "inactive";
+          }
+        ] ctx
+      );
+    }
+    {
+      name = "default surface reserves mergeProfile without enabling it";
+      pass =
+        resolve [
+          {
+            mergeProfile = "last-wins";
+            pkg = "kept";
+          }
+        ] ctx == {
+          pkg = "kept";
+        };
+    }
+    {
+      name = "a parent merge profile doesn't inherit into child contributors";
+      pass = throws (
+        resolveProfiled [
+          {
+            mergeProfile = "last-wins";
+            children = [
+              { port = 80; }
+              { port = 443; }
+            ];
+          }
+        ] ctx
+      );
     }
   ];
 

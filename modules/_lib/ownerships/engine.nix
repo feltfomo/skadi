@@ -53,6 +53,7 @@ let
             }
             // lib.optionalAttrs (node ? label) { inherit (node) label; }
             // lib.optionalAttrs (node ? source) { inherit (node) source; }
+            // lib.optionalAttrs (node ? mergeProfile) { inherit (node) mergeProfile; }
           );
         in
         self ++ concatMap (go eff) (node.children or [ ]);
@@ -278,7 +279,8 @@ let
           source = leaf.source or null;
         };
         owners = leaf.claim;
-      };
+      }
+      // lib.optionalAttrs (leaf ? mergeProfile) { inherit (leaf) mergeProfile; };
     }) leaves;
 
   # per axis, the effective claim must be satisfiable against the roster; an empty

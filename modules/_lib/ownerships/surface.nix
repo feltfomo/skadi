@@ -39,6 +39,7 @@ let
     "value"
     "label"
     "source"
+    "mergeProfile"
   ];
 
   # ownership keys are read by name off a unit's top level, so a config value
@@ -78,19 +79,33 @@ let
   # word, not the meaning: `checked.value` is the author-facing escape-hatch
   # key, `payload` becomes the engine leaf's `value` field (the config every
   # leaf carries, hatch or not) -- don't conflate them.
-  translate =
-    unit:
+  translateWith =
+    profileNames: unit:
     let
       checked = checkShape unit;
-      payload = checked.value or (removeAttrs checked reserved);
+      profileChecked =
+        if profileNames == null || !(checked ? mergeProfile) then
+          checked
+        else if !builtins.isString checked.mergeProfile then
+          throw "ownerships: 'mergeProfile' must be a plain string; got ${builtins.typeOf checked.mergeProfile}"
+        else if !(builtins.elem checked.mergeProfile profileNames) then
+          throw "ownerships: unknown merge profile '${checked.mergeProfile}'"
+        else
+          checked;
+      payload = profileChecked.value or (removeAttrs profileChecked reserved);
     in
     {
-      claim = claimOf checked;
+      claim = claimOf profileChecked;
     }
     // lib.optionalAttrs (payload != { }) { value = payload; }
-    // lib.optionalAttrs (checked ? children) { children = map translate checked.children; }
-    // lib.optionalAttrs (checked ? label) { inherit (checked) label; }
-    // lib.optionalAttrs (checked ? source) { inherit (checked) source; };
+    // lib.optionalAttrs (profileChecked ? children) {
+      children = map (translateWith profileNames) profileChecked.children;
+    }
+    // lib.optionalAttrs (profileChecked ? label) { inherit (profileChecked) label; }
+    // lib.optionalAttrs (profileChecked ? source) { inherit (profileChecked) source; }
+    // lib.optionalAttrs (profileChecked ? mergeProfile) { inherit (profileChecked) mergeProfile; };
+
+  translate = translateWith null;
 
   # bind the surface to a roster once -- the fleet the owners are checked against.
   # the returned resolve takes the authored units and yields a context-consuming
@@ -179,6 +194,38 @@ let
       } { children = map translate units; }
     );
 
+  mkResolveProfiled =
+    profileArgs: roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+      profiles = profileArgs.profiles or mergeLib.builtinProfiles;
+      profiledMerge = (mergeLib.mkMerge (profileArgs // { inherit profiles; })).mergeTracked;
+      translateProfiled = translateWith (builtins.attrNames profiles);
+    in
+    units: rawCtx:
+    engine.resolve {
+      inherit (base) registry stages;
+      merge = profiledMerge;
+      ctx = axes.contextFor base.registry rawCtx;
+    } { children = map translateProfiled units; };
+
+  mkResolveSystemProfiled =
+    profileArgs: roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+      profiles = profileArgs.profiles or mergeLib.builtinProfiles;
+      profiledMerge = (mergeLib.mkMerge (profileArgs // { inherit profiles; })).mergeTracked;
+      translateProfiled = translateWith (builtins.attrNames profiles);
+    in
+    units: rawCtx:
+    builtins.seq (lib.all (assertScope "system") units) (
+      engine.resolve {
+        inherit (base) registry stages;
+        merge = profiledMerge;
+        ctx = axes.contextFor base.registry rawCtx;
+      } { children = map translateProfiled units; }
+    );
+
   # Opt-in strict siblings of mkResolve/mkResolveSystem: validate the ctx's
   # roster-backed context names before delegating to the exact same
   # resolve function, so the permissive path is byte-identical by
@@ -219,6 +266,8 @@ in
     mkResolveSystemTrace
     mkResolveStrict
     mkResolveSystemStrict
+    mkResolveProfiled
+    mkResolveSystemProfiled
     translate
     claimKeys
     ;
