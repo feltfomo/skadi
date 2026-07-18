@@ -56,38 +56,6 @@
         dest = ".config/nvim/lua/plugins/metals.lua";
         src = "${rootPath}/configs/nvim/lua/plugins/metals.lua";
       }
-      {
-        dest = ".config/nvim/lsp/nixd.lua";
-        src = "${rootPath}/configs/nvim/lsp/nixd.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/lua_ls.lua";
-        src = "${rootPath}/configs/nvim/lsp/lua_ls.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/rust_analyzer.lua";
-        src = "${rootPath}/configs/nvim/lsp/rust_analyzer.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/jdtls.lua";
-        src = "${rootPath}/configs/nvim/lsp/jdtls.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/kotlin_language_server.lua";
-        src = "${rootPath}/configs/nvim/lsp/kotlin_language_server.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/pyright.lua";
-        src = "${rootPath}/configs/nvim/lsp/pyright.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/zls.lua";
-        src = "${rootPath}/configs/nvim/lsp/zls.lua";
-      }
-      {
-        dest = ".config/nvim/lsp/ols.lua";
-        src = "${rootPath}/configs/nvim/lsp/ols.lua";
-      }
     ];
   };
 }
