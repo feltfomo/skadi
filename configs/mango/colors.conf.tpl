@@ -1,0 +1,10 @@
+rootcolor=0x{{ colors.surface_container.default.hex_stripped }}ff
+bordercolor=0x{{ colors.outline_variant.default.hex_stripped }}ff
+focuscolor=0x{{ colors.primary.default.hex_stripped }}ff
+urgentcolor=0x{{ colors.error.default.hex_stripped }}ff
+dropcolor=0x{{ colors.primary.default.hex_stripped }}55
+splitcolor=0x{{ colors.tertiary.default.hex_stripped }}ff
+maximizescreencolor=0x{{ colors.primary_container.default.hex_stripped }}ff
+scratchpadcolor=0x{{ colors.secondary_container.default.hex_stripped }}ff
+globalcolor=0x{{ colors.tertiary.default.hex_stripped }}ff
+overlaycolor=0x{{ colors.primary_fixed.default.hex_stripped }}ff

@@ -10,6 +10,7 @@
       shell
       theming
       hyprland
+      mangowm
       kitty
       nvim
       fuzzel
@@ -181,6 +182,7 @@
           winetricks
           hyprpicker
           zed-editor
+	  motrix-next
           evil-helix
           qbittorrent
           tor-browser
