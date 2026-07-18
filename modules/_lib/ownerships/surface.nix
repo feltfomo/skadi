@@ -24,6 +24,7 @@ let
     relations = relationRegistrations;
   };
   mergeLib = import ./merge.nix { inherit lib; };
+  matrixLib = import ./matrix.nix { inherit lib; };
 
   defaultMerge = (mergeLib.mkMerge { }).mergeTracked;
 
@@ -194,6 +195,59 @@ let
       } { children = map translate units; }
     );
 
+  # Matrix siblings keep config values inside the engine and return only stable
+  # snapshot keys, human identity, shallow shape, and selection metadata. A
+  # caller can enrich each roster context for predicates that read more than
+  # entity names; the default is the smallest concrete context.
+  mkResolveMatrix =
+    roster:
+    {
+      units,
+      contextFor ? (
+        { hostName, userName }: {
+          host.name = hostName;
+          user.name = userName;
+        }
+      ),
+    }:
+    let
+      base = resolveLib.engineArgsFor roster;
+      contexts = matrixLib.mkUserContexts {
+        inherit roster;
+        contextFor = names: axes.contextFor base.registry (contextFor names);
+      };
+    in
+    matrixLib.report {
+      inherit roster contexts;
+      inherit (base) registry stages;
+      merge = defaultMerge;
+      scope = "user";
+      unit.children = map translate units;
+    };
+
+  mkResolveSystemMatrix =
+    roster:
+    {
+      units,
+      contextFor ? ({ hostName }: { host.name = hostName; }),
+    }:
+    let
+      base = resolveLib.engineArgsFor roster;
+      contexts = matrixLib.mkSystemContexts {
+        inherit roster;
+        contextFor = names: axes.contextFor base.registry (contextFor names);
+      };
+    in
+    builtins.seq (lib.all (assertScope "system") units) (
+      matrixLib.report {
+        inherit roster contexts;
+        inherit (base) registry stages;
+        merge = defaultMerge;
+        scope = "system";
+        unit.children = map translate units;
+      }
+    );
+
   mkResolveProfiled =
     profileArgs: roster:
     let
@@ -264,6 +318,8 @@ in
     mkResolveSystem
     mkResolveTrace
     mkResolveSystemTrace
+    mkResolveMatrix
+    mkResolveSystemMatrix
     mkResolveStrict
     mkResolveSystemStrict
     mkResolveProfiled

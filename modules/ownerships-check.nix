@@ -27,5 +27,9 @@
         assert (import ./_lib/ownerships/descriptor-tests.nix { inherit lib; }).ok;
         "touch $out"
       );
+      checks.ownerships-matrix = pkgs.runCommandLocal "ownerships-matrix-tests" { } (
+        assert (import ./_lib/ownerships/matrix-tests.nix { inherit lib; }).ok;
+        "touch $out"
+      );
     };
 }
