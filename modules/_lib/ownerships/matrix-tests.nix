@@ -211,12 +211,14 @@ let
         ]
         && matrix.indeterminate.unknownMembershipUsers == [ "nomad" ]
         && identities matrix.indeterminate.units == [ "unit 'unknown-only'" ]
+        && !(builtins.elem "unit 'unknown-only'" (identities matrix.neverSelectedInModeledContexts))
         && !(builtins.elem "unit 'unknown-only'" (identities matrix.dead));
     }
     {
       name = "when misses are observationally inactive, never dead";
       pass =
         !(builtins.elem "unit 'runtime-only'" (identities matrix.dead))
+        && !(builtins.elem "unit 'runtime-only'" (identities matrix.indeterminate.units))
         &&
           (inactiveNamed "runtime-only").rejections == {
             "khion/feltfomo" = [ "when" ];

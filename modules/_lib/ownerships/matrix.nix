@@ -232,6 +232,8 @@ let
         entry: !selectedSomewhere entry.key && possiblyUnknown entry
       ) liveEntries;
 
+      # Unknown membership explains non-selection more specifically than generic
+      # dormancy, so indeterminate entries never appear in this list.
       neverSelectedInModeledContexts = map (
         entry:
         (projectLeaf entry)
@@ -245,7 +247,7 @@ let
             }) contexts
           );
         }
-      ) (builtins.filter (entry: !selectedSomewhere entry.key) liveEntries);
+      ) (builtins.filter (entry: !selectedSomewhere entry.key && !(possiblyUnknown entry)) liveEntries);
     in
     {
       units = builtins.listToAttrs (
