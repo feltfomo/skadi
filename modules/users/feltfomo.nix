@@ -182,7 +182,7 @@
           winetricks
           hyprpicker
           zed-editor
-	  motrix-next
+          motrix-next
           evil-helix
           qbittorrent
           tor-browser
