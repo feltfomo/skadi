@@ -59,6 +59,48 @@ let
   # tryEval actually catches the impossible/conflict cases.
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
+  # Frozen pre-registry membership check. This is the migration oracle: the
+  # generic relation checker must match it exactly, including diagnostics.
+  inherit (builtins) elem;
+  inherit (builtins) filter;
+  isGlobal = v: v.tag == "exclude" && v.set == [ ];
+  inter = a: b: filter (x: elem x b) a;
+  diff = a: b: filter (x: !(elem x b)) a;
+  resolveMembers = members: v: if v.tag == "include" then inter v.set members else diff members v.set;
+  legacyMembershipCheck =
+    {
+      hosts ? [ ],
+      users ? [ ],
+      membership ? { },
+      usersWithUnknownMembership ? [ ],
+    }:
+    _registry: leaf:
+    let
+      hostClaim = leaf.claim.host;
+      userClaim = leaf.claim.user;
+      hs = resolveMembers hosts hostClaim;
+      us = resolveMembers users userClaim;
+      rescued = builtins.any (u: elem u usersWithUnknownMembership) us;
+      pairs = builtins.any (h: builtins.any (u: elem u (membership.${h} or [ ])) us) hs;
+    in
+    if isGlobal hostClaim || isGlobal userClaim || hs == [ ] || us == [ ] || rescued || pairs then
+      [ ]
+    else
+      [
+        {
+          kind = "impossible";
+          unit = leaf.value;
+          label = leaf.label or null;
+          source = leaf.source or null;
+          axes = [
+            "host"
+            "user"
+          ];
+          claims = leaf.claim;
+          reason = "no user in { ${builtins.concatStringsSep ", " us} } lives on any host in { ${builtins.concatStringsSep ", " hs} } -- this host/user co-ownership can never apply";
+        }
+      ];
+
   # the meet law suite runs over a small closed universe, not sampled -- narrow
   # and top touch no roster, so exhaustive is cheap and actually proves the
   # laws instead of hoping a handful of samples happened to cover what matters.
@@ -140,6 +182,110 @@ let
     + "  - unlabeled unit ${safeShape poisonDerivation}: axis 'host' claim can never be satisfied (disjoint nest or unknown name) (axis 'host', claim ${prettyClaim goldenLeafUnlabeled.claim})"
     + "\n"
     + "  - unit 'my-labeled-unit': axis 'user' claim can never be satisfied (disjoint nest or unknown name) (axis 'user', claim ${prettyClaim goldenLeafLabeled.claim})";
+
+  relationRoster = {
+    hosts = [
+      "khion"
+      "lumi"
+      "server"
+    ];
+    users = [
+      "feltfomo"
+      "grandpa"
+      "nomad"
+      "ghostless"
+    ];
+    membership = {
+      khion = [ "feltfomo" ];
+      lumi = [
+        "feltfomo"
+        "grandpa"
+      ];
+      server = [ ];
+    };
+    usersWithUnknownMembership = [ "nomad" ];
+  };
+  relationRegistry = axes.registry {
+    inherit (relationRoster) hosts users;
+  };
+  hostUserRelation = builtins.head (axes.relationsFor axes.relations relationRoster);
+  relationCheck = engine.mkRelationCheck hostUserRelation;
+  legacyRelationCheck = legacyMembershipCheck relationRoster;
+  relationLeaf = hostClaim: userClaim: {
+    claim = {
+      host = hostClaim;
+      user = userClaim;
+    };
+    value = poisonSecret;
+  };
+  relationMatrix = [
+    {
+      name = "known compatible";
+      leaf = relationLeaf (include [ "khion" ]) (include [ "feltfomo" ]);
+    }
+    {
+      name = "known none";
+      leaf = (relationLeaf (include [ "khion" ]) (include [ "grandpa" ])) // {
+        label = "known-none";
+        source = "modules/example.nix";
+        value.marker = "known-none";
+      };
+    }
+    {
+      name = "one unknown rescues a known incompatible member";
+      leaf = relationLeaf (include [ "khion" ]) (include [
+        "nomad"
+        "grandpa"
+      ]);
+    }
+    {
+      name = "global host side";
+      leaf = relationLeaf global (include [ "grandpa" ]);
+    }
+    {
+      name = "global user side";
+      leaf = relationLeaf (include [ "server" ]) global;
+    }
+    {
+      name = "empty host side";
+      leaf = relationLeaf (include [ "nobody" ]) (include [ "grandpa" ]);
+    }
+    {
+      name = "empty user side";
+      leaf = relationLeaf (include [ "khion" ]) (include [ "nobody" ]);
+    }
+    {
+      name = "multi-member existential compatibility";
+      leaf =
+        relationLeaf
+          (include [
+            "khion"
+            "server"
+          ])
+          (include [
+            "grandpa"
+            "feltfomo"
+          ]);
+    }
+  ];
+  knownNoneLeaf = (builtins.elemAt relationMatrix 1).leaf;
+  knownNoneExpected = {
+    kind = "impossible";
+    unit = knownNoneLeaf.value;
+    label = "known-none";
+    source = "modules/example.nix";
+    axes = [
+      "host"
+      "user"
+    ];
+    claims = knownNoneLeaf.claim;
+    reason = "no user in { grandpa } lives on any host in { khion } -- this host/user co-ownership can never apply";
+  };
+  knownNoneRendered =
+    "ownerships: 1 ownership error(s):\n"
+    + "  - unit 'known-none': ${knownNoneExpected.reason} (axes host, user, claim ${
+        lib.generators.toPretty { multiline = false; } knownNoneLeaf.claim
+      })";
 
   stageRegistry = axes.registry {
     hosts = [
@@ -239,6 +385,33 @@ let
   ];
 
   cases = [
+    {
+      name = "registered host/user relation is byte-identical to the frozen membership check";
+      pass =
+        hostUserRelation.unknown.left == [ ]
+        && hostUserRelation.unknown.right == [ "nomad" ]
+        && lib.all (
+          entry: relationCheck relationRegistry entry.leaf == legacyRelationCheck relationRegistry entry.leaf
+        ) relationMatrix;
+    }
+    {
+      name = "registered relation pins the exact known-none diagnostic and rendered string";
+      pass =
+        relationCheck relationRegistry knownNoneLeaf == [ knownNoneExpected ]
+        &&
+          knownNoneExpected.reason
+          == "no user in { grandpa } lives on any host in { khion } -- this host/user co-ownership can never apply"
+        && engine.renderDiags [ knownNoneExpected ] == knownNoneRendered;
+    }
+    {
+      name = "relation diagnostics identify a poison-carrying leaf without forcing its payload";
+      pass =
+        let
+          leaf = relationLeaf (include [ "khion" ]) (include [ "grandpa" ]);
+          rendered = engine.renderDiags (relationCheck relationRegistry leaf);
+        in
+        (builtins.tryEval (builtins.deepSeq rendered rendered)).success;
+    }
     {
       name = "pre-select tree validity rejects a greeter claimed for vm before selection";
       pass = throws (

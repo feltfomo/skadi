@@ -1,9 +1,9 @@
 # _lib/ownerships/axes.nix
 #
-# Axis implementations and their authoring descriptors. The engine consumes only
-# the registry built from these records; it never learns axis names, author keys,
-# roster fields, or which scopes may use them. A new axis extends this data set
-# instead of adding another branch to the translator or resolver.
+# Axis implementations, authoring descriptors, and cross-axis relation data.
+# The engine consumes registries built from these records; it never learns axis
+# names, author keys, roster fields, or which scopes may use them. New axes and
+# relations extend data here instead of branching the translator or resolver.
 { lib }:
 let
   inherit (builtins) elem filter;
@@ -189,39 +189,21 @@ let
       ctxLabel = _ctx: null;
     };
 
-  mkMembershipCheck =
-    {
-      hosts ? [ ],
-      users ? [ ],
-      membership ? { },
-      usersWithUnknownMembership ? [ ],
-    }:
-    _registry: leaf:
-    let
-      hostClaim = leaf.claim.host;
-      userClaim = leaf.claim.user;
-      hs = resolveMembers hosts hostClaim;
-      us = resolveMembers users userClaim;
-      rescued = builtins.any (u: elem u usersWithUnknownMembership) us;
-      pairs = builtins.any (h: builtins.any (u: elem u (membership.${h} or [ ])) us) hs;
-    in
-    if isGlobal hostClaim || isGlobal userClaim || hs == [ ] || us == [ ] || rescued || pairs then
-      [ ]
-    else
-      [
-        {
-          kind = "impossible";
-          unit = leaf.value;
-          label = leaf.label or null;
-          source = leaf.source or null;
-          axes = [
-            "host"
-            "user"
-          ];
-          claims = leaf.claim;
-          reason = "no user in { ${builtins.concatStringsSep ", " us} } lives on any host in { ${builtins.concatStringsSep ", " hs} } -- this host/user co-ownership can never apply";
-        }
-      ];
+  hostUserRelation = {
+    name = "host-user-membership";
+    leftAxis = "host";
+    rightAxis = "user";
+    unknownFor = roster: {
+      left = [ ];
+      right = roster.usersWithUnknownMembership;
+    };
+    compatibleFor =
+      roster: host: user:
+      elem user (roster.membership.${host} or [ ]);
+    reason =
+      hosts: users:
+      "no user in { ${builtins.concatStringsSep ", " users} } lives on any host in { ${builtins.concatStringsSep ", " hosts} } -- this host/user co-ownership can never apply";
+  };
 
   hostRoster = {
     membersField = "hosts";
@@ -297,19 +279,6 @@ let
       allowedScopes = [ "user" ];
       roster = userRoster;
       scopeError = userScopeError;
-      leafStages = roster: [
-        {
-          view = "leaf";
-          run = mkMembershipCheck {
-            inherit (roster)
-              hosts
-              users
-              membership
-              usersWithUnknownMembership
-              ;
-          };
-        }
-      ];
     })
     (mkPredicateDescriptor {
       name = "when";
@@ -321,6 +290,8 @@ let
       ];
     })
   ];
+
+  relations = [ hostUserRelation ];
 
   authorKeysFor =
     axisDescriptors:
@@ -352,6 +323,20 @@ let
         value = descriptor.axisFor roster;
       }) axisDescriptors
     );
+
+  relationsFor =
+    relationRegistrations: roster:
+    map (
+      relation:
+      (removeAttrs relation [
+        "unknownFor"
+        "compatibleFor"
+      ])
+      // {
+        unknown = relation.unknownFor roster;
+        compatible = relation.compatibleFor roster;
+      }
+    ) relationRegistrations;
 
   leafStagesFor =
     axisDescriptors: roster:
@@ -400,14 +385,16 @@ in
     predicateAxis
     mkSetDescriptor
     mkPredicateDescriptor
-    mkMembershipCheck
     polarityFor
     descriptors
+    hostUserRelation
+    relations
     authorKeysFor
     claimKeysFor
     validateUnit
     claimOf
     registryFor
+    relationsFor
     leafStagesFor
     forbiddenKeysFor
     contextFor

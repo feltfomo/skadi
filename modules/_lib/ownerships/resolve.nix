@@ -1,15 +1,18 @@
 # _lib/ownerships/resolve.nix
 #
-# Public entry. Axis descriptors turn one roster into the engine registry and
-# leaf-stage set, so standalone and den-backed callers share the same path.
+# Public entry. Axis descriptors and relation registrations turn one roster
+# into the engine registry and leaf-stage set, so standalone and den-backed
+# callers share the same path.
 {
   lib,
   descriptors ? null,
+  relations ? null,
 }:
 let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
+  relationRegistrations = if relations == null then axes.relations else relations;
   mergeLib = import ./merge.nix { inherit lib; };
   rosterLib = import ./roster.nix {
     inherit lib;
@@ -18,16 +21,27 @@ let
 
   defaultMerge = (mergeLib.mkMerge { }).mergeTracked;
 
-  engineArgsFor = roster: {
-    registry = axes.registryFor axisDescriptors roster;
-    stages = [
-      {
+  engineArgsFor =
+    roster:
+    let
+      registry = axes.registryFor axisDescriptors roster;
+      relationStages = map (relation: {
+        inherit (relation) name;
         view = "leaf";
-        run = engine.satisfiableCheck;
-      }
-    ]
-    ++ axes.leafStagesFor axisDescriptors roster;
-  };
+        run = engine.mkRelationCheck relation;
+      }) (axes.relationsFor relationRegistrations roster);
+    in
+    {
+      inherit registry;
+      stages = [
+        {
+          view = "leaf";
+          run = engine.satisfiableCheck;
+        }
+      ]
+      ++ relationStages
+      ++ axes.leafStagesFor axisDescriptors roster;
+    };
 
   validateRosterCtx =
     roster: ctx:

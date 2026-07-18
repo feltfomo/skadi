@@ -34,8 +34,24 @@ let
   };
 
   descriptors = axes.descriptors ++ [ roleDescriptor ];
-  surface = import ./surface.nix { inherit lib descriptors; };
-  resolveLib = import ./resolve.nix { inherit lib descriptors; };
+  hostRoleRelation = {
+    name = "host-role-membership";
+    leftAxis = "host";
+    rightAxis = "role";
+    unknownFor = _roster: {
+      left = [ ];
+      right = [ ];
+    };
+    compatibleFor =
+      roster: host: role:
+      builtins.elem role (roster.roleMembership.${host} or [ ]);
+    reason =
+      hosts: roles:
+      "no role in { ${builtins.concatStringsSep ", " roles} } belongs to any host in { ${builtins.concatStringsSep ", " hosts} }";
+  };
+  relations = axes.relations ++ [ hostRoleRelation ];
+  surface = import ./surface.nix { inherit lib descriptors relations; };
+  resolveLib = import ./resolve.nix { inherit lib descriptors relations; };
 
   inherit (surface)
     define
@@ -52,8 +68,11 @@ let
     (define.role "laptop")
   ];
 
-  resolve = mkResolve roster;
-  resolveSystem = mkResolveSystem roster;
+  relationRoster = roster // {
+    roleMembership.khion = [ "desktop" ];
+  };
+  resolve = mkResolve relationRoster;
+  resolveSystem = mkResolveSystem relationRoster;
   ctx = {
     host.name = "khion";
     user.name = "feltfomo";
@@ -92,6 +111,15 @@ let
 
   cases = [
     {
+      name = "relation stages follow satisfiability in registry order";
+      pass =
+        map (stage: stage.name or null) (resolveLib.engineArgsFor relationRoster).stages == [
+          null
+          "host-user-membership"
+          "host-role-membership"
+        ];
+    }
+    {
       name = "production descriptors remain host, user, and when";
       pass =
         map (descriptor: descriptor.name) axes.descriptors == [
@@ -112,6 +140,35 @@ let
           "roles"
           "exceptRoles"
         ];
+    }
+    {
+      name = "test-only host/role relation accepts a known compatible pair";
+      pass =
+        resolve [
+          {
+            hosts = [ "khion" ];
+            roles = [ "desktop" ];
+            enabled = true;
+          }
+        ] ctx == {
+          enabled = true;
+        };
+    }
+    {
+      name = "test-only host/role relation rejects a known incompatible pair";
+      pass = throws (
+        resolve [
+          {
+            hosts = [ "khion" ];
+            roles = [ "laptop" ];
+            enabled = true;
+          }
+        ] ctx
+      );
+    }
+    {
+      name = "test-only host/role relation skips a global host side";
+      pass = resolve [ missingRoleUnit ] ctx == { enabled = true; };
     }
     {
       name = "role include selects its matching standalone context";

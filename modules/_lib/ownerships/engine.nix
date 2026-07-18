@@ -2,8 +2,8 @@
 #
 # The pure ownerships engine: a fixed pipeline over an axis REGISTRY. It never
 # inspects a claim value and never names an axis -- every axis owns its value
-# type entirely and the engine only ever calls the axis's methods (top, narrow,
-# satisfiable, select) and reads its declared ctxKey to know whether the build
+# type entirely and the engine only ever calls registered axis methods (top,
+# narrow, observe, satisfiable, select, isTop) and reads ctxKey to know whether the build
 # ctx needs an entity for it. That is what lets a new axis of any value shape
 # (a set axis, a predicate axis, a future role/trait axis) compose with zero
 # edits here. Roster access lives behind satisfiable/select only; compose/narrow
@@ -299,6 +299,52 @@ let
       }
     ) (attrNames registry);
 
+  # Relations are registered data over two set-like axes. The checker owns the
+  # shared skip/rescue/compatibility semantics, while axis names, roster data,
+  # and diagnostic wording arrive entirely through the registration.
+  mkRelationCheck =
+    relation: registry: leaf:
+    let
+      leftName = relation.leftAxis;
+      rightName = relation.rightAxis;
+      leftAxis = registry.${leftName};
+      rightAxis = registry.${rightName};
+      leftClaim = leaf.claim.${leftName};
+      rightClaim = leaf.claim.${rightName};
+      leftMembers = (leftAxis.observe leftClaim).materializedMembers;
+      rightMembers = (rightAxis.observe rightClaim).materializedMembers;
+      rescued =
+        builtins.any (member: builtins.elem member relation.unknown.left) leftMembers
+        || builtins.any (member: builtins.elem member relation.unknown.right) rightMembers;
+      compatible = builtins.any (
+        left: builtins.any (right: relation.compatible left right) rightMembers
+      ) leftMembers;
+    in
+    if
+      leftAxis.isTop leftClaim
+      || rightAxis.isTop rightClaim
+      || leftMembers == [ ]
+      || rightMembers == [ ]
+      || rescued
+      || compatible
+    then
+      [ ]
+    else
+      [
+        {
+          kind = "impossible";
+          unit = leaf.value;
+          label = leaf.label or null;
+          source = leaf.source or null;
+          axes = [
+            leftName
+            rightName
+          ];
+          claims = leaf.claim;
+          reason = relation.reason leftMembers rightMembers;
+        }
+      ];
+
   defaultStages = [
     {
       view = "leaf";
@@ -427,6 +473,7 @@ in
     resolve
     trace
     satisfiableCheck
+    mkRelationCheck
     defaultStages
     knownViews
     stageDiagnostics

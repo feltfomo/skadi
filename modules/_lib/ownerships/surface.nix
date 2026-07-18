@@ -11,14 +11,17 @@
 {
   lib,
   descriptors ? null,
+  relations ? null,
 }:
 let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
+  relationRegistrations = if relations == null then axes.relations else relations;
   resolveLib = import ./resolve.nix {
     inherit lib;
     descriptors = axisDescriptors;
+    relations = relationRegistrations;
   };
   mergeLib = import ./merge.nix { inherit lib; };
 
@@ -93,7 +96,7 @@ let
   # the returned resolve takes the authored units and yields a context-consuming
   # function; den fills host/user, so the aspect never destructures them. the
   # engine args -- registry (host, user, and the shared `when` predicate axis)
-  # and the membership check -- all come from resolve.nix's engineArgsFor, so
+  # plus registered relation stages -- all come from resolve.nix's engineArgsFor, so
   # nothing here is surface-local anymore. `resolve` is a name at three layers --
   # this public one an aspect calls, resolve.nix's `resolveWith`, and the
   # engine's own `resolve` invoked below; only this one is meant for aspects.
