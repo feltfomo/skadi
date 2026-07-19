@@ -10,7 +10,6 @@
       shell
       theming
       hyprland
-      mangowm
       kitty
       nvim
       fuzzel
