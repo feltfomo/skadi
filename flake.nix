@@ -125,7 +125,9 @@
         # the one sanctioned den touch-site so program.nix (and any future
         # aspect) reach it the same way resolve/resolveSystem already do.
         denApi = import ./modules/_lib/den.nix { inherit den lib; };
-        roster = denApi.roster "x86_64-linux";
+        # whole-fleet roster over every system in den.hosts, not the flake-parts
+        # systems list below (which only scopes perSystem devshells).
+        inherit (denApi) roster;
         ownershipsSurface = import ./modules/_lib/ownerships/surface.nix { inherit lib; };
         resolve = ownershipsSurface.mkResolve roster;
         # host-only sibling for system/nixos slices that own by host with no

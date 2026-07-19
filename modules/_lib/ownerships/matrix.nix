@@ -65,9 +65,11 @@ let
   mkUserContexts =
     {
       roster,
+      # hostName is the canonical host id; bind host.id so memberOf reads it
+      # directly rather than re-deriving a system prefix from a bare name.
       contextFor ? (
         { hostName, userName }: {
-          host.name = hostName;
+          host.id = hostName;
           user.name = userName;
         }
       ),
@@ -84,7 +86,7 @@ let
   mkSystemContexts =
     {
       roster,
-      contextFor ? ({ hostName }: { host.name = hostName; }),
+      contextFor ? ({ hostName }: { host.id = hostName; }),
     }:
     map (hostName: {
       key = hostName;
@@ -262,6 +264,9 @@ let
         hostDiffs
         neverSelectedInModeledContexts
         ;
+      # Keys throughout are canonical ids; the display map lets a reader recover
+      # the human-facing bare host/user names from those canonical ids.
+      display = roster.display or { };
       dead = map (
         entry:
         (projectLeaf entry)

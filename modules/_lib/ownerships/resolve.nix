@@ -34,6 +34,13 @@ let
     {
       inherit registry;
       stages = [
+        # Alias ambiguity is rejected before satisfiability and relations so a
+        # bare alias spanning multiple canonical members fails loud with its own
+        # wording rather than surfacing as a generic unknown-name/disjoint error.
+        {
+          view = "leaf";
+          run = axes.aliasValidationCheck;
+        }
         {
           view = "leaf";
           run = engine.satisfiableCheck;

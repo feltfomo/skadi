@@ -69,7 +69,7 @@ let
   ];
 
   relationRoster = roster // {
-    roleMembership.khion = [ "desktop" ];
+    roleMembership."standalone/khion" = [ "desktop" ];
   };
   resolve = mkResolve relationRoster;
   resolveSystem = mkResolveSystem relationRoster;
@@ -114,6 +114,7 @@ let
       name = "relation stages follow satisfiability in registry order";
       pass =
         map (stage: stage.name or null) (resolveLib.engineArgsFor relationRoster).stages == [
+          null
           null
           "host-user-membership"
           "host-role-membership"
@@ -209,6 +210,9 @@ let
         ]
         &&
           builtins.attrNames roster == [
+            "aliases"
+            "dimensions"
+            "display"
             "hosts"
             "membership"
             "roles"

@@ -38,6 +38,10 @@ let
   ctx = {
     host = {
       name = "khion";
+      # bare stub members ("khion"), so bind the ctx host's canonical id to the
+      # same bare name; the generic memberOf then selects it without deriving a
+      # system prefix this stub registry never uses.
+      id = "khion";
     };
     user = {
       name = "feltfomo";
@@ -1126,6 +1130,7 @@ let
             ctx = {
               host = {
                 name = "khion";
+                id = "khion";
               };
               user = null;
             };

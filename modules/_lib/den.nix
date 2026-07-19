@@ -114,21 +114,38 @@ let
   # droppable top-level aspect names per host on a system, for the install menu.
   hostAspects = system: lib.mapAttrs (_: topLevelAspectNames) den.hosts.${system};
 
-  # den normalizes its entity tree into standalone declarations, then the shared
-  # descriptor projector produces the public roster shape. Every den user names
-  # the host it came from, so unknown membership remains empty.
+  # den normalizes its entire entity tree into one federated declaration stream,
+  # then the shared descriptor projector produces the public roster shape. Hosts
+  # are enumerated across every system in den.hosts (the single source of truth),
+  # each carrying its canonical system and whatever dimension data den attaches
+  # (read as host.dimensions or {} -- den's own schema is never spelunked). Every
+  # den user names the canonical host it came from, so unknown membership stays
+  # empty.
   roster =
-    system:
     let
-      hosts = den.hosts.${system} or { };
-      names = builtins.attrNames hosts;
-      hostDecls = map ownershipRoster.define.host names;
-      userDecls = builtins.concatMap (
-        host:
-        map (name: ownershipRoster.define.user name { hosts = [ host ]; }) (
-          builtins.attrNames (hosts.${host}.users or { })
-        )
-      ) names;
+      systems = builtins.attrNames den.hosts;
+      hostDeclsFor =
+        system:
+        map (
+          name:
+          ownershipRoster.define.host name {
+            inherit system;
+            dimensions = den.hosts.${system}.${name}.dimensions or { };
+          }
+        ) (builtins.attrNames den.hosts.${system});
+      userDeclsFor =
+        system:
+        builtins.concatMap (
+          host:
+          map (
+            name:
+            ownershipRoster.define.user name {
+              hosts = [ (ownershipAxes.canonicalHostId system host) ];
+            }
+          ) (builtins.attrNames (den.hosts.${system}.${host}.users or { }))
+        ) (builtins.attrNames den.hosts.${system});
+      hostDecls = builtins.concatMap hostDeclsFor systems;
+      userDecls = builtins.concatMap userDeclsFor systems;
     in
     ownershipRoster.toRoster (hostDecls ++ userDecls);
 

@@ -33,16 +33,39 @@ let
 
   resolveMembers = members: v: if v.tag == "include" then inter v.set members else diff members v.set;
 
+  # Shared alias/canonical resolution, used by every set axis and by the
+  # registered alias-validation stage. A claim name that is already a canonical
+  # member is kept as-is; otherwise it expands through the roster-provided alias
+  # map (default {} = identity). An unknown name stays itself and falls through
+  # to the existing unknown-name/disjoint diagnostic.
+  canonicalizeName =
+    aliasMap: members: name:
+    if elem name members then [ name ] else aliasMap.${name} or [ name ];
+
+  canonicalizeSet =
+    aliasMap: members: set:
+    lib.unique (builtins.concatMap (canonicalizeName aliasMap members) set);
+
+  # Bare aliases that resolve to more than one canonical member. A bare claim
+  # never fans out silently; the registered alias-validation stage fails loud on
+  # these before satisfiability or relations run.
+  ambiguousNames =
+    aliasMap: members: set:
+    filter (name: !(elem name members) && builtins.length (aliasMap.${name} or [ ]) > 1) set;
+
   mkSetAxis =
     {
       key,
       members ? [ ],
+      aliasMap ? { },
+      memberOf ? (entity: entity.name),
     }:
     let
+      canonicalValue = v: v // { set = canonicalizeSet aliasMap members v.set; };
       observe =
         v:
         let
-          materializedMembers = resolveMembers members v;
+          materializedMembers = resolveMembers members (canonicalValue v);
         in
         {
           inherit materializedMembers;
@@ -50,7 +73,7 @@ let
           select =
             ctx:
             let
-              selected = elem ctx.${key}.name materializedMembers;
+              selected = elem (memberOf ctx.${key}) materializedMembers;
             in
             {
               inherit selected;
@@ -66,6 +89,7 @@ let
       select = v: ctx: ((observe v).select ctx).selected;
       isTop = isGlobal;
       ctxKey = key;
+      ambiguous = v: ambiguousNames aliasMap members v.set;
     };
 
   predicateAxis =
@@ -91,6 +115,7 @@ let
       select = pred: ctx: ((observe pred).select ctx).selected;
       isTop = _: false;
       ctxKey = null;
+      ambiguous = _pred: [ ];
     };
 
   isNameList = v: builtins.isList v && lib.all builtins.isString v;
@@ -155,10 +180,15 @@ let
         mkSetAxis {
           key = name;
           members = rosterValue.${roster.membersField};
+          aliasMap = (rosterValue.aliases or { }).${name} or { };
+          memberOf = roster.memberOf or (entity: entity.name);
         };
       ctxClaim =
         ctx:
-        if ctx ? ${name} && ctx.${name} != null then { ${name} = include [ ctx.${name}.name ]; } else { };
+        if ctx ? ${name} && ctx.${name} != null then
+          { ${name} = include [ ((roster.memberOf or (entity: entity.name)) ctx.${name}) ]; }
+        else
+          { };
       ctxLabel =
         ctx: if ctx ? ${name} && ctx.${name} != null then "${name} '${ctx.${name}.name}'" else null;
     };
@@ -205,21 +235,87 @@ let
       "no user in { ${builtins.concatStringsSep ", " users} } lives on any host in { ${builtins.concatStringsSep ", " hosts} } -- this host/user co-ownership can never apply";
   };
 
+  # Canonical host identity is "<system>/<name>"; a bare name is an alias. A
+  # one-arg `define.host "khion"` stays a standalone declaration (system
+  # "standalone", bare-name alias) so existing callers keep byte-identical
+  # resolve/config output; the optional attrs form federates a host onto a real
+  # system and can carry extra aliases and dimension data.
+  canonicalHostId = system: name: "${system}/${name}";
+
+  aliasesFor =
+    entries:
+    lib.foldl' (
+      aliases: entry:
+      lib.foldl' (
+        result: alias:
+        result
+        // {
+          ${alias} = (result.${alias} or [ ]) ++ [ entry.id ];
+        }
+      ) aliases entry.aliases
+    ) { } entries;
+
   hostRoster = {
     membersField = "hosts";
-    define = name: {
-      kind = "host";
-      inherit name;
-    };
+    # A host ctx entity resolves to its canonical id: an explicit id wins,
+    # otherwise it is derived from the entity's own system/name. A caller adds
+    # host.system additively; a bare standalone ctx defaults the system.
+    memberOf = entity: entity.id or (canonicalHostId (entity.system or "standalone") entity.name);
+    define =
+      let
+        mk =
+          name:
+          {
+            system ? "standalone",
+            dimensions ? { },
+            aliases ? [ name ],
+          }:
+          {
+            kind = "host";
+            inherit
+              name
+              system
+              dimensions
+              aliases
+              ;
+            id = canonicalHostId system name;
+          };
+      in
+      name: (mk name { }) // { __functor = _self: attrs: mk name attrs; };
     project =
       { declarations, ... }:
       let
         hostDecls = builtins.filter (d: d.kind == "host") declarations;
-        users = builtins.filter (d: d.kind == "user") declarations;
-        named = builtins.concatMap (u: if u.hosts == null then [ ] else u.hosts) users;
+        dimensionNames = lib.unique (builtins.concatMap (h: builtins.attrNames h.dimensions) hostDecls);
+        withDim = dim: builtins.filter (h: h.dimensions ? ${dim}) hostDecls;
       in
       {
-        hosts = lib.unique (map (d: d.name) hostDecls ++ named);
+        hosts = lib.unique (map (h: h.id) hostDecls);
+        aliases = {
+          host = aliasesFor hostDecls;
+        };
+        display = {
+          host = builtins.listToAttrs (
+            map (h: {
+              name = h.id;
+              value = h.name;
+            }) hostDecls
+          );
+        };
+        dimensions = builtins.listToAttrs (
+          map (dim: {
+            name = dim;
+            value = {
+              members = lib.unique (map (h: h.dimensions.${dim}) (withDim dim));
+              byHost = builtins.listToAttrs (
+                map (h: {
+                  name = h.id;
+                  value = h.dimensions.${dim};
+                }) (withDim dim)
+              );
+            };
+          }) dimensionNames
+        );
       };
   };
 
@@ -229,22 +325,46 @@ let
       name:
       {
         hosts ? null,
+        id ? name,
       }:
       {
         kind = "user";
-        inherit name hosts;
+        inherit name hosts id;
       };
     project =
       { declarations, roster }:
       let
         users = builtins.filter (d: d.kind == "user") declarations;
+        # A user's declared hosts may be bare aliases or canonical ids; resolve
+        # each against the projected host roster so membership is always keyed by
+        # canonical host id.
+        resolveHost =
+          name: if builtins.elem name roster.hosts then [ name ] else roster.aliases.host.${name} or [ ];
+        canonHosts = u: if u.hosts == null then null else builtins.concatMap resolveHost u.hosts;
         usersOn =
-          h: map (u: u.name) (builtins.filter (u: u.hosts != null && builtins.elem h u.hosts) users);
+          h:
+          map (u: u.id) (
+            builtins.filter (
+              u:
+              let
+                ch = canonHosts u;
+              in
+              ch != null && builtins.elem h ch
+            ) users
+          );
       in
       {
-        users = lib.unique (map (d: d.name) users);
+        users = lib.unique (map (u: u.id) users);
         membership = lib.genAttrs roster.hosts usersOn;
-        usersWithUnknownMembership = map (u: u.name) (builtins.filter (u: u.hosts == null) users);
+        usersWithUnknownMembership = map (u: u.id) (builtins.filter (u: u.hosts == null) users);
+        display = (roster.display or { }) // {
+          user = builtins.listToAttrs (
+            map (u: {
+              name = u.id;
+              value = u.name;
+            }) users
+          );
+        };
       };
   };
 
@@ -342,6 +462,26 @@ let
     axisDescriptors: roster:
     builtins.concatMap (descriptor: descriptor.leafStages roster) axisDescriptors;
 
+  # Registered leaf stage (ordered before satisfiability and relations by
+  # resolve.nix) that fails loud when a bare alias resolves to more than one
+  # canonical member. Wording is distinct from the unknown-name/disjoint
+  # diagnostic; every set axis exposes `ambiguous`, predicate axes contribute
+  # none.
+  aliasValidationCheck =
+    registry: leaf:
+    builtins.concatMap (
+      name:
+      map (alias: {
+        kind = "ambiguous-alias";
+        unit = leaf.value;
+        label = leaf.label or null;
+        source = leaf.source or null;
+        axis = name;
+        claims = leaf.claim;
+        reason = "axis '${name}' claim uses bare alias '${alias}' that resolves to multiple canonical members -- qualify it as 'system/name' to disambiguate";
+      }) (registry.${name}.ambiguous leaf.claim.${name})
+    ) (builtins.attrNames registry);
+
   forbiddenKeysFor =
     axisDescriptors: scope:
     builtins.concatMap (
@@ -381,6 +521,7 @@ in
     include
     exclude
     global
+    canonicalHostId
     mkSetAxis
     predicateAxis
     mkSetDescriptor
@@ -396,6 +537,7 @@ in
     registryFor
     relationsFor
     leafStagesFor
+    aliasValidationCheck
     forbiddenKeysFor
     contextFor
     ctxClaimFor

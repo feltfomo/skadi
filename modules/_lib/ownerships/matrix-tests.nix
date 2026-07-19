@@ -14,9 +14,11 @@ let
     mkResolveSystemMatrix
     ;
 
+  # Federate the fleet onto a real system so the canonical ids the matrix keys
+  # by read as "<system>/<host>", the same shape the den-backed fleet resolves.
   roster = toRoster [
-    (define.host "khion")
-    (define.host "lumi")
+    (define.host "khion" { system = "x86_64-linux"; })
+    (define.host "lumi" { system = "x86_64-linux"; })
     (define.user "feltfomo" {
       hosts = [
         "khion"
@@ -34,15 +36,24 @@ let
 
   contexts = {
     khionFeltfomo = {
-      host.name = "khion";
+      host = {
+        name = "khion";
+        system = "x86_64-linux";
+      };
       user.name = "feltfomo";
     };
     lumiFeltfomo = {
-      host.name = "lumi";
+      host = {
+        name = "lumi";
+        system = "x86_64-linux";
+      };
       user.name = "feltfomo";
     };
     lumiGrandpa = {
-      host.name = "lumi";
+      host = {
+        name = "lumi";
+        system = "x86_64-linux";
+      };
       user.name = "grandpa";
     };
   };
@@ -140,13 +151,13 @@ let
     {
       name = "user matrix survivors agree with real resolve in every valid context";
       pass =
-        agreementMatrix.byContext."khion/feltfomo".survivors == [
+        agreementMatrix.byContext."x86_64-linux/khion/feltfomo".survivors == [
           "leaf-0"
           "leaf-1"
         ]
-        && agreementMatrix.byContext."lumi/feltfomo".survivors == [ "leaf-0" ]
+        && agreementMatrix.byContext."x86_64-linux/lumi/feltfomo".survivors == [ "leaf-0" ]
         &&
-          agreementMatrix.byContext."lumi/grandpa".survivors == [
+          agreementMatrix.byContext."x86_64-linux/lumi/grandpa".survivors == [
             "leaf-0"
             "leaf-2"
           ]
@@ -185,7 +196,7 @@ let
                 "host"
                 "user"
               ];
-              reason = "no user in { grandpa } lives on any host in { khion } -- this host/user co-ownership can never apply";
+              reason = "no user in { grandpa } lives on any host in { x86_64-linux/khion } -- this host/user co-ownership can never apply";
             }
           ];
     }
@@ -205,9 +216,9 @@ let
       name = "unknown membership is excluded from rows and surfaced as indeterminate";
       pass =
         builtins.attrNames matrix.byContext == [
-          "khion/feltfomo"
-          "lumi/feltfomo"
-          "lumi/grandpa"
+          "x86_64-linux/khion/feltfomo"
+          "x86_64-linux/lumi/feltfomo"
+          "x86_64-linux/lumi/grandpa"
         ]
         && matrix.indeterminate.unknownMembershipUsers == [ "nomad" ]
         && identities matrix.indeterminate.units == [ "unit 'unknown-only'" ]
@@ -221,9 +232,9 @@ let
         && !(builtins.elem "unit 'runtime-only'" (identities matrix.indeterminate.units))
         &&
           (inactiveNamed "runtime-only").rejections == {
-            "khion/feltfomo" = [ "when" ];
-            "lumi/feltfomo" = [ "when" ];
-            "lumi/grandpa" = [ "when" ];
+            "x86_64-linux/khion/feltfomo" = [ "when" ];
+            "x86_64-linux/lumi/feltfomo" = [ "when" ];
+            "x86_64-linux/lumi/grandpa" = [ "when" ];
           };
     }
     {
@@ -237,21 +248,21 @@ let
       name = "unit and top-level pre-merge coverage are pinned";
       pass =
         matrix.coverage.units.leaf-0 == [
-          "khion/feltfomo"
-          "lumi/feltfomo"
-          "lumi/grandpa"
+          "x86_64-linux/khion/feltfomo"
+          "x86_64-linux/lumi/feltfomo"
+          "x86_64-linux/lumi/grandpa"
         ]
-        && matrix.coverage.units.leaf-1 == [ "khion/feltfomo" ]
-        && matrix.coverage.units.leaf-2 == [ "lumi/grandpa" ]
+        && matrix.coverage.units.leaf-1 == [ "x86_64-linux/khion/feltfomo" ]
+        && matrix.coverage.units.leaf-2 == [ "x86_64-linux/lumi/grandpa" ]
         && matrix.coverage.units.leaf-4 == [ ]
         && matrix.coverage.preMerge.meaning == "top-level paths offered by surviving leaves before merge"
-        && matrix.coverage.preMerge.paths.khion == [ "khion/feltfomo" ]
-        && matrix.coverage.preMerge.paths.grandpa == [ "lumi/grandpa" ];
+        && matrix.coverage.preMerge.paths.khion == [ "x86_64-linux/khion/feltfomo" ]
+        && matrix.coverage.preMerge.paths.grandpa == [ "x86_64-linux/lumi/grandpa" ];
     }
     {
       name = "host diffs include unit keys and top-level pre-merge paths";
       pass =
-        matrix.hostDiffs."khion -> lumi" == {
+        matrix.hostDiffs."x86_64-linux/khion -> x86_64-linux/lumi" == {
           units = {
             leftOnly = [ "leaf-1" ];
             rightOnly = [ "leaf-2" ];
@@ -269,20 +280,33 @@ let
     {
       name = "system matrix agrees with host-only resolution and has its own row shape";
       pass =
-        systemMatrix.byContext.khion.survivors == [
+        systemMatrix.byContext."x86_64-linux/khion".survivors == [
           "leaf-0"
           "leaf-1"
         ]
-        && systemMatrix.byContext.lumi.survivors == [ "leaf-0" ]
-        && !(systemMatrix.byContext.khion ? userName)
+        && systemMatrix.byContext."x86_64-linux/lumi".survivors == [ "leaf-0" ]
+        && !(systemMatrix.byContext."x86_64-linux/khion" ? userName)
         &&
-          resolveSystem systemUnits { host.name = "khion"; } == {
+          resolveSystem systemUnits {
+            host = {
+              name = "khion";
+              system = "x86_64-linux";
+            };
+          } == {
             system = true;
             khionSystem = true;
           }
-        && resolveSystem systemUnits { host.name = "lumi"; } == { system = true; }
         &&
-          systemMatrix.hostDiffs."khion -> lumi" == {
+          resolveSystem systemUnits {
+            host = {
+              name = "lumi";
+              system = "x86_64-linux";
+            };
+          } == {
+            system = true;
+          }
+        &&
+          systemMatrix.hostDiffs."x86_64-linux/khion -> x86_64-linux/lumi" == {
             units = {
               leftOnly = [ "leaf-1" ];
               rightOnly = [ ];

@@ -438,6 +438,9 @@ let
           ]
         &&
           builtins.attrNames roster == [
+            "aliases"
+            "dimensions"
+            "display"
             "hosts"
             "membership"
             "users"

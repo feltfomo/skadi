@@ -203,9 +203,12 @@ let
     roster:
     {
       units,
+      # hostName is the canonical host id; bind it as host.id so the generic
+      # memberOf reads it directly instead of re-deriving (and double-prefixing)
+      # a system from a bare name.
       contextFor ? (
         { hostName, userName }: {
-          host.name = hostName;
+          host.id = hostName;
           user.name = userName;
         }
       ),
@@ -229,7 +232,7 @@ let
     roster:
     {
       units,
-      contextFor ? ({ hostName }: { host.name = hostName; }),
+      contextFor ? ({ hostName }: { host.id = hostName; }),
     }:
     let
       base = resolveLib.engineArgsFor roster;
