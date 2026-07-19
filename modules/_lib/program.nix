@@ -1,32 +1,13 @@
-# _lib/program.nix
-#
-# The class-module shape every program-backed aspect builds on: pkg install,
-# static file links, noctalia templates, a noctalia config blob, and -- for an
-# aspect that also owns system config -- a host-only nixos slice. Ownership now
-# rides the ownerships surface instead of scoped -- an aspect hands program a
-# plain spec (as before), and any hosts/users/exceptHosts/exceptUsers/when on
-# the spec or on an individual files/templates entry becomes a claim the bound
-# `resolve` checks against the real build context. Untagged stays globally
-# owned.
-#
-# Resolve is lazy: rather than an owning aspect threading its entity through a
-# { host, user }: wrapper, each class module reads host (and, at user scope,
-# user) straight from its OWN module args -- den injects the same entities into
-# a class module that it used to hand the wrapper -- and resolves at
-# class-module eval. So a bare `den.aspects.x = program { ... }` works with no
-# wrapper: the home slices resolve at user scope, and the nixos slice resolves
-# host-only through `resolveSystem` (no user in scope), each reading its own
-# host. resolve reads an axis's ctx entity only when a claim narrows on it, so
-# an untagged spec resolves globally with no ctx at all -- a bare caller like
-# kitty narrows on nothing and its class modules' host/user args go unread.
+# _lib/program.nix -- lowers one aspect spec into NixOS / Home Manager / hjem
+# class modules. ownership rides the spec (hosts/users/exceptHosts/exceptUsers/
+# when) and resolves lazily; untagged specs stay global.
 {
   lib,
   resolve,
   resolveSystem,
 }:
 let
-  # ownership claim keys a unit may carry; everything else on a files/templates
-  # entry, or on the whole spec, is config value, never an owner tag.
+  # keys that mark ownership; everything else is config.
   claimKeys = [
     "hosts"
     "users"
@@ -36,11 +17,7 @@ let
   ];
   claimKeysAttrs = lib.genAttrs claimKeys (_: null);
 
-  # a files/templates entry becomes its own leaf: its claim (if any) rides
-  # alongside a singleton list keyed by the field name, so surviving entries
-  # across leaves concatenate back into one list through the engine's own
-  # list-merge -- program never re-assembles the list by hand. a bare
-  # non-attrset entry (a module function) carries no claim and passes through.
+  # each files/templates entry is its own leaf so a per-entry claim can drop it.
   entryUnit =
     fieldName: entry:
     if builtins.isAttrs entry then
@@ -51,11 +28,7 @@ let
     else
       { ${fieldName} = [ entry ]; };
 
-  # the whole spec is the root unit: its own claim narrows every field at once
-  # (a whole-aspect owner), and each pkg/imports/noctaliaConfig/file/template
-  # entry is a child leaf so a per-entry owner narrows only that entry. imports
-  # has no per-entry selector (matching the pre-migration behavior) so it rides
-  # as one leaf carrying the whole list.
+  # the spec is the root unit; each pkg/import/file/template entry a child leaf.
   specUnit =
     spec:
     let
@@ -73,12 +46,9 @@ let
         ++ map (entryUnit "templates") (spec.templates or [ ]);
     };
 
-  # home-manager CONFIG for a resolved spec: package install + noctalia template
-  # activation scripts. an absent pkg/templates entry just contributes nothing --
-  # resolve already dropped whatever didn't survive.
+  # home-manager config for a resolved spec: package + noctalia template scripts.
   hmConfig =
-    # home-manager's extended lib (provides lib.hm.dag for activation scripts); a
-    # superset of the file-level nixpkgs lib, so mkMerge / mkIf still resolve.
+    # home-manager's extended lib (has lib.hm.dag for activation scripts).
     lib: spec: pkgs:
     lib.mkMerge [
       # install the package if one survived resolve
@@ -104,22 +74,25 @@ let
       ))
     ];
 
-  # hjem file links for a resolved spec. an absent files/noctaliaConfig entry
-  # just contributes nothing -- resolve already dropped whatever didn't survive.
+  # hjem file links for a resolved spec.
   hjemFiles =
     spec: pkgs:
     let
       noctaliaConfig = spec.noctaliaConfig or { };
     in
     lib.mkMerge [
-      # link static config files straight into home
+      # copy each file into its own store path (not a flake-source subpath) so gc
+      # can't strand the link and switch can recreate it.
       (lib.mkMerge (
         map (f: {
-          ${f.dest}.source = f.src;
+          ${f.dest}.source = builtins.path {
+            path = f.src;
+            name = "skadi-" + baseNameOf f.dest;
+          };
         }) (spec.files or [ ])
       ))
 
-      # serialise noctaliaConfig to toml and link it so noctalia merges it
+      # serialise noctaliaConfig to toml so noctalia merges it
       (lib.mkIf (noctaliaConfig != { }) {
         ".config/noctalia/${noctaliaConfig._fileName}.toml".source =
           (pkgs.formats.toml { }).generate "noctalia-${noctaliaConfig._fileName}.toml"
@@ -129,16 +102,12 @@ let
 in
 spec:
 let
-  # home ownership units: the whole spec as one root leaf (its claims + config
-  # fields are read off it by specUnit). the nixos slice is separate -- specUnit
-  # never looks at `spec.nixos`, so it can't leak into the home resolve.
+  # home units: the whole spec as one root leaf (the nixos slice stays separate).
   homeUnits = [ (specUnit spec) ];
 in
 {
-  # home slices resolve at USER scope, reading host + user from their own module
-  # args: den injects the same entities the old { host, user }: wrapper got.
-  # both default to null so an untagged spec (which narrows on nothing) still
-  # resolves globally -- resolve only reads an entity some claim narrows on.
+  # home slices resolve at user scope from their own host/user args; both default
+  # null so an untagged spec resolves globally.
   homeManager =
     {
       pkgs,
@@ -170,17 +139,8 @@ in
     };
 }
 // lib.optionalAttrs (spec ? nixos) {
-  # host-only system slice: resolves at HOST scope through resolveSystem,
-  # reading host from its own args -- no user is in scope here, so user is never
-  # requested and resolveSystem pins user = null. `spec.nixos` is a
-  # { pkgs, config }: [ units ] function, so a unit's system config can read pkgs
-  # and the host's resolved config (a service package, a sops secret path); each
-  # unit carries its own hosts/... claim exactly as a standalone resolveSystem
-  # call would. host is kept out of that args set -- it reaches the slice only
-  # through the resolveSystem ... { inherit host; } wrapper below, so a unit
-  # narrows through its own claim rather than reading a raw host.
-  # only emitted when the aspect declares a nixos slice, so home-only callers
-  # (kitty, noctalia, firefox) keep their exact { homeManager; hjem; } shape.
+  # host-only system slice: resolves at host scope (no user), only emitted when
+  # the aspect declares one.
   nixos =
     {
       pkgs,
