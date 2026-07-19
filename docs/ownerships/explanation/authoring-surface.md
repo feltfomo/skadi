@@ -1,60 +1,73 @@
-# The authoring surface
+# Authoring surface
 
-An aspect writes config as a list of **units**. A unit is a plain attrset: whatever isn't a claim key is config, and the claim keys say who that config is for. This page is the mental model for the surface; for the exact key table see [claim keys](../reference/claim-keys.md).
-
-## A unit tags itself
+A unit is a plain attrset with config, optional claims, and optional metadata.
 
 ```nix
 {
-  hosts = [ "khion" "lumi" ];        # this unit is owned by two hosts
+  label = "khion audio tools";
+  hosts = [ "khion" ];
   environment.systemPackages = [ pkgs.pavucontrol ];
 }
 ```
 
-The `hosts` key is a claim. `environment.systemPackages` is config. There's no wrapper function pulling `host` out of context and no `for`/`let ... in` ceremony — the unit carries its own ownership, and the resolver reads the build context for you.
+`label` identifies the unit in diagnostics and traces. It never reaches merged config.
 
-The claim keys:
+## Claims
 
-- `hosts` / `exceptHosts` — own by this set of hosts, or by everyone *except* this set.
-- `users` / `exceptUsers` — the same, on users.
-- `when` — a predicate of the build context, for anything a name list can't express.
+- `hosts` and `users` include named members.
+- `exceptHosts` and `exceptUsers` include everyone except named members.
+- `when` is a predicate of the build context.
+- An omitted axis is global.
 
-## Untagged means global — the default, not a special case
-
-A unit with none of those keys is owned by everyone, everywhere. That's the baseline; a claim only ever *subtracts* from it. `kitty` is the whole point — it claims nothing, so it needs no wrapper and lands on every host and user:
-
-```nix
-den.aspects.kitty = program {
-  pkg = pkgs: pkgs.kitty;
-  files = [
-    { dest = ".config/kitty/kitty.conf"; src = "${rootPath}/configs/kitty/kitty.conf"; }
-  ];
-};
-```
-
-There's no code path that treats "global" as an option value or a magic name — it falls out of the claim algebra, where the identity claim *is* global. See [engine internals](engine-internals.md) for why that matters (a host added to the fleet later is owned by every global unit for free).
-
-## Narrow-only: a child can subset a parent, never widen it
-
-Units nest with `children`. A child's effective claim is its parent's claim narrowed by its own — the intersection. So a child can carve a smaller set out of its parent, but it can never reach outside it:
+A unit can't set both polarities of one axis. Use nesting when you need “A except B”:
 
 ```nix
 {
   hosts = [ "khion" "lumi" ];
   children = [
-    { hosts = [ "khion" ]; services.hypridle.enable = true; }  # khion only
+    {
+      exceptHosts = [ "lumi" ];
+      services.example.enable = true;
+    }
   ];
 }
 ```
 
-A child that names something disjoint from its parent (e.g. `hosts = [ "lumi" ]` under a `khion`-only parent) narrows to the empty set. That's not a silent no-op — it's an [impossible error](the-three-outcomes.md). Widening is meaningless and unreachable by construction.
+The child owns khion. If the child removed both hosts, its effective claim would be impossible rather than a silent no-op.
 
-## The one collision to know about
+## Narrow-only nesting
 
-Claim keys are read by name off the top of a unit. So a unit can't *also* carry a config value whose first path segment is a claim key. In practice that's only `users.*` — NixOS user management. Nothing on this surface owns `users.*` today, so there's no escape hatch for it yet; if you set `users` to a NixOS user attrset instead of a name list, you get a loud [author-time error](../reference/errors.md#author-time-surface), not a silently swallowed claim.
+Composition meets the parent's effective claim with the child's own claim on every registered axis. Missing keys use that axis's `top`, so a child can't widen its parent.
 
-## See also
+A node without config can exist only to scope its children:
 
-- [The two doors and `program`](doors-and-program.md) — how a unit list actually gets resolved.
-- [The three outcomes](the-three-outcomes.md) — what happens to a unit that does, doesn't, or can't apply.
-- [Claim keys](../reference/claim-keys.md) — the exact table and value shapes.
+```nix
+{
+  hosts = [ "khion" ];
+  children = [
+    { services.a.enable = true; }
+    { services.b.enable = true; }
+  ];
+}
+```
+
+## Unit identity
+
+`label` and `source` are optional strings. They don't inherit into children. When neither exists, diagnostics use a shallow payload shape such as `{ packages, services }`. The renderer never serializes the real payload just to name a unit.
+
+## Reserved keys and `value`
+
+The surface reserves claim keys plus `children`, `value`, `label`, `source`, and `mergeProfile`. Use `value` when real config begins with one of those names:
+
+```nix
+{
+  hosts = [ "khion" ];
+  value.users.users.alice.isNormalUser = true;
+}
+```
+
+Claims and children may sit beside `value`. Inline config may not. Mixing the two payload forms is rejected because there is no useful reason to make routing shape-dependent.
+
+## `program`
+
+Most skadi aspects author through `program`, not the raw surface. Spec-level claims narrow home slices. A `nixos` function returns its own system-scope unit list, so those units repeat any host claim they need. See [surface API](../reference/surface-api.md).

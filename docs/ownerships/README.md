@@ -1,68 +1,74 @@
 # Ownerships
 
-Ownerships is how a skadi aspect says *who a piece of config is for* — a host, a user, several of them, or everyone — right on the config itself. A unit tags itself with `hosts` / `users` / `exceptHosts` / `exceptUsers` / `when`; leave the tags off and it's owned by everyone. One call composes the tagged tree, checks it against the fleet, keeps what applies to the machine being built, and merges what's left.
+Ownerships is the targeting layer in front of skadi's config values. A unit says who it belongs to on the unit itself. The resolver composes nested claims, rejects contradictions, selects the leaves for one build context, and structurally merges the survivors.
 
-It replaced the old `scoped` framework. The win is authoring: no `{ host, user }:` wrapper, no `let for = scoped.for ...`, no threading context between blocks. A unit self-labels and the resolver does the rest.
+It is not the NixOS module system. It runs before module evaluation and doesn't know option types, priorities, `mkForce`, or submodule merge rules.
 
-## The one-screen model
-
-- A **unit** is a plain attrset. Anything on it that isn't a claim key is config; `children` nests one unit under another.
-- The **claim keys** are `hosts`, `users`, `exceptHosts`, `exceptUsers`, `when`. None of them set = **globally owned**. That's the default, not a special case.
-- A child claim can only ever **narrow** its parent, never widen it. A disjoint nest is a contradiction, caught loudly.
-- Resolving a tree has exactly **three outcomes**: a unit that doesn't apply to this build is silently **inactive**; a claim that can never be satisfied is a loud **impossible** error; two co-owners setting the same scalar differently is a loud **conflict** error. Nothing else errors.
-- Aspects don't call the resolver directly. They author through **`program`** — the packages/files/templates front door — which forwards the same claim keys into the surface underneath.
-
-The whole thing in one real aspect. `kitty` claims nothing, so it's global and needs no wrapper:
+## Start here
 
 ```nix
-den.aspects.kitty = program {
-  pkg = pkgs: pkgs.kitty;
-  files = [
-    { dest = ".config/kitty/kitty.conf"; src = "${rootPath}/configs/kitty/kitty.conf"; }
-  ];
-};
+[
+  { packages = [ pkgs.git ]; } # global
+  {
+    hosts = [ "khion" ];
+    packages = [ pkgs.nvtopPackages.nvidia ];
+  }
+  {
+    users = [ "feltfomo" ];
+    files = [ { dest = ".config/example"; src = ./example; } ];
+  }
+]
 ```
 
-## Find your way around
+A config-bearing attrset is a **unit**. `hosts`, `users`, `exceptHosts`, `exceptUsers`, and `when` are claim keys. No claim means global ownership. `children` nests units, and a child can only narrow its parent.
 
-Three tiers, split by what you're trying to do.
+Three ordinary outcomes matter:
 
-**Understand it** — [explanation/](explanation/):
+- **Selected:** the unit applies to this context and contributes to the merge.
+- **Inactive:** the claim is valid but doesn't match this context. The unit disappears silently.
+- **Impossible:** the claim can't match any modeled context. Resolution fails before selection.
 
-- [The authoring surface](explanation/authoring-surface.md) — units, claim keys, why untagged is the default.
-- [The two doors and `program`](explanation/doors-and-program.md) — user scope vs host-only, and the front door aspects actually use.
-- [The three outcomes](explanation/the-three-outcomes.md) — inactive, impossible, conflict.
-- [Engine internals](explanation/engine-internals.md) — the pipeline, the axis model, merge.
-- [Roster and the den boundary](explanation/roster-and-den-boundary.md) — where fleet data comes from, and running with no den.
+A fourth failure happens after selection: surviving co-owners can **conflict** while merging.
 
-**Do a task** — [how-to/](how-to/):
+## Read by task
 
-- [Make an aspect host-only](how-to/host-only-aspect.md)
-- [Own by everyone except some hosts/users](how-to/own-by-all-except.md)
-- [Narrow a single field](how-to/narrow-a-single-field.md)
-- [Gate on a predicate with `when`](how-to/predicate-with-when.md)
-- [Run standalone without den](how-to/run-standalone-without-den.md)
-- [Add a new axis](how-to/add-a-new-axis.md) *(advanced)*
+**Authoring**
 
-**Look something up** — [reference/](reference/):
+- [Authoring surface](explanation/authoring-surface.md)
+- [Host-only config](how-to/host-only-aspect.md)
+- [Reserved-key collisions and `value`](how-to/value-escape-hatch.md)
+- [Claim and unit keys](reference/claim-and-unit-keys.md)
 
-- [Claim keys](reference/claim-keys.md)
-- [Doors and `program` args](reference/doors-and-program-args.md)
-- [Error catalog](reference/errors.md)
+**Understand the machinery**
+
+- [Pipeline and stages](explanation/pipeline-and-stages.md)
+- [Merge, provenance, locks, and profiles](explanation/merge-provenance-and-profiles.md)
+- [Roster, descriptors, and relations](explanation/roster-relations-and-federation.md)
+- [Trace and fleet matrix](explanation/trace-and-matrix.md)
+
+**Extend or inspect it**
+
+- [Run without den](how-to/run-standalone.md)
+- [Add an axis or relation](how-to/add-axis-or-relation.md)
+- [Inspect a trace or matrix](how-to/inspect-trace-and-matrix.md)
+- [Surface API](reference/surface-api.md)
+- [Errors and outcomes](reference/errors-and-outcomes.md)
 - [Roster shape](reference/roster-shape.md)
 - [Glossary](reference/glossary.md)
 
 ## Source map
 
-The code lives under `modules/_lib/ownerships/`, plus the `program` front door and the den adapter next door. Every page links to its backing file; the canonical paths, from here:
-
-| File | What it holds |
+| File | Responsibility |
 | --- | --- |
-| [`engine.nix`](../../modules/_lib/ownerships/engine.nix) | The pure pipeline: compose, check, assertCtx, select, merge |
-| [`axes.nix`](../../modules/_lib/ownerships/axes.nix) | Polarity-set type, host + user axes, the `when` axis, membership check |
-| [`merge.nix`](../../modules/_lib/ownerships/merge.nix) | List strategies + conflict policy |
-| [`resolve.nix`](../../modules/_lib/ownerships/resolve.nix) | Roster → registry + checks; the standalone `resolveWith` entry |
-| [`surface.nix`](../../modules/_lib/ownerships/surface.nix) | The author-facing translator + the two doors |
-| [`roster.nix`](../../modules/_lib/ownerships/roster.nix) | Roster shape + the den-free `define.*` backend |
-| [`../program.nix`](../../modules/_lib/program.nix) | The packages/files/templates front door |
-| [`../den.nix`](../../modules/_lib/den.nix) | The one den-internals boundary (the roster adapter) |
+| `modules/_lib/ownerships/surface.nix` | Author syntax, scope guards, public resolve/trace/matrix/profiled doors |
+| `modules/_lib/ownerships/engine.nix` | Fixed pipeline, stages, diagnostics, selection trace |
+| `modules/_lib/ownerships/axes.nix` | Axis descriptors, polarity sets, aliases, relation registrations |
+| `modules/_lib/ownerships/merge.nix` | Shape merge, provenance, locks, named merge profiles |
+| `modules/_lib/ownerships/matrix.nix` | Read-only fleet projection and host diffs |
+| `modules/_lib/ownerships/roster.nix` | Descriptor-driven standalone roster construction |
+| `modules/_lib/ownerships/resolve.nix` | Roster to registry/stages, strict context validation |
+| `modules/_lib/ownerships/safe-render.nix` | Diagnostics that don't force packages or secret-backed values |
+| `modules/_lib/program.nix` | skadi's packages/files/templates front door |
+| `modules/_lib/den.nix` | The only den-internals boundary and federated roster adapter |
+
+The permanent gate is `nix fmt`, then `nix flake check`.
