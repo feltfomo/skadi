@@ -23,8 +23,24 @@
           enable = true;
           package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
-        # wlr portal for mango sessions. hyprland's stays on its own aspect.
-        environment.systemPackages = [ pkgs.xdg-desktop-portal-wlr ];
+        # wlr screencast portal for mango sessions (hyprland keeps its own).
+        # a plain systemPackages install was the bug: nixos only exposes a
+        # backend's .portal file to the wrapped xdg-desktop-portal service when
+        # it's in xdg.portal.extraPortals, so the router had no ScreenCast impl
+        # under mango and the share picker never appeared. wlr.enable registers
+        # it and writes the xdph config; slurp is the output chooser. routing to
+        # wlr already lives in the linked mango-portals.conf, and gtk covers the
+        # FileChooser/OpenURI portals in the session.
+        xdg.portal = {
+          enable = true;
+          wlr.enable = true;
+          wlr.settings.screencast = {
+            chooser_type = "simple";
+            chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
+            max_fps = 60;
+          };
+          extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+        };
       }
     ];
     files = [
