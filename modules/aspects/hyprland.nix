@@ -61,6 +61,26 @@ in
             inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
         };
         services.flatpak.enable = true;
+
+        # gnome and hyprland each ship a ScreenCast portal
+        # (xdg-desktop-portal-gnome vs -hyprland). with no routing config,
+        # xdg-desktop-portal can hand a hyprland-session ScreenCast to the gnome
+        # backend, which only works inside gnome shell -> discord/equibop
+        # screenshare comes up black or lists no windows. pin the hyprland
+        # session (XDG_CURRENT_DESKTOP=Hyprland -> hyprland-portals.conf) to the
+        # hyprland backend; keep FileChooser on gtk for native file dialogs.
+        xdg.portal = {
+          extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+          config.hyprland = {
+            default = [
+              "hyprland"
+              "gtk"
+            ];
+            "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
+            "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
+            "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+          };
+        };
       }
     ];
     imports = [ audioOpacityService ];
