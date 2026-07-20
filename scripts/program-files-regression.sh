@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Runtime evidence stays outside the repo; only a verified healthy corpus is committed.
 CACHE="${SKADI_PROGRAM_FILES_CACHE:-$HOME/.cache/skadi-program-files-regression}"
 KITTY_REL=".config/kitty/kitty.conf"
 KITTY_PATH="$HOME/$KITTY_REL"
@@ -36,6 +37,7 @@ system_toplevel() { readlink -f /run/current-system; }
 content_hash() { sha256sum -- "$1" | awk '{print $1}'; }
 
 home_generation() {
+  # Integrated Home Manager has used both profile locations across generations.
   local candidate
   for candidate in "$HOME/.local/state/nix/profiles/home-manager" "$HOME/.nix-profile"; do
     if [ -e "$candidate" ] || [ -L "$candidate" ]; then
@@ -47,6 +49,7 @@ home_generation() {
 }
 
 home_persistence() {
+  # A boot result means something different when .config lives on the rolled-back root.
   local mount
   mount="$(findmnt -T "$HOME/.config" -n -o SOURCE,FSROOT,TARGET 2>/dev/null || true)"
   if grep -Eq '(@persist|/persist)' <<<"$mount"; then
@@ -57,6 +60,7 @@ home_persistence() {
 }
 
 entries() {
+  # Keep declaration identity separate from volatile store paths in observed state.
   [ -n "${PROGRAM_FILES_MANIFEST:-}" ] || die "PROGRAM_FILES_MANIFEST is missing"
   jq -r '.entries[] | [.declarationIdentity, .destination, .sourceKind, (.sourcePath // "")] | @tsv' "$PROGRAM_FILES_MANIFEST"
 }
@@ -69,6 +73,7 @@ store_object() {
 }
 
 desired_manifest() {
+  # This path evaluates a host but never activates it, so lumi can be compared from khion.
   local host="$1" output="$2" desired_files desired_tmp declaration destination source_kind source_path desired_target desired_hash expected_type
   desired_files="$(mktemp)"
   desired_tmp="$(mktemp)"
@@ -82,6 +87,7 @@ desired_manifest() {
       expected_type="symlink"
       desired_target="$(jq -r --arg destination "$destination" '.[$destination].source // empty' "$desired_files")"
       if [ -z "$desired_target" ]; then
+        # Ownership may legitimately exclude an entry from this host's desired set.
         continue
       fi
       [ -e "$desired_target" ] || die "evaluation produced a missing source for $host:$destination"
@@ -100,6 +106,7 @@ desired_manifest() {
 }
 
 inventory() {
+  # Desired and realized state are emitted independently so drift never pollutes parity data.
   local host="$1" desired_output="$2" drift_output="$3" healthy_output="$4"
   local desired_files desired_tmp drift_tmp declaration destination source_kind source_path
   local path expected_type desired_target desired_hash status observed_type raw_target resolved_target actual_hash actual_store
@@ -122,6 +129,7 @@ inventory() {
     fi
     desired_hash="$(content_hash "$desired_target")"
 
+    # Unknown shapes default to foreign; only proved representations may be repaired.
     status="foreign"
     observed_type="other"
     raw_target=""
@@ -189,6 +197,7 @@ inventory() {
   rm -f "$desired_files" "$desired_tmp" "$drift_tmp"
 
   if [ "$drift_count" -ne 0 ]; then
+    # Keep scanning evidence useful while refusing to bless any unhealthy corpus.
     [ -z "$healthy_output" ] || rm -f "$healthy_output"
     log "$host inventory found $drift_count unhealthy entries; desired baseline and drift report emitted"
     return 1
@@ -207,6 +216,7 @@ natural_prepare() {
 }
 
 natural_assert() {
+  # Destination, failure class, and raw target must all survive to count as non-repair.
   local host="$1" drift="$2" before after before_set after_set
   require_host "$host"
   before="$(jq -r .systemToplevel "$CACHE/natural-state.json")"
@@ -221,6 +231,7 @@ natural_assert() {
 }
 
 restore_drift() {
+  # Equality isn't ownership proof; a foreign entry is never test setup to overwrite.
   local host="$1" drift="$2" destination status expected_type desired_target path
   require_host "$host"
   if jq -e '.entries[]|select(.status=="foreign")' "$drift" >/dev/null; then
@@ -242,6 +253,7 @@ restore_drift() {
 }
 
 assemble() {
+  # Failure evidence remains in CACHE; this file is the healthy SP8 parity target.
   local khion="$1" lumi="$2" output="$3"
   if [ -n "$lumi" ]; then
     jq -S -n --slurpfile khion "$khion" --slurpfile lumi "$lumi" \
@@ -257,6 +269,7 @@ assemble() {
 matrix_path() { printf '%s/repair-matrix.json\n' "$CACHE"; }
 
 ensure_matrix() {
+  # Null cells make an interrupted matrix obvious instead of looking like a pass.
   local matrix
   matrix="$(matrix_path)"
   if [ ! -f "$matrix" ]; then
@@ -293,6 +306,7 @@ restore_kitty() {
 }
 
 case_prepare() {
+  # The three states expose the backend's missing-versus-invalid-presence behavior.
   local host="$1" mode="$2" state fixture manufactured
   require_host "$host"
   case "$mode" in absent|dangling|drifted) ;; *) die "unknown repair-matrix mode: $mode";; esac
@@ -303,6 +317,7 @@ case_prepare() {
       rm -- "$KITTY_PATH"
       ;;
     dangling)
+      # Delete a real store object first; a made-up path wouldn't prove GC-shaped drift.
       fixture="$CACHE/dangling-fixture"
       printf 'removed kitty target fixture\n' > "$fixture"
       manufactured="$(nix store add-file "$fixture")"
@@ -311,6 +326,7 @@ case_prepare() {
       ln -sfn -- "$manufactured" "$KITTY_PATH"
       ;;
     drifted)
+      # Keep this object live so the drifted case can't collapse into the dangling case.
       fixture="$CACHE/drifted-fixture"
       printf 'wrong kitty content fixture\n' > "$fixture"
       manufactured="$(nix store add-file "$fixture")"
@@ -325,6 +341,7 @@ case_prepare() {
 }
 
 case_outcome() {
+  # Repair requires both the expected target identity and its exact bytes.
   local state="$1" expected_target expected_hash
   expected_target="$(jq -r .resolvedTarget "$state")"
   expected_hash="$(jq -r .contentSha256 "$state")"
@@ -359,6 +376,7 @@ case_switch_assert() {
 }
 
 case_boot_assert() {
+  # A changed boot ID prevents a second shell invocation from masquerading as reboot proof.
   local host="$1" mode="$2" state before after outcome
   require_host "$host"
   state="$CACHE/case-${mode}-state.json"
@@ -375,6 +393,7 @@ case_boot_assert() {
 }
 
 roots_check() {
+  # A live target isn't retention evidence until an active root reaches it.
   require_host khion
   [ -L "$KITTY_PATH" ] || die "kitty.conf is not a symlink"
   local target roots
@@ -390,6 +409,7 @@ ssh_vm() {
 }
 
 vm_proof() {
+  # Destructive generation GC and declaration removal stay off the workstation.
   local flake="$1"
   command -v nix >/dev/null || die "nix is required"
   [ -n "${OVMF_FD:-}" ] || die "OVMF_FD is missing"
@@ -397,6 +417,7 @@ vm_proof() {
   VM_KEY="$vm_cache/vm-test-key"
   VM_PORT=2222
   [ -f "$VM_KEY" ] || die "missing $VM_KEY"
+  # The installer harness is intentionally cold; this is a one-time disposable proof path.
   log "installing disposable vm through the existing vm-test harness"
   nix run "${flake}#vm-test" -- --host vm --reset --keep
 
@@ -420,6 +441,7 @@ vm_proof() {
   done
   [ "$up" = 1 ] || die "VM did not accept SSH"
 
+  # Everything below mutates only the installed guest checkout and store.
   ssh_vm 'bash -s' <<'REMOTE'
 set -euo pipefail
 cd /etc/skadi

@@ -1,4 +1,5 @@
 _: {
+  # Keep the harness at perSystem scope so adding it cannot alter a host closure.
   perSystem =
     { pkgs, ... }:
     let
@@ -15,6 +16,7 @@ _: {
           qemu_kvm
         ];
         text = ''
+          # Use the caller's Lix; only immutable fixture inputs are baked into the wrapper.
           OVMF_FD='${pkgs.OVMF.fd}'
           PROGRAM_FILES_MANIFEST='${../tests/program-files-manifest.json}'
           export OVMF_FD PROGRAM_FILES_MANIFEST
