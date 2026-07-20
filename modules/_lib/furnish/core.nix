@@ -1,33 +1,31 @@
 {
   lib,
   contract,
+  krisis,
+  claimKeys,
   resolve,
   resolveSystem,
 }:
 let
-  claimKeys = [
-    "hosts"
-    "users"
-    "exceptHosts"
-    "exceptUsers"
-    "when"
-  ];
   claimAttrs = lib.genAttrs claimKeys (_: null);
 
-  renderDiagnostic =
-    diagnostic:
-    "furnish: ${diagnostic.stage}/${diagnostic.code}: ${diagnostic.entry}: ${diagnostic.reason}";
-
-  fail = diagnostic: throw (renderDiagnostic diagnostic);
-
-  diagnostic = stage: code: entry: reason: {
-    inherit
-      stage
-      code
-      entry
-      reason
-      ;
+  renderArgs = diagnostics: {
+    inherit diagnostics;
+    formatDiagnostic =
+      diagnostic: "furnish: ${diagnostic.code}: ${diagnostic.primary.label}: ${diagnostic.message}";
   };
+
+  renderDiagnostic = diagnostic: krisis.renderDiagnostics (renderArgs [ diagnostic ]);
+  fail = diagnostic: krisis.throwDiagnostics (renderArgs [ diagnostic ]);
+
+  diagnostic =
+    stage: code: entry: reason:
+    krisis.mkDiagnostic {
+      severity = "error";
+      code = "${stage}/${code}";
+      message = reason;
+      primary.label = entry;
+    };
 
   entryName = declaration: declaration.label or "unlabeled declaration";
 

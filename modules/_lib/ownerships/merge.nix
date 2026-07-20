@@ -13,7 +13,7 @@ let
     foldl'
     ;
 
-  inherit (import ./safe-render.nix { inherit lib; }) safeRender;
+  inherit (import ../krisis { inherit lib; }) safeRender;
 
   shownPath = path: if path == "" then "<root>" else path;
   contributorIdentities =

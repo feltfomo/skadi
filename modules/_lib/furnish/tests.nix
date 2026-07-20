@@ -4,6 +4,8 @@
   resolveSystem,
 }:
 let
+  ownerships = import ../ownerships { inherit lib; };
+  krisis = import ../krisis { inherit lib; };
   furnish = import ./default.nix {
     inherit
       lib
@@ -168,7 +170,8 @@ let
   throws = value: !(builtins.tryEval (builtins.deepSeq value value)).success;
 
   inertCore = import ./core.nix {
-    inherit lib contract;
+    inherit lib contract krisis;
+    inherit (ownerships) claimKeys;
     resolve = throw "no-op forced the user ownership door";
     resolveSystem = throw "no-op forced the system ownership door";
   };
@@ -184,7 +187,8 @@ let
   noOp = inertCore.compile { inherit raw; };
 
   systemCore = import ./core.nix {
-    inherit lib contract;
+    inherit lib contract krisis;
+    inherit (ownerships) claimKeys;
     resolve = throw "a system declaration used the user ownership door";
     resolveSystem = units: _ctx: {
       entries = builtins.concatMap (unit: unit.value.entries or [ ]) units;
@@ -218,6 +222,14 @@ let
   wiringProbe = true;
 
   checks = [
+    {
+      name = "ownerships facade keeps internals private and supplies furnish claim keys";
+      pass =
+        !(ownerships ? engine)
+        && !(ownerships ? engineArgsFor)
+        && !(ownerships ? resolveWith)
+        && furnish.core.isOwnerTagged (lib.genAttrs ownerships.claimKeys (_: [ ]));
+    }
     {
       name = "sample manifest is byte-stable and entry order is canonical";
       pass =

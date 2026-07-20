@@ -4,14 +4,18 @@
   resolveSystem,
 }:
 let
+  ownerships = import ../ownerships { inherit lib; };
+  krisis = import ../krisis { inherit lib; };
   contract = import ./contract.nix { inherit lib; };
   core = import ./core.nix {
     inherit
       lib
       contract
+      krisis
       resolve
       resolveSystem
       ;
+    inherit (ownerships) claimKeys;
   };
 in
 {
