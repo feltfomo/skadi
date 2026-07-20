@@ -163,6 +163,7 @@
           brave
           satty
           heroic
+          sgdboop
           gamescope
           gifski
           zenity
