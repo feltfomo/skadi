@@ -54,6 +54,22 @@ _: {
       };
     in
     {
+      devShells.default = pkgs.mkShell {
+        packages = with pkgs; [
+          nixd
+          nixfmt
+          deadnix
+          statix
+          lua-language-server
+          stylua
+          cargo
+          rustc
+          clippy
+          rustfmt
+          rust-analyzer
+        ];
+      };
+
       devShells.minecraft = pkgs.mkShell {
         packages = [
           jbr
