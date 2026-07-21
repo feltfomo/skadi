@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Runtime evidence stays outside the repo; only a verified healthy corpus is committed.
+# Runtime evidence stays outside the repo; baselines contain only healthy state.
 CACHE="${SKADI_PROGRAM_FILES_CACHE:-$HOME/.cache/skadi-program-files-regression}"
 KITTY_REL=".config/kitty/kitty.conf"
 KITTY_PATH="$HOME/$KITTY_REL"
@@ -23,7 +23,10 @@ program-files-regression <command>
   case-prepare --host khion --mode <absent|dangling|drifted>
   case-switch-assert --host khion --mode <absent|dangling|drifted>
   case-boot-assert --host khion --mode <absent|dangling|drifted>
-  vm --flake <path>
+  vm provision --flake <path>
+  vm run --flake <path> --khion-matrix <path>
+  reboot-prepare --host vm --mode <absent|dangling|drifted> --run-id <id>
+  reboot-assert --host vm --mode <absent|dangling|drifted> --run-id <id>
 USAGE
 }
 
@@ -235,7 +238,7 @@ restore_drift() {
   local host="$1" drift="$2" destination status expected_type desired_target path
   require_host "$host"
   if jq -e '.entries[]|select(.status=="foreign")' "$drift" >/dev/null; then
-    die "foreign entries require manual review; refusing restoration"
+    die "foreign entries aren't owned by this harness; refusing restoration"
   fi
   while IFS=$'\t' read -r destination status expected_type desired_target; do
     [ "$status" != "healthy" ] || continue
@@ -253,7 +256,7 @@ restore_drift() {
 }
 
 assemble() {
-  # Failure evidence remains in CACHE; this file is the healthy SP8 parity target.
+  # Failure evidence stays in CACHE; assembled output contains only healthy parity data.
   local khion="$1" lumi="$2" output="$3"
   if [ -n "$lumi" ]; then
     jq -S -n --slurpfile khion "$khion" --slurpfile lumi "$lumi" \
@@ -377,7 +380,7 @@ case_switch_assert() {
 
 case_boot_assert() {
   # A changed boot ID prevents a second shell invocation from masquerading as reboot proof.
-  local host="$1" mode="$2" state before after outcome
+  local host="$1" mode="$2" state before after outcome manufactured fixture_valid expected_hash
   require_host "$host"
   state="$CACHE/case-${mode}-state.json"
   [ -f "$state" ] || die "case state is missing for $mode"
@@ -386,9 +389,28 @@ case_boot_assert() {
   [ "$before" != "$after" ] || die "boot ID did not change"
   outcome="$(case_outcome "$state")"
   record_matrix "$mode" reboot "$outcome"
+  if [ "$host" = vm ]; then
+    manufactured="$(jq -r .manufacturedTarget "$state")"
+    expected_hash="$(jq -r .contentSha256 "$state")"
+    fixture_valid=true
+    case "$mode" in
+      absent) [ "$outcome" = repaired ] || fixture_valid=false ;;
+      dangling) [ -L "$KITTY_PATH" ] && [ "$(readlink -- "$KITTY_PATH")" = "$manufactured" ] && [ ! -e "$manufactured" ] || fixture_valid=false ;;
+      drifted) [ -L "$KITTY_PATH" ] && [ "$(readlink -- "$KITTY_PATH")" = "$manufactured" ] && [ -e "$manufactured" ] && [ "$(content_hash "$manufactured")" != "$expected_hash" ] || fixture_valid=false ;;
+    esac
+    [ "$fixture_valid" = true ] || die "$mode fixture changed shape across reboot"
+  fi
   if [ "$outcome" != repaired ]; then restore_kitty "$state"; fi
   [ "$(case_outcome "$state")" = repaired ] || die "failed to restore healthy kitty.conf"
-  jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" --arg homePersistence "$(jq -r .homePersistence "$state")" '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,healthyStateRestored:true}' > "$CACHE/case-${mode}-boot-evidence.json"
+  if [ "$host" = vm ]; then
+    jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" \
+      --arg homePersistence "$(jq -r .homePersistence "$state")" --arg manufacturedTarget "$manufactured" \
+      --argjson fixtureStateValid "$fixture_valid" \
+      '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,manufacturedTarget:$manufacturedTarget,fixtureStateValid:$fixtureStateValid,healthyStateRestored:true}' \
+      > "$CACHE/case-${mode}-boot-evidence.json"
+  else
+    jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" --arg homePersistence "$(jq -r .homePersistence "$state")" '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,healthyStateRestored:true}' > "$CACHE/case-${mode}-boot-evidence.json"
+  fi
   log "$mode reboot outcome: $outcome; healthy state verified"
 }
 
@@ -404,70 +426,329 @@ roots_check() {
   log "active roots retain $target"
 }
 
-ssh_vm() {
-  ssh -i "$VM_KEY" -p "$VM_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 root@localhost "$@"
+expected_matrix() {
+  jq -n '{absent:{"no-op-switch":"repaired",reboot:"repaired"},dangling:{"no-op-switch":"not-repaired",reboot:"not-repaired"},drifted:{"no-op-switch":"not-repaired",reboot:"not-repaired"}}'
 }
 
-vm_proof() {
-  # Destructive generation GC and declaration removal stay off the workstation.
-  local flake="$1"
+normalize_matrix() {
+  jq -S '{absent:{"no-op-switch":.absent["no-op-switch"],reboot:.absent.reboot},dangling:{"no-op-switch":.dangling["no-op-switch"],reboot:.dangling.reboot},drifted:{"no-op-switch":.drifted["no-op-switch"],reboot:.drifted.reboot}}' "$1"
+}
+
+reboot_prepare() {
+  local host="$1" mode="$2" run_id="$3" sentinel state
+  sentinel="$CACHE/vm-run-sentinel"
+  state="$CACHE/case-${mode}-persistence-state.json"
+  require_host "$host"
+  if [ ! -f "$sentinel" ]; then printf '%s\n' "$run_id" > "$sentinel"; fi
+  [ "$(cat "$sentinel")" = "$run_id" ] || die "persisted run sentinel changed"
+  printf '%s\n' "$run_id:$mode" > "/root/program-files-regression-${mode}-root-marker"
+  find "$CACHE" -maxdepth 1 -type f -name '*.json' ! -name 'case-*-persistence-state.json' -print0 \
+    | sort -z | xargs -0 sha256sum > "$CACHE/case-${mode}-persisted-files.sha256"
+  jq -n --arg runId "$run_id" --arg mode "$mode" --arg sentinelHash "$(content_hash "$sentinel")" \
+    --arg evidenceSetHash "$(content_hash "$CACHE/case-${mode}-persisted-files.sha256")" \
+    --arg bootId "$(cat /proc/sys/kernel/random/boot_id)" \
+    '{runId:$runId,mode:$mode,sentinelHash:$sentinelHash,evidenceSetHash:$evidenceSetHash,bootId:$bootId}' > "$state"
+  log "prepared persistence controls for $mode"
+}
+
+reboot_assert() {
+  local host="$1" mode="$2" run_id="$3" sentinel state
+  sentinel="$CACHE/vm-run-sentinel"
+  state="$CACHE/case-${mode}-persistence-state.json"
+  local marker="/root/program-files-regression-${mode}-root-marker" before after sentinel_hash
+  require_host "$host"
+  [ -f "$state" ] || die "persistence state is missing for $mode"
+  [ -f "$sentinel" ] || die "persisted run sentinel disappeared"
+  [ "$(cat "$sentinel")" = "$run_id" ] || die "persisted run sentinel changed"
+  [ ! -e "$marker" ] || die "rolled-back root marker survived reboot"
+  sentinel_hash="$(content_hash "$sentinel")"
+  [ "$sentinel_hash" = "$(jq -r .sentinelHash "$state")" ] || die "persisted run sentinel hash changed"
+  [ "$(content_hash "$CACHE/case-${mode}-persisted-files.sha256")" = "$(jq -r .evidenceSetHash "$state")" ] || die "persisted evidence manifest changed"
+  sha256sum -c "$CACHE/case-${mode}-persisted-files.sha256" >/dev/null || die "persisted evidence changed or disappeared"
+  before="$(jq -r .bootId "$state")"
+  after="$(cat /proc/sys/kernel/random/boot_id)"
+  [ "$before" != "$after" ] || die "boot ID did not change for persistence control"
+  jq -n --arg runId "$run_id" --arg mode "$mode" --arg before "$before" --arg after "$after" \
+    --arg sentinelHash "$sentinel_hash" \
+    '{runId:$runId,mode:$mode,bootIdBefore:$before,bootIdAfter:$after,bootIdChanged:($before!=$after),persistedSentinelSurvived:true,persistedSentinelUnchanged:true,persistedEvidenceSetSurvived:true,rolledBackRootMarkerVanished:true,negativeControlPassed:true}' \
+    > "$CACHE/case-${mode}-persistence-evidence.json"
+  log "$mode persistence and rollback controls passed"
+}
+
+ssh_vm() {
+  ssh -i "$VM_KEY" -p "$VM_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=5 "$VM_USER@localhost" "$@"
+}
+
+ssh_root() {
+  local command
+  printf -v command '%q ' "$@"
+  ssh_vm "printf '%s\n' '$VM_SUDO_PASSWORD' | sudo -S -p '' -- $command"
+}
+
+scp_from_vm() {
+  scp -i "$VM_KEY" -P "$VM_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR "$@"
+}
+
+vm_paths() {
+  VM_CACHE="${SKADI_VM_CACHE:-$HOME/.cache/skadi-vm}"
+  VM_KEY="${SKADI_PROGRAM_FILES_VM_KEY:-$HOME/.ssh/id_ed25519}"
+  VM_USER="${SKADI_PROGRAM_FILES_VM_USER:-feltfomo}"
+  VM_SUDO_PASSWORD="${SKADI_PROGRAM_FILES_VM_SUDO_PASSWORD:-skadi}"
+  VM_PORT="${SKADI_PROGRAM_FILES_VM_PORT:-2222}"
+  VM_BASE="$VM_CACHE/program-files-base.qcow2"
+  VM_BASE_VARS="$VM_CACHE/program-files-base-vars.fd"
+  VM_PROVISION="$VM_CACHE/program-files-base.json"
+}
+
+vm_require_common() {
   command -v nix >/dev/null || die "nix is required"
   [ -n "${OVMF_FD:-}" ] || die "OVMF_FD is missing"
-  local vm_cache="${SKADI_VM_CACHE:-$HOME/.cache/skadi-vm}"
-  VM_KEY="$vm_cache/vm-test-key"
-  VM_PORT=2222
-  [ -f "$VM_KEY" ] || die "missing $VM_KEY"
-  # The installer harness is intentionally cold; this is a one-time disposable proof path.
-  log "installing disposable vm through the existing vm-test harness"
-  nix run "${flake}#vm-test" -- --host vm --reset --keep
+  vm_paths
+  mkdir -p "$VM_CACHE"
+}
 
-  local disk="$vm_cache/vm.qcow2" vars="$vm_cache/vm-vars.fd" serial="$CACHE/vm-regression-serial.log"
-  local code="$OVMF_FD/FV/OVMF_CODE.fd"
-  [ -f "$disk" ] && [ -f "$vars" ] && [ -f "$code" ] || die "vm artifacts are incomplete"
-  : > "$serial"
-  qemu-system-x86_64 -machine q35,accel=kvm -cpu host -m 8192 -smp 4 \
-    -drive "if=pflash,format=raw,readonly=on,file=$code" \
-    -drive "if=pflash,format=raw,file=$vars" \
-    -drive "file=$disk,if=virtio,format=qcow2" \
-    -netdev "user,id=net0,hostfwd=tcp::$VM_PORT-:22" -device virtio-net,netdev=net0 \
-    -display none -serial "file:$serial" -no-reboot -boot order=c &
-  local qemu_pid=$!
-  trap 'kill "$qemu_pid" 2>/dev/null || true; wait "$qemu_pid" 2>/dev/null || true' RETURN
+vm_require_run() {
+  vm_require_common
+  [ -f "$VM_KEY" ] || die "missing installed-VM key at $VM_KEY"
+  chmod 600 "$VM_KEY" 2>/dev/null || true
+}
+
+vm_provision() {
+  local flake="$1" installed_disk installed_vars tmp_disk tmp_vars
+  vm_require_common
+  [ ! -e "$VM_BASE" ] || die "base already exists at $VM_BASE; remove it explicitly before reprovisioning"
+  installed_disk="$VM_CACHE/vm.qcow2"
+  installed_vars="$VM_CACHE/vm-vars.fd"
+  log "provisioning the lifecycle base through the installer harness"
+  nix run "${flake}#vm-test" -- --host vm --reset --keep
+  [ -f "$installed_disk" ] && [ -f "$installed_vars" ] || die "installer harness did not leave complete VM artifacts"
+  tmp_disk="${VM_BASE}.tmp"
+  tmp_vars="${VM_BASE_VARS}.tmp"
+  cp --reflink=auto --sparse=always "$installed_disk" "$tmp_disk"
+  cp "$installed_vars" "$tmp_vars"
+  chmod 0444 "$tmp_disk" "$tmp_vars"
+  mv "$tmp_disk" "$VM_BASE"
+  mv "$tmp_vars" "$VM_BASE_VARS"
+  jq -n --arg flake "$flake" --arg disk "$VM_BASE" --arg vars "$VM_BASE_VARS" \
+    --arg createdAt "$(date --iso-8601=seconds)" \
+    '{schemaVersion:1,flake:$flake,disk:$disk,ovmfVariables:$vars,createdAt:$createdAt}' > "$VM_PROVISION"
+  log "provisioned immutable lifecycle base at $VM_BASE"
+}
+
+vm_wait_ssh() {
   local up=0
   for _ in $(seq 1 60); do
     if ssh_vm true 2>/dev/null; then up=1; break; fi
-    kill -0 "$qemu_pid" 2>/dev/null || die "VM exited before SSH; see $serial"
+    kill -0 "$QEMU_PID" 2>/dev/null || die "VM exited before SSH; see $VM_SERIAL"
     sleep 5
   done
   [ "$up" = 1 ] || die "VM did not accept SSH"
+}
 
-  # Everything below mutates only the installed guest checkout and store.
-  ssh_vm 'bash -s' <<'REMOTE'
-set -euo pipefail
-cd /etc/skadi
-link=/home/feltfomo/.config/kitty/kitty.conf
-[ -L "$link" ]
-old_target=$(readlink -f "$link")
-printf '\n# disposable retention generation\n' >> configs/kitty/kitty.conf
-nixos-rebuild switch --flake /etc/skadi#vm
-new_target=$(readlink -f "$link")
-[ "$old_target" != "$new_target" ]
-[ -e "$new_target" ]
-nix-collect-garbage -d
-[ ! -e "$old_target" ]
-[ -e "$new_target" ]
-retention_hash=$(sha256sum "$link" | awk '{print $1}')
-sed -i '/^[[:space:]]*kitty[[:space:]]*$/d' modules/users/feltfomo.nix
-declared=$(nix eval --raw .#nixosConfigurations.vm.config.hjem.users.feltfomo.files --apply 'files: if builtins.hasAttr ".config/kitty/kitty.conf" files then "present" else "absent"')
-[ "$declared" = absent ]
-nixos-rebuild switch --flake /etc/skadi#vm
-[ -L "$link" ]
-cleanup_target=$(readlink -f "$link")
-jq -n --arg oldTarget "$old_target" --arg currentTarget "$new_target" --arg retentionHash "$retention_hash" --arg cleanupTarget "$cleanup_target" '{retention:{oldTarget:$oldTarget,oldTargetReaped:true,currentTarget:$currentTarget,currentTargetSurvived:true,currentContentSha256:$retentionHash},cleanup:{declarationAbsentFromEvaluation:true,staleEntryRemained:true,observedTarget:$cleanupTarget}}' > /tmp/program-files-vm-evidence.json
-REMOTE
-  scp -i "$VM_KEY" -P "$VM_PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR root@localhost:/tmp/program-files-vm-evidence.json "$CACHE/vm-evidence.json"
-  jq . "$CACHE/vm-evidence.json"
-  log "VM retention and cleanup evidence captured"
+vm_start() {
+  : > "$VM_SERIAL"
+  qemu-system-x86_64 -machine q35,accel=kvm -cpu host -m 8192 -smp 4 \
+    -drive "if=pflash,format=raw,readonly=on,file=$VM_CODE" \
+    -drive "if=pflash,format=raw,file=$VM_RUN_VARS" \
+    -drive "file=$VM_OVERLAY,if=virtio,format=qcow2" \
+    -netdev "user,id=net0,hostfwd=tcp::$VM_PORT-:22" -device virtio-net,netdev=net0 \
+    -display none -serial "file:$VM_SERIAL" -no-reboot -boot order=c &
+  QEMU_PID=$!
+  vm_wait_ssh
+}
+
+vm_stop() {
+  if [ -n "${QEMU_PID:-}" ] && kill -0 "$QEMU_PID" 2>/dev/null; then
+    kill "$QEMU_PID" 2>/dev/null || true
+    wait "$QEMU_PID" 2>/dev/null || true
+  fi
+  QEMU_PID=""
+}
+
+vm_reboot() {
+  ssh_root reboot >/dev/null 2>&1 || true
+  wait "$QEMU_PID" 2>/dev/null || true
+  QEMU_PID=""
+  vm_start
+}
+
+vm_guest_harness() {
+  ssh_vm env HOME=/home/feltfomo SKADI_PROGRAM_FILES_CACHE=/home/feltfomo/.cache/skadi-program-files-regression "$VM_APP/bin/program-files-regression" "$@"
+}
+
+vm_guest_harness_root() {
+  ssh_root env HOME=/home/feltfomo SKADI_PROGRAM_FILES_CACHE=/home/feltfomo/.cache/skadi-program-files-regression "$VM_APP/bin/program-files-regression" "$@"
+}
+
+vm_prepare_test_flake() {
+  local flake="$1" destination="$2" relative password_state source_file guest_hash host_hash copied
+  git -C "$flake" rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+    || die "VM test source must be a Git worktree: $flake"
+  mkdir -p "$destination"
+  (
+    cd "$flake"
+    git ls-files -z | tar --null -T - -cf -
+  ) | tar -C "$destination" -xf -
+
+  password_state="$(ssh_root getent shadow "$VM_USER" | cut -d: -f2)"
+  [ -n "$password_state" ] && [[ "$password_state" != '!'* ]] \
+    || die "installed VM account is locked or has no password hash"
+
+  copied=0
+  for source_file in "$destination"/secrets/*.yaml; do
+    [ -f "$source_file" ] || continue
+    relative="${source_file#"$destination"/}"
+    ssh_vm test -f "/etc/skadi/$relative" \
+      || die "installed VM is missing disposable encrypted source: $relative"
+    scp_from_vm "$VM_USER@localhost:/etc/skadi/$relative" "$source_file"
+    guest_hash="$(ssh_vm sha256sum "/etc/skadi/$relative" | awk '{print $1}')"
+    host_hash="$(sha256sum "$source_file" | awk '{print $1}')"
+    [ "$guest_hash" = "$host_hash" ] \
+      || die "disposable encrypted source copy did not verify: $relative"
+    copied=$((copied + 1))
+  done
+  [ "$copied" -gt 0 ] || die "tracked source contains no SOPS yaml files to replace"
+
+  git -C "$destination" init -q
+  git -C "$destination" add -A
+  git -C "$destination" -c user.name=program-files-regression \
+    -c user.email=program-files-regression@invalid commit -qm "disposable VM test source"
+}
+
+vm_copy_closures() {
+  local ssh_opts
+  ssh_opts="-i $VM_KEY -p $VM_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+  env NIX_SSHOPTS="$ssh_opts" nix copy --no-check-sigs --to "ssh-ng://$VM_USER@localhost" "$VM_TOPLEVEL" "$VM_APP" "$VM_ARCHIVE"
+  ssh_root mkdir -p /nix/var/nix/gcroots/program-files-regression
+  ssh_root ln -sfn "$VM_TOPLEVEL" /nix/var/nix/gcroots/program-files-regression/system
+  ssh_root ln -sfn "$VM_APP" /nix/var/nix/gcroots/program-files-regression/harness
+  ssh_root ln -sfn "$VM_ARCHIVE" /nix/var/nix/gcroots/program-files-regression/source
+}
+
+vm_select_toplevel() {
+  ssh_root nix-env -p /nix/var/nix/profiles/system --set "$VM_TOPLEVEL"
+  ssh_root "$VM_TOPLEVEL/bin/switch-to-configuration" switch
+  [ "$(ssh_vm readlink -f /run/current-system)" = "$VM_TOPLEVEL" ] || die "guest did not activate the tested toplevel"
+}
+
+vm_assert_selected_after_boot() {
+  local mode="$1" actual
+  ssh_vm mkdir -p /home/feltfomo/.cache/skadi-program-files-regression
+  actual="$(ssh_vm readlink -f /run/current-system)"
+  [ "$actual" = "$VM_TOPLEVEL" ] || die "reboot selected $actual instead of $VM_TOPLEVEL"
+  ssh_vm test "$(ssh_vm readlink -f /nix/var/nix/profiles/system)" = "$VM_TOPLEVEL"
+  ssh_vm test -e /nix/var/nix/gcroots/program-files-regression/system
+  ssh_vm test -e /nix/var/nix/gcroots/program-files-regression/harness
+  local evidence_name="case-${mode}-generation-evidence.json"
+  [ "$mode" != initial ] || evidence_name="initial-generation-evidence.json"
+  jq -n --arg mode "$mode" --arg expected "$VM_TOPLEVEL" --arg actual "$actual" \
+    '{mode:$mode,expectedToplevel:$expected,actualToplevel:$actual,exactGenerationSelected:($expected==$actual),systemRootPresent:true,harnessRootPresent:true}' \
+    | ssh_vm "cat > /home/feltfomo/.cache/skadi-program-files-regression/$evidence_name"
+}
+
+vm_noop_switch() {
+  local before after
+  before="$(ssh_vm readlink -f /run/current-system)"
+  ssh_root nixos-rebuild switch --flake "$VM_ARCHIVE#vm"
+  after="$(ssh_vm readlink -f /run/current-system)"
+  [ "$before" = "$after" ] || die "no-op switch changed the toplevel: $before -> $after"
+  [ "$after" = "$VM_TOPLEVEL" ] || die "no-op switch selected an unexpected toplevel"
+}
+
+vm_collect_evidence() {
+  local destination="$1"
+  mkdir -p "$destination"
+  scp_from_vm "$VM_USER@localhost:/home/feltfomo/.cache/skadi-program-files-regression/*.json" "$destination/"
+}
+
+vm_equivalence() {
+  local khion_matrix="$1" evidence="$2" output="$3" expected khion vm status
+  local khion_expected vm_expected vm_khion boot_ids switches persistence generations fixtures all_true
+  expected="$(expected_matrix | jq -Sc .)"
+  khion="$(normalize_matrix "$khion_matrix" | jq -Sc .)"
+  vm="$(normalize_matrix "$evidence/repair-matrix.json" | jq -Sc .)"
+  khion_expected=false; vm_expected=false; vm_khion=false
+  [ "$khion" = "$expected" ] && khion_expected=true
+  [ "$vm" = "$expected" ] && vm_expected=true
+  [ "$vm" = "$khion" ] && vm_khion=true
+  boot_ids="$(jq -s 'length==3 and all(.[];.bootIdChanged==true and .homePersistence=="persisted")' "$evidence"/case-*-boot-evidence.json)"
+  switches="$(jq -s 'length==3 and all(.[];.byteIdenticalToplevel==true)' "$evidence"/case-*-switch-evidence.json)"
+  persistence="$(jq -s 'length==3 and all(.[];.negativeControlPassed==true and .persistedSentinelSurvived==true and .persistedSentinelUnchanged==true and .persistedEvidenceSetSurvived==true)' "$evidence"/case-*-persistence-evidence.json)"
+  generations="$(jq -s 'length==3 and all(.[];.exactGenerationSelected==true and .systemRootPresent==true and .harnessRootPresent==true)' "$evidence"/case-*-generation-evidence.json)"
+  fixtures="$(jq -s 'length==3 and all(.[];.fixtureStateValid==true)' "$evidence"/case-*-boot-evidence.json)"
+  all_true=false
+  if [ "$khion_expected" = true ] && [ "$vm_expected" = true ] && [ "$vm_khion" = true ] && [ "$boot_ids" = true ] && [ "$switches" = true ] && [ "$persistence" = true ] && [ "$generations" = true ] && [ "$fixtures" = true ]; then all_true=true; fi
+  status=finding; [ "$all_true" = true ] && status=pass
+  jq -S -n --arg status "$status" --argjson expected "$expected" --argjson khion "$khion" --argjson vm "$vm" \
+    --arg khionMatrixPath "$khion_matrix" --arg khionMatrixSha256 "$(content_hash "$khion_matrix")" \
+    --arg khionMatrixModifiedAt "$(date --iso-8601=seconds --reference="$khion_matrix")" \
+    --arg baselineGeneratedBy "$(jq -r .generatedBy "$PROGRAM_FILES_BASELINE")" \
+    --arg baselineSystemToplevel "$(jq -r '.hosts.khion.systemToplevel // null' "$PROGRAM_FILES_BASELINE")" \
+    --arg archive "$VM_ARCHIVE" --arg testedToplevel "$VM_TOPLEVEL" --arg regressionApp "$VM_APP" \
+    --argjson khionMatchesExpected "$khion_expected" --argjson vmMatchesExpected "$vm_expected" \
+    --argjson vmMatchesKhion "$vm_khion" --argjson changedBootIds "$boot_ids" \
+    --argjson byteIdenticalSwitches "$switches" --argjson persistenceControls "$persistence" \
+    --argjson exactGenerationSelected "$generations" --argjson fixtureStates "$fixtures" \
+    '{schemaVersion:1,status:$status,authority:{expectedMatrix:$expected},khionEvidence:{path:$khionMatrixPath,sha256:$khionMatrixSha256,modifiedAt:$khionMatrixModifiedAt,baselineGeneratedBy:$baselineGeneratedBy,baselineSystemToplevel:$baselineSystemToplevel,matrix:$khion},vmEvidence:{matrix:$vm,archive:$archive,testedToplevel:$testedToplevel,regressionApp:$regressionApp},invariants:{khionMatchesExpected:$khionMatchesExpected,vmMatchesExpected:$vmMatchesExpected,vmMatchesKhion:$vmMatchesKhion,changedBootIds:$changedBootIds,byteIdenticalNoOpSwitches:$byteIdenticalSwitches,persistenceAndNegativeControls:$persistenceControls,exactGenerationSelected:$exactGenerationSelected,fixtureStatesValid:$fixtureStates}}' > "$output"
+  jq . "$output"
+  [ "$status" = pass ] || return 1
+}
+
+vm_record_missing_khion() {
+  local path="$1" output="$2"
+  expected_matrix | jq -S --arg path "$path" '{schemaVersion:1,status:"finding",authority:{expectedMatrix:.},khionEvidence:{path:$path,present:false},finding:"khion repair matrix is missing"}' > "$output"
+}
+
+vm_run() {
+  local flake="$1" khion_matrix="$2"
+  vm_require_run
+  mkdir -p "$CACHE"
+  local output="$CACHE/vm-khion-equivalence.json"
+  if [ ! -f "$khion_matrix" ]; then vm_record_missing_khion "$khion_matrix" "$output"; cat "$output"; return 1; fi
+  [ -f "$VM_BASE" ] && [ -f "$VM_BASE_VARS" ] && [ -f "$VM_PROVISION" ] || die "lifecycle base is missing; run vm provision once"
+  local run_id run_dir evidence archive_json
+  run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+  run_dir="$VM_CACHE/program-files-run-$run_id"
+  evidence="$CACHE/vm-evidence-$run_id"
+  mkdir -p "$run_dir" "$evidence"
+  VM_OVERLAY="$run_dir/disk.qcow2"
+  VM_RUN_VARS="$run_dir/vars.fd"
+  VM_SERIAL="$run_dir/serial.log"
+  VM_CODE="$OVMF_FD/FV/OVMF_CODE.fd"
+  qemu-img create -f qcow2 -F qcow2 -b "$VM_BASE" "$VM_OVERLAY" >/dev/null
+  cp "$VM_BASE_VARS" "$VM_RUN_VARS"
+  chmod 0600 "$VM_RUN_VARS"
+  QEMU_PID=""
+  trap 'vm_stop' EXIT
+  vm_start
+  VM_TEST_FLAKE="$run_dir/source"
+  vm_prepare_test_flake "$flake" "$VM_TEST_FLAKE"
+  VM_TOPLEVEL="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.system.build.toplevel")"
+  VM_APP="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#program-files-regression")"
+  archive_json="$(nix flake archive --json "$VM_TEST_FLAKE")"
+  VM_ARCHIVE="$(jq -r .path <<<"$archive_json")"
+  [[ "$VM_ARCHIVE" == /nix/store/* ]] || die "flake archive is not an immutable store path"
+  vm_copy_closures
+  vm_select_toplevel
+  vm_reboot
+  vm_assert_selected_after_boot initial
+  vm_guest_harness rm-matrix --host vm
+  local mode
+  for mode in absent dangling drifted; do
+    vm_guest_harness case-prepare --host vm --mode "$mode"
+    vm_noop_switch
+    vm_guest_harness case-switch-assert --host vm --mode "$mode"
+    vm_guest_harness case-prepare --host vm --mode "$mode"
+    vm_guest_harness_root reboot-prepare --host vm --mode "$mode" --run-id "$run_id"
+    vm_reboot
+    vm_assert_selected_after_boot "$mode"
+    vm_guest_harness_root reboot-assert --host vm --mode "$mode" --run-id "$run_id"
+    vm_guest_harness case-boot-assert --host vm --mode "$mode"
+  done
+  vm_collect_evidence "$evidence"
+  cp "$evidence/repair-matrix.json" "$CACHE/vm-repair-matrix.json"
+  vm_equivalence "$khion_matrix" "$evidence" "$output"
+  log "VM proof passed; disposable overlay retained at $run_dir"
 }
 
 command="${1:-}"
@@ -510,10 +791,30 @@ case "$command" in
   case-boot-assert)
     [ "${1:-}" = --host ] && [ -n "${2:-}" ] && [ "${3:-}" = --mode ] && [ -n "${4:-}" ] || die "case-boot-assert needs --host and --mode"
     case_boot_assert "$2" "$4";;
+  rm-matrix)
+    [ "${1:-}" = --host ] && [ -n "${2:-}" ] || die "rm-matrix needs --host"
+    require_host "$2"; rm -f "$(matrix_path)";;
+  reboot-prepare)
+    [ "${1:-}" = --host ] && [ -n "${2:-}" ] && [ "${3:-}" = --mode ] && [ -n "${4:-}" ] && [ "${5:-}" = --run-id ] && [ -n "${6:-}" ] || die "reboot-prepare needs --host, --mode, and --run-id"
+    reboot_prepare "$2" "$4" "$6";;
+  reboot-assert)
+    [ "${1:-}" = --host ] && [ -n "${2:-}" ] && [ "${3:-}" = --mode ] && [ -n "${4:-}" ] && [ "${5:-}" = --run-id ] && [ -n "${6:-}" ] || die "reboot-assert needs --host, --mode, and --run-id"
+    reboot_assert "$2" "$4" "$6";;
   vm)
-    flake="."
-    while [ "$#" -gt 0 ]; do case "$1" in --flake) flake="$2"; shift 2;; *) die "unknown vm argument: $1";; esac; done
-    vm_proof "$flake"
+    action="${1:-}"; [ -n "$action" ] || die "vm needs provision or run"; shift
+    flake="."; khion_matrix=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --flake) flake="$2"; shift 2;;
+        --khion-matrix) khion_matrix="$2"; shift 2;;
+        *) die "unknown vm $action argument: $1";;
+      esac
+    done
+    case "$action" in
+      provision) vm_provision "$flake";;
+      run) [ -n "$khion_matrix" ] || die "vm run needs --khion-matrix"; vm_run "$flake" "$khion_matrix";;
+      *) die "unknown vm action: $action";;
+    esac
     ;;
   -h|--help|help) usage;;
   *) usage; exit 2;;

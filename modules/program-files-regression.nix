@@ -10,6 +10,8 @@ _: {
           gnugrep
           gnused
           gawk
+          git
+          gnutar
           jq
           util-linux
           openssh
@@ -19,7 +21,8 @@ _: {
           # Use the caller's Lix; only immutable fixture inputs are baked into the wrapper.
           OVMF_FD='${pkgs.OVMF.fd}'
           PROGRAM_FILES_MANIFEST='${../tests/program-files-manifest.json}'
-          export OVMF_FD PROGRAM_FILES_MANIFEST
+          PROGRAM_FILES_BASELINE='${../tests/program-files-baseline.json}'
+          export OVMF_FD PROGRAM_FILES_MANIFEST PROGRAM_FILES_BASELINE
         ''
         + builtins.readFile ../scripts/program-files-regression.sh;
       };

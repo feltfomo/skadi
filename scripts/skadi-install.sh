@@ -35,7 +35,7 @@ detect_generic_disk() {
     die "generic: no whole-disk device detected (lsblk saw none). This slice installs to a single internal disk -- attach one and retry."
   elif [ "$n" -gt 1 ]; then
     lsblk --nodeps --output NAME,SIZE,TYPE,MODEL >&2
-    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection for 'generic' is a planned 2e follow-on and isn't wired yet -- for multi-disk hardware add an explicit per-host layout (khion/lumi-style modules/hosts/_<host>/{disko,hardware}.nix)."
+    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection isn't wired yet; add an explicit per-host layout for multi-disk hardware (khion/lumi-style modules/hosts/_<host>/{disko,hardware}.nix)."
   fi
   GENERIC_DEVICE="/dev/${disks[0]}"
   log "generic: detected sole target disk $GENERIC_DEVICE"
@@ -422,6 +422,78 @@ EOF
 provision_secrets() {
   local plan name method prompt format optional placeholder value raw envvar
   plan="$(eval_target .config.skadi.provision.secrets)"
+  if [ "${IN_DISKO_TEST:-}" = 1 ]; then
+    # The checked-in rules target real machines, so test secrets use the fresh
+    # VM host recipient instead.
+    (
+      umask 077
+      local test_tmp target_map configured_sops_file target plaintext encrypted existing_target existing_plaintext
+      test_tmp="$(mktemp -d)"
+      trap 'rm -rf "$test_tmp"' EXIT
+      target_map="$test_tmp/targets"
+      : > "$target_map"
+
+      for name in $(jq -r 'keys[]' <<<"$plan"); do
+        method=$(jq -r --arg n "$name" '.[$n].method'           <<<"$plan")
+        prompt=$(jq -r --arg n "$name" '.[$n].prompt'           <<<"$plan")
+        format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
+        optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
+        placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
+        envvar="SKADI_SECRET_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
+        case "$method" in
+          mkpasswd)
+            value="${!envvar:-}"
+            [ -n "$value" ] || die "$name is required (set $envvar to a sha-512 hash)"
+            ;;
+          placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
+          paste)
+            raw="${!envvar:-}"
+            if [ -n "$raw" ]; then
+              # shellcheck disable=SC2059  # trusted config template such as NOTION_TOKEN=%s
+              value=$(printf "$format" "$raw")
+            elif [ "$optional" = true ]; then
+              value="$placeholder"
+            else
+              die "$name is required"
+            fi
+            ;;
+          *) die "unknown provision method '$method' for $name" ;;
+        esac
+
+        configured_sops_file="$(eval_target ".config.sops.secrets.\"${name}\".sopsFile" | jq -r .)"
+        [ -n "$configured_sops_file" ] && [ "$configured_sops_file" != null ] \
+          || die "$name has no effective sopsFile"
+        target="secrets/$(basename "$configured_sops_file")"
+        plaintext=""
+        while IFS=$'\t' read -r existing_target existing_plaintext; do
+          if [ "$existing_target" = "$target" ]; then
+            plaintext="$existing_plaintext"
+            break
+          fi
+        done < "$target_map"
+        if [ -z "$plaintext" ]; then
+          plaintext="$(mktemp "$test_tmp/plaintext.XXXXXX")"
+          chmod 0600 "$plaintext"
+          printf '%s\t%s\n' "$target" "$plaintext" >> "$target_map"
+        fi
+        printf '%s: "%s"\n' "$name" "$value" >> "$plaintext"
+      done
+
+      while IFS=$'\t' read -r target plaintext; do
+        [ -n "$target" ] || continue
+        encrypted="$(mktemp "$test_tmp/encrypted.XXXXXX")"
+        (
+          cd "$test_tmp"
+          sops --encrypt --age "$AGE_RECIP" --input-type yaml --output-type yaml \
+            "$plaintext" > "$encrypted"
+        )
+        install -D -m0644 "$encrypted" "$target"
+        rm -f "$encrypted"
+        git add -A "$target"
+      done < "$target_map"
+    )
+    return
+  fi
   install -d -m0755 secrets
   : > secrets/secrets.yaml
   for name in $(jq -r 'keys[]' <<<"$plan"); do
