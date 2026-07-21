@@ -2,6 +2,7 @@
   lib,
   resolve,
   resolveSystem,
+  principalContexts,
 }:
 let
   ownerships = import ../ownerships { inherit lib; };
@@ -213,6 +214,100 @@ let
     furnish.core.diagnostic "capability-selection" "no-capable-executor" "sample" "no executor matched"
   );
 
+  principalByScope =
+    scope: builtins.head (builtins.filter (p: p.authority.scope == scope) principalContexts);
+  userPrincipal = principalByScope "user";
+  systemPrincipal = principalByScope "system";
+  hostPrincipals = [
+    systemPrincipal
+    userPrincipal
+  ];
+
+  userClaim = (removeAttrs sample [ "users" ]) // {
+    label = "user-claim";
+    managedRoot = "/tmp";
+    destination = "furnish/shared.conf";
+    source = sample.source // {
+      value = throw "forced active host-index payload";
+    };
+    generator = throw "forced active host-index generator";
+    executor = throw "forced active host-index executor";
+    provenance.source = "user-source.nix";
+  };
+  systemClaim = (removeAttrs systemDeclaration [ "users" ]) // {
+    label = "system-claim";
+    managedRoot = "/tmp";
+    destination = "/tmp/furnish/shared.conf";
+    source = systemDeclaration.source // {
+      value = throw "forced system host-index payload";
+    };
+    provenance.source = "system-source.nix";
+  };
+  inactiveHostClaim = userClaim // {
+    label = "inactive-host-poison";
+    hosts = [ "lumi" ];
+    destination = "furnish/inactive.conf";
+    source = userClaim.source // {
+      value = throw "forced ownership-excluded host-index payload";
+    };
+  };
+  secondUserClaim = userClaim // {
+    label = "second-user-claim";
+    provenance.source = "second-user-source.nix";
+  };
+  secondCollisionUser = userClaim // {
+    label = "other-user-claim";
+    destination = "furnish/other.conf";
+    provenance.source = "other-user-source.nix";
+  };
+  secondCollisionSystem = systemClaim // {
+    label = "other-system-claim";
+    destination = "furnish/other.conf";
+    provenance.source = "other-system-source.nix";
+  };
+  canonicalSpelling = userClaim // {
+    label = "canonical-spelling";
+    destination = "furnish/./nested/../shared.conf/";
+    provenance.source = "canonical-source.nix";
+  };
+  escaping = userClaim // {
+    label = "escaping";
+    destination = "../../etc/escaped.conf";
+  };
+
+  projectHost =
+    declarations:
+    builtins.concatMap (
+      principal: furnish.core.projectPrincipal { inherit declarations principal; }
+    ) hostPrincipals;
+  collisionText =
+    declarations:
+    furnish.core.renderDiagnostics (furnish.core.collisionDiagnostics (projectHost declarations));
+
+  crossCollisionText = collisionText [
+    userClaim
+    systemClaim
+  ];
+  samePrincipalCollisionText = collisionText [
+    userClaim
+    secondUserClaim
+  ];
+  threeClaimantText = collisionText [
+    userClaim
+    secondUserClaim
+    systemClaim
+  ];
+  aggregateCollisionText = collisionText [
+    userClaim
+    systemClaim
+    secondCollisionUser
+    secondCollisionSystem
+  ];
+  expectedCrossCollisionText = "furnish: collision-detection/duplicate-filesystem-identity: x86_64-linux/khion:/tmp/furnish/shared.conf: claimed by system/x86_64-linux/khion (system-claim at system-source.nix), user/feltfomo (user-claim at user-source.nix)";
+  expectedSamePrincipalCollisionText = "furnish: collision-detection/duplicate-filesystem-identity: x86_64-linux/khion:/tmp/furnish/shared.conf: claimed by user/feltfomo (second-user-claim at second-user-source.nix), user/feltfomo (user-claim at user-source.nix)";
+
+  collisionEvidence = aggregateCollisionText;
+
   manifestKeys = builtins.attrNames sampleEntry;
   artifactTarget = sampleEntry.retainedArtifactTarget;
   manifestContext = builtins.getContext sampleResult.manifestJson;
@@ -362,11 +457,88 @@ let
           == "/etc/furnish/sample.conf";
     }
     {
-      name = "duplicate filesystem identities fail after canonical ordering";
-      pass = throws (compile [
-        sample
-        (sample // { label = "duplicate"; })
-      ]);
+      name = "lexical normalization collapses equivalent in-root spellings";
+      pass =
+        (furnish.core.deriveDestination canonicalSpelling).filesystemIdentity.canonical
+        == "x86_64-linux/khion:/tmp/furnish/shared.conf";
+    }
+    {
+      name = "lexical normalization still rejects managed-root escape";
+      pass = throws (furnish.core.deriveDestination escaping);
+    }
+    {
+      name = "single claims across principals build one deterministic host index";
+      pass =
+        builtins.attrNames (
+          furnish.core.buildHostIndex {
+            declarations = [
+              userClaim
+              (systemClaim // { destination = "furnish/system.conf"; })
+              inactiveHostClaim
+            ];
+            principals = hostPrincipals;
+          }
+        ) == [
+          "x86_64-linux/khion:/tmp/furnish/shared.conf"
+          "x86_64-linux/khion:/tmp/furnish/system.conf"
+        ];
+    }
+    {
+      name = "cross-principal and same-principal collisions share one diagnostic";
+      pass =
+        crossCollisionText == expectedCrossCollisionText
+        && samePrincipalCollisionText == expectedSamePrincipalCollisionText
+        && throws (
+          furnish.core.buildHostIndex {
+            declarations = [
+              userClaim
+              systemClaim
+            ];
+            principals = hostPrincipals;
+          }
+        )
+        && throws (compile [
+          userClaim
+          secondUserClaim
+        ]);
+    }
+    {
+      name = "three claimants are all rendered in deterministic order";
+      pass =
+        lib.hasInfix "system/x86_64-linux/khion (system-claim at system-source.nix)" threeClaimantText
+        && lib.hasInfix "user/feltfomo (second-user-claim at second-user-source.nix)" threeClaimantText
+        && lib.hasInfix "user/feltfomo (user-claim at user-source.nix)" threeClaimantText;
+    }
+    {
+      name = "distinct collisions aggregate into one rendered report";
+      pass =
+        builtins.length (
+          furnish.core.collisionDiagnostics (projectHost [
+            userClaim
+            systemClaim
+            secondCollisionUser
+            secondCollisionSystem
+          ])
+        ) == 2
+        && lib.hasInfix "/tmp/furnish/other.conf" aggregateCollisionText
+        && lib.hasInfix "/tmp/furnish/shared.conf" aggregateCollisionText;
+    }
+    {
+      name = "whole host index stays payload executor generator and exclusion lazy";
+      pass =
+        (builtins.tryEval (
+          builtins.deepSeq (furnish.core.buildHostIndex {
+            declarations = [
+              userClaim
+              inactiveHostClaim
+            ];
+            principals = hostPrincipals;
+          }) true
+        )).success;
+    }
+    {
+      name = "empty host index is inert";
+      pass = furnish.core.buildHostIndex { principals = hostPrincipals; } == { };
     }
     {
       name = "furnish check wiring probe";
@@ -386,5 +558,6 @@ in
     checks
     ok
     sampleResult
+    collisionEvidence
     ;
 }

@@ -15,8 +15,10 @@ let
       diagnostic: "furnish: ${diagnostic.code}: ${diagnostic.primary.label}: ${diagnostic.message}";
   };
 
-  renderDiagnostic = diagnostic: krisis.renderDiagnostics (renderArgs [ diagnostic ]);
-  fail = diagnostic: krisis.throwDiagnostics (renderArgs [ diagnostic ]);
+  renderDiagnostics = diagnostics: krisis.renderDiagnostics (renderArgs diagnostics);
+  renderDiagnostic = diagnostic: renderDiagnostics [ diagnostic ];
+  failAll = diagnostics: krisis.throwDiagnostics (renderArgs diagnostics);
+  fail = diagnostic: failAll [ diagnostic ];
 
   diagnostic =
     stage: code: entry: reason:
@@ -159,35 +161,55 @@ let
   normalizeAbsolute =
     declaration: field: value:
     let
-      parts = lib.splitString "/" (lib.removePrefix "/" value);
-      invalid =
-        value == ""
-        || !lib.hasPrefix "/" value
-        || lib.any (part: part == "" || part == "." || part == "..") parts;
+      step =
+        state: part:
+        if part == "" || part == "." then
+          state
+        else if part == ".." then
+          if state.parts == [ ] then
+            state // { escaped = true; }
+          else
+            state // { parts = lib.init state.parts; }
+        else
+          state // { parts = state.parts ++ [ part ]; };
+      normalized = builtins.foldl' step {
+        parts = [ ];
+        escaped = false;
+      } (lib.splitString "/" (lib.removePrefix "/" value));
+      path = "/${lib.concatStringsSep "/" normalized.parts}";
     in
-    if invalid then
+    if value == "" || !lib.hasPrefix "/" value then
       fail (
         diagnostic "destination-validation" "invalid-${field}" (entryName declaration)
-          "${field} must be a normalized absolute path without empty, '.' or '..' segments"
+          "${field} must be an absolute path"
       )
     else
-      "/${lib.concatStringsSep "/" parts}";
+      normalized // { inherit path; };
 
   deriveDestination =
     declaration:
     let
-      root = normalizeAbsolute declaration "managed-root" declaration.managedRoot;
-      absolute =
+      rootResult = normalizeAbsolute declaration "managed-root" declaration.managedRoot;
+      root = rootResult.path;
+      destinationResult = normalizeAbsolute declaration "destination" (
         if lib.hasPrefix "/" declaration.destination then
-          normalizeAbsolute declaration "destination" declaration.destination
+          declaration.destination
         else
-          normalizeAbsolute declaration "destination" "${root}/${declaration.destination}";
-      beneathRoot = absolute != root && lib.hasPrefix "${root}/" absolute;
+          "${root}/${declaration.destination}"
+      );
+      absolute = destinationResult.path;
+      beneathRoot =
+        !rootResult.escaped
+        && !destinationResult.escaped
+        && root != "/"
+        && absolute != "/"
+        && absolute != root
+        && lib.hasPrefix "${root}/" absolute;
     in
     if !beneathRoot then
       fail (
         diagnostic "destination-validation" "outside-managed-root" (entryName declaration)
-          "destination must be beneath its managed root"
+          "destination must remain beneath its managed root after lexical normalization"
       )
     else
       declaration
@@ -202,36 +224,107 @@ let
   identityLess =
     a: b: builtins.lessThan a.filesystemIdentity.canonical b.filesystemIdentity.canonical;
 
-  findCollision =
-    entries:
-    if builtins.length entries < 2 then
-      null
-    else
-      let
-        left = builtins.head entries;
-        rest = builtins.tail entries;
-        right = builtins.head rest;
-      in
-      if left.filesystemIdentity.canonical == right.filesystemIdentity.canonical then
-        {
-          inherit left right;
-        }
-      else
-        findCollision rest;
+  indexProjection = declaration: {
+    inherit (declaration) filesystemIdentity authority managedRoot;
+    provenance = {
+      declaration = entryName declaration;
+      source = (declaration.provenance or { }).source or "unknown";
+    };
+  };
 
-  checkCollisions =
-    entries:
-    let
-      collision = findCollision entries;
-    in
-    if collision == null then
-      entries
-    else
-      fail (
-        diagnostic "collision-detection" "duplicate-filesystem-identity"
-          "${entryName collision.left}, ${entryName collision.right}"
-          "both declarations claim ${collision.left.filesystemIdentity.canonical}"
+  claimantKey =
+    claimant:
+    "${claimant.authority.scope}:${claimant.authority.identity}:${claimant.provenance.source}:${claimant.provenance.declaration}";
+
+  claimantLess = a: b: builtins.lessThan (claimantKey a) (claimantKey b);
+
+  renderClaimant =
+    claimant:
+    "${claimant.authority.scope}/${claimant.authority.identity} (${claimant.provenance.declaration} at ${claimant.provenance.source})";
+
+  groupProjections =
+    projections:
+    builtins.foldl'
+      (
+        groups: projection:
+        let
+          key = projection.filesystemIdentity.canonical;
+        in
+        groups // { ${key} = (groups.${key} or [ ]) ++ [ projection ]; }
+      )
+      { }
+      (
+        builtins.sort (
+          a: b:
+          if a.filesystemIdentity.canonical == b.filesystemIdentity.canonical then
+            claimantLess a b
+          else
+            identityLess a b
+        ) projections
       );
+
+  collisionDiagnostics =
+    projections:
+    let
+      groups = groupProjections projections;
+    in
+    map (
+      key:
+      let
+        claimants = builtins.sort claimantLess groups.${key};
+      in
+      krisis.mkDiagnostic {
+        severity = "error";
+        code = "collision-detection/duplicate-filesystem-identity";
+        message = "claimed by ${lib.concatMapStringsSep ", " renderClaimant claimants}";
+        primary.label = key;
+        context = {
+          inherit ((builtins.head claimants)) filesystemIdentity;
+          inherit claimants;
+        };
+      }
+    ) (builtins.filter (key: builtins.length groups.${key} > 1) (builtins.attrNames groups));
+
+  buildIndex =
+    projections:
+    let
+      groups = groupProjections projections;
+      diagnostics = collisionDiagnostics projections;
+    in
+    if diagnostics != [ ] then
+      failAll diagnostics
+    else
+      lib.mapAttrs (_: claimants: builtins.head claimants) groups;
+
+  checkCollisions = entries: builtins.seq (buildIndex (map indexProjection entries)) entries;
+
+  projectPrincipal =
+    {
+      declarations,
+      principal,
+      provider ? defaultProvider,
+    }:
+    let
+      validated = map validateShape declarations;
+      shapeChecked = builtins.deepSeq (map (
+        declaration: declaration.authority.scope
+      ) validated) validated;
+      owned = builtins.filter (declaration: declaration.authority == principal.authority) shapeChecked;
+      selected = provider.selectApplicable owned principal.ctx;
+    in
+    map (declaration: indexProjection (deriveDestination declaration)) selected;
+
+  buildHostIndex =
+    {
+      declarations ? [ ],
+      principals ? [ ],
+      provider ? defaultProvider,
+    }:
+    buildIndex (
+      builtins.concatMap (
+        principal: projectPrincipal { inherit declarations principal provider; }
+      ) principals
+    );
 
   requiredCapabilities = declaration: [
     contract.capabilities.lifecycleBaseline
@@ -319,8 +412,8 @@ let
         selected = provider.selectApplicable shapeChecked ctx;
         normalized = map deriveDestination selected;
         ordered = builtins.sort identityLess normalized;
-        collisionChecked = checkCollisions ordered;
-        manifestEntries = map (materialize executors) collisionChecked;
+        index = buildIndex (map indexProjection ordered);
+        manifestEntries = builtins.seq index (map (materialize executors) ordered);
       in
       (contract.emit manifestEntries)
       // {
@@ -332,11 +425,17 @@ in
     compile
     diagnostic
     renderDiagnostic
+    renderDiagnostics
     validateShape
     isOwnerTagged
     mkEnabledProvider
     offProvider
     deriveDestination
+    indexProjection
+    collisionDiagnostics
+    buildIndex
+    buildHostIndex
+    projectPrincipal
     checkCollisions
     selectExecutor
     ;

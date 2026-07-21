@@ -114,6 +114,35 @@ let
   # droppable top-level aspect names per host on a system, for the install menu.
   hostAspects = system: lib.mapAttrs (_: topLevelAspectNames) den.hosts.${system};
 
+  hostPrincipals =
+    { system, host }:
+    let
+      h = den.hosts.${system}.${host};
+      hostCtx = {
+        id = "${system}/${host}";
+        name = host;
+        inherit system;
+      };
+      systemPrincipal = {
+        authority = {
+          scope = "system";
+          identity = "${system}/${host}";
+        };
+        ctx.host = hostCtx;
+      };
+      userPrincipals = map (name: {
+        authority = {
+          scope = "user";
+          identity = name;
+        };
+        ctx = {
+          host = hostCtx;
+          user = { inherit name; };
+        };
+      }) (builtins.attrNames (h.users or { }));
+    in
+    [ systemPrincipal ] ++ userPrincipals;
+
   # den normalizes its entire entity tree into one federated declaration stream,
   # then the shared descriptor projector produces the public roster shape. Hosts
   # are enumerated across every system in den.hosts (the single source of truth),
@@ -155,6 +184,7 @@ in
     mkTarget
     drop
     hostAspects
+    hostPrincipals
     topLevelAspectNames
     roster
     ;
