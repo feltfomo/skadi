@@ -568,7 +568,7 @@ assert_vm_test_identity() {
   local age_key decrypted
 
   expected_pub="$(cut -d' ' -f1-2 "$VM_TEST_PUB")"
-  installed_pub="$(ssh-keygen -y -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key")"
+  installed_pub="$(ssh-keygen -y -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key" | cut -d' ' -f1-2)"
   [ "$installed_pub" = "$expected_pub" ] \
     || die "installed vm test host identity does not match committed public key"
 
