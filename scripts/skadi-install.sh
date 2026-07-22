@@ -397,23 +397,47 @@ systemctl restart nix-daemon
 mkdir -p "$MNT/nix-build-tmp"
 log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 
-# host keys -> /persist, derive age recipient, rewrite .sops.yaml.
+# Host keys -> /persist. The disposable vm test uses a committed, explicitly
+# unsafe test identity so its encrypted fixture and resulting closure are stable.
+# Every other host keeps the ordinary fresh-key provisioning flow.
 install -d -m0755 "$MNT/persist/etc/ssh"
-log "generating host SSH keys into /persist/etc/ssh"
-ssh-keygen -t ed25519 -N "" -C "root@${HOST}" -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key"
-ssh-keygen -t rsa -b 4096 -N "" -C "root@${HOST}" -f "$MNT/persist/etc/ssh/ssh_host_rsa_key"
-chmod 600 "$MNT"/persist/etc/ssh/*_key
-chmod 644 "$MNT"/persist/etc/ssh/*_key.pub
+VM_TEST_IDENTITY=0
+VM_TEST_DIR="$WORK/modules/hosts/_vm"
+VM_TEST_KEY="$VM_TEST_DIR/ssh_host_ed25519_key"
+VM_TEST_PUB="$VM_TEST_KEY.pub"
+VM_TEST_FIXTURE="$VM_TEST_DIR/secrets.yaml"
 
-log "deriving age recipient from the new host key"
-AGE_RECIP="$(ssh-to-age -i "$MNT/persist/etc/ssh/ssh_host_ed25519_key.pub")"
-[ -n "$AGE_RECIP" ] || die "ssh-to-age produced no recipient"
-log "age recipient: $AGE_RECIP"
-cat > .sops.yaml <<EOF
+if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "$HOST" = vm ]; then
+  VM_TEST_IDENTITY=1
+  for required in "$VM_TEST_KEY" "$VM_TEST_PUB" "$VM_TEST_FIXTURE"; do
+    [ -f "$required" ] || die "vm test identity fixture missing: $required"
+  done
+  log "installing fixed TEST-ONLY vm host identity"
+  install -m0600 "$VM_TEST_KEY" "$MNT/persist/etc/ssh/ssh_host_ed25519_key"
+  install -m0644 "$VM_TEST_PUB" "$MNT/persist/etc/ssh/ssh_host_ed25519_key.pub"
+  ssh-keygen -t rsa -b 4096 -N "" -C "root@vm-test" \
+    -f "$MNT/persist/etc/ssh/ssh_host_rsa_key"
+  chmod 600 "$MNT"/persist/etc/ssh/*_key
+  chmod 644 "$MNT"/persist/etc/ssh/*_key.pub
+  AGE_RECIP="$(ssh-to-age -i "$VM_TEST_PUB")"
+  [ -n "$AGE_RECIP" ] || die "vm test identity has no age recipient"
+else
+  log "generating host SSH keys into /persist/etc/ssh"
+  ssh-keygen -t ed25519 -N "" -C "root@${HOST}" -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key"
+  ssh-keygen -t rsa -b 4096 -N "" -C "root@${HOST}" -f "$MNT/persist/etc/ssh/ssh_host_rsa_key"
+  chmod 600 "$MNT"/persist/etc/ssh/*_key
+  chmod 644 "$MNT"/persist/etc/ssh/*_key.pub
+
+  log "deriving age recipient from the new host key"
+  AGE_RECIP="$(ssh-to-age -i "$MNT/persist/etc/ssh/ssh_host_ed25519_key.pub")"
+  [ -n "$AGE_RECIP" ] || die "ssh-to-age produced no recipient"
+  log "age recipient: $AGE_RECIP"
+  cat > .sops.yaml <<EOF
 creation_rules:
   - path_regex: secrets/secrets.yaml\$
     age: $AGE_RECIP
 EOF
+fi
 
 # provision secrets: derive the set and how to fill each one from the host config,
 # then write + encrypt secrets/secrets.yaml. adding a user or a secret-bearing
@@ -422,6 +446,78 @@ EOF
 provision_secrets() {
   local plan name method prompt format optional placeholder value raw envvar
   plan="$(eval_target .config.skadi.provision.secrets)"
+  if [ "${IN_DISKO_TEST:-}" = 1 ]; then
+    # The checked-in rules target real machines, so test secrets use the fresh
+    # VM host recipient instead.
+    (
+      umask 077
+      local test_tmp target_map configured_sops_file target plaintext encrypted existing_target existing_plaintext
+      test_tmp="$(mktemp -d)"
+      trap 'rm -rf "$test_tmp"' EXIT
+      target_map="$test_tmp/targets"
+      : > "$target_map"
+
+      for name in $(jq -r 'keys[]' <<<"$plan"); do
+        method=$(jq -r --arg n "$name" '.[$n].method'           <<<"$plan")
+        prompt=$(jq -r --arg n "$name" '.[$n].prompt'           <<<"$plan")
+        format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
+        optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
+        placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
+        envvar="SKADI_SECRET_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
+        case "$method" in
+          mkpasswd)
+            value="${!envvar:-}"
+            [ -n "$value" ] || die "$name is required (set $envvar to a sha-512 hash)"
+            ;;
+          placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
+          paste)
+            raw="${!envvar:-}"
+            if [ -n "$raw" ]; then
+              # shellcheck disable=SC2059  # trusted config template such as NOTION_TOKEN=%s
+              value=$(printf "$format" "$raw")
+            elif [ "$optional" = true ]; then
+              value="$placeholder"
+            else
+              die "$name is required"
+            fi
+            ;;
+          *) die "unknown provision method '$method' for $name" ;;
+        esac
+
+        configured_sops_file="$(eval_target ".config.sops.secrets.\"${name}\".sopsFile" | jq -r .)"
+        [ -n "$configured_sops_file" ] && [ "$configured_sops_file" != null ] \
+          || die "$name has no effective sopsFile"
+        target="secrets/$(basename "$configured_sops_file")"
+        plaintext=""
+        while IFS=$'\t' read -r existing_target existing_plaintext; do
+          if [ "$existing_target" = "$target" ]; then
+            plaintext="$existing_plaintext"
+            break
+          fi
+        done < "$target_map"
+        if [ -z "$plaintext" ]; then
+          plaintext="$(mktemp "$test_tmp/plaintext.XXXXXX")"
+          chmod 0600 "$plaintext"
+          printf '%s\t%s\n' "$target" "$plaintext" >> "$target_map"
+        fi
+        printf '%s: "%s"\n' "$name" "$value" >> "$plaintext"
+      done
+
+      while IFS=$'\t' read -r target plaintext; do
+        [ -n "$target" ] || continue
+        encrypted="$(mktemp "$test_tmp/encrypted.XXXXXX")"
+        (
+          cd "$test_tmp"
+          sops --encrypt --age "$AGE_RECIP" --input-type yaml --output-type yaml \
+            "$plaintext" > "$encrypted"
+        )
+        install -D -m0644 "$encrypted" "$target"
+        rm -f "$encrypted"
+        git add -A "$target"
+      done < "$target_map"
+    )
+    return
+  fi
   install -d -m0755 secrets
   : > secrets/secrets.yaml
   for name in $(jq -r 'keys[]' <<<"$plan"); do
@@ -467,7 +563,55 @@ provision_secrets() {
   git add -A .sops.yaml secrets/secrets.yaml
 }
 
-provision_secrets
+assert_vm_test_identity() {
+  local expected_pub installed_pub actual_names fixture_hash configured_file configured_hash
+  local age_key decrypted
+
+  expected_pub="$(cut -d' ' -f1-2 "$VM_TEST_PUB")"
+  installed_pub="$(ssh-keygen -y -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key")"
+  [ "$installed_pub" = "$expected_pub" ] \
+    || die "installed vm test host identity does not match committed public key"
+
+  # The public test identity must never be a recipient of real encrypted files
+  # or real creation rules. The real files must also remain byte-untouched.
+  if grep -Fq "$AGE_RECIP" .sops.yaml secrets/lumi.yaml secrets/secrets.yaml; then
+    die "SECURITY INVARIANT: vm test recipient appears in real SOPS material"
+  fi
+  git diff --quiet -- .sops.yaml secrets/lumi.yaml secrets/secrets.yaml \
+    || die "SECURITY INVARIANT: real SOPS material changed during vm test install"
+
+  actual_names="$(eval_target .config.sops.secrets | jq -c 'keys | sort')"
+  [ "$actual_names" = '["feltfomo-password","notion-token"]' ] \
+    || die "vm test identity expected exactly feltfomo-password + notion-token; got $actual_names"
+
+  fixture_hash="$(sha256sum "$VM_TEST_FIXTURE" | awk '{print $1}')"
+  for name in feltfomo-password notion-token; do
+    configured_file="$(eval_target ".config.sops.secrets.\"${name}\".sopsFile" | jq -r .)"
+    [ -f "$configured_file" ] || die "$name effective sopsFile is missing"
+    configured_hash="$(sha256sum "$configured_file" | awk '{print $1}')"
+    [ "$configured_hash" = "$fixture_hash" ] \
+      || die "$name does not resolve to the committed _vm fixture"
+  done
+
+  age_key="$(mktemp)"
+  chmod 0600 "$age_key"
+  ssh-to-age -private-key -i "$MNT/persist/etc/ssh/ssh_host_ed25519_key" > "$age_key"
+  decrypted="$(SOPS_AGE_KEY_FILE="$age_key" sops --decrypt --output-type json "$VM_TEST_FIXTURE")"
+  rm -f "$age_key"
+  jq -e '
+    (keys | sort) == ["feltfomo-password", "notion-token"]
+    and .["feltfomo-password"] == "$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0"
+    and .["notion-token"] == "NOTION_TOKEN=REPLACE_ME"
+  ' >/dev/null <<<"$decrypted" || die "vm test fixture plaintext failed invariant check"
+  log "vm test identity assertions passed (fixed key, exact secret set, fixture decrypt, real secrets untouched)"
+}
+
+if [ "$VM_TEST_IDENTITY" = 1 ]; then
+  assert_vm_test_identity
+  log "using committed byte-identical vm test fixture; skipping provision_secrets"
+else
+  provision_secrets
+fi
 
 # copy flake to /persist/etc/skadi (impermanence-persisted) and install.
 install -d -m0755 "$MNT/persist/etc"
