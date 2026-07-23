@@ -1,0 +1,6 @@
+# synthetic placeholder - zero-build cached gate; replace with real captured output before trusting the gate.
+warning: Git tree '/etc/skadi' is dirty
+evaluating derivation 'git+file:///etc/skadi#nixosConfigurations.vm.config.system.build.toplevel'
+copying path '/nix/store/0d1w9c3v8f0m2a7q6r5s4v3w2x1y0z9a-etc' from 'https://cache.nixos.org'...
+copying path '/nix/store/1a2b3c4d5f6g7h8j9k0l1m2n3p4q5r6s-nixos-system-vm-26.05' from 'file:///var/cache/skadi/rebuild-vm-golden'...
+/nix/store/1a2b3c4d5f6g7h8j9k0l1m2n3p4q5r6s-nixos-system-vm-26.05

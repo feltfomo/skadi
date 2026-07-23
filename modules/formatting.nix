@@ -12,6 +12,7 @@
         statix.enable = true;
         stylua.enable = true;
         rustfmt.enable = true;
+        gofmt.enable = true;
       };
       # nixfmt runs last so it reflows what deadnix and statix rewrite
       settings.formatter.nixfmt.priority = 1;

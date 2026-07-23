@@ -1,0 +1,9 @@
+# synthetic placeholder - failed attempt with derivations to build; replace with real captured output before trusting the gate.
+warning: Git tree '/etc/skadi' is dirty
+evaluating derivation 'git+file:///etc/skadi#nixosConfigurations.vm.config.system.build.toplevel'
+these 2 derivations will be built:
+  /nix/store/aaaa1111bbbb2222cccc3333dddd4444-skadi-install.drv
+  /nix/store/eeee5555ffff6666gggg7777hhhh8888-nixos-system-vm-26.05.drv
+these 5 paths will be fetched (12.34 MiB download, 56.78 MiB unpacked):
+  /nix/store/iiii9999jjjj0000kkkk1111llll2222-glibc-2.40
+building '/nix/store/aaaa1111bbbb2222cccc3333dddd4444-skadi-install.drv'...
