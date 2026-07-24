@@ -34,9 +34,6 @@ type Guest struct {
 	res      CmdResult
 }
 
-// newGuest resolves the OVMF firmware, the throwaway SSH key, and a free ssh
-// forward port, failing closed if the environment the nix wrapper is supposed to
-// provide is missing.
 func (h *Harness) newGuest(label, disk, vars, serial string) (*Guest, error) {
 	ovmf := os.Getenv("OVMF_FD")
 	if ovmf == "" {
@@ -52,7 +49,7 @@ func (h *Harness) newGuest(label, disk, vars, serial string) (*Guest, error) {
 		sshKey = filepath.Join(home, ".cache", "skadi-vm", "vm-test-key")
 	}
 	if _, err := os.Stat(sshKey); err != nil {
-		return nil, fmt.Errorf("vm-test ssh private key not found at %s (set SKADI_VM_TEST_SSH_KEY); its public half must be in the installer authorizedKeys: %w", sshKey, err)
+		return nil, fmt.Errorf("vm-test ssh private key not found at %s (set SKADI_VM_TEST_SSH_KEY): %w", sshKey, err)
 	}
 	port, err := freePort()
 	if err != nil {
@@ -72,8 +69,6 @@ func (h *Harness) guestWorkDir() string {
 	return filepath.Join(base, "guest")
 }
 
-// servedSubstituter maps the host-bound cache file server to the address the
-// guest reaches over user-mode networking (gateway 10.0.2.2 -> host loopback).
 func (h *Harness) servedSubstituter() (string, error) {
 	if h.server == nil {
 		return "", fmt.Errorf("cache file server is not running; serve-cache must precede the guest stages")
@@ -89,27 +84,16 @@ func (h *Harness) servedSubstituter() (string, error) {
 	return "http://10.0.2.2:" + port, nil
 }
 
-// guestNixConfig is the run-scoped NIX_CONFIG for guest nix: the served signed
-// cache (skadi golden, absent from the public cache) PLUS cache.nixos.org for
-// standard install-time tooling (stdenv/disko), both keys trusted, require-sigs,
-// always-allow-substitutes. The live build-count guard -- not substituter
-// starvation -- is what enforces 0 builds.
 func (h *Harness) guestNixConfig() (string, error) {
 	sub, err := h.servedSubstituter()
 	if err != nil {
 		return "", err
 	}
-	// print-build-logs makes the in-guest nix stream "building '/nix/store/...drv'"
-	// lines so the live build-count guard can see a build and trip (quiet installs slip past).
 	return fmt.Sprintf("substituters = %s https://cache.nixos.org\ntrusted-public-keys = %s cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\nrequire-sigs = true\nalways-allow-substitutes = true\nprint-build-logs = true", sub, strings.TrimSpace(h.manifest.PublicKey)), nil
 }
 
-// guestSrcDir holds the single pinned-rev source tree used by BOTH the disko
-// probe and skadi-install, so the probed config is byte-identical to what wipes.
 const guestSrcDir = "/tmp/skadi-install"
 
-// servedSourceURL is the guest-reachable URL of the pinned source tarball the
-// host drops into the served cache dir.
 func (h *Harness) servedSourceURL() (string, error) {
 	base, err := h.servedSubstituter()
 	if err != nil {
@@ -118,28 +102,20 @@ func (h *Harness) servedSourceURL() (string, error) {
 	return strings.TrimSuffix(base, "/") + "/skadi-src.tar.gz", nil
 }
 
-// prepareGuestSource clones the pinned rev on the host and drops it gzipped into
-// the served cache dir. A local clone (not git archive) keeps a real .git, which
-// git+file eval / fs.gitTracked / notion-sync all require.
 func (h *Harness) prepareGuestSource(ctx context.Context) error {
-	work := h.guestWorkDir()
-	srcClone := filepath.Join(work, "src")
-	if err := os.RemoveAll(srcClone); err != nil {
-		return fmt.Errorf("reset source clone %s: %w", srcClone, err)
+	if h.preparedSource == "" {
+		return fmt.Errorf("prepared source is empty; prepare-source must run first")
 	}
-	if r := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"clone", "--no-local", "--quiet", h.repoRoot, srcClone}}, nil); r.Err != nil || r.ExitCode != 0 {
-		return fmt.Errorf("clone pinned source (exit %d): %w\n%s", r.ExitCode, r.Err, r.Combined)
-	}
-	if r := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"-C", srcClone, "checkout", "--quiet", "--detach", h.manifest.Rev}}, nil); r.Err != nil || r.ExitCode != 0 {
-		return fmt.Errorf("pin source clone to rev %s (exit %d): %w\n%s", h.manifest.Rev, r.ExitCode, r.Err, r.Combined)
+	if err := rejectIdentityLeak(h.preparedSource); err != nil {
+		return err
 	}
 	if err := h.cache.Ensure(); err != nil {
 		return err
 	}
 	tarball := filepath.Join(h.cfg.CacheDir, "skadi-src.tar.gz")
 	_ = os.Remove(tarball)
-	if r := h.runner.Run(ctx, CmdSpec{Name: "tar", Args: []string{"-czf", tarball, "-C", srcClone, "."}}, nil); r.Err != nil || r.ExitCode != 0 {
-		return fmt.Errorf("package pinned source (exit %d): %w\n%s", r.ExitCode, r.Err, r.Combined)
+	if r := h.runner.Run(ctx, CmdSpec{Name: "tar", Args: []string{"-czf", tarball, "-C", h.preparedSource, "."}}, nil); r.Err != nil || r.ExitCode != 0 {
+		return fmt.Errorf("package prepared source (exit %d): %w\n%s", r.ExitCode, r.Err, r.Combined)
 	}
 	if sum, err := sha256File(tarball); err == nil {
 		h.manifest.SourceTarballSHA256 = sum
@@ -147,8 +123,6 @@ func (h *Harness) prepareGuestSource(ctx context.Context) error {
 	return nil
 }
 
-// stageSourceIntoGuest fetches the pinned source tarball over the hostfwd and
-// unpacks it to guestSrcDir, verifying the extracted tree is a git worktree.
 func (h *Harness) stageSourceIntoGuest(ctx context.Context) error {
 	g := h.guest
 	if g == nil {
@@ -168,22 +142,54 @@ func (h *Harness) stageSourceIntoGuest(ctx context.Context) error {
 	}, " && ")
 	res := g.ssh(ctx, cmd)
 	if res.Err != nil || res.ExitCode != 0 {
-		return fmt.Errorf("stage pinned source into guest (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+		return fmt.Errorf("stage prepared source into guest (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
 	}
-	h.log.Printf("staged pinned source into guest at %s", guestSrcDir)
+	h.log.Printf("staged prepared source into guest at %s", guestSrcDir)
 	return nil
 }
 
-// buildInstallerISO realizes the pinned-rev installer ISO on the host. The ISO is
-// host launch tooling, not the golden closure, so it is exempt from the 0-build
-// gate; only the in-guest install closure must be build-count 0.
+func (h *Harness) stageRuntimeIdentityToGuest(ctx context.Context) error {
+	g := h.guest
+	if g == nil {
+		return fmt.Errorf("guest not launched")
+	}
+	if h.vmIdentity == nil {
+		return fmt.Errorf("vm identity not prepared")
+	}
+	prep := g.ssh(ctx, "install -d -m0700 "+vmRuntimeIdentityDir)
+	if prep.Err != nil || prep.ExitCode != 0 {
+		return fmt.Errorf("prepare guest runtime identity dir (exit %d): %w\n%s", prep.ExitCode, prep.Err, prep.Combined)
+	}
+	if res := g.scp(ctx, h.vmIdentity.PrivateKeyPath, vmRuntimeIdentityDir+"/ssh_host_ed25519_key.tmp"); res.Err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("scp vm private key into guest (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+	}
+	if res := g.scp(ctx, h.vmIdentity.PublicKeyPath, vmRuntimeIdentityDir+"/ssh_host_ed25519_key.pub.tmp"); res.Err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("scp vm public key into guest (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+	}
+	install := g.ssh(ctx, strings.Join([]string{
+		"install -m0600 " + vmRuntimeIdentityDir + "/ssh_host_ed25519_key.tmp " + vmRuntimeIdentityDir + "/ssh_host_ed25519_key",
+		"install -m0644 " + vmRuntimeIdentityDir + "/ssh_host_ed25519_key.pub.tmp " + vmRuntimeIdentityDir + "/ssh_host_ed25519_key.pub",
+		"rm -f " + vmRuntimeIdentityDir + "/ssh_host_ed25519_key.tmp " + vmRuntimeIdentityDir + "/ssh_host_ed25519_key.pub.tmp",
+	}, " && "))
+	if install.Err != nil || install.ExitCode != 0 {
+		return fmt.Errorf("install vm runtime identity in guest (exit %d): %w\n%s", install.ExitCode, install.Err, install.Combined)
+	}
+	verify := g.ssh(ctx, "ssh-keygen -y -f "+vmRuntimeIdentityDir+"/ssh_host_ed25519_key")
+	if verify.Err != nil || verify.ExitCode != 0 {
+		return fmt.Errorf("verify guest runtime identity (exit %d): %w\n%s", verify.ExitCode, verify.Err, verify.Combined)
+	}
+	if firstTwoFields(verify.Stdout) != h.vmIdentity.PublicKeyAlgoBlob {
+		return fmt.Errorf("guest runtime identity mismatch after transfer")
+	}
+	return nil
+}
+
 func (h *Harness) buildInstallerISO(ctx context.Context) (string, error) {
 	attr := "nixosConfigurations.installer.config.system.build.isoImage"
 	res := h.runner.Run(ctx, CmdSpec{Name: "nix", Args: []string{"build", "--no-link", "--print-out-paths", h.flakeRef(attr)}}, nil)
 	if res.Err != nil || res.ExitCode != 0 {
 		return "", fmt.Errorf("build installer ISO (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
 	}
-	// Parse stdout only; nix build logs/warnings stream on stderr.
 	out := lastNonEmpty(res.Stdout)
 	if out == "" {
 		return "", fmt.Errorf("installer ISO build printed no store path")
@@ -201,7 +207,6 @@ func (h *Harness) buildInstallerISO(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("no .iso found under %s", isoDir)
 }
 
-// createDisk creates a fresh, empty qcow2 that becomes the guest's /dev/vda.
 func (g *Guest) createDisk(ctx context.Context, size string) error {
 	if size == "" {
 		size = "48G"
@@ -213,8 +218,6 @@ func (g *Guest) createDisk(ctx context.Context, size string) error {
 	return nil
 }
 
-// seedVars writes a fresh writable copy of the OVMF variables store. It stays
-// writable through provision + first boot; only the frozen golden copy is 0444.
 func (g *Guest) seedVars() error {
 	src := filepath.Join(os.Getenv("OVMF_FD"), "FV", "OVMF_VARS.fd")
 	if err := copyFile(src, g.vars, 0o600); err != nil {
@@ -223,9 +226,6 @@ func (g *Guest) seedVars() error {
 	return nil
 }
 
-// boot launches QEMU in the background. bootOrder is a QEMU -boot order string
-// ("dc" to prefer the CD/ISO, "cd" to prefer the disk); iso is attached only
-// when non-empty.
 func (g *Guest) boot(ctx context.Context, bootOrder, iso string) error {
 	if f, err := os.Create(g.serial); err == nil {
 		f.Close()
@@ -285,7 +285,6 @@ func (g *Guest) ssh(ctx context.Context, remote string) CmdResult {
 	return g.sshWatch(ctx, remote, nil)
 }
 
-// sshWatch streams each output line to watch so the build-count stop can trip mid-install.
 func (g *Guest) sshWatch(ctx context.Context, remote string, watch LineWatcher) CmdResult {
 	args := []string{
 		"-i", g.sshKey,
@@ -298,6 +297,19 @@ func (g *Guest) sshWatch(ctx context.Context, remote string, watch LineWatcher) 
 		"root@127.0.0.1", remote,
 	}
 	return g.h.runner.Run(ctx, CmdSpec{Name: "ssh", Args: args}, watch)
+}
+
+func (g *Guest) scp(ctx context.Context, localPath, remotePath string) CmdResult {
+	args := []string{
+		"-i", g.sshKey,
+		"-P", strconv.Itoa(g.sshPort),
+		"-o", "StrictHostKeyChecking=no",
+		"-o", "UserKnownHostsFile=/dev/null",
+		"-o", "LogLevel=ERROR",
+		localPath,
+		"root@127.0.0.1:" + remotePath,
+	}
+	return g.h.runner.Run(ctx, CmdSpec{Name: "scp", Args: args}, nil)
 }
 
 func (g *Guest) waitSSH(ctx context.Context) error {
@@ -351,7 +363,6 @@ func (g *Guest) poweroff(ctx context.Context) {
 	g.cancel = nil
 }
 
-// stop cancels the QEMU context (process-group SIGKILL) and waits for reaping.
 func (g *Guest) stop() {
 	if g.cancel != nil {
 		g.cancel()
@@ -365,19 +376,12 @@ func (g *Guest) stop() {
 	}
 }
 
-// --- stages ---
-
-// stageGuestLaunch does the host-side safety check, builds the installer ISO,
-// creates a fresh guest disk + OVMF vars, and boots the installer ISO. It is
-// non-destructive: nothing on the host disk is touched.
 func (h *Harness) stageGuestLaunch(ctx context.Context) error {
-	// Host-side safety: if the HOST exposes /dev/vda a misfire could target it, so
-	// refuse to launch (destruction must only ever hit the guest disk).
 	if _, err := os.Stat("/dev/vda"); err == nil {
 		return fmt.Errorf("refusing to launch: host exposes /dev/vda; a misfired wipe could target the host")
 	}
 	if h.server == nil {
-		return fmt.Errorf("serve-cache must run before guest-launch (the guest substitutes from the served signed cache)")
+		return fmt.Errorf("serve-cache must run before guest-launch")
 	}
 	iso, err := h.buildInstallerISO(ctx)
 	if err != nil {
@@ -387,14 +391,10 @@ func (h *Harness) stageGuestLaunch(ctx context.Context) error {
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return fmt.Errorf("create guest work dir %s: %w", work, err)
 	}
-	// Package the one pinned-rev source both the probe and skadi-install will use.
 	if err := h.prepareGuestSource(ctx); err != nil {
 		return err
 	}
-	g, err := h.newGuest("installer",
-		filepath.Join(work, h.cfg.Host+".qcow2"),
-		filepath.Join(work, "vm-vars.fd"),
-		filepath.Join(work, h.cfg.Host+"-serial.log"))
+	g, err := h.newGuest("installer", filepath.Join(work, h.cfg.Host+".qcow2"), filepath.Join(work, "vm-vars.fd"), filepath.Join(work, h.cfg.Host+"-serial.log"))
 	if err != nil {
 		return err
 	}
@@ -413,17 +413,15 @@ func (h *Harness) stageGuestLaunch(ctx context.Context) error {
 	if err := g.waitSSH(ctx); err != nil {
 		return err
 	}
-	h.log.Printf("guest installer up on ssh :%d", g.sshPort)
 	if err := h.stageSourceIntoGuest(ctx); err != nil {
+		return err
+	}
+	if err := h.stageRuntimeIdentityToGuest(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-// stageNegativeWipeProbe proves, inside the guest, that the only disk is
-// /dev/vda and that disko's dry-run targets solely /dev/vda -- so the real wipe
-// (next stage) can only touch the guest disk. --dry-run performs no writes, so
-// the disk stays unformatted/unsigned.
 func (h *Harness) stageNegativeWipeProbe(ctx context.Context) error {
 	g := h.guest
 	if g == nil {
@@ -447,19 +445,11 @@ func (h *Harness) stageNegativeWipeProbe(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// disko --dry-run only prints the /nix/store path of the generated
-	// destroy/format/mount script; the device nodes live inside that script, not on
-	// stdout. Probe the same pinned tree skadi-install will wipe from so "targets
-	// solely /dev/vda" provably transfers to the real wipe, and keep NIX_CONFIG so it
-	// substitutes rather than builds.
-	probe := fmt.Sprintf("cd %s && NIX_CONFIG=%s disko --dry-run --mode destroy,format,mount --flake .#%s",
-		guestSrcDir, shellSingleQuote(nixConf), h.cfg.Host)
+	probe := fmt.Sprintf("cd %s && NIX_CONFIG=%s disko --dry-run --mode destroy,format,mount --flake .#%s", guestSrcDir, shellSingleQuote(nixConf), h.cfg.Host)
 	res := g.ssh(ctx, probe)
 	if res.Err != nil || res.ExitCode != 0 {
 		return fmt.Errorf("guest disko --dry-run (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
 	}
-	// Isolate the single generated script path from stdout (fail closed on
-	// ambiguity), then scan its contents -- the dry-run stdout carries no device nodes.
 	script, err := diskoScriptPath(res.Stdout)
 	if err != nil {
 		return fmt.Errorf("negative-wipe probe: %w\nstdout: %q\ncombined:\n%s", err, res.Stdout, res.Combined)
@@ -472,14 +462,9 @@ func (h *Harness) stageNegativeWipeProbe(ctx context.Context) error {
 	if len(devs) != 1 || devs[0] != "/dev/vda" {
 		return fmt.Errorf("negative-wipe probe: disko script %s targets %v, expected exactly [/dev/vda]", script, devs)
 	}
-	h.log.Printf("negative-wipe probe passed: guest disko script %s targets solely /dev/vda, disk unwiped", script)
 	return nil
 }
 
-// stageGuestProvision runs the real destructive install inside the guest against
-// /dev/vda from the served signed cache. A live build-count guard trips
-// ErrEmergencyStop the instant nix announces a build (golden requires 0 builds);
-// the install log is always retained.
 func (h *Harness) stageGuestProvision(ctx context.Context) error {
 	g := h.guest
 	if g == nil {
@@ -489,15 +474,10 @@ func (h *Harness) stageGuestProvision(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// vm host uses the committed test fixture (IN_DISKO_TEST + host vm): skadi-install
-	// asserts the fixed identity and skips secret provisioning. SKADI_INSTALL_SOURCE
-	// pins it to the same staged tree the probe validated (no run-time GitHub clone).
-	remote := fmt.Sprintf("NIX_CONFIG=%s IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1 SKADI_INSTALL_SOURCE=%s skadi-install %s --yes-wipe-all-disks",
-		shellSingleQuote(nixConf), shellSingleQuote(guestSrcDir), shellSingleQuote(h.cfg.Host))
+	remote := fmt.Sprintf("NIX_CONFIG=%s IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1 SKADI_INSTALL_SOURCE=%s SKADI_VM_TEST_IDENTITY_DIR=%s skadi-install %s --yes-wipe-all-disks", shellSingleQuote(nixConf), shellSingleQuote(guestSrcDir), shellSingleQuote(vmRuntimeIdentityDir), shellSingleQuote(h.cfg.Host))
 	var violation string
 	watch := buildGateWatcher(func(v string) { violation = v })
 	res := g.sshWatch(ctx, remote, watch)
-	// Always retain the install log, even on failure / emergency stop.
 	logPath := filepath.Join(h.guestWorkDir(), h.cfg.Host+"-install.log")
 	if err := os.WriteFile(logPath, []byte(res.Combined), 0o644); err == nil {
 		if sum, e := sha256File(logPath); e == nil {
@@ -515,13 +495,10 @@ func (h *Harness) stageGuestProvision(ctx context.Context) error {
 	if res.Err != nil || res.ExitCode != 0 {
 		return fmt.Errorf("guest skadi-install failed (exit %d): %w\ninstall log: %s", res.ExitCode, res.Err, logPath)
 	}
-	// Power the installer ISO down so first-boot can boot the installed disk.
 	g.poweroff(ctx)
 	return nil
 }
 
-// stageFirstBootProof boots the installed disk (no ISO), waits for login + SSH,
-// and runs the deterministic identity/secret proofs.
 func (h *Harness) stageFirstBootProof(ctx context.Context) error {
 	g := h.guest
 	if g == nil {
@@ -547,33 +524,31 @@ func (h *Harness) stageFirstBootProof(ctx context.Context) error {
 	return nil
 }
 
-// assertGuestIdentity proves the running guest carries the committed VM test
-// identity + secrets, fail-closed. Expected values come from the pinned rev.
 func (h *Harness) assertGuestIdentity(ctx context.Context) error {
 	g := h.guest
-	// Read the expected identity from the committed blob at the pinned rev (not the
-	// working tree) so the proof is byte-frozen to exactly what was built.
-	rel := "modules/hosts/_vm/ssh_host_ed25519_key.pub"
-	show := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"-C", h.repoRoot, "show", h.manifest.Rev + ":" + rel}}, nil)
-	if show.Err != nil || show.ExitCode != 0 {
-		return fmt.Errorf("read committed vm test pubkey %s at rev %s (exit %d): %w\n%s", rel, h.manifest.Rev, show.ExitCode, show.Err, show.Combined)
+	if h.vmIdentity == nil {
+		return fmt.Errorf("vm identity not prepared")
 	}
-	wantAlgoBlob := firstTwoFields(show.Stdout)
-
 	obs := g.ssh(ctx, "cat /etc/ssh/ssh_host_ed25519_key.pub")
 	if obs.Err != nil || obs.ExitCode != 0 {
 		return fmt.Errorf("read guest host pubkey (exit %d): %w\n%s", obs.ExitCode, obs.Err, obs.Combined)
 	}
 	gotAlgoBlob := firstTwoFields(obs.Stdout)
-	idMatch := wantAlgoBlob != "" && gotAlgoBlob == wantAlgoBlob
-	h.manifest.Identity = append(h.manifest.Identity, IdentityProof{
-		Name: "ssh_host_ed25519 (algo+blob)", Expected: wantAlgoBlob, Observed: gotAlgoBlob, Match: idMatch,
-	})
+	idMatch := gotAlgoBlob == h.vmIdentity.PublicKeyAlgoBlob
+	h.manifest.Identity = []IdentityProof{{
+		Name:     "ssh_host_ed25519_key.pub",
+		Expected: h.vmIdentity.PublicKeyAlgoBlob,
+		Observed: gotAlgoBlob,
+		Match:    idMatch,
+	}}
 	if !idMatch {
-		return fmt.Errorf("guest host identity mismatch: expected %q got %q", wantAlgoBlob, gotAlgoBlob)
+		return fmt.Errorf("installed vm host identity does not match this run's generated key")
 	}
 
 	hn := g.ssh(ctx, "hostname")
+	if hn.Err != nil || hn.ExitCode != 0 {
+		return fmt.Errorf("read guest hostname (exit %d): %w\n%s", hn.ExitCode, hn.Err, hn.Combined)
+	}
 	host := strings.TrimSpace(hn.Stdout)
 	hostMatch := host == h.cfg.Host
 	h.manifest.Identity = append(h.manifest.Identity, IdentityProof{Name: "hostname", Expected: h.cfg.Host, Observed: host, Match: hostMatch})
@@ -583,6 +558,9 @@ func (h *Harness) assertGuestIdentity(ctx context.Context) error {
 
 	if want := h.manifest.StorePaths["toplevel"]; want != "" {
 		tp := g.ssh(ctx, "readlink -f /run/current-system")
+		if tp.Err != nil || tp.ExitCode != 0 {
+			return fmt.Errorf("read guest toplevel (exit %d): %w\n%s", tp.ExitCode, tp.Err, tp.Combined)
+		}
 		got := strings.TrimSpace(tp.Stdout)
 		tpMatch := got == want
 		h.manifest.Identity = append(h.manifest.Identity, IdentityProof{Name: "toplevel", Expected: want, Observed: got, Match: tpMatch})
@@ -591,32 +569,34 @@ func (h *Harness) assertGuestIdentity(ctx context.Context) error {
 		}
 	}
 
-	nt := g.ssh(ctx, "cat /run/secrets/notion-token")
-	ntWant := "NOTION_TOKEN=REPLACE_ME"
-	ntMatch := strings.TrimSpace(nt.Stdout) == ntWant
-	h.manifest.Secrets = append(h.manifest.Secrets, SecretProof{Name: "notion-token", Match: ntMatch})
-	if !ntMatch {
-		return fmt.Errorf("guest notion-token mismatch: expected %q got %q", ntWant, strings.TrimSpace(nt.Combined))
+	pw := g.ssh(ctx, "cat /run/secrets-for-users/feltfomo-password")
+	if pw.Err != nil || pw.ExitCode != 0 {
+		return fmt.Errorf("read feltfomo password secret (exit %d): %w\n%s", pw.ExitCode, pw.Err, pw.Combined)
 	}
-
-	fp := g.ssh(ctx, "test -s /run/secrets-for-users/feltfomo-password && echo present")
-	fpMatch := strings.TrimSpace(fp.Stdout) == "present"
-	h.manifest.Secrets = append(h.manifest.Secrets, SecretProof{Name: "feltfomo-password", Match: fpMatch})
-	if !fpMatch {
-		return fmt.Errorf("guest feltfomo-password secret did not materialize")
+	token := g.ssh(ctx, "cat /run/secrets/notion-token")
+	if token.Err != nil || token.ExitCode != 0 {
+		return fmt.Errorf("read notion token secret (exit %d): %w\n%s", token.ExitCode, token.Err, token.Combined)
+	}
+	h.manifest.Secrets = []SecretProof{
+		{Name: "feltfomo-password", Match: strings.TrimSpace(pw.Stdout) == fixedVMPasswordHash},
+		{Name: "notion-token", Match: strings.TrimSpace(token.Stdout) == fixedVMNotionToken},
+	}
+	for _, proof := range h.manifest.Secrets {
+		if !proof.Match {
+			return fmt.Errorf("secret proof failed for %s", proof.Name)
+		}
 	}
 
 	fu := g.ssh(ctx, "systemctl --failed --no-legend --plain")
+	if fu.Err != nil || fu.ExitCode != 0 {
+		return fmt.Errorf("query failed guest units (exit %d): %w\n%s", fu.ExitCode, fu.Err, fu.Combined)
+	}
 	if strings.TrimSpace(fu.Stdout) != "" {
 		return fmt.Errorf("guest has failed units:\n%s", fu.Combined)
 	}
 	return nil
 }
 
-// stageFreeze atomically publishes the golden into the state dir: qcow2 + OVMF
-// vars + JSON metadata, each frozen 0444, sha256 recorded. It refuses to
-// overwrite an existing golden and publishes the metadata last as the
-// completion marker. A ~/.cache/skadi-vm compat symlink is maintained.
 func (h *Harness) stageFreeze(ctx context.Context) error {
 	_ = ctx
 	g := h.guest
@@ -627,28 +607,27 @@ func (h *Harness) stageFreeze(ctx context.Context) error {
 	if dir == "" {
 		return fmt.Errorf("state-dir is required to freeze the golden")
 	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create golden dir %s: %w", dir, err)
+	}
 	h.goldenDir = dir
 	qcow := filepath.Join(dir, "program-files-base.qcow2")
 	vars := filepath.Join(dir, "program-files-base-vars.fd")
 	meta := filepath.Join(dir, "program-files-base.json")
-	// A post-freeze stage failure would wedge a re-run on the 0444 artifacts, so
-	// allow an explicit opt-in re-freeze (else refuse to overwrite).
+
 	refreeze := os.Getenv("SKADI_REBUILD_REFREEZE") == "1"
 	for _, p := range []string{qcow, vars, meta} {
 		if _, err := os.Stat(p); err == nil {
 			if !refreeze {
 				return fmt.Errorf("refusing to overwrite existing golden artifact %s (a prior run published here); re-run with SKADI_REBUILD_REFREEZE=1 to clear and re-freeze, or remove the golden in %s manually", p, dir)
 			}
-			if cerr := os.Chmod(p, 0o644); cerr != nil && !os.IsNotExist(cerr) {
-				return fmt.Errorf("clear prior golden %s: %w", p, cerr)
+			if err := os.Chmod(p, 0o644); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("clear prior golden %s: %w", p, err)
 			}
-			if rerr := os.Remove(p); rerr != nil && !os.IsNotExist(rerr) {
-				return fmt.Errorf("remove prior golden %s: %w", p, rerr)
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("remove prior golden %s: %w", p, err)
 			}
 		}
-	}
-	if refreeze {
-		h.log.Printf("SKADI_REBUILD_REFREEZE=1: cleared prior golden in %s, re-publishing", dir)
 	}
 	if err := copyFile(g.disk, qcow, 0o444); err != nil {
 		return err
@@ -669,8 +648,6 @@ func (h *Harness) stageFreeze(ctx context.Context) error {
 		}
 		h.manifest.Artifacts[name] = Artifact{Path: p, SHA256: sum, Mode: "0444"}
 	}
-	// Publish metadata last as the completion marker. It is a freeze-time snapshot
-	// (overlay-proof/base-untouched not yet recorded), so it is labelled as such.
 	frozen := *h.manifest
 	frozen.Snapshot = "freeze-time snapshot (pre-overlay-proof); authoritative record is evidence/report.json"
 	if err := frozen.WriteJSON(meta); err != nil {
@@ -684,8 +661,6 @@ func (h *Harness) stageFreeze(ctx context.Context) error {
 		return fmt.Errorf("hash %s: %w", meta, err)
 	}
 	h.manifest.Artifacts["program-files-base.json"] = Artifact{Path: meta, SHA256: sum, Mode: "0444"}
-	// ~/.cache/skadi-vm also holds the vm-test ssh key, so it must stay a real dir.
-	// Publish per-file compat symlinks into it rather than replacing the whole dir.
 	if home, herr := os.UserHomeDir(); herr == nil {
 		compat := filepath.Join(home, ".cache", "skadi-vm")
 		if compat != dir {
@@ -694,25 +669,21 @@ func (h *Harness) stageFreeze(ctx context.Context) error {
 			} else {
 				for name := range h.manifest.Artifacts {
 					lp := filepath.Join(compat, name)
-					if fi, lerr := os.Lstat(lp); lerr == nil && fi.Mode()&os.ModeSymlink == 0 {
+					if fi, err := os.Lstat(lp); err == nil && fi.Mode()&os.ModeSymlink == 0 {
 						h.log.Printf("freeze: compat path %s is not a symlink; leaving it in place", lp)
 						continue
 					}
 					_ = os.Remove(lp)
-					if serr := os.Symlink(filepath.Join(dir, name), lp); serr != nil {
-						h.log.Printf("freeze: compat symlink %s: %v", lp, serr)
+					if err := os.Symlink(filepath.Join(dir, name), lp); err != nil {
+						h.log.Printf("freeze: compat symlink %s: %v", lp, err)
 					}
 				}
 			}
 		}
 	}
-	h.log.Printf("froze golden into %s (qcow2/vars/json 0444)", dir)
 	return nil
 }
 
-// stageOverlayProof boots a qcow2 overlay backed read-only by the frozen base,
-// proves it boots with the right identity, and re-hashes the base afterward to
-// prove the base was never mutated. Modes must remain 0444.
 func (h *Harness) stageOverlayProof(ctx context.Context) error {
 	base := filepath.Join(h.goldenDir, "program-files-base.qcow2")
 	baseVars := filepath.Join(h.goldenDir, "program-files-base-vars.fd")
@@ -771,11 +742,8 @@ func (h *Harness) stageOverlayProof(ctx context.Context) error {
 			return fmt.Errorf("golden artifact %s no longer 0444 (got %o)", p, fi.Mode().Perm())
 		}
 	}
-	h.log.Printf("overlay proof passed; golden base untouched")
 	return nil
 }
-
-// --- helpers ---
 
 func freePort() (int, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
@@ -834,8 +802,6 @@ func copyFile(src, dst string, mode os.FileMode) error {
 	return nil
 }
 
-// shellSingleQuote wraps s in single quotes for safe use inside a remote shell
-// command string, escaping embedded single quotes.
 func shellSingleQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
@@ -858,11 +824,6 @@ func lastNonEmpty(s string) string {
 	return last
 }
 
-// diskoScriptPath isolates the single generated disko script store path from
-// `disko --dry-run` stdout, which prints only that path (the device nodes live
-// inside the script) possibly amid warning lines. It fails closed unless exactly
-// one script path can be identified: the sole store-path line, or -- when nix
-// also prints dependency paths -- the sole one whose basename names disko.
 func diskoScriptPath(stdout string) (string, error) {
 	paths := storePathLines(stdout)
 	switch len(paths) {

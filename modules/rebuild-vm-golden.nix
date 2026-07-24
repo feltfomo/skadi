@@ -13,15 +13,18 @@
         # host-side runtime deps; nix left ambient to match vm-test.nix.
         postInstall = ''
           wrapProgram $out/bin/rebuild-vm-golden \
-            --prefix PATH : ${lib.makeBinPath [
-              pkgs.qemu_kvm
-              pkgs.openssh
-              pkgs.git
-              pkgs.ssh-to-age
-              pkgs.coreutils
-              pkgs.gnutar
-              pkgs.gzip
-            ]} \
+            --prefix PATH : ${
+              lib.makeBinPath [
+                pkgs.qemu_kvm
+                pkgs.openssh
+                pkgs.git
+                pkgs.ssh-to-age
+                pkgs.coreutils
+                pkgs.gnutar
+                pkgs.gzip
+                pkgs.sops
+              ]
+            } \
             --set OVMF_FD ${pkgs.OVMF.fd}
         '';
         meta = {

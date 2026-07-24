@@ -140,7 +140,7 @@ func TestAllStagesOrderingConfirmBeforeProvision(t *testing.T) {
 	for i, s := range stages {
 		idx[s.name] = i
 	}
-	for _, name := range []string{"signing-key", "export-sign", "cache-check", "build-plan-gate", "serve-cache", "guest-launch", "confirm-gate", "guest-provision"} {
+	for _, name := range []string{"prepare-source", "signing-key", "export-sign", "cache-check", "build-plan-gate", "serve-cache", "guest-launch", "confirm-gate", "guest-provision"} {
 		if _, ok := idx[name]; !ok {
 			t.Fatalf("missing stage %q in the full pipeline", name)
 		}
@@ -151,14 +151,34 @@ func TestAllStagesOrderingConfirmBeforeProvision(t *testing.T) {
 	// M1: a from-scratch `all` must build + sign the cache before it validates and
 	// gates it, and the gate needs the signing-key public half; serve-cache (guest
 	// HTTP) must precede the guest stages.
-	if !(idx["signing-key"] < idx["export-sign"] && idx["export-sign"] < idx["cache-check"] && idx["cache-check"] < idx["build-plan-gate"]) {
-		t.Fatalf("expected signing-key < export-sign < cache-check < build-plan-gate, got %v", idx)
+	if !(idx["prepare-source"] < idx["eval-drv"] && idx["eval-drv"] < idx["signing-key"] && idx["signing-key"] < idx["export-sign"] && idx["export-sign"] < idx["cache-check"] && idx["cache-check"] < idx["build-plan-gate"]) {
+		t.Fatalf("expected prepare-source < eval-drv < signing-key < export-sign < cache-check < build-plan-gate, got %v", idx)
 	}
 	if idx["build-plan-gate"] >= idx["serve-cache"] || idx["serve-cache"] >= idx["guest-launch"] {
 		t.Fatalf("expected build-plan-gate < serve-cache < guest-launch, got %v", idx)
 	}
-	if len(stages) != 16 {
-		t.Fatalf("expected 16 stages in the full pipeline, got %d", len(stages))
+	if len(stages) != 17 {
+		t.Fatalf("expected 17 stages in the full pipeline, got %d", len(stages))
+	}
+}
+
+func TestEvalBearingSubcommandsIncludePrepareSource(t *testing.T) {
+	h := testHarness(t, fakeRunner{responder: func(CmdSpec) ([]string, int) { return nil, 0 }})
+	for _, sub := range []string{"check", "gate", "build-cache", "provision", "all"} {
+		stages, err := h.stagesFor(sub)
+		if err != nil {
+			t.Fatalf("stagesFor(%s): %v", sub, err)
+		}
+		idx := map[string]int{}
+		for i, s := range stages {
+			idx[s.name] = i
+		}
+		if idx["prepare-source"] != idx["resolve-rev"]+1 {
+			t.Fatalf("%s: prepare-source must follow resolve-rev, got %v", sub, idx)
+		}
+		if idx["eval-drv"] != idx["prepare-source"]+1 {
+			t.Fatalf("%s: eval-drv must follow prepare-source, got %v", sub, idx)
+		}
 	}
 }
 

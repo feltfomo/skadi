@@ -2,15 +2,36 @@ package harness
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
+
+const (
+	vmFixtureRelPath     = "modules/hosts/_vm/secrets.yaml"
+	vmRuntimeIdentityDir = "/run/skadi-vm-identity"
+	fixedVMPasswordHash  = "$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0"
+	fixedVMNotionToken   = "NOTION_TOKEN=REPLACE_ME"
+)
+
+type VMIdentity struct {
+	Dir               string
+	PrivateKeyPath    string
+	PublicKeyPath     string
+	PublicKeyAlgoBlob string
+	Recipient         string
+	Fingerprint       string
+	FixturePath       string
+	FixtureSHA256     string
+}
 
 // Config parameterizes a single rebuild run.
 type Config struct {
@@ -32,16 +53,20 @@ type ConfirmFunc func(prompt string) (string, error)
 
 // Harness drives the fail-closed rebuild state machine.
 type Harness struct {
-	cfg        Config
-	runner     Runner
-	log        *log.Logger
-	cache      *Cache
-	server     *FileServer
-	manifest   *Manifest
-	signingKey SigningKey
-	repoRoot   string
-	guest      *Guest
-	goldenDir  string
+	cfg                  Config
+	runner               Runner
+	log                  *log.Logger
+	cache                *Cache
+	server               *FileServer
+	manifest             *Manifest
+	signingKey           SigningKey
+	repoRoot             string
+	preparedSource       string
+	preparedSourceHash   string
+	preparedSourceStatus string
+	vmIdentity           *VMIdentity
+	guest                *Guest
+	goldenDir            string
 }
 
 // New builds a Harness. A nil logger logs to stderr.
@@ -75,11 +100,10 @@ type stage struct {
 }
 
 func (h *Harness) allStages() []stage {
-	// Order matters: build+sign the cache before cache-check/build-plan-gate validate
-	// it; serve-cache (guest HTTP) is unused by the gate so it sits before the guest stages.
 	return []stage{
 		{name: "preflight", fn: h.stagePreflight},
 		{name: "resolve-rev", fn: h.stageResolveRev},
+		{name: "prepare-source", fn: h.stagePrepareSource},
 		{name: "eval-drv", fn: h.stageEvalDrv},
 		{name: "signing-key", fn: h.stageSigningKey},
 		{name: "export-sign", fn: h.stageExportSign},
@@ -106,13 +130,13 @@ func (h *Harness) stagesFor(sub string) ([]stage, error) {
 	var names []string
 	switch sub {
 	case "check":
-		names = []string{"preflight", "resolve-rev", "eval-drv", "cache-check"}
+		names = []string{"preflight", "resolve-rev", "prepare-source", "eval-drv", "cache-check"}
 	case "gate":
-		names = []string{"preflight", "resolve-rev", "eval-drv", "cache-check", "build-plan-gate"}
+		names = []string{"preflight", "resolve-rev", "prepare-source", "eval-drv", "cache-check", "build-plan-gate"}
 	case "build-cache":
-		names = []string{"preflight", "resolve-rev", "eval-drv", "signing-key", "export-sign", "serve-cache"}
+		names = []string{"preflight", "resolve-rev", "prepare-source", "eval-drv", "signing-key", "export-sign", "serve-cache"}
 	case "provision":
-		names = []string{"preflight", "resolve-rev", "eval-drv", "signing-key", "export-sign", "cache-check", "build-plan-gate", "serve-cache", "guest-launch", "negative-wipe-probe", "confirm-gate", "guest-provision", "first-boot-proof"}
+		names = []string{"preflight", "resolve-rev", "prepare-source", "eval-drv", "signing-key", "export-sign", "cache-check", "build-plan-gate", "serve-cache", "guest-launch", "negative-wipe-probe", "confirm-gate", "guest-provision", "first-boot-proof"}
 	case "all":
 		for _, s := range all {
 			names = append(names, s.name)
@@ -208,8 +232,6 @@ func (h *Harness) writeReport() {
 	}
 }
 
-// --- stages ---
-
 func (h *Harness) stagePreflight(ctx context.Context) error {
 	_ = ctx
 	if strings.TrimSpace(h.cfg.Rev) == "" {
@@ -236,15 +258,146 @@ func (h *Harness) stageResolveRev(ctx context.Context) error {
 	}
 	if full := strings.TrimSpace(res.Stdout); full != "" {
 		h.manifest.Rev = full
+		h.manifest.ApprovedRev = full
 		h.cache.Rev = full
 	}
-	// Resolve the repo root so eval/build can be pinned to the exact committed
-	// rev (git+file://<root>?rev=<full>#…) rather than the dirty working tree.
 	top := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"rev-parse", "--show-toplevel"}}, nil)
 	if top.Err != nil || top.ExitCode != 0 {
 		return fmt.Errorf("resolve repo root (exit %d): %w\n%s", top.ExitCode, top.Err, top.Combined)
 	}
 	h.repoRoot = strings.TrimSpace(top.Stdout)
+	return nil
+}
+
+func (h *Harness) stagePrepareSource(ctx context.Context) error {
+	if h.repoRoot == "" {
+		return fmt.Errorf("resolve-rev must run before prepare-source")
+	}
+	prepared := filepath.Join(h.cfg.EvidenceDir, "prepared-source")
+	if err := os.RemoveAll(prepared); err != nil {
+		return fmt.Errorf("reset prepared source %s: %w", prepared, err)
+	}
+	if res := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"clone", "--no-local", "--quiet", h.repoRoot, prepared}}, nil); res.Err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("clone prepared source (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+	}
+	if res := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"-C", prepared, "checkout", "--quiet", "--detach", h.manifest.Rev}}, nil); res.Err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("checkout approved rev in prepared source (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+	}
+	if head := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"-C", prepared, "rev-parse", "HEAD"}}, nil); head.Err != nil || head.ExitCode != 0 || strings.TrimSpace(head.Stdout) != h.manifest.Rev {
+		return fmt.Errorf("prepared source HEAD mismatch: got %q want %q", strings.TrimSpace(head.Stdout), h.manifest.Rev)
+	}
+
+	identityDir := filepath.Join(h.cfg.EvidenceDir, "vm-identity")
+	if err := os.RemoveAll(identityDir); err != nil {
+		return fmt.Errorf("reset vm identity dir %s: %w", identityDir, err)
+	}
+	if err := os.MkdirAll(identityDir, 0o700); err != nil {
+		return fmt.Errorf("create vm identity dir %s: %w", identityDir, err)
+	}
+	privateKey := filepath.Join(identityDir, "ssh_host_ed25519_key")
+	publicKey := privateKey + ".pub"
+	if res := h.runner.Run(ctx, CmdSpec{Name: "ssh-keygen", Args: []string{"-q", "-t", "ed25519", "-N", "", "-C", "skadi-vm-test", "-f", privateKey}}, nil); res.Err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("generate vm identity key (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+	}
+	pubBytes, err := os.ReadFile(publicKey)
+	if err != nil {
+		return fmt.Errorf("read vm identity public key: %w", err)
+	}
+	algoBlob := firstTwoFields(string(pubBytes))
+	if algoBlob == "" {
+		return fmt.Errorf("vm identity public key is malformed")
+	}
+	fp := h.runner.Run(ctx, CmdSpec{Name: "ssh-keygen", Args: []string{"-lf", publicKey}}, nil)
+	if fp.Err != nil || fp.ExitCode != 0 {
+		return fmt.Errorf("fingerprint vm identity public key (exit %d): %w\n%s", fp.ExitCode, fp.Err, fp.Combined)
+	}
+	fingerprint := strings.TrimSpace(fp.Stdout)
+	recipientRes := h.runner.Run(ctx, CmdSpec{Name: "ssh-to-age", Args: []string{"-i", publicKey}}, nil)
+	if recipientRes.Err != nil || recipientRes.ExitCode != 0 {
+		return fmt.Errorf("derive age recipient from vm key (exit %d): %w\n%s", recipientRes.ExitCode, recipientRes.Err, recipientRes.Combined)
+	}
+	recipient := strings.TrimSpace(recipientRes.Stdout)
+	if recipient == "" {
+		return fmt.Errorf("vm identity age recipient is empty")
+	}
+
+	plaintextPath := filepath.Join(identityDir, "secrets.plain.yaml")
+	plaintext := fmt.Sprintf("feltfomo-password: %q\nnotion-token: %q\n", fixedVMPasswordHash, fixedVMNotionToken)
+	if err := os.WriteFile(plaintextPath, []byte(plaintext), 0o600); err != nil {
+		return fmt.Errorf("write vm secrets plaintext: %w", err)
+	}
+	defer os.Remove(plaintextPath)
+
+	encrypted := h.runner.Run(ctx, CmdSpec{Name: "sops", Args: []string{"--encrypt", "--age", recipient, "--input-type", "yaml", "--output-type", "yaml", plaintextPath}}, nil)
+	if encrypted.Err != nil || encrypted.ExitCode != 0 {
+		return fmt.Errorf("encrypt vm secrets fixture (exit %d): %w\n%s", encrypted.ExitCode, encrypted.Err, encrypted.Combined)
+	}
+	fixturePath := filepath.Join(prepared, vmFixtureRelPath)
+	if err := os.MkdirAll(filepath.Dir(fixturePath), 0o755); err != nil {
+		return fmt.Errorf("create vm fixture dir: %w", err)
+	}
+	if err := os.WriteFile(fixturePath, []byte(encrypted.Stdout), 0o644); err != nil {
+		return fmt.Errorf("write vm fixture: %w", err)
+	}
+	fixtureSHA, err := sha256File(fixturePath)
+	if err != nil {
+		return fmt.Errorf("hash vm fixture: %w", err)
+	}
+
+	if res := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"-C", prepared, "add", "--", vmFixtureRelPath}}, nil); res.Err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("stage vm fixture in prepared source (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
+	}
+	status := h.runner.Run(ctx, CmdSpec{Name: "git", Args: []string{"-C", prepared, "status", "--porcelain=v1"}}, nil)
+	if status.Err != nil || status.ExitCode != 0 {
+		return fmt.Errorf("prepared source status (exit %d): %w\n%s", status.ExitCode, status.Err, status.Combined)
+	}
+	statusLines := splitNonEmptyLines(status.Stdout)
+	sort.Strings(statusLines)
+	if len(statusLines) != 1 || !strings.HasSuffix(statusLines[0], vmFixtureRelPath) {
+		return fmt.Errorf("prepared source must differ only by %s, got %v", vmFixtureRelPath, statusLines)
+	}
+	if err := rejectIdentityLeak(prepared); err != nil {
+		return err
+	}
+
+	ageKeyPath := filepath.Join(identityDir, "age-key.txt")
+	ageKey := h.runner.Run(ctx, CmdSpec{Name: "ssh-to-age", Args: []string{"-private-key", "-i", privateKey}}, nil)
+	if ageKey.Err != nil || ageKey.ExitCode != 0 {
+		return fmt.Errorf("derive age private key from vm identity (exit %d): %w\n%s", ageKey.ExitCode, ageKey.Err, ageKey.Combined)
+	}
+	if err := os.WriteFile(ageKeyPath, []byte(ageKey.Stdout), 0o600); err != nil {
+		return fmt.Errorf("write temporary age key: %w", err)
+	}
+	defer os.Remove(ageKeyPath)
+	decrypted := h.runner.Run(ctx, CmdSpec{Name: "sops", Args: []string{"--decrypt", "--output-type", "json", fixturePath}, Env: []string{"SOPS_AGE_KEY_FILE=" + ageKeyPath}}, nil)
+	if decrypted.Err != nil || decrypted.ExitCode != 0 {
+		return fmt.Errorf("decrypt generated vm fixture (exit %d): %w\n%s", decrypted.ExitCode, decrypted.Err, decrypted.Combined)
+	}
+	if err := assertExactVMSecrets(decrypted.Stdout); err != nil {
+		return err
+	}
+
+	hashInput := strings.Join([]string{h.manifest.Rev, fixtureSHA, algoBlob, recipient, strings.Join(statusLines, "\n")}, "\n")
+	sum := sha256.Sum256([]byte(hashInput))
+	h.preparedSource = prepared
+	h.preparedSourceStatus = strings.Join(statusLines, "\n")
+	h.preparedSourceHash = hex.EncodeToString(sum[:])
+	h.vmIdentity = &VMIdentity{
+		Dir:               identityDir,
+		PrivateKeyPath:    privateKey,
+		PublicKeyPath:     publicKey,
+		PublicKeyAlgoBlob: algoBlob,
+		Recipient:         recipient,
+		Fingerprint:       fingerprint,
+		FixturePath:       fixturePath,
+		FixtureSHA256:     fixtureSHA,
+	}
+	h.manifest.PreparedSourcePath = prepared
+	h.manifest.PreparedSourceHash = h.preparedSourceHash
+	h.manifest.PreparedSourceStatus = h.preparedSourceStatus
+	h.manifest.VMIdentityRecipient = recipient
+	h.manifest.VMIdentityFingerprint = fingerprint
+	h.manifest.VMFixtureSHA256 = fixtureSHA
 	return nil
 }
 
@@ -257,8 +410,6 @@ func (h *Harness) stageEvalDrv(ctx context.Context) error {
 	if res.Err != nil || res.ExitCode != 0 {
 		return fmt.Errorf("eval toplevel drvPath (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
 	}
-	// Parse stdout only: nix logs "fetching git input"/"saved setting" to stderr, and a
-	// poisoned drvPath would silently break export-sign; require exactly one .drv.
 	drv, err := singleStorePath(res.Stdout, ".drv")
 	if err != nil {
 		return fmt.Errorf("eval toplevel drvPath: %w\nstdout: %q\ncombined:\n%s", err, res.Stdout, res.Combined)
@@ -285,8 +436,6 @@ func (h *Harness) stageBuildPlanGate(ctx context.Context) error {
 	if drv == "" {
 		return fmt.Errorf("no toplevel drv resolved; eval-drv must run first")
 	}
-	// Resolve the toplevel OUTPUT path from the already-evaluated drv (no second
-	// eval). Parse stdout only; stderr carries fetch/warning noise (as in eval-drv).
 	show := h.runner.Run(ctx, CmdSpec{Name: "nix", Args: []string{"derivation", "show", drv}}, nil)
 	if show.Err != nil || show.ExitCode != 0 {
 		return fmt.Errorf("derivation show %s (exit %d): %w\n%s", drv, show.ExitCode, show.Err, show.Combined)
@@ -295,9 +444,6 @@ func (h *Harness) stageBuildPlanGate(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("resolve toplevel out path: %w\nstdout: %q\ncombined:\n%s", err, show.Stdout, show.Combined)
 	}
-	// Store-isolated BY CONSTRUCTION: --store file://<cache> consults only the
-	// signed cache, so a complete, fully-signed runtime closure here proves the
-	// toplevel is cached (0 builds) with no chroot store and no dry-run.
 	store := "file://" + h.cfg.CacheDir
 	pi := h.runner.Run(ctx, CmdSpec{Name: "nix", Args: []string{"path-info", "--store", store, "--recursive", "--sigs", "--json", outPath}}, nil)
 	if pi.Err != nil || pi.ExitCode != 0 {
@@ -313,8 +459,6 @@ func (h *Harness) stageBuildPlanGate(ctx context.Context) error {
 	if _, ok := closure[outPath]; !ok {
 		return fmt.Errorf("gate not cached: toplevel out %s absent from its own cached closure", outPath)
 	}
-	// Every closure path must be signed by the per-rev trusted key; this replaces
-	// require-sigs + trusted-public-keys enforcement from the old dry-run gate.
 	trusted := h.cache.KeyName()
 	for p, sigs := range closure {
 		if !signedByKey(sigs, trusted) {
@@ -349,7 +493,6 @@ func (h *Harness) stageExportSign(ctx context.Context) error {
 	if res.Err != nil || res.ExitCode != 0 {
 		return fmt.Errorf("realize toplevel (exit %d): %w\n%s", res.ExitCode, res.Err, res.Combined)
 	}
-	// Parse stdout only and keep bare store paths; warnings/build logs go to stderr.
 	paths := storePathLines(res.Stdout)
 	if len(paths) == 0 {
 		return fmt.Errorf("realize toplevel produced no store paths\nstdout: %q\ncombined:\n%s", res.Stdout, res.Combined)
@@ -397,9 +540,6 @@ func (h *Harness) stageConfirmGate(ctx context.Context) error {
 
 func (h *Harness) stageFinalize(ctx context.Context) error {
 	_ = ctx
-	// Retention: the golden and every working/evidence dir are kept in place;
-	// nothing is pruned here (pruning is a separate, explicit opt-in). The
-	// install-log + first-boot serial hashes were recorded by the guest stages.
 	if h.goldenDir != "" {
 		h.manifest.GoldenDir = h.goldenDir
 	}
@@ -407,12 +547,10 @@ func (h *Harness) stageFinalize(ctx context.Context) error {
 	return nil
 }
 
-// --- helpers ---
-
-// flakeRef builds a flake reference pinned to the resolved commit so evaluation
-// is deterministic and independent of the (possibly dirty) working tree. The
-// rev must be committed for git+file to resolve it.
 func (h *Harness) flakeRef(attr string) string {
+	if h.preparedSource != "" {
+		return fmt.Sprintf("git+file://%s#%s", h.preparedSource, attr)
+	}
 	return fmt.Sprintf("git+file://%s?rev=%s#%s", h.repoRoot, h.manifest.Rev, attr)
 }
 
@@ -455,8 +593,6 @@ func splitNonEmptyLines(s string) []string {
 
 var reStorePath = regexp.MustCompile(`^/nix/store/\S+$`)
 
-// singleStorePath returns the sole /nix/store path in s (a stdout-only capture),
-// erroring unless there is exactly one; suffix, if set, must terminate it.
 func singleStorePath(s, suffix string) (string, error) {
 	lines := splitNonEmptyLines(s)
 	if len(lines) != 1 {
@@ -472,7 +608,6 @@ func singleStorePath(s, suffix string) (string, error) {
 	return p, nil
 }
 
-// storePathLines keeps only the bare /nix/store path lines of a stdout capture.
 func storePathLines(s string) []string {
 	var out []string
 	for _, ln := range splitNonEmptyLines(s) {
@@ -483,8 +618,6 @@ func storePathLines(s string) []string {
 	return out
 }
 
-// drvOutPath parses `nix derivation show <drv>` stdout -- a JSON object keyed by
-// derivation store path -- and returns the single "out" output path.
 func drvOutPath(jsonStr, drv string) (string, error) {
 	var m map[string]struct {
 		Outputs map[string]struct {
@@ -496,7 +629,6 @@ func drvOutPath(jsonStr, drv string) (string, error) {
 	}
 	entry, ok := m[drv]
 	if !ok && len(m) == 1 {
-		// Tolerate a lone entry whose key spelling differs from drv.
 		for _, v := range m {
 			entry, ok = v, true
 		}
@@ -508,13 +640,9 @@ func drvOutPath(jsonStr, drv string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("derivation %s has no \"out\" output", drv)
 	}
-	// Reuse the single-store-path discipline; an output has no .drv suffix.
 	return singleStorePath(out.Path, "")
 }
 
-// parsePathInfoSigs parses `nix path-info --sigs --json` into store path ->
-// signatures. Lix emits a JSON array (lix issue #1100); upstream Nix (>= ~2.14)
-// emits an object keyed by store path. Both shapes are accepted.
 func parsePathInfoSigs(jsonStr string) (map[string][]string, error) {
 	s := strings.TrimSpace(jsonStr)
 	out := map[string][]string{}
@@ -555,7 +683,6 @@ func parsePathInfoSigs(jsonStr string) (map[string][]string, error) {
 	return out, nil
 }
 
-// signedByKey reports whether any "name:blob" signature was made by keyName.
 func signedByKey(sigs []string, keyName string) bool {
 	for _, sig := range sigs {
 		if name, _, ok := NormalizePubKey(sig); ok && name == keyName {
@@ -563,4 +690,37 @@ func signedByKey(sigs []string, keyName string) bool {
 		}
 	}
 	return false
+}
+
+func assertExactVMSecrets(jsonStr string) error {
+	var got map[string]string
+	if err := json.Unmarshal([]byte(strings.TrimSpace(jsonStr)), &got); err != nil {
+		return fmt.Errorf("parse generated vm fixture json: %w", err)
+	}
+	want := map[string]string{
+		"feltfomo-password": fixedVMPasswordHash,
+		"notion-token":      fixedVMNotionToken,
+	}
+	if len(got) != len(want) {
+		return fmt.Errorf("generated vm fixture has wrong key count: got %d want %d", len(got), len(want))
+	}
+	for k, v := range want {
+		if got[k] != v {
+			return fmt.Errorf("generated vm fixture mismatch for %s", k)
+		}
+	}
+	return nil
+}
+
+func rejectIdentityLeak(root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		switch info.Name() {
+		case "ssh_host_ed25519_key", "ssh_host_ed25519_key.pub":
+			return fmt.Errorf("private or public vm identity leaked into prepared source: %s", path)
+		}
+		return nil
+	})
 }

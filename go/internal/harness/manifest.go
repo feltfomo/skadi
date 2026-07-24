@@ -44,6 +44,7 @@ type Artifact struct {
 // Notion.
 type Manifest struct {
 	Rev                   string              `json:"rev"`
+	ApprovedRev           string              `json:"approved_rev,omitempty"`
 	Subcommand            string              `json:"subcommand"`
 	Host                  string              `json:"host"`
 	StartedAt             time.Time           `json:"started_at"`
@@ -52,6 +53,12 @@ type Manifest struct {
 	Status                string              `json:"status"`
 	CacheKey              string              `json:"cache_key,omitempty"`
 	PublicKey             string              `json:"public_key,omitempty"`
+	PreparedSourcePath    string              `json:"prepared_source_path,omitempty"`
+	PreparedSourceHash    string              `json:"prepared_source_hash,omitempty"`
+	PreparedSourceStatus  string              `json:"prepared_source_status,omitempty"`
+	VMIdentityRecipient   string              `json:"vm_identity_recipient,omitempty"`
+	VMIdentityFingerprint string              `json:"vm_identity_fingerprint,omitempty"`
+	VMFixtureSHA256       string              `json:"vm_fixture_sha256,omitempty"`
 	DrvPaths              map[string]string   `json:"drv_paths,omitempty"`
 	StorePaths            map[string]string   `json:"store_paths,omitempty"`
 	LiveBuildCount        int                 `json:"live_build_count"`
@@ -93,6 +100,9 @@ func (m *Manifest) Human() string {
 	fmt.Fprintf(&b, "rebuild-vm-golden report\n")
 	fmt.Fprintf(&b, "========================\n")
 	fmt.Fprintf(&b, "rev:         %s\n", m.Rev)
+	if m.ApprovedRev != "" {
+		fmt.Fprintf(&b, "approved:    %s\n", m.ApprovedRev)
+	}
 	fmt.Fprintf(&b, "subcommand:  %s\n", m.Subcommand)
 	fmt.Fprintf(&b, "host:        %s\n", m.Host)
 	fmt.Fprintf(&b, "status:      %s\n", m.Status)
@@ -103,6 +113,24 @@ func (m *Manifest) Human() string {
 	}
 	fmt.Fprintf(&b, "build count: %d\n", m.LiveBuildCount)
 	fmt.Fprintf(&b, "fetch count: %d\n", m.FetchCount)
+	if m.PreparedSourcePath != "" {
+		fmt.Fprintf(&b, "prepared src: %s\n", m.PreparedSourcePath)
+	}
+	if m.PreparedSourceHash != "" {
+		fmt.Fprintf(&b, "prepared sha: %s\n", m.PreparedSourceHash)
+	}
+	if m.PreparedSourceStatus != "" {
+		fmt.Fprintf(&b, "prepared status: %s\n", m.PreparedSourceStatus)
+	}
+	if m.VMIdentityFingerprint != "" {
+		fmt.Fprintf(&b, "vm identity: %s\n", m.VMIdentityFingerprint)
+	}
+	if m.VMIdentityRecipient != "" {
+		fmt.Fprintf(&b, "vm recipient: %s\n", m.VMIdentityRecipient)
+	}
+	if m.VMFixtureSHA256 != "" {
+		fmt.Fprintf(&b, "vm fixture sha256: %s\n", m.VMFixtureSHA256)
+	}
 	if m.CacheKey != "" {
 		fmt.Fprintf(&b, "cache key:   %s\n", m.CacheKey)
 	}

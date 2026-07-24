@@ -418,17 +418,22 @@ log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 # Every other host keeps the ordinary fresh-key provisioning flow.
 install -d -m0755 "$MNT/persist/etc/ssh"
 VM_TEST_IDENTITY=0
-VM_TEST_DIR="$WORK/modules/hosts/_vm"
-VM_TEST_KEY="$VM_TEST_DIR/ssh_host_ed25519_key"
-VM_TEST_PUB="$VM_TEST_KEY.pub"
-VM_TEST_FIXTURE="$VM_TEST_DIR/secrets.yaml"
+VM_TEST_IDENTITY_DIR="${SKADI_VM_TEST_IDENTITY_DIR:-}"
+VM_TEST_KEY="$VM_TEST_IDENTITY_DIR/ssh_host_ed25519_key"
+VM_TEST_PUB="$VM_TEST_IDENTITY_DIR/ssh_host_ed25519_key.pub"
+VM_TEST_FIXTURE="$WORK/modules/hosts/_vm/secrets.yaml"
 
 if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "$HOST" = vm ]; then
   VM_TEST_IDENTITY=1
+  [ -n "$VM_TEST_IDENTITY_DIR" ] || die "vm test identity dir missing (set SKADI_VM_TEST_IDENTITY_DIR=/run/skadi-vm-identity)"
+  case "$VM_TEST_IDENTITY_DIR" in
+    "$WORK"|"$WORK"/*) die "vm test identity dir must stay outside the prepared source tree: $VM_TEST_IDENTITY_DIR" ;;
+    /nix/store|/nix/store/*) die "vm test identity dir must stay outside /nix/store: $VM_TEST_IDENTITY_DIR" ;;
+  esac
   for required in "$VM_TEST_KEY" "$VM_TEST_PUB" "$VM_TEST_FIXTURE"; do
     [ -f "$required" ] || die "vm test identity fixture missing: $required"
   done
-  log "installing fixed TEST-ONLY vm host identity"
+  log "installing throwaway TEST-ONLY vm host identity"
   install -m0600 "$VM_TEST_KEY" "$MNT/persist/etc/ssh/ssh_host_ed25519_key"
   install -m0644 "$VM_TEST_PUB" "$MNT/persist/etc/ssh/ssh_host_ed25519_key.pub"
   ssh-keygen -t rsa -b 4096 -N "" -C "root@vm-test" \
@@ -580,20 +585,20 @@ provision_secrets() {
 }
 
 assert_vm_test_identity() {
-  local expected_pub installed_pub actual_names fixture_hash configured_file configured_hash
+  local expected_pub runtime_pub actual_names fixture_hash configured_file configured_hash
   local age_key decrypted
 
   expected_pub="$(cut -d' ' -f1-2 "$VM_TEST_PUB")"
-  installed_pub="$(ssh-keygen -y -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key")"
-  [ "$installed_pub" = "$expected_pub" ] \
-    || die "installed vm test host identity does not match committed public key"
+  runtime_pub="$(ssh-keygen -y -f "$VM_TEST_KEY")"
+  [ "$runtime_pub" = "$expected_pub" ] \
+    || die "vm test runtime identity does not match its public key"
 
   # The public test identity must never be a recipient of real encrypted files
   # or real creation rules. The real files must also remain byte-untouched.
-  if grep -Fq "$AGE_RECIP" .sops.yaml secrets/lumi.yaml secrets/secrets.yaml; then
+  if grep -Fq "$AGE_RECIP" .sops.yaml secrets/*.yaml; then
     die "SECURITY INVARIANT: vm test recipient appears in real SOPS material"
   fi
-  git diff --quiet -- .sops.yaml secrets/lumi.yaml secrets/secrets.yaml \
+  git diff --quiet -- .sops.yaml secrets/*.yaml \
     || die "SECURITY INVARIANT: real SOPS material changed during vm test install"
 
   actual_names="$(eval_target .config.sops.secrets | jq -c 'keys | sort')"
@@ -611,7 +616,7 @@ assert_vm_test_identity() {
 
   age_key="$(mktemp)"
   chmod 0600 "$age_key"
-  ssh-to-age -private-key -i "$MNT/persist/etc/ssh/ssh_host_ed25519_key" > "$age_key"
+  ssh-to-age -private-key -i "$VM_TEST_KEY" > "$age_key"
   decrypted="$(SOPS_AGE_KEY_FILE="$age_key" sops --decrypt --output-type json "$VM_TEST_FIXTURE")"
   rm -f "$age_key"
   jq -e '
