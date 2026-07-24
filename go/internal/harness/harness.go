@@ -328,7 +328,11 @@ func (h *Harness) stagePrepareSource(ctx context.Context) error {
 	}
 	defer os.Remove(plaintextPath)
 
-	encrypted := h.runner.Run(ctx, CmdSpec{Name: "sops", Args: []string{"--encrypt", "--age", recipient, "--input-type", "yaml", "--output-type", "yaml", plaintextPath}}, nil)
+	encrypted := h.runner.Run(ctx, CmdSpec{
+		Name: "sops",
+		Args: []string{"--encrypt", "--age", recipient, "--input-type", "yaml", "--output-type", "yaml", plaintextPath},
+		Dir:  identityDir,
+	}, nil)
 	if encrypted.Err != nil || encrypted.ExitCode != 0 {
 		return fmt.Errorf("encrypt vm secrets fixture (exit %d): %w\n%s", encrypted.ExitCode, encrypted.Err, encrypted.Combined)
 	}
@@ -369,7 +373,12 @@ func (h *Harness) stagePrepareSource(ctx context.Context) error {
 		return fmt.Errorf("write temporary age key: %w", err)
 	}
 	defer os.Remove(ageKeyPath)
-	decrypted := h.runner.Run(ctx, CmdSpec{Name: "sops", Args: []string{"--decrypt", "--output-type", "json", fixturePath}, Env: []string{"SOPS_AGE_KEY_FILE=" + ageKeyPath}}, nil)
+	decrypted := h.runner.Run(ctx, CmdSpec{
+		Name: "sops",
+		Args: []string{"--decrypt", "--output-type", "json", fixturePath},
+		Dir:  identityDir,
+		Env:  []string{"SOPS_AGE_KEY_FILE=" + ageKeyPath},
+	}, nil)
 	if decrypted.Err != nil || decrypted.ExitCode != 0 {
 		return fmt.Errorf("decrypt generated vm fixture (exit %d): %w\n%s", decrypted.ExitCode, decrypted.Err, decrypted.Combined)
 	}
@@ -501,10 +510,30 @@ func (h *Harness) stageExportSign(ctx context.Context) error {
 		h.manifest.StorePaths = map[string]string{}
 	}
 	h.manifest.StorePaths["toplevel"] = paths[0]
+	closure, err := h.cache.ClosurePaths(ctx, paths)
+	if err != nil {
+		return err
+	}
+	total := len(closure)
+	started := time.Now()
+	logCacheProgress(h.log, "copied", 0, total, started)
 	if err := h.cache.Sign(ctx, h.signingKey, paths); err != nil {
 		return err
 	}
-	return h.cache.Export(ctx, paths)
+	if err := h.cache.Export(ctx, paths); err != nil {
+		return err
+	}
+	logCacheProgress(h.log, "copied", total, total, started)
+	logCacheProgress(h.log, "signed", 0, total, started)
+	if err := h.cache.SignStore(ctx, h.signingKey, paths); err != nil {
+		return err
+	}
+	verified, err := h.cache.VerifyCurrentRunKey(ctx, h.signingKey, paths)
+	if err != nil {
+		return err
+	}
+	logCacheProgress(h.log, "signed", verified, total, started)
+	return nil
 }
 
 func (h *Harness) stageServeCache(ctx context.Context) error {
