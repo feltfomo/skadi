@@ -62,6 +62,7 @@ _: {
           statix
           lua-language-server
           stylua
+          go
           cargo
           rustc
           clippy
