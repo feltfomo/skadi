@@ -15,6 +15,20 @@ in
     "notion-token".sopsFile = lib.mkForce fixture;
   };
 
+  # The installer ISO already trusts this public half for the harness's
+  # transport key. Keep the same test-only key on the installed VM so the
+  # first-boot and overlay proofs can reconnect after the ISO is removed.
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = lib.mkForce "prohibit-password";
+      PasswordAuthentication = false;
+    };
+  };
+  users.users.root.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIElUx+G8NdV6W0NVEh3wpOg33mBnHY0oG9b31eds/LSs skadi-vm-test"
+  ];
+
   assertions = [
     {
       assertion = actualSecrets == expectedSecrets;
