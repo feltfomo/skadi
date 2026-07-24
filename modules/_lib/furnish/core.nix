@@ -113,7 +113,7 @@ let
   # Enabled selection runs one unit at a time through the ownerships public
   # surface: an active unit resolves to its own value, an inactive one resolves
   # to empty. Reading present-vs-empty keeps selection from being a shared merge
-  # gate and never forces a dropped unit's payload.
+  # boundary and never forces a dropped unit's payload.
   mkEnabledProvider =
     {
       resolve,
@@ -296,8 +296,6 @@ let
     else
       lib.mapAttrs (_: claimants: builtins.head claimants) groups;
 
-  checkCollisions = entries: builtins.seq (buildIndex (map indexProjection entries)) entries;
-
   projectPrincipal =
     {
       declarations,
@@ -433,10 +431,8 @@ in
     deriveDestination
     indexProjection
     collisionDiagnostics
-    buildIndex
     buildHostIndex
     projectPrincipal
-    checkCollisions
     selectExecutor
     ;
 }

@@ -15,6 +15,8 @@ _: {
           jq
           util-linux
           openssh
+          ssh-to-age
+          sops
           qemu_kvm
         ];
         text = ''

@@ -311,10 +311,7 @@ let
   manifestKeys = builtins.attrNames sampleEntry;
   artifactTarget = sampleEntry.retainedArtifactTarget;
   manifestContext = builtins.getContext sampleResult.manifestJson;
-
-  # The load-bearing gate probe is flipped temporarily during validation. If
-  # this value is false and `nix flake check` stays green, the check isn't wired.
-  wiringProbe = true;
+  inherit (sampleResult) manifestDocument;
 
   checks = [
     {
@@ -329,7 +326,7 @@ let
       name = "sample manifest is byte-stable and entry order is canonical";
       pass =
         sampleResult.manifestJson == (compile [ sample ]).manifestJson
-        && toString sampleResult.manifestPath == toString (compile [ sample ]).manifestPath
+        && sampleResult.manifestPath == null
         && orderedA.manifestJson == orderedB.manifestJson
         &&
           map (entry: entry.filesystemIdentity.canonical) orderedA.manifestData == [
@@ -377,6 +374,24 @@ let
         && sampleEntry.cleanupStrategy == "exact-symlink-target"
         && sampleEntry.selfHealStrategy == "exact-symlink-target"
         && !(sampleEntry ? source);
+    }
+    {
+      name = "manifest document versions runtime diagnostics and carries entries";
+      pass =
+        manifestDocument.schemaVersion == contract.schemaVersion
+        && manifestDocument.diagnosticContract == contract.runtimeDiagnostics
+        && manifestDocument.entries == sampleResult.manifestData
+        && contract.runtimeDiagnostics.schemaVersion == contract.diagnosticSchemaVersion
+        && builtins.all builtins.isString (builtins.attrValues contract.runtimeDiagnostics.codes);
+    }
+    {
+      name = "native executor tuple is exact and has no fallback identity";
+      pass =
+        contract.executors.nativeSymlink == {
+          identity = "furnish/native-symlink";
+          protocolVersion = 1;
+          representation = contract.capabilities.symlink;
+        };
     }
     {
       name = "manifest context pins a dedicated artifact object";
@@ -441,7 +456,7 @@ let
       pass =
         noOp.manifestData == [ ]
         && noOp.manifestPath == null
-        && noOp.manifestJson == "[]"
+        && noOp.manifestDocument.entries == [ ]
         && noOp.raw == raw;
     }
     {
@@ -539,10 +554,6 @@ let
     {
       name = "empty host index is inert";
       pass = furnish.core.buildHostIndex { principals = hostPrincipals; } == { };
-    }
-    {
-      name = "furnish check wiring probe";
-      pass = wiringProbe;
     }
   ];
 

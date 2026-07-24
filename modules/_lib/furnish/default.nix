@@ -24,5 +24,5 @@ in
 
   # Runtime behavior starts with the coordinator work; importing the pure core
   # must not install one or make an empty declaration set observable.
-  runtime = { };
+  runtime = import ./runtime.nix;
 }
