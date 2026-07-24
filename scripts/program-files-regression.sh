@@ -41,6 +41,22 @@ require_host() {
 system_toplevel() { readlink -f /run/current-system; }
 content_hash() { sha256sum -- "$1" | awk '{print $1}'; }
 
+ledger_path() {
+  # Where applied state lives is a property of the evaluated host, not a
+  # constant this harness may assume; asking the configuration keeps the two
+  # from drifting apart silently.
+  local host
+  host="$(hostnamectl --static 2>/dev/null || hostname)"
+  nix eval --raw ".#nixosConfigurations.${host}.config.lexicon.furnish.ledgerPath"
+}
+
+ledger_field() {
+  local ledger="$1" destination="$2" field="$3"
+  [ -r "$ledger" ] || return 0
+  jq -r --arg destination "$destination" --arg field "$field" \
+    '[.records[]|select(.destination==$destination)]|first|.[$field] // empty' "$ledger"
+}
+
 home_generation() {
   # Integrated Home Manager has used both profile locations across generations.
   local candidate
@@ -304,13 +320,19 @@ record_matrix() {
 }
 
 save_case_state() {
-  local mode="$1" file="$2" raw resolved hash
+  local mode="$1" file="$2" raw resolved hash ledger ledger_schema applied
   [ -L "$KITTY_PATH" ] || die "$KITTY_PATH is not a healthy owned symlink"
   raw="$(readlink -- "$KITTY_PATH")"
   resolved="$(readlink -f -- "$KITTY_PATH")"
   [ -e "$resolved" ] || die "$KITTY_PATH is already dangling"
   hash="$(content_hash "$KITTY_PATH")"
-  jq -n --arg mode "$mode" --arg path "$KITTY_PATH" --arg rawTarget "$raw" --arg resolvedTarget "$resolved" --arg contentSha256 "$hash" --arg systemToplevel "$(system_toplevel)" --arg bootId "$(cat /proc/sys/kernel/random/boot_id)" --arg homePersistence "$(home_persistence)" '{mode:$mode,path:$path,rawTarget:$rawTarget,resolvedTarget:$resolvedTarget,contentSha256:$contentSha256,systemToplevel:$systemToplevel,bootId:$bootId,homePersistence:$homePersistence}' > "$file"
+  # The before side of the ledger comparison is captured here so both halves of
+  # the reboot assertion come from one place rather than being reconstructed
+  # after the wipe from something that may itself have changed.
+  ledger="$(ledger_path)"
+  ledger_schema="$(jq -r .schemaVersion "$ledger" 2>/dev/null || true)"
+  applied="$(ledger_field "$ledger" "$KITTY_PATH" appliedArtifactTarget)"
+  jq -n --arg mode "$mode" --arg path "$KITTY_PATH" --arg rawTarget "$raw" --arg resolvedTarget "$resolved" --arg contentSha256 "$hash" --arg systemToplevel "$(system_toplevel)" --arg bootId "$(cat /proc/sys/kernel/random/boot_id)" --arg homePersistence "$(home_persistence)" --arg ledgerPath "$ledger" --arg ledgerSchemaVersion "$ledger_schema" --arg ledgerAppliedTarget "$applied" '{mode:$mode,path:$path,rawTarget:$rawTarget,resolvedTarget:$resolvedTarget,contentSha256:$contentSha256,systemToplevel:$systemToplevel,bootId:$bootId,homePersistence:$homePersistence,ledgerPath:$ledgerPath,ledgerSchemaVersion:(if $ledgerSchemaVersion=="" then null else ($ledgerSchemaVersion|tonumber) end),ledgerAppliedTarget:(if $ledgerAppliedTarget=="" then null else $ledgerAppliedTarget end)}' > "$file"
 }
 
 restore_kitty() {
@@ -395,6 +417,7 @@ case_switch_assert() {
 case_boot_assert() {
   # A changed boot ID prevents a second shell invocation from masquerading as reboot proof.
   local host="$1" mode="$2" state before after outcome manufactured fixture_valid expected_hash
+  local ledger ledger_schema applied_before applied_after record_boot_id ledger_boot_id_changed
   require_host "$host"
   state="$CACHE/case-${mode}-state.json"
   [ -f "$state" ] || die "case state is missing for $mode"
@@ -402,6 +425,31 @@ case_boot_assert() {
   after="$(cat /proc/sys/kernel/random/boot_id)"
   [ "$before" != "$after" ] || die "boot ID did not change"
   outcome="$(case_outcome "$state")"
+
+  # The ledger is the whole SP4 claim: /persist outlives the initrd snapshot that
+  # rolls @ back to @blank, and without the record furnish can prove ownership of
+  # nothing once the root is gone. Record identity is asserted, never file bytes:
+  # the boot reconcile legitimately rewrites this file, so a byte-identical
+  # ledger across a boot would be evidence the boot service never ran.
+  ledger="$(jq -r .ledgerPath "$state")"
+  [ -f "$ledger" ] || die "applied-state ledger did not survive the reboot: $ledger"
+  ledger_schema="$(jq -r .schemaVersion "$ledger")"
+  [ "$ledger_schema" = "$(jq -r .ledgerSchemaVersion "$state")" ] || die "applied-state schema changed across the reboot"
+  applied_before="$(jq -r .ledgerAppliedTarget "$state")"
+  applied_after="$(ledger_field "$ledger" "$KITTY_PATH" appliedArtifactTarget)"
+  [ -n "$applied_after" ] || die "applied state lost its record for $KITTY_PATH"
+  if [ "$applied_before" != null ]; then
+    [ "$applied_after" = "$applied_before" ] || die "recorded target changed across the reboot: $applied_before -> $applied_after"
+  fi
+  record_boot_id="$(ledger_field "$ledger" "$KITTY_PATH" bootId)"
+  ledger_boot_id_changed=false
+  if [ -n "$record_boot_id" ] && [ "$record_boot_id" != "$before" ]; then ledger_boot_id_changed=true; fi
+  # Only a reconcile that published something rewrites the record, so a refused
+  # mode legitimately still carries the previous boot's diagnostic ID.
+  if [ "$outcome" = repaired ]; then
+    [ "$ledger_boot_id_changed" = true ] || die "ledger boot ID did not advance despite a repaired outcome"
+  fi
+
   record_matrix "$mode" reboot "$outcome"
   if [ "$host" = vm ]; then
     manufactured="$(jq -r .manufacturedTarget "$state")"
@@ -420,10 +468,12 @@ case_boot_assert() {
     jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" \
       --arg homePersistence "$(jq -r .homePersistence "$state")" --arg manufacturedTarget "$manufactured" \
       --argjson fixtureStateValid "$fixture_valid" \
-      '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,manufacturedTarget:$manufacturedTarget,fixtureStateValid:$fixtureStateValid,healthyStateRestored:true}' \
+      --arg ledgerPath "$ledger" --arg ledgerAppliedTarget "$applied_after" \
+      --argjson ledgerBootIdChanged "$ledger_boot_id_changed" \
+      '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,manufacturedTarget:$manufacturedTarget,fixtureStateValid:$fixtureStateValid,ledgerPath:$ledgerPath,ledgerAppliedTarget:$ledgerAppliedTarget,ledgerBootIdChanged:$ledgerBootIdChanged,ledgerSurvived:true,ledgerRecordStable:true,healthyStateRestored:true}' \
       > "$CACHE/case-${mode}-boot-evidence.json"
   else
-    jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" --arg homePersistence "$(jq -r .homePersistence "$state")" '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,healthyStateRestored:true}' > "$CACHE/case-${mode}-boot-evidence.json"
+    jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" --arg homePersistence "$(jq -r .homePersistence "$state")" --arg ledgerPath "$ledger" --arg ledgerAppliedTarget "$applied_after" --argjson ledgerBootIdChanged "$ledger_boot_id_changed" '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,ledgerPath:$ledgerPath,ledgerAppliedTarget:$ledgerAppliedTarget,ledgerBootIdChanged:$ledgerBootIdChanged,ledgerSurvived:true,ledgerRecordStable:true,healthyStateRestored:true}' > "$CACHE/case-${mode}-boot-evidence.json"
   fi
   log "$mode reboot outcome: $outcome; healthy state verified"
 }
@@ -731,8 +781,13 @@ vm_build_release_toplevel() {
     hasActivation = release.config.system.activationScripts ? furnish;
     hasBootService = release.config.systemd.services ? furnish;
   }")"
-  jq -e '.runtimeModulePresent == true and .declarations == [] and .manifestData == [] and .manifestPath == null and .hasActivation == false and .hasBootService == false' <<<"$probe" >/dev/null \
-    || die "release generation did not keep furnish loaded with an empty inert desired set"
+  # Enabled with nothing declared is a running state, not an inert one. The empty
+  # reconciliation is what retires entries a later generation stops declaring, so
+  # it needs a manifest, an activation and a unit even at zero entries, and
+  # furnish running there with an empty ledger and pruning nothing is a stronger
+  # non-interference proof than furnish not running at all.
+  jq -e '.runtimeModulePresent == true and .declarations == [] and .manifestData == [] and .manifestPath != null and .hasActivation == true and .hasBootService == true' <<<"$probe" >/dev/null \
+    || die "release generation did not keep furnish enabled and running with an empty desired set"
   printf '%s\n' "$probe" | jq -S . > "$CACHE/release-generation-probe.json"
   toplevel="$(nix build --impure --no-link --print-out-paths --expr "($release_expr).config.system.build.toplevel")"
   [[ "$toplevel" == /nix/store/* ]] && [ -e "$toplevel" ] \
@@ -835,6 +890,86 @@ vm_gc_survival() {
   jq -n --arg targetBefore "$target_before" --arg targetAfter "$target_after"     --arg rootsBefore "$roots_before" --arg rootsAfter "$roots_after"     '{schemaVersion:1,status:"pass",targetBefore:$targetBefore,targetAfter:$targetAfter,exactTargetSurvived:($targetBefore==$targetAfter),targetExistsAfterGc:true,rootPresentBefore:true,rootPresentAfter:true,positiveGcRun:true}'     | ssh_vm 'cat > /home/feltfomo/.cache/skadi-program-files-regression/furnish-gc-survival.json'
 }
 
+vm_build_variant_toplevel() {
+  # The only honest second target is one a real declaration produced. Perturb the
+  # declared kitty source the way a user edit would and evaluate the same module,
+  # rather than hand-writing a manifest entry the module never emitted.
+  local source="$1" destination="$2" config toplevel
+  [ ! -e "$destination" ] || die "variant source already exists: $destination"
+  cp -a "$source" "$destination"
+  config="$destination/configs/kitty/kitty.conf"
+  [ -f "$config" ] || die "variant source is missing the declared kitty config: $config"
+  printf '\n# two-generation gc repair fixture\n' >> "$config"
+  git -C "$destination" -c user.name=program-files-regression \
+    -c user.email=program-files-regression@invalid commit -qam "gc repair variant source"
+  toplevel="$(nix build --no-link --print-out-paths "${destination}#nixosConfigurations.vm.config.system.build.toplevel")"
+  { [[ "$toplevel" == /nix/store/* ]] && [ -e "$toplevel" ]; } \
+    || die "variant generation did not produce a live system toplevel: $toplevel"
+  printf '%s\n' "$toplevel"
+}
+
+vm_gc_repair_survival() {
+  # This is the bug the ledger exists for: a generation publishes a link, the
+  # system moves to a generation that wants a different target, and an ordinary
+  # collection reaps the object the link still names. Nothing here passes
+  # --ignore-liveness; the old target has to become unreachable on its own or the
+  # reap proves nothing about GC. It runs last in the VM sequence because it
+  # deliberately leaves the guest on another generation with the old one gone.
+  local source="$1" destination="$2" guest_path=/home/feltfomo/.config/kitty/kitty.conf
+  local ledger variant variant_target recorded_before recorded_after linked_before linked_after
+  local refusal_result repair_result
+  ledger="$(nix eval --raw "${source}#nixosConfigurations.vm.config.lexicon.furnish.ledgerPath")"
+  linked_before="$(ssh_vm readlink -- "$guest_path")"
+  recorded_before="$(ssh_vm cat "$ledger" | jq -r --arg destination "$guest_path" '[.records[]|select(.destination==$destination)]|first|.appliedArtifactTarget // empty')"
+  [ -n "$recorded_before" ] || die "applied state holds no record for $guest_path before the rollback"
+  [ "$recorded_before" = "$linked_before" ] || die "applied state does not match the published link before the rollback"
+
+  variant="$(vm_build_variant_toplevel "$source" "$destination")"
+  [ "$variant" != "$VM_TOPLEVEL" ] || die "variant generation is identical to the tested generation"
+  variant_target="$(nix eval --json "${destination}#nixosConfigurations.vm.config.lexicon.furnish.manifestData" \
+    | jq -r --arg destination "$guest_path" '.[]|select(.filesystemIdentity.destination==$destination)|.retainedArtifactTarget')"
+  [ -n "$variant_target" ] && [ "$variant_target" != "$recorded_before" ] \
+    || die "variant generation did not produce a different retained target"
+  vm_copy_toplevel "$variant"
+
+  # Selecting for boot never runs activation, so the reconcile below happens
+  # exactly once, at boot, and the refusal is the boot service's own decision
+  # rather than a switch the harness drove.
+  ssh_root nix-env -p /nix/var/nix/profiles/system --set "$variant"
+  ssh_root "$variant/bin/switch-to-configuration" boot
+  ssh_root ln -sfn "$variant" /nix/var/nix/gcroots/program-files-regression/system
+  vm_reboot
+  [ "$(ssh_vm readlink -f /run/current-system)" = "$variant" ] || die "guest did not boot the variant generation"
+
+  # Before the collection the recorded target is still live, so the seventh
+  # condition fails and furnish must refuse. A repair here would mean the
+  # decision was driven by desired-versus-observed inequality, not by evidence.
+  ssh_vm test -e "$recorded_before" || die "recorded target vanished before the garbage collection"
+  [ "$(ssh_vm readlink -- "$guest_path")" = "$linked_before" ] \
+    || die "furnish moved the link while the recorded target was still resolvable"
+  refusal_result="$(ssh_root systemctl show -p Result --value furnish.service)"
+
+  ssh_root nix-collect-garbage -d >/dev/null
+  if ssh_vm test -e "$recorded_before"; then die "ordinary garbage collection did not reap the rolled-back target"; fi
+  vm_reboot
+  [ "$(ssh_vm readlink -f /run/current-system)" = "$variant" ] || die "guest left the variant generation"
+  repair_result="$(ssh_root systemctl show -p Result --value furnish.service)"
+  [ "$repair_result" = success ] || die "furnish did not finish cleanly after the reap (Result=$repair_result)"
+  linked_after="$(ssh_vm readlink -- "$guest_path")"
+  [ "$linked_after" = "$variant_target" ] || die "link was not repaired to the variant target: $linked_after"
+  ssh_vm test -e "$linked_after" || die "repaired link does not resolve"
+  recorded_after="$(ssh_vm cat "$ledger" | jq -r --arg destination "$guest_path" '[.records[]|select(.destination==$destination)]|first|.appliedArtifactTarget // empty')"
+  [ "$recorded_after" = "$variant_target" ] || die "applied state did not advance to the repaired target"
+
+  jq -n --arg recordedBefore "$recorded_before" --arg variantTarget "$variant_target" \
+    --arg linkedAfter "$linked_after" --arg recordedAfter "$recorded_after" \
+    --arg refusalUnitResult "$refusal_result" --arg repairUnitResult "$repair_result" \
+    --arg previousToplevel "$VM_TOPLEVEL" --arg variantToplevel "$variant" \
+    '{schemaVersion:1,status:"pass",twoGenerations:true,previousToplevel:$previousToplevel,variantToplevel:$variantToplevel,recordedTargetBefore:$recordedBefore,variantTarget:$variantTarget,refusedWhileRecordedTargetLive:true,refusalUnitResult:$refusalUnitResult,reapedByOrdinaryGc:true,ignoreLivenessUsed:false,repairedAfterGc:($linkedAfter==$variantTarget),repairUnitResult:$repairUnitResult,ledgerRecordAdvanced:($recordedAfter==$variantTarget)}' \
+    | ssh_vm 'cat > /home/feltfomo/.cache/skadi-program-files-regression/furnish-gc-repair.json'
+  log "two-generation repair proved: refused while $recorded_before was live, repaired to $variant_target after the reap"
+}
+
 vm_collect_evidence() {
   local destination="$1"
   mkdir -p "$destination"
@@ -843,7 +978,7 @@ vm_collect_evidence() {
 
 vm_equivalence() {
   local khion_matrix="$1" evidence="$2" output="$3" expected khion vm status
-  local khion_expected vm_expected vm_khion boot_ids switches persistence generations fixtures gc_survival migration release_probe all_true
+  local khion_expected vm_expected vm_khion boot_ids switches persistence generations fixtures gc_survival gc_repair migration release_probe ledger_survival all_true
   expected="$(expected_matrix | jq -Sc .)"
   khion="$(normalize_matrix "$khion_matrix" | jq -Sc .)"
   vm="$(normalize_matrix "$evidence/repair-matrix.json" | jq -Sc .)"
@@ -852,15 +987,17 @@ vm_equivalence() {
   [ "$vm" = "$expected" ] && vm_expected=true
   [ "$vm" = "$khion" ] && vm_khion=true
   boot_ids="$(jq -s 'length==3 and all(.[];.bootIdChanged==true and .homePersistence=="persisted")' "$evidence"/case-*-boot-evidence.json)"
+  ledger_survival="$(jq -s 'length==3 and all(.[];.ledgerSurvived==true and .ledgerRecordStable==true)' "$evidence"/case-*-boot-evidence.json)"
   switches="$(jq -s 'length==3 and all(.[];.byteIdenticalToplevel==true)' "$evidence"/case-*-switch-evidence.json)"
   persistence="$(jq -s 'length==3 and all(.[];.negativeControlPassed==true and .persistedSentinelSurvived==true and .persistedSentinelUnchanged==true and .persistedEvidenceSetSurvived==true)' "$evidence"/case-*-persistence-evidence.json)"
   generations="$(jq -s 'length==3 and all(.[];.exactGenerationSelected==true and .systemRootPresent==true and .harnessRootPresent==true)' "$evidence"/case-*-generation-evidence.json)"
   fixtures="$(jq -s 'length==3 and all(.[];.fixtureStateValid==true)' "$evidence"/case-*-boot-evidence.json)"
   gc_survival="$(jq -e '.status=="pass" and .positiveGcRun==true and .exactTargetSurvived==true and .targetExistsAfterGc==true and .rootPresentAfter==true' "$evidence/furnish-gc-survival.json" >/dev/null && printf true || printf false)"
+  gc_repair="$(jq -e '.status=="pass" and .twoGenerations==true and .refusedWhileRecordedTargetLive==true and .reapedByOrdinaryGc==true and .ignoreLivenessUsed==false and .repairedAfterGc==true and .ledgerRecordAdvanced==true' "$evidence/furnish-gc-repair.json" >/dev/null && printf true || printf false)"
   migration="$(jq -e '.status=="pass" and .selfSmokePassed==true and .releaseEnabledEmpty==true and .releaseHandoff==true and .adoptTakeover==true and .adoptSelectedForBoot==true' "$evidence/furnish-migrate-gate.json" >/dev/null && printf true || printf false)"
-  release_probe="$(jq -e '.runtimeModulePresent==true and .declarations==[] and .manifestData==[] and .manifestPath==null and .hasActivation==false and .hasBootService==false' "$evidence/release-generation-probe.json" >/dev/null && printf true || printf false)"
+  release_probe="$(jq -e '.runtimeModulePresent==true and .declarations==[] and .manifestData==[] and .manifestPath!=null and .hasActivation==true and .hasBootService==true' "$evidence/release-generation-probe.json" >/dev/null && printf true || printf false)"
   all_true=false
-  if [ "$khion_expected" = true ] && [ "$vm_expected" = true ] && [ "$vm_khion" = true ] && [ "$boot_ids" = true ] && [ "$switches" = true ] && [ "$persistence" = true ] && [ "$generations" = true ] && [ "$fixtures" = true ] && [ "$gc_survival" = true ] && [ "$migration" = true ] && [ "$release_probe" = true ]; then all_true=true; fi
+  if [ "$khion_expected" = true ] && [ "$vm_expected" = true ] && [ "$vm_khion" = true ] && [ "$boot_ids" = true ] && [ "$switches" = true ] && [ "$persistence" = true ] && [ "$generations" = true ] && [ "$fixtures" = true ] && [ "$gc_survival" = true ] && [ "$gc_repair" = true ] && [ "$migration" = true ] && [ "$release_probe" = true ] && [ "$ledger_survival" = true ]; then all_true=true; fi
   status=finding; [ "$all_true" = true ] && status=pass
   jq -S -n --arg status "$status" --argjson expected "$expected" --argjson khion "$khion" --argjson vm "$vm" \
     --arg khionMatrixPath "$khion_matrix" --arg khionMatrixSha256 "$(content_hash "$khion_matrix")" \
@@ -872,8 +1009,10 @@ vm_equivalence() {
     --argjson vmMatchesKhion "$vm_khion" --argjson changedBootIds "$boot_ids" \
     --argjson byteIdenticalSwitches "$switches" --argjson persistenceControls "$persistence" \
     --argjson exactGenerationSelected "$generations" --argjson fixtureStates "$fixtures" --argjson positiveGcSurvival "$gc_survival" \
+    --argjson twoGenerationGcRepair "$gc_repair" \
     --argjson releaseAdoptHandoff "$migration" --argjson releaseEnabledEmpty "$release_probe" \
-    '{schemaVersion:1,status:$status,authority:{expectedMatrix:$expected},khionEvidence:{path:$khionMatrixPath,sha256:$khionMatrixSha256,modifiedAt:$khionMatrixModifiedAt,baselineGeneratedBy:$baselineGeneratedBy,baselineSystemToplevel:$baselineSystemToplevel,matrix:$khion},vmEvidence:{matrix:$vm,archive:$archive,testedToplevel:$testedToplevel,regressionApp:$regressionApp},invariants:{khionMatchesExpected:$khionMatchesExpected,vmMatchesExpected:$vmMatchesExpected,vmMatchesKhion:$vmMatchesKhion,changedBootIds:$changedBootIds,byteIdenticalNoOpSwitches:$byteIdenticalSwitches,persistenceAndNegativeControls:$persistenceControls,exactGenerationSelected:$exactGenerationSelected,fixtureStatesValid:$fixtureStates,positiveGcSurvival:$positiveGcSurvival,releaseAdoptHandoff:$releaseAdoptHandoff,releaseEnabledEmpty:$releaseEnabledEmpty}}' > "$output"
+    --argjson ledgerSurvivedRootWipe "$ledger_survival" \
+    '{schemaVersion:1,status:$status,authority:{expectedMatrix:$expected},khionEvidence:{path:$khionMatrixPath,sha256:$khionMatrixSha256,modifiedAt:$khionMatrixModifiedAt,baselineGeneratedBy:$baselineGeneratedBy,baselineSystemToplevel:$baselineSystemToplevel,matrix:$khion},vmEvidence:{matrix:$vm,archive:$archive,testedToplevel:$testedToplevel,regressionApp:$regressionApp},invariants:{khionMatchesExpected:$khionMatchesExpected,vmMatchesExpected:$vmMatchesExpected,vmMatchesKhion:$vmMatchesKhion,changedBootIds:$changedBootIds,byteIdenticalNoOpSwitches:$byteIdenticalSwitches,persistenceAndNegativeControls:$persistenceControls,exactGenerationSelected:$exactGenerationSelected,fixtureStatesValid:$fixtureStates,positiveGcSurvival:$positiveGcSurvival,twoGenerationGcRepair:$twoGenerationGcRepair,releaseAdoptHandoff:$releaseAdoptHandoff,releaseEnabledEmpty:$releaseEnabledEmpty,ledgerSurvivedRootWipe:$ledgerSurvivedRootWipe}}' > "$output"
   jq . "$output"
   [ "$status" = pass ] || return 1
 }
@@ -940,6 +1079,7 @@ vm_run() {
     vm_guest_harness_root reboot-assert --host vm --mode "$mode" --run-id "$run_id"
     vm_guest_harness case-boot-assert --host vm --mode "$mode"
   done
+  vm_gc_repair_survival "$VM_TEST_FLAKE" "$run_dir/variant-source"
   vm_collect_evidence "$evidence"
   cp "$CACHE/release-generation-probe.json" "$evidence/"
   cp "$evidence/repair-matrix.json" "$CACHE/vm-repair-matrix.json"

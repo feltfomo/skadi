@@ -38,18 +38,10 @@ in
             ];
           }
           ''
-            # The unprivileged Nix sandbox has no /run/lock, so the full reconcile
-            # path (which acquires the host-global advisory lock before touching any
-            # entry) cannot run here. This smoke covers the two reconciliation
-            # surfaces that are observable without the lock:
-            #   (a) the native-symlink executor primitive (stage-native-symlink);
-            #   (b) pre-lock manifest validation via reconcile against invalid input.
-            # The composed reconcile_entry semantics (foreign refusal, idempotency,
-            # path-safety) are covered by the coordinator Rust unit tests; the full
-            # end-to-end publish path is covered by the VM matrix + the real-host test.
-
-            # (a) Native-symlink executor primitive (lock-free). stage-native-symlink
-            # stages a symlink at an inherited parent-directory fd.
+            # There's no /run/lock in the sandbox, so anything past the host lock is
+            # unreachable from here. That leaves the executor primitive and the checks
+            # that run before the lock is taken; the composed behavior lives in the
+            # Rust tests and the VM matrix.
             parent="$TMPDIR/parent"
             mkdir -p "$parent"
             target="$TMPDIR/target"
@@ -60,10 +52,9 @@ in
             test -L "$parent/value"
             test "$(readlink "$parent/value")" = "$target"
 
-            # (b) Pre-lock manifest validation. validate_manifest runs before the
-            # /run/lock bootstrap, so a manifest that trips a validation guard must
-            # fail with the contracted diagnostic code and a null cause (i.e. it never
-            # reached the lock, whose failure carries a non-null syscall cause).
+            # Validation runs before the lock bootstrap, so these have to come back
+            # with a null cause. A cause would mean the run got past validation and
+            # died on the lock instead, which would make the assertion a lie.
             base="$TMPDIR/base.json"
             jq -n '{
               schemaVersion:1,
@@ -78,7 +69,12 @@ in
                   executorFailed:"runtime/executor-failed",
                   stagingVerification:"runtime/staging-verification",
                   publishRace:"runtime/publish-race",
-                  finalVerification:"runtime/final-verification"
+                  finalVerification:"runtime/final-verification",
+                  ledgerUnreadable:"runtime/ledger-unreadable",
+                  ledgerInvalid:"runtime/ledger-invalid",
+                  ledgerWriteFailed:"runtime/ledger-write-failed",
+                  repairVerification:"runtime/repair-verification",
+                  unresolvableDesiredTarget:"runtime/unresolvable-desired-target"
                 }
               },
               entries:[{
@@ -95,20 +91,37 @@ in
               }]
             }' > "$base"
 
+            # The five ledger and repair codes above are carried by the fixture
+            # but are not exercised here, and cannot be: DiagnosticCodes fields
+            # are non-optional, so a fixture missing any code fails manifest
+            # deserialization before any assertion runs, while the codes
+            # themselves are only reachable after the host lock is held, which
+            # this sandbox has no /run/lock to provide.
             manifest="$TMPDIR/manifest.json"
             diagnostic="$TMPDIR/diagnostic.json"
+            # --state-dir is passed even though validation never reaches the
+            # ledger: the smoke should exercise the same argument surface the
+            # systemd unit uses, or it stops being a check of the real invocation.
             expect_precheck() {
               jq "$2" "$base" > "$manifest"
               if furnish-coordinator reconcile \
                 --manifest "$manifest" \
                 --lock-name furnish-smoke.lock \
+                --state-dir "$TMPDIR/state" \
                 --setpriv ${pkgs.util-linux}/bin/setpriv 2> "$diagnostic"; then
                 echo "invalid manifest unexpectedly accepted: $1" >&2
                 exit 1
               fi
-              jq -e --arg code "$1" \
+              # A bare `jq -e` exit 4 says only that something did not match, with
+              # an empty build log to read it from. Print what was actually
+              # emitted so the next failure is legible on the first look.
+              if ! jq -e --arg code "$1" \
                 'select(.schemaVersion==1 and .code==$code and .cause==null)' \
-                "$diagnostic" >/dev/null
+                "$diagnostic" >/dev/null; then
+                echo "expected $1 with a null cause, got:" >&2
+                cat "$diagnostic" >&2
+                exit 1
+              fi
             }
 
             # unsupported executor tuple

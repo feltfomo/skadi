@@ -12,6 +12,16 @@ let
     exactSymlinkTarget = "exact-symlink-target";
   };
 
+  # The applied-state ledger is a separate document with its own version. The
+  # manifest says what was asked for and changes when the desired shape changes;
+  # the ledger says what this machine actually did and changes when the evidence
+  # we keep changes. Versioning them together would force a manifest migration
+  # every time the evidence grows a field.
+  ledger = {
+    schemaVersion = 1;
+    fileName = "applied-state.json";
+  };
+
   executors.nativeSymlink = {
     identity = "furnish/native-symlink";
     protocolVersion = 1;
@@ -30,6 +40,11 @@ let
       stagingVerification = "runtime/staging-verification";
       publishRace = "runtime/publish-race";
       finalVerification = "runtime/final-verification";
+      ledgerUnreadable = "runtime/ledger-unreadable";
+      ledgerInvalid = "runtime/ledger-invalid";
+      ledgerWriteFailed = "runtime/ledger-write-failed";
+      repairVerification = "runtime/repair-verification";
+      unresolvableDesiredTarget = "runtime/unresolvable-desired-target";
     };
   };
 
@@ -92,6 +107,7 @@ in
   inherit
     schemaVersion
     diagnosticSchemaVersion
+    ledger
     capabilities
     strategies
     executors

@@ -44,11 +44,14 @@ let
     provider = furnish.core.offProvider;
   };
 
+  # An enabled host always has a manifest, empty entry set included. The empty
+  # reconciliation is what retires entries that are no longer declared, so it
+  # needs something to reconcile against. Disabled means inert, not empty.
   manifestPath =
-    if compiled.manifestData == [ ] then
-      null
+    if cfg.enable then
+      pkgs.writeText "furnish-desired-v${toString contract.schemaVersion}.json" compiled.manifestJson
     else
-      pkgs.writeText "furnish-desired-v${toString contract.schemaVersion}.json" compiled.manifestJson;
+      null;
 
   lockName =
     lib.replaceStrings [ "/" ] [ "-" ]
@@ -57,9 +60,46 @@ let
   destinationPaths = lib.unique (
     map (entry: entry.filesystemIdentity.destination) compiled.manifestData
   );
+
+  ledgerPath = "${cfg.state.path}/${contract.ledger.fileName}";
+
+  # Activation and the boot unit must invoke the coordinator identically. Two
+  # verbatim copies were survivable while they took the same three arguments;
+  # they are a drift source the moment a fourth is added.
+  reconcileCommand = ''
+    ${coordinator}/bin/furnish-coordinator reconcile \
+      --manifest ${manifestPath} \
+      --lock-name furnish-${lockName}.lock \
+      --state-dir ${cfg.state.path} \
+      --setpriv ${pkgs.util-linux}/bin/setpriv
+  '';
 in
 {
   options.lexicon.furnish = {
+    enable = lib.mkEnableOption "furnish-managed filesystem reconciliation";
+    state = {
+      path = lib.mkOption {
+        type = lib.types.str;
+        default = "/var/lib/furnish";
+        description = "Directory holding the applied-state ledger.";
+      };
+      durability = lib.mkOption {
+        type = lib.types.enum [
+          "durable"
+          "ephemeral"
+        ];
+        default = "ephemeral";
+        # furnish cannot make its own state survive a root wipe; only the host
+        # that owns the filesystem layout can. Declaring durable is a claim the
+        # consumer must prove, not a switch that arranges anything here.
+        description = "Whether state.path is claimed to survive a root wipe.";
+      };
+      requiresMountsFor = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        description = "Additional mounts the reconcile unit must wait for, typically the filesystem carrying state.path.";
+      };
+    };
     declarations = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
@@ -75,28 +115,28 @@ in
       readOnly = true;
       description = "Closure-retained desired-state manifest consumed by the coordinator.";
     };
+    ledgerPath = lib.mkOption {
+      type = lib.types.str;
+      readOnly = true;
+      description = "Applied-state ledger the coordinator writes beneath state.path.";
+    };
   };
 
   config = lib.mkMerge [
     {
       lexicon.furnish = {
         inherit (compiled) manifestData;
-        inherit manifestPath;
+        inherit manifestPath ledgerPath;
       };
     }
-    (lib.mkIf (manifestPath != null) {
+    (lib.mkIf cfg.enable {
       environment.systemPackages = [ coordinator ];
 
       # This is intentionally thin. The literal manifest interpolation makes the
       # manifest (and its context-retained targets) part of the active toplevel.
       system.activationScripts.furnish = {
         deps = [ "users" ];
-        text = ''
-          ${coordinator}/bin/furnish-coordinator reconcile \
-            --manifest ${manifestPath} \
-            --lock-name furnish-${lockName}.lock \
-            --setpriv ${pkgs.util-linux}/bin/setpriv
-        '';
+        text = reconcileCommand;
       };
 
       # Activation runs before persisted destination mounts are guaranteed to be
@@ -106,19 +146,17 @@ in
         description = "Reconcile furnish-managed filesystem destinations";
         wantedBy = [ "multi-user.target" ];
         after = [ "local-fs.target" ];
-        unitConfig.RequiresMountsFor = destinationPaths;
+        # The ledger's filesystem is as load-bearing as the destinations: a
+        # reconcile that cannot read applied state cannot prove ownership, and
+        # an unproven destination is refused rather than repaired.
+        unitConfig.RequiresMountsFor = lib.unique (destinationPaths ++ cfg.state.requiresMountsFor);
         serviceConfig = {
           Type = "oneshot";
           # Run once on every boot, then remain active so switch-to-configuration
           # does not replay this boot-only reconcile within the same boot.
           RemainAfterExit = true;
         };
-        script = ''
-          ${coordinator}/bin/furnish-coordinator reconcile \
-            --manifest ${manifestPath} \
-            --lock-name furnish-${lockName}.lock \
-            --setpriv ${pkgs.util-linux}/bin/setpriv
-        '';
+        script = reconcileCommand;
       };
     })
   ];
