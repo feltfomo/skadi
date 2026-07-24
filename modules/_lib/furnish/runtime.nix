@@ -11,7 +11,7 @@ let
     resolve = throw "furnish runtime forced the user ownership resolver";
     resolveSystem = throw "furnish runtime forced the system ownership resolver";
   };
-  cfg = config.skadi.furnish;
+  cfg = config.lexicon.furnish;
 
   coordinator = pkgs.rustPlatform.buildRustPackage {
     pname = "furnish-coordinator";
@@ -59,7 +59,7 @@ let
   );
 in
 {
-  options.skadi.furnish = {
+  options.lexicon.furnish = {
     declarations = lib.mkOption {
       type = lib.types.listOf lib.types.attrs;
       default = [ ];
@@ -79,7 +79,7 @@ in
 
   config = lib.mkMerge [
     {
-      skadi.furnish = {
+      lexicon.furnish = {
         inherit (compiled) manifestData;
         inherit manifestPath;
       };

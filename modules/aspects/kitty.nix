@@ -26,7 +26,7 @@
       [
         {
           imports = [ ../_lib/furnish/runtime.nix ];
-          skadi.furnish.declarations = [
+          lexicon.furnish.declarations = [
             {
               label = "kitty.files[0]";
               filesystemNamespace = "${pkgs.stdenv.hostPlatform.system}/${config.networking.hostName}";

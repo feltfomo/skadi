@@ -73,7 +73,7 @@ entries() {
 furnish_target() {
   local host="$1" destination="$2" absolute
   absolute="/home/feltfomo/$destination"
-  nix eval --json ".#nixosConfigurations.${host}.config.skadi.furnish.manifestData"     | jq -r --arg destination "$absolute" '.[] | select(.filesystemIdentity.destination==$destination) | .retainedArtifactTarget'     | head -n1
+  nix eval --json ".#nixosConfigurations.${host}.config.lexicon.furnish.manifestData"     | jq -r --arg destination "$absolute" '.[] | select(.filesystemIdentity.destination==$destination) | .retainedArtifactTarget'     | head -n1
 }
 
 store_object() {
@@ -443,7 +443,7 @@ roots_check() {
 furnish_symlink() {
   local host="$1" manifest target raw
   require_host "$host"
-  manifest="$(nix eval --json ".#nixosConfigurations.${host}.config.skadi.furnish.manifestData")"
+  manifest="$(nix eval --json ".#nixosConfigurations.${host}.config.lexicon.furnish.manifestData")"
   [ "$(jq '[.[]|select(.filesystemIdentity.destination=="/home/feltfomo/.config/kitty/kitty.conf")]|length' <<<"$manifest")" -eq 1 ]     || die "furnish manifest does not contain exactly one kitty.conf entry"
   target="$(jq -r '.[]|select(.filesystemIdentity.destination=="/home/feltfomo/.config/kitty/kitty.conf")|.retainedArtifactTarget' <<<"$manifest")"
   [ -L "$KITTY_PATH" ] || die "kitty.conf is not a symlink"
@@ -719,15 +719,15 @@ vm_build_release_toplevel() {
     flake.nixosConfigurations.vm.extendModules {
       modules = [
         ({ lib, ... }: {
-          skadi.furnish.declarations = lib.mkForce [ ];
+          lexicon.furnish.declarations = lib.mkForce [ ];
         })
       ];
     }"
   probe="$(nix eval --impure --json --expr "let release = ($release_expr); in {
-    runtimeModulePresent = release.options.skadi.furnish ? declarations;
-    declarations = release.config.skadi.furnish.declarations;
-    manifestData = release.config.skadi.furnish.manifestData;
-    manifestPath = release.config.skadi.furnish.manifestPath;
+    runtimeModulePresent = release.options.lexicon.furnish ? declarations;
+    declarations = release.config.lexicon.furnish.declarations;
+    manifestData = release.config.lexicon.furnish.manifestData;
+    manifestPath = release.config.lexicon.furnish.manifestPath;
     hasActivation = release.config.system.activationScripts ? furnish;
     hasBootService = release.config.systemd.services ? furnish;
   }")"
