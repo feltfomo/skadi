@@ -19,6 +19,7 @@
       ./_vm/disko.nix
       ./_vm/hardware.nix
       ./_vm/networking.nix
+      ./_vm/test-identity.nix
     ];
 
     # bootloader relocated out of the universal system aspect (khion/lumi now
