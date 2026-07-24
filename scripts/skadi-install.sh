@@ -178,6 +178,22 @@ else
 fi
 cd "$WORK"
 
+# Snapshot the real SOPS material before any VM-test work. The generated fixture
+# lives under modules/hosts/_vm and is intentionally excluded. Comparing this
+# deterministic inventory later avoids depending on Git worktree discovery after
+# disko and the installer store relocation.
+VM_REAL_SOPS_BASELINE=""
+hash_real_sops_material() {
+  local path
+  find .sops.yaml secrets -type f -print0 \
+    | sort -z \
+    | while IFS= read -r -d '' path; do sha256sum "$path"; done
+}
+if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "${HOST:-}" = vm ]; then
+  VM_REAL_SOPS_BASELINE="$(mktemp)"
+  hash_real_sops_material > "$VM_REAL_SOPS_BASELINE"
+fi
+
 # the builder's system, used to address flake.lib.<system>.* (the menu's
 # hostAspects, --print-target, and mkInstallTarget all live there).
 SYSTEM="$(nix eval --raw --impure --expr builtins.currentSystem)"
@@ -341,6 +357,7 @@ STORE_RELOCATED=0
 teardown() {
   swapon --show=NAME --noheadings 2>/dev/null | grep -qxF "$SWAPFILE" && swapoff "$SWAPFILE" || true
   rm -f "$SWAPFILE"
+  [ -z "${VM_REAL_SOPS_BASELINE:-}" ] || rm -f "$VM_REAL_SOPS_BASELINE"
   # drop the disk-backed store overlay + its build cruft (best-effort; a reboot
   # / impermanence would also clear it, but don't leave it on the target).
   if [ "${STORE_RELOCATED:-0}" = 1 ]; then
@@ -413,9 +430,9 @@ systemctl restart nix-daemon
 mkdir -p "$MNT/nix-build-tmp"
 log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 
-# Host keys -> /persist. The disposable vm test uses a committed, explicitly
-# unsafe test identity so its encrypted fixture and resulting closure are stable.
-# Every other host keeps the ordinary fresh-key provisioning flow.
+# Host keys -> /persist. The disposable vm test uses the harness-generated,
+# per-run identity that encrypts its generated fixture. Every other host keeps
+# the ordinary fresh-key provisioning flow.
 install -d -m0755 "$MNT/persist/etc/ssh"
 VM_TEST_IDENTITY=0
 VM_TEST_IDENTITY_DIR="${SKADI_VM_TEST_IDENTITY_DIR:-}"
@@ -588,18 +605,28 @@ assert_vm_test_identity() {
   local expected_pub runtime_pub actual_names fixture_hash configured_file configured_hash
   local age_key decrypted
 
-  expected_pub="$(cut -d' ' -f1-2 "$VM_TEST_PUB")"
-  runtime_pub="$(ssh-keygen -y -f "$VM_TEST_KEY")"
+  expected_pub="$(awk 'NF >= 2 { print $1 " " $2; exit }' "$VM_TEST_PUB")"
+  runtime_pub="$(ssh-keygen -y -f "$VM_TEST_KEY" | awk 'NF >= 2 { print $1 " " $2; exit }')"
+  [ -n "$expected_pub" ] || die "vm test public key is malformed"
+  [ -n "$runtime_pub" ] || die "vm test private key did not yield a public key"
   [ "$runtime_pub" = "$expected_pub" ] \
     || die "vm test runtime identity does not match its public key"
 
   # The public test identity must never be a recipient of real encrypted files
   # or real creation rules. The real files must also remain byte-untouched.
-  if grep -Fq "$AGE_RECIP" .sops.yaml secrets/*.yaml; then
+  if grep -R -Fq -- "$AGE_RECIP" .sops.yaml secrets; then
     die "SECURITY INVARIANT: vm test recipient appears in real SOPS material"
   fi
-  git diff --quiet -- .sops.yaml secrets/*.yaml \
-    || die "SECURITY INVARIANT: real SOPS material changed during vm test install"
+  local current_real_sops
+  [ -n "$VM_REAL_SOPS_BASELINE" ] && [ -f "$VM_REAL_SOPS_BASELINE" ] \
+    || die "SECURITY INVARIANT: real SOPS baseline is missing"
+  current_real_sops="$(mktemp)"
+  hash_real_sops_material > "$current_real_sops"
+  if ! cmp -s "$VM_REAL_SOPS_BASELINE" "$current_real_sops"; then
+    rm -f "$current_real_sops"
+    die "SECURITY INVARIANT: real SOPS material changed during vm test install"
+  fi
+  rm -f "$current_real_sops"
 
   actual_names="$(eval_target .config.sops.secrets | jq -c 'keys | sort')"
   [ "$actual_names" = '["feltfomo-password","notion-token"]' ] \
@@ -611,7 +638,7 @@ assert_vm_test_identity() {
     [ -f "$configured_file" ] || die "$name effective sopsFile is missing"
     configured_hash="$(sha256sum "$configured_file" | awk '{print $1}')"
     [ "$configured_hash" = "$fixture_hash" ] \
-      || die "$name does not resolve to the committed _vm fixture"
+      || die "$name does not resolve to the generated _vm fixture"
   done
 
   age_key="$(mktemp)"
@@ -624,12 +651,12 @@ assert_vm_test_identity() {
     and .["feltfomo-password"] == "$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0"
     and .["notion-token"] == "NOTION_TOKEN=REPLACE_ME"
   ' >/dev/null <<<"$decrypted" || die "vm test fixture plaintext failed invariant check"
-  log "vm test identity assertions passed (fixed key, exact secret set, fixture decrypt, real secrets untouched)"
+  log "vm test identity assertions passed (per-run key, exact secret set, fixture decrypt, real secrets untouched)"
 }
 
 if [ "$VM_TEST_IDENTITY" = 1 ]; then
   assert_vm_test_identity
-  log "using committed byte-identical vm test fixture; skipping provision_secrets"
+  log "using generated byte-identical vm test fixture; skipping provision_secrets"
 else
   provision_secrets
 fi
