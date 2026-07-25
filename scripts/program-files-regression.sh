@@ -417,7 +417,7 @@ case_switch_assert() {
 case_boot_assert() {
   # A changed boot ID prevents a second shell invocation from masquerading as reboot proof.
   local host="$1" mode="$2" state before after outcome manufactured fixture_valid expected_hash
-  local ledger ledger_schema applied_before applied_after record_boot_id ledger_boot_id_changed
+  local ledger ledger_schema applied_before applied_after applied_by record_boot_id ledger_boot_id_changed
   require_host "$host"
   state="$CACHE/case-${mode}-state.json"
   [ -f "$state" ] || die "case state is missing for $mode"
@@ -437,7 +437,9 @@ case_boot_assert() {
   [ "$ledger_schema" = "$(jq -r .ledgerSchemaVersion "$state")" ] || die "applied-state schema changed across the reboot"
   applied_before="$(jq -r .ledgerAppliedTarget "$state")"
   applied_after="$(ledger_field "$ledger" "$KITTY_PATH" appliedArtifactTarget)"
+  applied_by="$(ledger_field "$ledger" "$KITTY_PATH" appliedBy)"
   [ -n "$applied_after" ] || die "applied state lost its record for $KITTY_PATH"
+  [ -n "$applied_by" ] || die "applied state does not say which branch published $KITTY_PATH"
   if [ "$applied_before" != null ]; then
     [ "$applied_after" = "$applied_before" ] || die "recorded target changed across the reboot: $applied_before -> $applied_after"
   fi
@@ -468,12 +470,12 @@ case_boot_assert() {
     jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" \
       --arg homePersistence "$(jq -r .homePersistence "$state")" --arg manufacturedTarget "$manufactured" \
       --argjson fixtureStateValid "$fixture_valid" \
-      --arg ledgerPath "$ledger" --arg ledgerAppliedTarget "$applied_after" \
+      --arg ledgerPath "$ledger" --arg ledgerAppliedTarget "$applied_after" --arg ledgerAppliedBy "$applied_by" \
       --argjson ledgerBootIdChanged "$ledger_boot_id_changed" \
-      '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,manufacturedTarget:$manufacturedTarget,fixtureStateValid:$fixtureStateValid,ledgerPath:$ledgerPath,ledgerAppliedTarget:$ledgerAppliedTarget,ledgerBootIdChanged:$ledgerBootIdChanged,ledgerSurvived:true,ledgerRecordStable:true,healthyStateRestored:true}' \
+      '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,manufacturedTarget:$manufacturedTarget,fixtureStateValid:$fixtureStateValid,ledgerPath:$ledgerPath,ledgerAppliedTarget:$ledgerAppliedTarget,ledgerAppliedBy:$ledgerAppliedBy,ledgerBootIdChanged:$ledgerBootIdChanged,ledgerSurvived:true,ledgerRecordStable:true,healthyStateRestored:true}' \
       > "$CACHE/case-${mode}-boot-evidence.json"
   else
-    jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" --arg homePersistence "$(jq -r .homePersistence "$state")" --arg ledgerPath "$ledger" --arg ledgerAppliedTarget "$applied_after" --argjson ledgerBootIdChanged "$ledger_boot_id_changed" '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,ledgerPath:$ledgerPath,ledgerAppliedTarget:$ledgerAppliedTarget,ledgerBootIdChanged:$ledgerBootIdChanged,ledgerSurvived:true,ledgerRecordStable:true,healthyStateRestored:true}' > "$CACHE/case-${mode}-boot-evidence.json"
+    jq -n --arg mode "$mode" --arg bootIdBefore "$before" --arg bootIdAfter "$after" --arg outcome "$outcome" --arg homePersistence "$(jq -r .homePersistence "$state")" --arg ledgerPath "$ledger" --arg ledgerAppliedTarget "$applied_after" --arg ledgerAppliedBy "$applied_by" --argjson ledgerBootIdChanged "$ledger_boot_id_changed" '{mode:$mode,bootIdBefore:$bootIdBefore,bootIdAfter:$bootIdAfter,bootIdChanged:($bootIdBefore!=$bootIdAfter),outcome:$outcome,homePersistence:$homePersistence,ledgerPath:$ledgerPath,ledgerAppliedTarget:$ledgerAppliedTarget,ledgerAppliedBy:$ledgerAppliedBy,ledgerBootIdChanged:$ledgerBootIdChanged,ledgerSurvived:true,ledgerRecordStable:true,healthyStateRestored:true}' > "$CACHE/case-${mode}-boot-evidence.json"
   fi
   log "$mode reboot outcome: $outcome; healthy state verified"
 }
@@ -908,66 +910,135 @@ vm_build_variant_toplevel() {
   printf '%s\n' "$toplevel"
 }
 
+vm_ledger_field() {
+  ssh_vm cat "$1" | jq -r --arg destination "$2" --arg field "$3" \
+    '[.records[]|select(.destination==$destination)]|first|.[$field] // empty'
+}
+
+vm_build_disabled_toplevel() {
+  # Masking writes into /etc, which this guest wipes on every boot, so a masked
+  # unit would dissolve at exactly the moment it has to hold. Declaring furnish
+  # off is inert by construction and nothing in the rollback can undo it.
+  local source="$1" flake_ref disabled_expr probe toplevel
+  flake_ref="$(printf '%s' "git+file://$source" | jq -Rs .)"
+  disabled_expr="let
+    flake = builtins.getFlake $flake_ref;
+  in
+    flake.nixosConfigurations.vm.extendModules {
+      modules = [
+        ({ lib, ... }: {
+          lexicon.furnish.enable = lib.mkForce false;
+        })
+      ];
+    }"
+  probe="$(nix eval --impure --json --expr "let disabled = ($disabled_expr); in {
+    enabled = disabled.config.lexicon.furnish.enable;
+    hasActivation = disabled.config.system.activationScripts ? furnish;
+    hasBootService = disabled.config.systemd.services ? furnish;
+  }")"
+  jq -e '.enabled == false and .hasActivation == false and .hasBootService == false' <<<"$probe" >/dev/null \
+    || die "disabled generation still carries a furnish activation script or unit"
+  printf '%s\n' "$probe" | jq -S . > "$CACHE/disabled-generation-probe.json"
+  toplevel="$(nix build --impure --no-link --print-out-paths --expr "($disabled_expr).config.system.build.toplevel")"
+  { [[ "$toplevel" == /nix/store/* ]] && [ -e "$toplevel" ]; } \
+    || die "disabled generation did not produce a live system toplevel: $toplevel"
+  printf '%s\n' "$toplevel"
+}
+
 vm_gc_repair_survival() {
-  # This is the bug the ledger exists for: a generation publishes a link, the
-  # system moves to a generation that wants a different target, and an ordinary
-  # collection reaps the object the link still names. Nothing here passes
-  # --ignore-liveness; the old target has to become unreachable on its own or the
-  # reap proves nothing about GC. It runs last in the VM sequence because it
-  # deliberately leaves the guest on another generation with the old one gone.
+  # Nothing here passes --ignore-liveness: the artifact has to become unreachable
+  # on its own or the reap proves nothing. Runs last because it burns a
+  # generation and reboots three times.
   local source="$1" destination="$2" guest_path=/home/feltfomo/.config/kitty/kitty.conf
-  local ledger variant variant_target recorded_before recorded_after linked_before linked_after
-  local refusal_result repair_result
+  local ledger variant variant_target base_target disabled inert_load_state
+  local recorded_before recorded_updated recorded_after branch_updated branch_after
+  local linked_before linked_updated linked_intermediate linked_after
+  local update_result repair_result
   ledger="$(nix eval --raw "${source}#nixosConfigurations.vm.config.lexicon.furnish.ledgerPath")"
   linked_before="$(ssh_vm readlink -- "$guest_path")"
-  recorded_before="$(ssh_vm cat "$ledger" | jq -r --arg destination "$guest_path" '[.records[]|select(.destination==$destination)]|first|.appliedArtifactTarget // empty')"
+  recorded_before="$(vm_ledger_field "$ledger" "$guest_path" appliedArtifactTarget)"
   [ -n "$recorded_before" ] || die "applied state holds no record for $guest_path before the rollback"
   [ "$recorded_before" = "$linked_before" ] || die "applied state does not match the published link before the rollback"
+  base_target="$recorded_before"
 
   variant="$(vm_build_variant_toplevel "$source" "$destination")"
   [ "$variant" != "$VM_TOPLEVEL" ] || die "variant generation is identical to the tested generation"
   variant_target="$(nix eval --json "${destination}#nixosConfigurations.vm.config.lexicon.furnish.manifestData" \
     | jq -r --arg destination "$guest_path" '.[]|select(.filesystemIdentity.destination==$destination)|.retainedArtifactTarget')"
-  [ -n "$variant_target" ] && [ "$variant_target" != "$recorded_before" ] \
+  [ -n "$variant_target" ] && [ "$variant_target" != "$base_target" ] \
     || die "variant generation did not produce a different retained target"
   vm_copy_toplevel "$variant"
 
-  # Selecting for boot never runs activation, so the reconcile below happens
-  # exactly once, at boot, and the refusal is the boot service's own decision
-  # rather than a switch the harness drove.
+  # Boot selection rather than activation, so the reconcile happens once and the
+  # decision belongs to the boot service. The recorded target is still live here,
+  # so this is the update branch.
   ssh_root nix-env -p /nix/var/nix/profiles/system --set "$variant"
   ssh_root "$variant/bin/switch-to-configuration" boot
   ssh_root ln -sfn "$variant" /nix/var/nix/gcroots/program-files-regression/system
   vm_reboot
   [ "$(ssh_vm readlink -f /run/current-system)" = "$variant" ] || die "guest did not boot the variant generation"
+  update_result="$(ssh_root systemctl show -p Result --value furnish.service)"
+  [ "$update_result" = success ] || die "furnish did not finish cleanly on the update boot (Result=$update_result)"
+  linked_updated="$(ssh_vm readlink -- "$guest_path")"
+  [ "$linked_updated" = "$variant_target" ] || die "owned update did not republish to the variant target: $linked_updated"
+  ssh_vm test -e "$linked_updated" || die "updated link does not resolve"
+  recorded_updated="$(vm_ledger_field "$ledger" "$guest_path" appliedArtifactTarget)"
+  [ "$recorded_updated" = "$variant_target" ] || die "applied state did not advance on the owned update"
+  branch_updated="$(vm_ledger_field "$ledger" "$guest_path" appliedBy)"
+  [ "$branch_updated" = update ] || die "applied state recorded $branch_updated where the update branch ran"
 
-  # Before the collection the recorded target is still live, so the seventh
-  # condition fails and furnish must refuse. A repair here would mean the
-  # decision was driven by desired-versus-observed inequality, not by evidence.
-  ssh_vm test -e "$recorded_before" || die "recorded target vanished before the garbage collection"
-  [ "$(ssh_vm readlink -- "$guest_path")" = "$linked_before" ] \
-    || die "furnish moved the link while the recorded target was still resolvable"
-  refusal_result="$(ssh_root systemctl show -p Result --value furnish.service)"
-
-  ssh_root nix-collect-garbage -d >/dev/null
-  if ssh_vm test -e "$recorded_before"; then die "ordinary garbage collection did not reap the rolled-back target"; fi
+  # The rollback boot runs a generation that declares furnish off, so there is no
+  # unit and no activation for the collection below to race. The precondition is
+  # made of configuration rather than of a runtime poke at the init system, which
+  # is the only kind that survives this guest wiping its root.
+  disabled="$(vm_build_disabled_toplevel "$source")"
+  { [ "$disabled" != "$VM_TOPLEVEL" ] && [ "$disabled" != "$variant" ]; } \
+    || die "disabled generation is identical to a generation already under test"
+  vm_copy_toplevel "$disabled"
+  ssh_root nix-env -p /nix/var/nix/profiles/system --set "$disabled"
+  ssh_root "$disabled/bin/switch-to-configuration" boot
+  # The variant has to stop being rooted or the collection cannot reach its
+  # artifact, and a reap that never could have happened proves nothing. The tested
+  # generation keeps its root: its target is where the repair has to land.
+  ssh_root ln -sfn "$VM_TOPLEVEL" /nix/var/nix/gcroots/program-files-regression/system
   vm_reboot
-  [ "$(ssh_vm readlink -f /run/current-system)" = "$variant" ] || die "guest left the variant generation"
+  [ "$(ssh_vm readlink -f /run/current-system)" = "$disabled" ] || die "guest did not boot the disabled generation"
+  inert_load_state="$(ssh_root systemctl show -p LoadState --value furnish.service)"
+  [ "$inert_load_state" = not-found ] || die "disabled generation still has a furnish unit (LoadState=$inert_load_state)"
+  linked_intermediate="$(ssh_vm readlink -- "$guest_path")"
+  [ "$linked_intermediate" = "$variant_target" ] || die "inert boot reconciled anyway: $linked_intermediate"
+
+  # The variant is an unrooted older profile generation by now, so its artifact
+  # becomes unreachable without anything being forced.
+  ssh_root nix-collect-garbage -d >/dev/null
+  if ssh_vm test -e "$variant_target"; then die "ordinary garbage collection did not reap the rolled-back target"; fi
+  ssh_vm test -e "$base_target" || die "the rooted tested generation lost its target to the collection"
+  [ "$(ssh_vm readlink -- "$guest_path")" = "$variant_target" ] || die "link moved while furnish was inert"
+
+  # A dangling link whose target still matches the record is the repair branch.
+  ssh_root nix-env -p /nix/var/nix/profiles/system --set "$VM_TOPLEVEL"
+  ssh_root "$VM_TOPLEVEL/bin/switch-to-configuration" boot
+  vm_reboot
+  [ "$(ssh_vm readlink -f /run/current-system)" = "$VM_TOPLEVEL" ] || die "guest did not return to the tested generation"
   repair_result="$(ssh_root systemctl show -p Result --value furnish.service)"
   [ "$repair_result" = success ] || die "furnish did not finish cleanly after the reap (Result=$repair_result)"
   linked_after="$(ssh_vm readlink -- "$guest_path")"
-  [ "$linked_after" = "$variant_target" ] || die "link was not repaired to the variant target: $linked_after"
+  [ "$linked_after" = "$base_target" ] || die "link was not repaired to the earlier target: $linked_after"
   ssh_vm test -e "$linked_after" || die "repaired link does not resolve"
-  recorded_after="$(ssh_vm cat "$ledger" | jq -r --arg destination "$guest_path" '[.records[]|select(.destination==$destination)]|first|.appliedArtifactTarget // empty')"
-  [ "$recorded_after" = "$variant_target" ] || die "applied state did not advance to the repaired target"
+  recorded_after="$(vm_ledger_field "$ledger" "$guest_path" appliedArtifactTarget)"
+  [ "$recorded_after" = "$base_target" ] || die "applied state did not advance to the repaired target"
+  branch_after="$(vm_ledger_field "$ledger" "$guest_path" appliedBy)"
+  [ "$branch_after" = repair ] || die "applied state recorded $branch_after where the repair branch ran"
 
-  jq -n --arg recordedBefore "$recorded_before" --arg variantTarget "$variant_target" \
-    --arg linkedAfter "$linked_after" --arg recordedAfter "$recorded_after" \
-    --arg refusalUnitResult "$refusal_result" --arg repairUnitResult "$repair_result" \
-    --arg previousToplevel "$VM_TOPLEVEL" --arg variantToplevel "$variant" \
-    '{schemaVersion:1,status:"pass",twoGenerations:true,previousToplevel:$previousToplevel,variantToplevel:$variantToplevel,recordedTargetBefore:$recordedBefore,variantTarget:$variantTarget,refusedWhileRecordedTargetLive:true,refusalUnitResult:$refusalUnitResult,reapedByOrdinaryGc:true,ignoreLivenessUsed:false,repairedAfterGc:($linkedAfter==$variantTarget),repairUnitResult:$repairUnitResult,ledgerRecordAdvanced:($recordedAfter==$variantTarget)}' \
+  jq -n --arg baseTarget "$base_target" --arg variantTarget "$variant_target" \
+    --arg linkedUpdated "$linked_updated" --arg linkedAfter "$linked_after" \
+    --arg recordedUpdated "$recorded_updated" --arg recordedAfter "$recorded_after" \
+    --arg branchUpdated "$branch_updated" --arg branchAfter "$branch_after" \
+    --arg updateUnitResult "$update_result" --arg repairUnitResult "$repair_result" \
+    --arg baseToplevel "$VM_TOPLEVEL" --arg variantToplevel "$variant" --arg disabledToplevel "$disabled" \
+    '{schemaVersion:1,status:"pass",twoGenerations:true,baseToplevel:$baseToplevel,variantToplevel:$variantToplevel,disabledToplevel:$disabledToplevel,baseTarget:$baseTarget,variantTarget:$variantTarget,updatedWhileRecordedTargetLive:($linkedUpdated==$variantTarget),updateUnitResult:$updateUnitResult,updateLedgerAdvanced:($recordedUpdated==$variantTarget),updateRecordedBranch:$branchUpdated,inertAcrossIntermediateBoot:true,furnishUnitAbsentWhileInert:true,reapedByOrdinaryGc:true,ignoreLivenessUsed:false,repairedAfterGc:($linkedAfter==$baseTarget),repairUnitResult:$repairUnitResult,ledgerRecordAdvanced:($recordedAfter==$baseTarget),repairRecordedBranch:$branchAfter}' \
     | ssh_vm 'cat > /home/feltfomo/.cache/skadi-program-files-regression/furnish-gc-repair.json'
-  log "two-generation repair proved: refused while $recorded_before was live, repaired to $variant_target after the reap"
+  log "two-generation proof: updated to $variant_target while it was live, repaired to $base_target after the reap"
 }
 
 vm_collect_evidence() {
@@ -993,7 +1064,7 @@ vm_equivalence() {
   generations="$(jq -s 'length==3 and all(.[];.exactGenerationSelected==true and .systemRootPresent==true and .harnessRootPresent==true)' "$evidence"/case-*-generation-evidence.json)"
   fixtures="$(jq -s 'length==3 and all(.[];.fixtureStateValid==true)' "$evidence"/case-*-boot-evidence.json)"
   gc_survival="$(jq -e '.status=="pass" and .positiveGcRun==true and .exactTargetSurvived==true and .targetExistsAfterGc==true and .rootPresentAfter==true' "$evidence/furnish-gc-survival.json" >/dev/null && printf true || printf false)"
-  gc_repair="$(jq -e '.status=="pass" and .twoGenerations==true and .refusedWhileRecordedTargetLive==true and .reapedByOrdinaryGc==true and .ignoreLivenessUsed==false and .repairedAfterGc==true and .ledgerRecordAdvanced==true' "$evidence/furnish-gc-repair.json" >/dev/null && printf true || printf false)"
+  gc_repair="$(jq -e '.status=="pass" and .twoGenerations==true and .updatedWhileRecordedTargetLive==true and .updateLedgerAdvanced==true and .updateRecordedBranch=="update" and .inertAcrossIntermediateBoot==true and .furnishUnitAbsentWhileInert==true and .reapedByOrdinaryGc==true and .ignoreLivenessUsed==false and .repairedAfterGc==true and .ledgerRecordAdvanced==true and .repairRecordedBranch=="repair"' "$evidence/furnish-gc-repair.json" >/dev/null && printf true || printf false)"
   migration="$(jq -e '.status=="pass" and .selfSmokePassed==true and .releaseEnabledEmpty==true and .releaseHandoff==true and .adoptTakeover==true and .adoptSelectedForBoot==true' "$evidence/furnish-migrate-gate.json" >/dev/null && printf true || printf false)"
   release_probe="$(jq -e '.runtimeModulePresent==true and .declarations==[] and .manifestData==[] and .manifestPath!=null and .hasActivation==true and .hasBootService==true' "$evidence/release-generation-probe.json" >/dev/null && printf true || printf false)"
   all_true=false
@@ -1082,6 +1153,7 @@ vm_run() {
   vm_gc_repair_survival "$VM_TEST_FLAKE" "$run_dir/variant-source"
   vm_collect_evidence "$evidence"
   cp "$CACHE/release-generation-probe.json" "$evidence/"
+  cp "$CACHE/disabled-generation-probe.json" "$evidence/"
   cp "$evidence/repair-matrix.json" "$CACHE/vm-repair-matrix.json"
   vm_equivalence "$khion_matrix" "$evidence" "$output"
   log "VM proof passed; disposable overlay retained at $run_dir"
