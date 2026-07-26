@@ -20,7 +20,6 @@
           rust-analyzer
           jdt-language-server
           kotlin-language-server
-          metals
           pyright
           zls
           ols
@@ -51,10 +50,6 @@
       {
         dest = ".config/nvim/lua/plugins/lsp.lua";
         src = "${rootPath}/configs/nvim/lua/plugins/lsp.lua";
-      }
-      {
-        dest = ".config/nvim/lua/plugins/metals.lua";
-        src = "${rootPath}/configs/nvim/lua/plugins/metals.lua";
       }
     ];
   };
