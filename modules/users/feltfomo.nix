@@ -167,6 +167,7 @@
           gamescope
           gifski
           zenity
+          nushell
           logseqPkgs.logseq
           python3
           equibop
