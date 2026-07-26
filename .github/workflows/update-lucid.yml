@@ -1,33 +1,26 @@
 name: Update Lucid Theme
-
 on:
   schedule:
     - cron: "0 7 * * *" # daily at 07:00 UTC
   workflow_dispatch: # allow manual trigger
-
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   update:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Install Nix
         uses: cachix/install-nix-action@v27
         with:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             experimental-features = nix-command flakes
-
       - name: Install tools via nix
         run: nix profile install nixpkgs#jq nixpkgs#curl nixpkgs#nodejs nixpkgs#prefetch-npm-deps
-
       - name: Run update script
         id: update
         run: |
@@ -41,7 +34,6 @@ jobs:
             REV=$(grep 'rev = ' modules/_pkgs/lucid.nix | head -1 | grep -oP '"[a-f0-9]{40}"' | tr -d '"' | cut -c1-8)
             echo "rev=$REV" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Commit and push
         if: steps.update.outputs.changed == 'true'
         run: |

@@ -16,9 +16,9 @@ compose -> leaf stages -> tree stages -> context demand -> select
 Leaf stages run one rule over one leaf. Production registration order is:
 
 1. ambiguous alias validation;
-2. per-axis satisfiability;
-3. cross-axis relations;
-4. descriptor-contributed leaf stages.
+1. per-axis satisfiability;
+1. cross-axis relations;
+1. descriptor-contributed leaf stages.
 
 Diagnostics aggregate in stage order and leaf order. An earlier phase throws before later phases evaluate.
 

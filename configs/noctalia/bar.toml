@@ -1,6 +1,15 @@
 [bar.default]
 background_opacity = 0.6
-end = ["temp", "ram", "cpu", "tray", "volume", "wallpaper", "notifications", "control-center"]
+end = [
+  "temp",
+  "ram",
+  "cpu",
+  "tray",
+  "volume",
+  "wallpaper",
+  "notifications",
+  "control-center",
+]
 margin_edge = 6
 margin_ends = 10.0
 margin_opposite_edge = 1

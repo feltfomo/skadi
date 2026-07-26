@@ -42,8 +42,8 @@ Subtree policies must match descendants explicitly, for example `path == "servic
 Profiled doors validate `mergeProfile` on every authored unit, including inactive ones. Profile selection at a merge node is:
 
 1. `profileForPath path`, when non-null;
-2. a unanimous explicit unit profile;
-3. `strict-ordered`.
+1. a unanimous explicit unit profile;
+1. `strict-ordered`.
 
 Different explicit unit profiles on one scalar conflict. A mix of explicit and default profiles conflicts where list/attrset treatment needs one coherent decision. A path profile overrides unit disagreement at that path.
 
