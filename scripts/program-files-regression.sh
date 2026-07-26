@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Runtime evidence stays outside the repo; baselines contain only healthy state.
+# runtime evidence stays outside the repo; baselines contain only healthy state.
 CACHE="${SKADI_PROGRAM_FILES_CACHE:-$HOME/.cache/skadi-program-files-regression}"
 KITTY_REL=".config/kitty/kitty.conf"
 KITTY_PATH="$HOME/$KITTY_REL"
@@ -44,7 +44,7 @@ system_toplevel() { readlink -f /run/current-system; }
 content_hash() { sha256sum -- "$1" | awk '{print $1}'; }
 
 ledger_path() {
-  # Where applied state lives is a property of the evaluated host, not a
+  # where applied state lives is a property of the evaluated host, not a
   # constant this harness may assume; asking the configuration keeps the two
   # from drifting apart silently.
   local host
@@ -60,7 +60,7 @@ ledger_field() {
 }
 
 home_generation() {
-  # Integrated Home Manager has used both profile locations across generations.
+  # integrated home manager has used both profile locations across generations.
   local candidate
   for candidate in "$HOME/.local/state/nix/profiles/home-manager" "$HOME/.nix-profile"; do
     if [ -e "$candidate" ] || [ -L "$candidate" ]; then
@@ -72,7 +72,7 @@ home_generation() {
 }
 
 home_persistence() {
-  # A boot result means something different when .config lives on the rolled-back root.
+  # a boot result means something different when .config lives on the rolled-back root.
   local mount
   mount="$(findmnt -T "$HOME/.config" -n -o SOURCE,FSROOT,TARGET 2>/dev/null || true)"
   if grep -Eq '(@persist|/persist)' <<<"$mount"; then
@@ -83,7 +83,7 @@ home_persistence() {
 }
 
 entries() {
-  # Keep declaration identity separate from volatile store paths in observed state.
+  # keep declaration identity separate from volatile store paths in observed state.
   [ -n "${PROGRAM_FILES_MANIFEST:-}" ] || die "PROGRAM_FILES_MANIFEST is missing"
   jq -r '.entries[] | [.declarationIdentity, .destination, .sourceKind, (.sourcePath // "")] | @tsv' "$PROGRAM_FILES_MANIFEST"
 }
@@ -102,7 +102,7 @@ store_object() {
 }
 
 desired_manifest() {
-  # This path evaluates a host but never activates it, so lumi can be compared from khion.
+  # this path evaluates a host but never activates it, so lumi can be compared from khion.
   local host="$1" output="$2" desired_files desired_tmp declaration destination source_kind source_path desired_target desired_hash expected_type
   desired_files="$(mktemp)"
   desired_tmp="$(mktemp)"
@@ -119,7 +119,7 @@ desired_manifest() {
         desired_target="$(furnish_target "$host" "$destination")"
       fi
       if [ -z "$desired_target" ]; then
-        # Ownership may legitimately exclude an entry from this host's desired set.
+        # ownership may legitimately exclude an entry from this host's desired set.
         continue
       fi
       [ -e "$desired_target" ] || die "evaluation produced a missing source for $host:$destination"
@@ -138,7 +138,7 @@ desired_manifest() {
 }
 
 inventory() {
-  # Desired and realized state are emitted independently so drift never pollutes parity data.
+  # desired and realized state are emitted independently so drift never pollutes parity data.
   local host="$1" desired_output="$2" drift_output="$3" healthy_output="$4"
   local desired_files desired_tmp drift_tmp declaration destination source_kind source_path
   local path expected_type desired_target desired_hash status observed_type raw_target resolved_target actual_hash actual_store
@@ -164,7 +164,7 @@ inventory() {
     fi
     desired_hash="$(content_hash "$desired_target")"
 
-    # Unknown shapes default to foreign; only proved representations may be repaired.
+    # unknown shapes default to foreign; only proved representations may be repaired.
     status="foreign"
     observed_type="other"
     raw_target=""
@@ -232,7 +232,7 @@ inventory() {
   rm -f "$desired_files" "$desired_tmp" "$drift_tmp"
 
   if [ "$drift_count" -ne 0 ]; then
-    # Keep scanning evidence useful while refusing to bless any unhealthy corpus.
+    # keep scanning evidence useful while refusing to bless any unhealthy corpus.
     [ -z "$healthy_output" ] || rm -f "$healthy_output"
     log "$host inventory found $drift_count unhealthy entries; desired baseline and drift report emitted"
     return 1
@@ -251,7 +251,7 @@ natural_prepare() {
 }
 
 natural_assert() {
-  # Destination, failure class, and raw target must all survive to count as non-repair.
+  # destination, failure class, and raw target must all survive to count as non-repair.
   local host="$1" drift="$2" before after before_set after_set
   require_host "$host"
   before="$(jq -r .systemToplevel "$CACHE/natural-state.json")"
@@ -266,7 +266,7 @@ natural_assert() {
 }
 
 restore_drift() {
-  # Equality isn't ownership proof; a foreign entry is never test setup to overwrite.
+  # equality isn't ownership proof; a foreign entry is never test setup to overwrite.
   local host="$1" drift="$2" destination status expected_type desired_target path
   require_host "$host"
   if jq -e '.entries[]|select(.status=="foreign")' "$drift" >/dev/null; then
@@ -288,7 +288,7 @@ restore_drift() {
 }
 
 assemble() {
-  # Failure evidence stays in CACHE; assembled output contains only healthy parity data.
+  # failure evidence stays in CACHE; assembled output contains only healthy parity data.
   local khion="$1" lumi="$2" output="$3"
   if [ -n "$lumi" ]; then
     jq -S -n --slurpfile khion "$khion" --slurpfile lumi "$lumi" \
@@ -303,10 +303,10 @@ assemble() {
 
 matrix_path() { printf '%s/repair-matrix.json\n' "$CACHE"; }
 
-# Fault injection. The points are named after the durability boundaries the
+# fault injection. the points are named after the durability boundaries the
 # coordinator actually has, and the crash is a real process death at that point
 # rather than an error return, so recovery is exercised the way a power loss
-# would exercise it. Evidence lands beside the repair matrix in its own file;
+# would exercise it. evidence lands beside the repair matrix in its own file;
 # the matrix schema is not touched.
 FAULT_POINTS="pre-pending pending-committed stage-written stage-synced published published-synced verified exchange-published"
 
@@ -364,7 +364,7 @@ fault_manifest_json() {
   }'
 }
 
-# Scratch only, and under the cache: no host declaration is added and nothing
+# scratch only, and under the cache. no host declaration is added and nothing
 # outside $CACHE is written.
 fault_scratch() {
   local point="$1" scratch
@@ -399,7 +399,7 @@ fault_prepare() {
   manifest="$scratch/manifest.json"
 
   if [ "$point" = exchange-published ]; then
-    # A crash between the exchange and the ledger advancing only happens during a
+    # a crash between the exchange and the ledger advancing only happens during a
     # transfer, so an owned symlink has to be established first and then asked to
     # become writable.
     fault_manifest_json "$scratch/managed/value" "$scratch/managed" "$scratch/source" \
@@ -410,13 +410,13 @@ fault_prepare() {
   fault_manifest_json "$scratch/managed/value" "$scratch/managed" "$scratch/source" \
     writable furnish/native-writable exact-source-content > "$manifest"
 
-  # Packaged as a shell application the script runs under errexit; invoked
-  # directly with bash it does not. The status is captured explicitly rather
+  # packaged as a shell application the script runs under errexit; invoked
+  # directly with bash it does not. the status is captured explicitly rather
   # than toggled around because that form is correct under both, and a stray
   # set -e or set +e here would change how every other subcommand behaves.
   status=0
   fault_run "$coordinator" "$scratch" "$manifest" "$point" || status=$?
-  # abort() is SIGABRT, so a shell reports 134. Anything else means the process
+  # abort() is SIGABRT, so a shell reports 134. anything else means the process
   # returned instead of dying, and the point would not be proving what it claims.
   [ "$status" -eq 134 ] || die "fault point $point did not die: exit $status"
   log "fault point $point crashed as expected"
@@ -445,14 +445,14 @@ fault_assert() {
   entry="$(jq -r --arg key "fault:$destination" '.records[$key] // empty' "$scratch/state/applied-state.json")"
   [ -n "$entry" ] || die "recovery at $point recorded no ownership"
   state="$(printf '%s' "$entry" | jq -r '.state')"
-  # The ledger serializes camelCase, so the key here must match the file on
-  # disk rather than the Rust field name.
+  # the ledger serializes camelCase, so the key here must match the file on
+  # disk rather than the rust field name.
   baseline="$(printf '%s' "$entry" | jq -r '.baselineHash // empty')"
   [ "$state" = owned ] || die "recovery at $point left state $state"
   [ "$baseline" = "$expected" ] || die "recovery at $point left a stale baseline"
 
-  # No partial write is ever claimed as complete: ownership is only asserted
-  # here because the bytes were re-read and re-hashed after the fact.
+  # no partial write is ever claimed as complete. ownership is asserted here
+  # only because the bytes were re-read and re-hashed after the fact.
   recovered="$(jq -n --arg point "$point" --arg hash "$actual" --arg baseline "$baseline" \
     '{point:$point,status:"pass",converged:true,contentHash:$hash,baselineHash:$baseline,ownershipState:"owned"}')"
   if [ -f "$(fault_recovery_path)" ]; then
@@ -466,7 +466,7 @@ fault_assert() {
 }
 
 ensure_matrix() {
-  # Null cells make an interrupted matrix obvious instead of looking like a pass.
+  # null cells make an interrupted matrix obvious instead of looking like a pass.
   local matrix
   matrix="$(matrix_path)"
   if [ ! -f "$matrix" ]; then
@@ -490,7 +490,7 @@ save_case_state() {
   resolved="$(readlink -f -- "$KITTY_PATH")"
   [ -e "$resolved" ] || die "$KITTY_PATH is already dangling"
   hash="$(content_hash "$KITTY_PATH")"
-  # The before side of the ledger comparison is captured here so both halves of
+  # the before side of the ledger comparison is captured here so both halves of
   # the reboot assertion come from one place rather than being reconstructed
   # after the wipe from something that may itself have changed.
   ledger="$(ledger_path)"
@@ -509,7 +509,7 @@ restore_kitty() {
 }
 
 case_prepare() {
-  # The three states expose the backend's missing-versus-invalid-presence behavior.
+  # the three states expose the backend's missing-versus-invalid-presence behavior.
   local host="$1" mode="$2" state fixture manufactured
   require_host "$host"
   case "$mode" in absent|dangling|drifted) ;; *) die "unknown repair-matrix mode: $mode";; esac
@@ -520,7 +520,7 @@ case_prepare() {
       rm -- "$KITTY_PATH"
       ;;
     dangling)
-      # Delete a real store object first; a made-up path wouldn't prove GC-shaped drift.
+      # delete a real store object first; a made-up path wouldn't prove GC-shaped drift.
       fixture="$CACHE/dangling-fixture"
       printf 'removed kitty target fixture\n' > "$fixture"
       manufactured="$(nix store add-file "$fixture")"
@@ -529,7 +529,7 @@ case_prepare() {
       ln -sfn -- "$manufactured" "$KITTY_PATH"
       ;;
     drifted)
-      # Keep this object live so the drifted case can't collapse into the dangling case.
+      # keep this object live so the drifted case can't collapse into the dangling case.
       fixture="$CACHE/drifted-fixture"
       printf 'wrong kitty content fixture\n' > "$fixture"
       manufactured="$(nix store add-file "$fixture")"
@@ -544,7 +544,7 @@ case_prepare() {
 }
 
 case_outcome() {
-  # Repair requires both the expected target identity and its exact bytes.
+  # repair requires both the expected target identity and its exact bytes.
   local state="$1" expected_target expected_hash
   expected_target="$(jq -r .resolvedTarget "$state")"
   expected_hash="$(jq -r .contentSha256 "$state")"
@@ -579,7 +579,7 @@ case_switch_assert() {
 }
 
 case_boot_assert() {
-  # A changed boot ID prevents a second shell invocation from masquerading as reboot proof.
+  # a changed boot ID prevents a second shell invocation from masquerading as reboot proof.
   local host="$1" mode="$2" state before after outcome manufactured fixture_valid expected_hash
   local ledger ledger_schema applied_before applied_after applied_by record_boot_id ledger_boot_id_changed
   require_host "$host"
@@ -590,11 +590,11 @@ case_boot_assert() {
   [ "$before" != "$after" ] || die "boot ID did not change"
   outcome="$(case_outcome "$state")"
 
-  # The ledger is the whole SP4 claim: /persist outlives the initrd snapshot that
+  # the ledger is the whole claim here. /persist outlives the initrd snapshot that
   # rolls @ back to @blank, and without the record furnish can prove ownership of
-  # nothing once the root is gone. Record identity is asserted, never file bytes:
-  # the boot reconcile legitimately rewrites this file, so a byte-identical
-  # ledger across a boot would be evidence the boot service never ran.
+  # nothing once the root is gone. record identity is asserted, never file bytes,
+  # because the boot reconcile legitimately rewrites this file and a byte-identical
+  # ledger across a boot would mean the boot service never ran.
   ledger="$(jq -r .ledgerPath "$state")"
   [ -f "$ledger" ] || die "applied-state ledger did not survive the reboot: $ledger"
   ledger_schema="$(jq -r .schemaVersion "$ledger")"
@@ -610,7 +610,7 @@ case_boot_assert() {
   record_boot_id="$(ledger_field "$ledger" "$KITTY_PATH" bootId)"
   ledger_boot_id_changed=false
   if [ -n "$record_boot_id" ] && [ "$record_boot_id" != "$before" ]; then ledger_boot_id_changed=true; fi
-  # Only a reconcile that published something rewrites the record, so a refused
+  # only a reconcile that published something rewrites the record, so a refused
   # mode legitimately still carries the previous boot's diagnostic ID.
   if [ "$outcome" = repaired ]; then
     [ "$ledger_boot_id_changed" = true ] || die "ledger boot ID did not advance despite a repaired outcome"
@@ -645,7 +645,7 @@ case_boot_assert() {
 }
 
 roots_check() {
-  # A live target isn't retention evidence until an active root reaches it.
+  # a live target isn't retention evidence until an active root reaches it.
   require_host khion
   [ -L "$KITTY_PATH" ] || die "kitty.conf is not a symlink"
   local target roots
@@ -817,7 +817,7 @@ vm_reboot() {
 }
 
 vm_guest_harness() {
-  # Guest subcommands such as furnish-symlink evaluate .#vm. Run them from the
+  # guest subcommands such as furnish-symlink evaluate .#vm. run them from the
   # exact prepared archive instead of the SSH user's flake-less home directory.
   ssh_vm env --chdir="$VM_ARCHIVE" PWD="$VM_ARCHIVE" \
     HOME=/home/feltfomo SKADI_PROGRAM_FILES_CACHE=/home/feltfomo/.cache/skadi-program-files-regression \
@@ -839,8 +839,8 @@ vm_real_sops_inventory() {
 }
 
 vm_prepare_identity_fixture() (
-  # The switch target must use the identity already installed in the golden.
-  # Reading only its public half keeps the private key inside the guest.
+  # the switch target must use the identity already installed in the golden.
+  # reading only its public half keeps the private key inside the guest.
   umask 077
   local destination="$1" public_key recipient work plaintext encrypted fixture
   local before_inventory after_inventory leaked actual_keys expected_keys
@@ -947,7 +947,7 @@ vm_build_release_toplevel() {
     hasActivation = release.config.system.activationScripts ? furnish;
     hasBootService = release.config.systemd.services ? furnish;
   }")"
-  # Enabled with nothing declared is a running state, not an inert one. The empty
+  # enabled with nothing declared is a running state, not an inert one. the empty
   # reconciliation is what retires entries a later generation stops declaring, so
   # it needs a manifest, an activation and a unit even at zero entries, and
   # furnish running there with an empty ledger and pruning nothing is a stronger
@@ -979,7 +979,7 @@ vm_copy_closures() {
 }
 
 vm_copy_toplevel() {
-  # The two-generation migration check needs only a system toplevel: no app,
+  # the two-generation migration check needs only a system toplevel, with no app,
   # archive, or in-guest harness, so it roots exactly one path.
   local toplevel="$1" ssh_opts
   ssh_opts="-i $VM_KEY -p $VM_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
@@ -989,7 +989,7 @@ vm_copy_toplevel() {
 }
 
 vm_select_toplevel() {
-  # migrate_apply already activated and verified the adopt generation. Publish it
+  # migrate_apply already activated and verified the adopt generation. publish it
   # as the boot default without replaying activation a third time.
   ssh_root nix-env -p /nix/var/nix/profiles/system --set "$VM_TOPLEVEL"
   ssh_root "$VM_TOPLEVEL/bin/switch-to-configuration" boot
@@ -1057,7 +1057,7 @@ vm_gc_survival() {
 }
 
 vm_build_variant_toplevel() {
-  # The only honest second target is one a real declaration produced. Perturb the
+  # the only honest second target is one a real declaration produced. perturb the
   # declared kitty source the way a user edit would and evaluate the same module,
   # rather than hand-writing a manifest entry the module never emitted.
   local source="$1" destination="$2" config toplevel
@@ -1080,8 +1080,8 @@ vm_ledger_field() {
 }
 
 vm_build_disabled_toplevel() {
-  # Masking writes into /etc, which this guest wipes on every boot, so a masked
-  # unit would dissolve at exactly the moment it has to hold. Declaring furnish
+  # masking writes into /etc, which this guest wipes on every boot, so a masked
+  # unit would dissolve at exactly the moment it has to hold. declaring furnish
   # off is inert by construction and nothing in the rollback can undo it.
   local source="$1" flake_ref disabled_expr probe toplevel
   flake_ref="$(printf '%s' "git+file://$source" | jq -Rs .)"
@@ -1110,9 +1110,9 @@ vm_build_disabled_toplevel() {
 }
 
 vm_gc_repair_survival() {
-  # Nothing here passes --ignore-liveness: the artifact has to become unreachable
-  # on its own or the reap proves nothing. Runs last because it burns a
-  # generation and reboots three times.
+  # nothing here passes --ignore-liveness, because the artifact has to become
+  # unreachable on its own or the reap proves nothing. runs last because it burns
+  # a generation and reboots three times.
   local source="$1" destination="$2" guest_path=/home/feltfomo/.config/kitty/kitty.conf
   local ledger variant variant_target base_target disabled inert_load_state
   local recorded_before recorded_updated recorded_after branch_updated branch_after
@@ -1133,8 +1133,8 @@ vm_gc_repair_survival() {
     || die "variant generation did not produce a different retained target"
   vm_copy_toplevel "$variant"
 
-  # Boot selection rather than activation, so the reconcile happens once and the
-  # decision belongs to the boot service. The recorded target is still live here,
+  # boot selection rather than activation, so the reconcile happens once and the
+  # decision belongs to the boot service. the recorded target is still live here,
   # so this is the update branch.
   ssh_root nix-env -p /nix/var/nix/profiles/system --set "$variant"
   ssh_root "$variant/bin/switch-to-configuration" boot
@@ -1151,8 +1151,8 @@ vm_gc_repair_survival() {
   branch_updated="$(vm_ledger_field "$ledger" "$guest_path" appliedBy)"
   [ "$branch_updated" = update ] || die "applied state recorded $branch_updated where the update branch ran"
 
-  # The rollback boot runs a generation that declares furnish off, so there is no
-  # unit and no activation for the collection below to race. The precondition is
+  # the rollback boot runs a generation that declares furnish off, so there is no
+  # unit and no activation for the collection below to race. the precondition is
   # made of configuration rather than of a runtime poke at the init system, which
   # is the only kind that survives this guest wiping its root.
   disabled="$(vm_build_disabled_toplevel "$source")"
@@ -1161,9 +1161,9 @@ vm_gc_repair_survival() {
   vm_copy_toplevel "$disabled"
   ssh_root nix-env -p /nix/var/nix/profiles/system --set "$disabled"
   ssh_root "$disabled/bin/switch-to-configuration" boot
-  # The variant has to stop being rooted or the collection cannot reach its
-  # artifact, and a reap that never could have happened proves nothing. The tested
-  # generation keeps its root: its target is where the repair has to land.
+  # the variant has to stop being rooted or the collection cannot reach its
+  # artifact, and a reap that never could have happened proves nothing. the tested
+  # generation keeps its root, and its target is where the repair has to land.
   ssh_root ln -sfn "$VM_TOPLEVEL" /nix/var/nix/gcroots/program-files-regression/system
   vm_reboot
   [ "$(ssh_vm readlink -f /run/current-system)" = "$disabled" ] || die "guest did not boot the disabled generation"
@@ -1172,14 +1172,14 @@ vm_gc_repair_survival() {
   linked_intermediate="$(ssh_vm readlink -- "$guest_path")"
   [ "$linked_intermediate" = "$variant_target" ] || die "inert boot reconciled anyway: $linked_intermediate"
 
-  # The variant is an unrooted older profile generation by now, so its artifact
+  # the variant is an unrooted older profile generation by now, so its artifact
   # becomes unreachable without anything being forced.
   ssh_root nix-collect-garbage -d >/dev/null
   if ssh_vm test -e "$variant_target"; then die "ordinary garbage collection did not reap the rolled-back target"; fi
   ssh_vm test -e "$base_target" || die "the rooted tested generation lost its target to the collection"
   [ "$(ssh_vm readlink -- "$guest_path")" = "$variant_target" ] || die "link moved while furnish was inert"
 
-  # A dangling link whose target still matches the record is the repair branch.
+  # a dangling link whose target still matches the record is the repair branch.
   ssh_root nix-env -p /nix/var/nix/profiles/system --set "$VM_TOPLEVEL"
   ssh_root "$VM_TOPLEVEL/bin/switch-to-configuration" boot
   vm_reboot
@@ -1324,7 +1324,7 @@ vm_run() {
 }
 
 migrate_smoke() {
-  # A false green is the real risk: unless the base truly starts pre-furnish with
+  # a false green is the real risk. unless the base truly starts pre-furnish with
   # hjem owning kitty.conf, the two-step handoff proves nothing.
   local path=/home/feltfomo/.config/kitty/kitty.conf raw
   ssh_vm test -L "$path" || die "self-smoke: base does not start with a managed kitty.conf symlink"
@@ -1337,7 +1337,7 @@ migrate_smoke() {
 }
 
 migrate_apply() {
-  # Test activation only; a probed generation must never become the boot default.
+  # test activation only; a probed generation must never become the boot default.
   local toplevel="$1" rc active
   vm_copy_toplevel "$toplevel"
   rc=0
@@ -1349,7 +1349,7 @@ migrate_apply() {
 }
 
 migrate_assert_release() {
-  # Furnish is loaded with an empty desired set, so only hjem may release its prior link.
+  # furnish is loaded with an empty desired set, so only hjem may release its prior link.
   local path=/home/feltfomo/.config/kitty/kitty.conf result errors
   result="$(ssh_root systemctl show -p Result --value hjem-activate@feltfomo.service)"
   [ "$result" = success ] || die "release: hjem-activate did not finish cleanly (Result=$result)"
@@ -1361,7 +1361,7 @@ migrate_assert_release() {
 }
 
 migrate_assert_adopt() {
-  # Furnish now owns the path from absent; hjem must stay out of it.
+  # furnish now owns the path from absent; hjem must stay out of it.
   local path=/home/feltfomo/.config/kitty/kitty.conf target result errors
   ssh_vm test -L "$path" || die "adopt: furnish did not create the kitty.conf symlink"
   target="$(ssh_vm readlink -- "$path")"
@@ -1381,7 +1381,7 @@ migrate_assert_adopt() {
 }
 
 migrate_gate() {
-  # Prove every pre-furnish base migrates deliberately: a release generation hands
+  # prove every pre-furnish base migrates deliberately. a release generation hands
   # kitty.conf back to hjem, then the adopt generation lets furnish take it over.
   # khion's own migration was accidental, so this is the only positive proof.
   local base="" release="" adopt="" run_id run_dir
@@ -1400,7 +1400,7 @@ migrate_gate() {
   [ -n "$release" ] && [ -n "$adopt" ] || die "migrate-gate needs --release-toplevel and --adopt-toplevel"
   { [[ "$release" == /nix/store/* ]] && [ -e "$release" ]; } || die "release toplevel is not a live store path: $release"
   { [[ "$adopt" == /nix/store/* ]] && [ -e "$adopt" ]; } || die "adopt toplevel is not a live store path: $adopt"
-  # Identical generations can't demonstrate a handoff.
+  # identical generations can't demonstrate a handoff.
   [ "$release" != "$adopt" ] || die "release and adopt toplevels are identical; nothing to migrate"
 
   run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"

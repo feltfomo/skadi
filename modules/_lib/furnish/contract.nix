@@ -14,15 +14,15 @@ let
     exactSourceContent = "exact-source-content";
   };
 
-  # The applied-state ledger is a separate document with its own version. The
+  # the applied-state ledger is a separate document with its own version. the
   # manifest says what was asked for and changes when the desired shape changes;
   # the ledger says what this machine actually did and changes when the evidence
-  # we keep changes. Versioning them together would force a manifest migration
-  # every time the evidence grows a field.
+  # kept changes. versioning them together would force a manifest migration every
+  # time the evidence grows a field.
   ledger = {
     schemaVersion = 2;
     fileName = "applied-state.json";
-    # Written once, immediately before the first v2 write, so a downgrade has a
+    # written once, immediately before the first v2 write, so a downgrade has a
     # readable copy of the exact state the migration consumed.
     rollbackFileName = "applied-state.v1.json";
   };
@@ -113,7 +113,7 @@ let
     in
     {
       inherit manifestData manifestDocument manifestJson;
-      # Store materialization belongs to the runtime, where pkgs.writeText can
+      # store materialization belongs to the runtime, where pkgs.writeText can
       # preserve the manifest string context as closure references.
       manifestPath = null;
     };

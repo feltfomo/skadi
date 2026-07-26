@@ -36,7 +36,7 @@ in
           buildFeatures = features;
         };
       coordinator = mkCoordinator { };
-      # The crash points exist only in this build. Absence from the shipped one
+      # the crash points exist only in this build. absence from the shipped one
       # is a compile-time property, which is the only kind worth asserting.
       coordinatorFaultInjection = mkCoordinator {
         suffix = "-fault-injection";
@@ -45,10 +45,9 @@ in
       faultInjectionBoundary =
         pkgs.runCommandLocal "furnish-fault-injection-boundary" { nativeBuildInputs = [ ]; }
           ''
-            # An unexecuted proof is an assertion, so both directions are checked:
-            # the packaged coordinator must not carry the fault-point symbol, and
-            # the test build must, or this gate would pass against a binary that
-            # simply never had the feature compiled either way.
+            # both directions are checked. the packaged coordinator must not carry
+            # the fault-point symbol and the test build must, or this passes against
+            # a binary that never had the feature compiled either way.
             if grep -a -q FURNISH_FAULT_POINT ${coordinator}/bin/furnish-coordinator; then
               echo 'packaged coordinator contains the fault-injection symbol' >&2
               exit 1
@@ -68,12 +67,12 @@ in
             ];
           }
           ''
-            # The Nix build sandbox provides no /run/lock, and this check invokes the
-            # packaged binary with the same arguments the systemd unit passes, so it
-            # deliberately does not reach for the test-only --lock-dir seam. That
-            # leaves the executor primitive and the checks that run before the lock is
-            # taken; composed behavior is proven in the Rust tests and the VM matrix,
-            # where a real lock directory exists.
+            # the nix build sandbox provides no /run/lock, and this invokes the
+            # packaged binary with the arguments the systemd unit passes, so the
+            # test-only --lock-dir seam stays out of reach here. what is left is the
+            # executor primitive and the checks that run before the lock is taken.
+            # composed behavior belongs to the rust tests and the vm matrix, where a
+            # real lock directory exists.
             parent="$TMPDIR/parent"
             mkdir -p "$parent"
             target="$TMPDIR/target"
@@ -84,9 +83,9 @@ in
             test -L "$parent/value"
             test "$(readlink "$parent/value")" = "$target"
 
-            # Validation runs before the lock bootstrap, so these have to come back
-            # with a null cause. A cause would mean the run got past validation and
-            # died on the lock instead, which would make the assertion a lie.
+            # validation runs before the lock bootstrap, so these have to come back
+            # with a null cause. a cause would mean the run got past validation and
+            # died on the lock instead.
             base="$TMPDIR/base.json"
             jq -n '{
               schemaVersion:1,
@@ -127,17 +126,15 @@ in
               }]
             }' > "$base"
 
-            # The ledger, repair and writable-lifecycle codes carried by the
-            # fixture are not exercised here, and cannot be: DiagnosticCodes fields
-            # are non-optional, so a fixture missing any code fails manifest
-            # deserialization before any assertion runs, while the codes
-            # themselves are only reachable after the host lock is held, and the
-            # Nix build sandbox has no /run/lock to hold.
+            # the ledger, repair and writable-lifecycle codes in the fixture are not
+            # exercised here and cannot be. DiagnosticCodes fields are non-optional,
+            # so dropping any of them fails manifest deserialization before an
+            # assertion runs, and the codes themselves need a held host lock, which
+            # the nix build sandbox has nowhere to take.
             manifest="$TMPDIR/manifest.json"
             diagnostic="$TMPDIR/diagnostic.json"
-            # --state-dir is passed even though validation never reaches the
-            # ledger: the smoke should exercise the same argument surface the
-            # systemd unit uses, or it stops being a check of the real invocation.
+            # --state-dir is passed even though validation never reaches the ledger,
+            # because the argument surface here is the one the systemd unit uses.
             expect_precheck() {
               jq "$2" "$base" > "$manifest"
               if furnish-coordinator reconcile \
@@ -148,9 +145,9 @@ in
                 echo "invalid manifest unexpectedly accepted: $1" >&2
                 exit 1
               fi
-              # A bare `jq -e` exit 4 says only that something did not match, with
-              # an empty build log to read it from. Print what was actually
-              # emitted so the next failure is legible on the first look.
+              # a bare `jq -e` exit 4 says only that something did not match, with
+              # an empty build log to read it from. print what was actually emitted
+              # so the next failure is legible on the first look.
               if ! jq -e --arg code "$1" \
                 'select(.schemaVersion==1 and .code==$code and .cause==null)' \
                 "$diagnostic" >/dev/null; then

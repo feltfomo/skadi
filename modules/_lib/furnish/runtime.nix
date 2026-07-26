@@ -38,7 +38,7 @@ let
     };
   };
 
-  # Same retained artifact, different representation at the destination. The
+  # same retained artifact, different representation at the destination. the
   # source is still a store path; writable means the destination is an editable
   # copy of it rather than a link to it.
   nativeWritableExecutor = {
@@ -68,9 +68,9 @@ let
     provider = furnish.core.offProvider;
   };
 
-  # An enabled host always has a manifest, empty entry set included. The empty
+  # an enabled host always has a manifest, empty entry set included. the empty
   # reconciliation is what retires entries that are no longer declared, so it
-  # needs something to reconcile against. Disabled means inert, not empty.
+  # needs something to reconcile against. disabled means inert, not empty.
   manifestPath =
     if cfg.enable then
       pkgs.writeText "furnish-desired-v${toString contract.schemaVersion}.json" compiled.manifestJson
@@ -87,7 +87,7 @@ let
 
   ledgerPath = "${cfg.state.path}/${contract.ledger.fileName}";
 
-  # Activation and the boot unit must invoke the coordinator identically. Two
+  # activation and the boot unit must invoke the coordinator identically. two
   # verbatim copies were survivable while they took the same three arguments;
   # they are a drift source the moment a fourth is added.
   reconcileCommand = ''
@@ -114,7 +114,7 @@ in
         ];
         default = "ephemeral";
         # furnish cannot make its own state survive a root wipe; only the host
-        # that owns the filesystem layout can. Declaring durable is a claim the
+        # that owns the filesystem layout can. declaring durable is a claim the
         # consumer must prove, not a switch that arranges anything here.
         description = "Whether state.path is claimed to survive a root wipe.";
       };
@@ -156,27 +156,27 @@ in
     (lib.mkIf cfg.enable {
       environment.systemPackages = [ coordinator ];
 
-      # This is intentionally thin. The literal manifest interpolation makes the
+      # this is intentionally thin. the literal manifest interpolation makes the
       # manifest (and its context-retained targets) part of the active toplevel.
       system.activationScripts.furnish = {
         deps = [ "users" ];
         text = reconcileCommand;
       };
 
-      # Activation runs before persisted destination mounts are guaranteed to be
-      # visible during boot. Reconcile again after the generic mount dependencies
+      # activation runs before persisted destination mounts are guaranteed to be
+      # visible during boot. reconcile again after the generic mount dependencies
       # for every compiled destination, while retaining activation for switches.
       systemd.services.furnish = {
         description = "Reconcile furnish-managed filesystem destinations";
         wantedBy = [ "multi-user.target" ];
         after = [ "local-fs.target" ];
-        # The ledger's filesystem is as load-bearing as the destinations: a
-        # reconcile that cannot read applied state cannot prove ownership, and
-        # an unproven destination is refused rather than repaired.
+        # the ledger's filesystem is as load-bearing as the destinations. a
+        # reconcile that cannot read applied state cannot prove ownership, and an
+        # unproven destination is refused rather than repaired.
         unitConfig.RequiresMountsFor = lib.unique (destinationPaths ++ cfg.state.requiresMountsFor);
         serviceConfig = {
           Type = "oneshot";
-          # Run once on every boot, then remain active so switch-to-configuration
+          # run once on every boot, then remain active so switch-to-configuration
           # does not replay this boot-only reconcile within the same boot.
           RemainAfterExit = true;
         };
