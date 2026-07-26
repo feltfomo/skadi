@@ -76,6 +76,7 @@
                   "result"
                   "result-*"
                   "node_modules"
+                  "target"
                   "*.lock"
                   ".direnv"
                   "assets"

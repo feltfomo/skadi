@@ -1,5 +1,6 @@
 result
 result-*
+target/
 *.qcow2
 *.iso
 *.img
