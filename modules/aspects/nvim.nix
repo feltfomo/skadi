@@ -51,6 +51,14 @@
         dest = ".config/nvim/lua/plugins/lsp.lua";
         src = "${rootPath}/configs/nvim/lua/plugins/lsp.lua";
       }
+      {
+        dest = ".config/nvim/lua/plugins/icons.lua";
+        src = "${rootPath}/configs/nvim/lua/plugins/icons.lua";
+      }
+      {
+        dest = ".config/nvim/lua/plugins/blink.lua";
+        src = "${rootPath}/configs/nvim/lua/plugins/blink.lua";
+      }
     ];
   };
 }
