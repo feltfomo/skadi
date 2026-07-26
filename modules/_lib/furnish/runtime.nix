@@ -13,12 +13,7 @@ let
   };
   cfg = config.lexicon.furnish;
 
-  coordinator = pkgs.rustPlatform.buildRustPackage {
-    pname = "furnish-coordinator";
-    version = "0.1.0";
-    src = ./coordinator;
-    cargoLock.lockFile = ./coordinator/Cargo.lock;
-  };
+  coordinator = import ./coordinator.nix { inherit pkgs; };
 
   nativeSymlinkExecutor = {
     inherit (contract.executors.nativeSymlink) identity protocolVersion;

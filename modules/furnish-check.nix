@@ -23,22 +23,12 @@ in
   perSystem =
     { pkgs, system, ... }:
     let
-      mkCoordinator =
-        {
-          suffix ? "",
-          features ? [ ],
-        }:
-        pkgs.rustPlatform.buildRustPackage {
-          pname = "furnish-coordinator${suffix}";
-          version = "0.1.0";
-          src = ./_lib/furnish/coordinator;
-          cargoLock.lockFile = ./_lib/furnish/coordinator/Cargo.lock;
-          buildFeatures = features;
-        };
-      coordinator = mkCoordinator { };
+      mkCoordinator = import ./_lib/furnish/coordinator.nix;
+      coordinator = mkCoordinator { inherit pkgs; };
       # the crash points exist only in this build. absence from the shipped one
       # is a compile-time property, which is the only kind worth asserting.
       coordinatorFaultInjection = mkCoordinator {
+        inherit pkgs;
         suffix = "-fault-injection";
         features = [ "fault-injection" ];
       };
