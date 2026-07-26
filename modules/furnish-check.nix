@@ -23,12 +23,42 @@ in
   perSystem =
     { pkgs, system, ... }:
     let
-      coordinator = pkgs.rustPlatform.buildRustPackage {
-        pname = "furnish-coordinator";
-        version = "0.1.0";
-        src = ./_lib/furnish/coordinator;
-        cargoLock.lockFile = ./_lib/furnish/coordinator/Cargo.lock;
+      mkCoordinator =
+        {
+          suffix ? "",
+          features ? [ ],
+        }:
+        pkgs.rustPlatform.buildRustPackage {
+          pname = "furnish-coordinator${suffix}";
+          version = "0.1.0";
+          src = ./_lib/furnish/coordinator;
+          cargoLock.lockFile = ./_lib/furnish/coordinator/Cargo.lock;
+          buildFeatures = features;
+        };
+      coordinator = mkCoordinator { };
+      # The crash points exist only in this build. Absence from the shipped one
+      # is a compile-time property, which is the only kind worth asserting.
+      coordinatorFaultInjection = mkCoordinator {
+        suffix = "-fault-injection";
+        features = [ "fault-injection" ];
       };
+      faultInjectionBoundary =
+        pkgs.runCommandLocal "furnish-fault-injection-boundary" { nativeBuildInputs = [ ]; }
+          ''
+            # An unexecuted proof is an assertion, so both directions are checked:
+            # the packaged coordinator must not carry the fault-point symbol, and
+            # the test build must, or this gate would pass against a binary that
+            # simply never had the feature compiled either way.
+            if grep -a -q FURNISH_FAULT_POINT ${coordinator}/bin/furnish-coordinator; then
+              echo 'packaged coordinator contains the fault-injection symbol' >&2
+              exit 1
+            fi
+            if ! grep -a -q FURNISH_FAULT_POINT ${coordinatorFaultInjection}/bin/furnish-coordinator; then
+              echo 'fault-injection build is missing the fault-injection symbol' >&2
+              exit 1
+            fi
+            touch "$out"
+          '';
       runtimeSmoke =
         pkgs.runCommandLocal "furnish-runtime-smoke"
           {
@@ -38,10 +68,12 @@ in
             ];
           }
           ''
-            # There's no /run/lock in the sandbox, so anything past the host lock is
-            # unreachable from here. That leaves the executor primitive and the checks
-            # that run before the lock is taken; the composed behavior lives in the
-            # Rust tests and the VM matrix.
+            # The Nix build sandbox provides no /run/lock, and this check invokes the
+            # packaged binary with the same arguments the systemd unit passes, so it
+            # deliberately does not reach for the test-only --lock-dir seam. That
+            # leaves the executor primitive and the checks that run before the lock is
+            # taken; composed behavior is proven in the Rust tests and the VM matrix,
+            # where a real lock directory exists.
             parent="$TMPDIR/parent"
             mkdir -p "$parent"
             target="$TMPDIR/target"
@@ -74,7 +106,11 @@ in
                   ledgerInvalid:"runtime/ledger-invalid",
                   ledgerWriteFailed:"runtime/ledger-write-failed",
                   repairVerification:"runtime/repair-verification",
-                  unresolvableDesiredTarget:"runtime/unresolvable-desired-target"
+                  unresolvableDesiredTarget:"runtime/unresolvable-desired-target",
+                  contentVerification:"runtime/content-verification",
+                  transitionRefused:"runtime/transition-refused",
+                  unresolvedRetirement:"runtime/unresolved-retirement",
+                  pendingRecovery:"runtime/pending-recovery"
                 }
               },
               entries:[{
@@ -91,12 +127,12 @@ in
               }]
             }' > "$base"
 
-            # The five ledger and repair codes above are carried by the fixture
-            # but are not exercised here, and cannot be: DiagnosticCodes fields
+            # The ledger, repair and writable-lifecycle codes carried by the
+            # fixture are not exercised here, and cannot be: DiagnosticCodes fields
             # are non-optional, so a fixture missing any code fails manifest
             # deserialization before any assertion runs, while the codes
-            # themselves are only reachable after the host lock is held, which
-            # this sandbox has no /run/lock to provide.
+            # themselves are only reachable after the host lock is held, and the
+            # Nix build sandbox has no /run/lock to hold.
             manifest="$TMPDIR/manifest.json"
             diagnostic="$TMPDIR/diagnostic.json"
             # --state-dir is passed even though validation never reaches the
@@ -145,6 +181,8 @@ in
           "touch $out"
         );
         furnish-coordinator = coordinator;
+        furnish-coordinator-fault-injection = coordinatorFaultInjection;
+        furnish-fault-injection-boundary = faultInjectionBoundary;
         furnish-runtime = runtimeSmoke;
       };
       legacyPackages = lib.optionalAttrs (system == "x86_64-linux") {

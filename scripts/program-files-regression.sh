@@ -29,6 +29,8 @@ program-files-regression <command>
   vm migrate-gate [--base <path>] --release-toplevel <path> --adopt-toplevel <path>
   reboot-prepare --host vm --mode <absent|dangling|drifted> --run-id <id>
   reboot-assert --host vm --mode <absent|dangling|drifted> --run-id <id>
+  fault-prepare --host khion --point <boundary> --coordinator <path>
+  fault-assert --host khion --point <boundary> --coordinator <path>
 USAGE
 }
 
@@ -300,6 +302,168 @@ assemble() {
 }
 
 matrix_path() { printf '%s/repair-matrix.json\n' "$CACHE"; }
+
+# Fault injection. The points are named after the durability boundaries the
+# coordinator actually has, and the crash is a real process death at that point
+# rather than an error return, so recovery is exercised the way a power loss
+# would exercise it. Evidence lands beside the repair matrix in its own file;
+# the matrix schema is not touched.
+FAULT_POINTS="pre-pending pending-committed stage-written stage-synced published published-synced verified exchange-published"
+
+fault_root() { printf '%s/fault\n' "$CACHE"; }
+fault_recovery_path() { printf '%s/furnish-fault-recovery.json\n' "$CACHE"; }
+
+fault_known_point() {
+  local point="$1" candidate
+  for candidate in $FAULT_POINTS; do
+    [ "$candidate" = "$point" ] && return 0
+  done
+  return 1
+}
+
+fault_manifest_json() {
+  local destination="$1" root="$2" source="$3" representation="$4" executor="$5" strategy="$6"
+  jq -n --arg destination "$destination" --arg root "$root" --arg source "$source" \
+    --arg representation "$representation" --arg executor "$executor" --arg strategy "$strategy" '{
+    schemaVersion:1,
+    diagnosticContract:{
+      schemaVersion:1,
+      codes:{
+        invalidManifest:"runtime/invalid-manifest",
+        unsupportedExecutor:"runtime/unsupported-executor",
+        invalidDestination:"runtime/invalid-destination",
+        parentTraversal:"runtime/parent-traversal",
+        conflictingDestination:"runtime/conflicting-destination",
+        executorFailed:"runtime/executor-failed",
+        stagingVerification:"runtime/staging-verification",
+        publishRace:"runtime/publish-race",
+        finalVerification:"runtime/final-verification",
+        ledgerUnreadable:"runtime/ledger-unreadable",
+        ledgerInvalid:"runtime/ledger-invalid",
+        ledgerWriteFailed:"runtime/ledger-write-failed",
+        repairVerification:"runtime/repair-verification",
+        unresolvableDesiredTarget:"runtime/unresolvable-desired-target",
+        contentVerification:"runtime/content-verification",
+        transitionRefused:"runtime/transition-refused",
+        unresolvedRetirement:"runtime/unresolved-retirement",
+        pendingRecovery:"runtime/pending-recovery"
+      }
+    },
+    entries:[{
+      schemaVersion:1,
+      filesystemIdentity:{namespace:"fault",destination:$destination,canonical:("fault:"+$destination)},
+      authority:{scope:"system",identity:"fault/system"},
+      managedRoot:$root,
+      representation:$representation,
+      retainedArtifactTarget:$source,
+      executor:{identity:$executor,protocolVersion:1},
+      cleanupStrategy:$strategy,
+      selfHealStrategy:$strategy,
+      provenance:{declaration:"fault-injection",source:"scripts/program-files-regression.sh"}
+    }]
+  }'
+}
+
+# Scratch only, and under the cache: no host declaration is added and nothing
+# outside $CACHE is written.
+fault_scratch() {
+  local point="$1" scratch
+  scratch="$(fault_root)/$point"
+  rm -rf "$scratch"
+  mkdir -p "$scratch/managed" "$scratch/state" "$scratch/lock"
+  printf 'furnish writable payload\n' > "$scratch/source"
+  printf '%s\n' "$scratch"
+}
+
+fault_run() {
+  local coordinator="$1" scratch="$2" manifest="$3" point="$4"
+  local setpriv
+  setpriv="$(command -v setpriv)" || die "setpriv is required"
+  if [ -n "$point" ]; then
+    env FURNISH_FAULT_POINT="$point" "$coordinator" reconcile \
+      --manifest "$manifest" --lock-name fault.lock --setpriv "$setpriv" \
+      --state-dir "$scratch/state" --lock-dir "$scratch/lock"
+  else
+    "$coordinator" reconcile \
+      --manifest "$manifest" --lock-name fault.lock --setpriv "$setpriv" \
+      --state-dir "$scratch/state" --lock-dir "$scratch/lock"
+  fi
+}
+
+fault_prepare() {
+  local host="$1" point="$2" coordinator="$3" scratch manifest status
+  require_host "$host"
+  fault_known_point "$point" || die "unknown fault point: $point"
+  [ -x "$coordinator" ] || die "fault coordinator is not executable: $coordinator"
+  scratch="$(fault_scratch "$point")"
+  manifest="$scratch/manifest.json"
+
+  if [ "$point" = exchange-published ]; then
+    # A crash between the exchange and the ledger advancing only happens during a
+    # transfer, so an owned symlink has to be established first and then asked to
+    # become writable.
+    fault_manifest_json "$scratch/managed/value" "$scratch/managed" "$scratch/source" \
+      symlink furnish/native-symlink exact-symlink-target > "$manifest"
+    fault_run "$coordinator" "$scratch" "$manifest" "" || die "could not establish the owned symlink"
+  fi
+
+  fault_manifest_json "$scratch/managed/value" "$scratch/managed" "$scratch/source" \
+    writable furnish/native-writable exact-source-content > "$manifest"
+
+  # Packaged as a shell application the script runs under errexit; invoked
+  # directly with bash it does not. The status is captured explicitly rather
+  # than toggled around because that form is correct under both, and a stray
+  # set -e or set +e here would change how every other subcommand behaves.
+  status=0
+  fault_run "$coordinator" "$scratch" "$manifest" "$point" || status=$?
+  # abort() is SIGABRT, so a shell reports 134. Anything else means the process
+  # returned instead of dying, and the point would not be proving what it claims.
+  [ "$status" -eq 134 ] || die "fault point $point did not die: exit $status"
+  log "fault point $point crashed as expected"
+}
+
+fault_assert() {
+  local host="$1" point="$2" coordinator="$3" scratch manifest status
+  local destination expected actual state baseline recovered entry
+  require_host "$host"
+  fault_known_point "$point" || die "unknown fault point: $point"
+  scratch="$(fault_root)/$point"
+  manifest="$scratch/manifest.json"
+  [ -f "$manifest" ] || die "no prepared fault scratch for $point"
+  destination="$scratch/managed/value"
+
+  status=0
+  fault_run "$coordinator" "$scratch" "$manifest" "" || status=$?
+  [ "$status" -eq 0 ] || die "recovery run failed at $point: exit $status"
+
+  expected="$(content_hash "$scratch/source")"
+  [ -f "$destination" ] || die "recovery at $point left no destination"
+  [ -L "$destination" ] && die "recovery at $point left a symlink, not a writable file"
+  actual="$(content_hash "$destination")"
+  [ "$actual" = "$expected" ] || die "recovery at $point did not converge byte-exactly"
+
+  entry="$(jq -r --arg key "fault:$destination" '.records[$key] // empty' "$scratch/state/applied-state.json")"
+  [ -n "$entry" ] || die "recovery at $point recorded no ownership"
+  state="$(printf '%s' "$entry" | jq -r '.state')"
+  # The ledger serializes camelCase, so the key here must match the file on
+  # disk rather than the Rust field name.
+  baseline="$(printf '%s' "$entry" | jq -r '.baselineHash // empty')"
+  [ "$state" = owned ] || die "recovery at $point left state $state"
+  [ "$baseline" = "$expected" ] || die "recovery at $point left a stale baseline"
+
+  # No partial write is ever claimed as complete: ownership is only asserted
+  # here because the bytes were re-read and re-hashed after the fact.
+  recovered="$(jq -n --arg point "$point" --arg hash "$actual" --arg baseline "$baseline" \
+    '{point:$point,status:"pass",converged:true,contentHash:$hash,baselineHash:$baseline,ownershipState:"owned"}')"
+  if [ -f "$(fault_recovery_path)" ]; then
+    jq --argjson entry "$recovered" '.points |= (map(select(.point != $entry.point)) + [$entry])' \
+      "$(fault_recovery_path)" > "$(fault_recovery_path).tmp"
+  else
+    jq -n --argjson entry "$recovered" '{schemaVersion:1,points:[$entry]}' > "$(fault_recovery_path).tmp"
+  fi
+  mv "$(fault_recovery_path).tmp" "$(fault_recovery_path)"
+  log "fault point $point recovered to exact known state"
+}
 
 ensure_matrix() {
   # Null cells make an interrupted matrix obvious instead of looking like a pass.
@@ -1333,6 +1497,19 @@ case "$command" in
       run) [ -n "$khion_matrix" ] || die "vm run needs --khion-matrix"; vm_run "$flake" "$khion_matrix";;
       *) die "unknown vm action: $action";;
     esac
+    ;;
+  fault-prepare|fault-assert)
+    action="$command"; host=""; point=""; coordinator=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --host) host="$2"; shift 2;;
+        --point) point="$2"; shift 2;;
+        --coordinator) coordinator="$2"; shift 2;;
+        *) die "unknown $action argument: $1";;
+      esac
+    done
+    [ -n "$host" ] && [ -n "$point" ] && [ -n "$coordinator" ] || die "$action needs --host, --point, and --coordinator"
+    if [ "$action" = fault-prepare ]; then fault_prepare "$host" "$point" "$coordinator"; else fault_assert "$host" "$point" "$coordinator"; fi
     ;;
   -h|--help|help) usage;;
   *) usage; exit 2;;

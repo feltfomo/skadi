@@ -5,11 +5,13 @@ let
 
   capabilities = {
     symlink = "symlink";
+    writable = "writable";
     lifecycleBaseline = "lifecycle-baseline";
   };
 
   strategies = {
     exactSymlinkTarget = "exact-symlink-target";
+    exactSourceContent = "exact-source-content";
   };
 
   # The applied-state ledger is a separate document with its own version. The
@@ -18,14 +20,23 @@ let
   # we keep changes. Versioning them together would force a manifest migration
   # every time the evidence grows a field.
   ledger = {
-    schemaVersion = 1;
+    schemaVersion = 2;
     fileName = "applied-state.json";
+    # Written once, immediately before the first v2 write, so a downgrade has a
+    # readable copy of the exact state the migration consumed.
+    rollbackFileName = "applied-state.v1.json";
   };
 
   executors.nativeSymlink = {
     identity = "furnish/native-symlink";
     protocolVersion = 1;
     representation = capabilities.symlink;
+  };
+
+  executors.nativeWritable = {
+    identity = "furnish/native-writable";
+    protocolVersion = 1;
+    representation = capabilities.writable;
   };
 
   runtimeDiagnostics = {
@@ -45,6 +56,10 @@ let
       ledgerWriteFailed = "runtime/ledger-write-failed";
       repairVerification = "runtime/repair-verification";
       unresolvableDesiredTarget = "runtime/unresolvable-desired-target";
+      contentVerification = "runtime/content-verification";
+      transitionRefused = "runtime/transition-refused";
+      unresolvedRetirement = "runtime/unresolved-retirement";
+      pendingRecovery = "runtime/pending-recovery";
     };
   };
 

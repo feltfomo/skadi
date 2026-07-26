@@ -38,9 +38,33 @@ let
     };
   };
 
+  # Same retained artifact, different representation at the destination. The
+  # source is still a store path; writable means the destination is an editable
+  # copy of it rather than a link to it.
+  nativeWritableExecutor = {
+    inherit (contract.executors.nativeWritable) identity protocolVersion;
+    priority = 0;
+    enabled = true;
+    capabilities = [
+      contract.capabilities.lifecycleBaseline
+      contract.capabilities.writable
+    ];
+    materialize = declaration: {
+      retainedArtifactTarget = builtins.path {
+        path = declaration.source.value;
+        name = "furnish-${baseNameOf declaration.filesystemIdentity.destination}";
+      };
+      cleanupStrategy = contract.strategies.exactSourceContent;
+      selfHealStrategy = contract.strategies.exactSourceContent;
+    };
+  };
+
   compiled = furnish.compile {
     inherit (cfg) declarations;
-    executors = [ nativeSymlinkExecutor ];
+    executors = [
+      nativeSymlinkExecutor
+      nativeWritableExecutor
+    ];
     provider = furnish.core.offProvider;
   };
 
