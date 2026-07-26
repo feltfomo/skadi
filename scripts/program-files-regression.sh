@@ -325,7 +325,7 @@ fault_manifest_json() {
   local destination="$1" root="$2" source="$3" representation="$4" executor="$5" strategy="$6"
   jq -n --arg destination "$destination" --arg root "$root" --arg source "$source" \
     --arg representation "$representation" --arg executor "$executor" --arg strategy "$strategy" '{
-    schemaVersion:1,
+    schemaVersion:2,
     diagnosticContract:{
       schemaVersion:1,
       codes:{
@@ -350,10 +350,11 @@ fault_manifest_json() {
       }
     },
     entries:[{
-      schemaVersion:1,
+      schemaVersion:2,
       filesystemIdentity:{namespace:"fault",destination:$destination,canonical:("fault:"+$destination)},
       authority:{scope:"system",identity:"fault/system"},
       managedRoot:$root,
+      onConflict:"error",
       representation:$representation,
       retainedArtifactTarget:$source,
       executor:{identity:$executor,protocolVersion:1},

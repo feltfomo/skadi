@@ -1,6 +1,6 @@
 _:
 let
-  schemaVersion = 1;
+  schemaVersion = 2;
   diagnosticSchemaVersion = 1;
 
   capabilities = {
@@ -12,6 +12,14 @@ let
   strategies = {
     exactSymlinkTarget = "exact-symlink-target";
     exactSourceContent = "exact-source-content";
+  };
+
+  # how a destination that diverged from its baseline gets resolved. the entry
+  # carries the choice so a reader never has to infer what an absent field meant.
+  conflictPolicies = {
+    error = "error";
+    sourceWins = "source-wins";
+    runtimeWins = "runtime-wins";
   };
 
   # the applied-state ledger is a separate document with its own version. the
@@ -78,6 +86,7 @@ let
       filesystemIdentity,
       authority,
       managedRoot,
+      onConflict,
       representation,
       retainedArtifactTarget,
       executor,
@@ -91,6 +100,7 @@ let
         filesystemIdentity
         authority
         managedRoot
+        onConflict
         representation
         retainedArtifactTarget
         executor
@@ -125,6 +135,7 @@ in
     ledger
     capabilities
     strategies
+    conflictPolicies
     executors
     runtimeDiagnostics
     mkFilesystemIdentity

@@ -90,7 +90,11 @@ let
             builtins.isAttrs declaration.provenance
             && lib.all builtins.isString (builtins.attrValues declaration.provenance)
           )
-        ) "provenance-shape" "provenance values must be strings";
+        ) "provenance-shape" "provenance values must be strings"
+        && require declaration (
+          !(declaration ? onConflict)
+          || builtins.elem declaration.onConflict (builtins.attrValues contract.conflictPolicies)
+        ) "on-conflict-value" "onConflict must be one of the declared conflict policies";
     in
     builtins.seq checked declaration;
 
@@ -102,18 +106,18 @@ let
       value.entries = [ (removeAttrs declaration claimKeys) ];
     };
 
-  # Off mode leans on this staying pure and roster-free, so it must never
+  # off mode leans on this staying pure and roster-free, so it must never
   # resolve or touch the payload -- just read the claim vocabulary.
   isOwnerTagged = declaration: builtins.intersectAttrs claimAttrs declaration != { };
 
-  # A surviving declaration keeps only its own fields; its claim keys are the
+  # a surviving declaration keeps only its own fields; its claim keys are the
   # ownership vocabulary and never ride into a manifest entry.
   applyEntry = declaration: removeAttrs declaration claimKeys;
 
-  # Enabled selection runs one unit at a time through the ownerships public
-  # surface: an active unit resolves to its own value, an inactive one resolves
-  # to empty. Reading present-vs-empty keeps selection from being a shared merge
-  # boundary and never forces a dropped unit's payload.
+  # enabled selection runs one unit at a time through the ownerships public
+  # surface, where an active unit resolves to its own value and an inactive one
+  # resolves to empty. reading present-vs-empty keeps selection from being a
+  # shared merge boundary and never forces a dropped unit's payload.
   mkEnabledProvider =
     {
       resolve,
@@ -139,7 +143,7 @@ let
         map applyEntry (builtins.filter applies declarations);
     };
 
-  # Off mode has no roster to select against, so an untagged (globally owned)
+  # off mode has no roster to select against, so an untagged (globally owned)
   # declaration passes untouched while an owner-tagged one is a loud author
   # error -- never a silent identity pass.
   offProvider = {
@@ -369,6 +373,9 @@ let
         managedRoot
         representation
         ;
+      # a declaration that names no policy still lands one in the manifest, so
+      # nothing reading the entry has to know what an absent field would mean.
+      onConflict = declaration.onConflict or contract.conflictPolicies.error;
       inherit retainedArtifactTarget;
       executor = {
         inherit (selected) identity;
@@ -402,7 +409,7 @@ let
     else
       let
         validated = map validateShape declarations;
-        # Force only the checked authority metadata so every cheap shape error
+        # force only the checked authority metadata so every cheap shape error
         # wins before ownership selection without touching a source payload.
         shapeChecked = builtins.deepSeq (map (
           declaration: declaration.authority.scope

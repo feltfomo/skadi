@@ -156,6 +156,16 @@ let
     };
   };
 
+  explicitPolicy = sample // {
+    label = "explicit-policy";
+    onConflict = contract.conflictPolicies.sourceWins;
+  };
+  explicitPolicyEntry = builtins.head (compile [ explicitPolicy ]).manifestData;
+  bogusPolicy = sample // {
+    label = "bogus-policy";
+    onConflict = "merge";
+  };
+
   untagged = removeAttrs sample [ "users" ];
   offUntaggedResult = furnish.compile {
     declarations = [ untagged ];
@@ -365,6 +375,7 @@ let
             "executor"
             "filesystemIdentity"
             "managedRoot"
+            "onConflict"
             "provenance"
             "representation"
             "retainedArtifactTarget"
@@ -374,6 +385,18 @@ let
         && sampleEntry.cleanupStrategy == "exact-symlink-target"
         && sampleEntry.selfHealStrategy == "exact-symlink-target"
         && !(sampleEntry ? source);
+    }
+    {
+      name = "a declaration naming no conflict policy still serializes the error policy";
+      pass = !(sample ? onConflict) && sampleEntry.onConflict == contract.conflictPolicies.error;
+    }
+    {
+      name = "an explicit conflict policy reaches the manifest entry unchanged";
+      pass = explicitPolicyEntry.onConflict == contract.conflictPolicies.sourceWins;
+    }
+    {
+      name = "a conflict policy outside the enum is refused by shape validation";
+      pass = throws (furnish.core.validateShape bogusPolicy);
     }
     {
       name = "manifest document versions runtime diagnostics and carries entries";

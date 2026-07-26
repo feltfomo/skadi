@@ -88,7 +88,7 @@ in
             # died on the lock instead.
             base="$TMPDIR/base.json"
             jq -n '{
-              schemaVersion:1,
+              schemaVersion:2,
               diagnosticContract:{
                 schemaVersion:1,
                 codes:{
@@ -113,10 +113,11 @@ in
                 }
               },
               entries:[{
-                schemaVersion:1,
+                schemaVersion:2,
                 filesystemIdentity:{namespace:"test",destination:"/managed/value",canonical:"test:/managed/value"},
                 authority:{scope:"system",identity:"test/system"},
                 managedRoot:"/managed",
+                onConflict:"error",
                 representation:"symlink",
                 retainedArtifactTarget:"/target",
                 executor:{identity:"furnish/native-symlink",protocolVersion:1},
@@ -160,7 +161,7 @@ in
             # unsupported executor tuple
             expect_precheck "runtime/unsupported-executor" '.entries[0].executor.identity="furnish/bogus"'
             # bad manifest schema version
-            expect_precheck "runtime/invalid-manifest" '.schemaVersion=2'
+            expect_precheck "runtime/invalid-manifest" '.schemaVersion=3'
             # non-exact lifecycle strategy
             expect_precheck "runtime/invalid-manifest" '.entries[0].cleanupStrategy="copy"'
             # bad authority scope
