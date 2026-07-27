@@ -318,6 +318,69 @@ let
 
   collisionEvidence = aggregateCollisionText;
 
+  # frozen copy of the record kitty carried by hand, so the generated layer has
+  # to keep producing it.
+  kittyRecord = {
+    label = "kitty.files[0]";
+    filesystemNamespace = "x86_64-linux/khion";
+    authority = {
+      scope = "user";
+      identity = "feltfomo";
+    };
+    managedRoot = "/home/feltfomo";
+    destination = ".config/kitty/kitty.conf";
+    representation = "symlink";
+    source = {
+      kind = "path";
+      value = ../../../configs/kitty/kitty.conf;
+    };
+    provenance.source = "modules/aspects/kitty.nix";
+  };
+
+  kittyEntry = {
+    dest = ".config/kitty/kitty.conf";
+    src = ../../../configs/kitty/kitty.conf;
+    label = "kitty.files[0]";
+    provenance = "modules/aspects/kitty.nix";
+  };
+
+  kittyGenerated = furnish.files.mkDeclarations {
+    filesystemNamespace = "x86_64-linux/khion";
+    principals = hostPrincipals;
+    files = [ kittyEntry ];
+  };
+
+  systemOnlyGenerated = furnish.files.mkDeclarations {
+    filesystemNamespace = "x86_64-linux/khion";
+    principals = [ systemPrincipal ];
+    files = [ kittyEntry ];
+  };
+
+  # kitty's label carries brackets a store path cannot hold, and runtime names
+  # the artifact after the destination.
+  destinationNamedExecutor =
+    (mkExecutor {
+      identity = "executor/a";
+      priority = 10;
+    })
+    // {
+      materialize = declaration: {
+        retainedArtifactTarget = builtins.path {
+          path = declaration.source.value;
+          name = "furnish-${baseNameOf declaration.filesystemIdentity.destination}";
+        };
+        cleanupStrategy = contract.strategies.exactSymlinkTarget;
+        selfHealStrategy = contract.strategies.exactSymlinkTarget;
+      };
+    };
+
+  compileKitty =
+    declarations:
+    furnish.compile {
+      inherit declarations ctx;
+      executors = [ destinationNamedExecutor ];
+    };
+
   manifestKeys = builtins.attrNames sampleEntry;
   artifactTarget = sampleEntry.retainedArtifactTarget;
   manifestContext = builtins.getContext sampleResult.manifestJson;
@@ -577,6 +640,40 @@ let
     {
       name = "empty host index is inert";
       pass = furnish.core.buildHostIndex { principals = hostPrincipals; } == { };
+    }
+    {
+      name = "the files layer generates the record kitty wrote by hand";
+      pass = kittyGenerated == [ kittyRecord ];
+    }
+    {
+      name = "a home-relative entry takes no declaration from a system principal";
+      pass = systemOnlyGenerated == [ ];
+    }
+    {
+      name = "hand-written and generated kitty records compile to one manifest";
+      pass = (compileKitty [ kittyRecord ]).manifestJson == (compileKitty kittyGenerated).manifestJson;
+    }
+    {
+      name = "the files layer takes no claim key and drops nothing itself";
+      pass =
+        builtins.length (
+          furnish.files.mkDeclarations {
+            filesystemNamespace = "x86_64-linux/khion";
+            principals = hostPrincipals;
+            files = [
+              kittyEntry
+              (kittyEntry // { dest = ".config/kitty/other.conf"; })
+            ];
+          }
+        ) == 2;
+    }
+    {
+      name = "an empty file half generates an empty declaration set";
+      pass =
+        furnish.files.mkDeclarations {
+          filesystemNamespace = "x86_64-linux/khion";
+          principals = hostPrincipals;
+        } == [ ];
     }
   ];
 

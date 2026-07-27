@@ -22,7 +22,10 @@ in
   inherit contract core;
   inherit (core) compile;
 
-  # Runtime behavior starts with the coordinator work; importing the pure core
+  # the file lifecycle layer.
+  files = import ./files.nix { inherit lib contract; };
+
+  # runtime behavior starts with the coordinator work; importing the pure core
   # must not install one or make an empty declaration set observable.
   runtime = import ./runtime.nix;
 }

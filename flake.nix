@@ -144,7 +144,10 @@
         _module.args = {
           rootPath = ./.;
           inherit resolve resolveSystem;
-          program = import ./modules/_lib/program.nix { inherit lib resolve resolveSystem; };
+          program = import ./modules/_lib/program.nix {
+            inherit lib resolve resolveSystem;
+            inherit (denApi) hostPrincipals;
+          };
         };
       }
     );

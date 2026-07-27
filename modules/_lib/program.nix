@@ -5,8 +5,13 @@
   lib,
   resolve,
   resolveSystem,
+  hostPrincipals,
 }:
 let
+  # the file lifecycle layer, reached through the furnish facade like every
+  # other furnish surface. it never sees a claim key.
+  furnishFiles = (import ./furnish { inherit lib resolve resolveSystem; }).files;
+
   # keys that mark ownership; everything else is config.
   claimKeys = [
     "hosts"
@@ -28,6 +33,21 @@ let
     else
       { ${fieldName} = [ entry ]; };
 
+  # a file entry whose destination furnish owns instead of hjem.
+  isFurnishManaged = entry: builtins.isAttrs entry && (entry.furnishManaged or false);
+
+  # the furnish-owned file entries as their own root unit under the spec's own
+  # claims, so a per-entry claim still drops one before it becomes a
+  # declaration. the selector is stripped here.
+  furnishUnit =
+    spec:
+    (builtins.intersectAttrs claimKeysAttrs spec)
+    // {
+      children = map (entry: entryUnit "files" (removeAttrs entry [ "furnishManaged" ])) (
+        builtins.filter isFurnishManaged (spec.files or [ ])
+      );
+    };
+
   # the spec is the root unit; each pkg/import/file/template entry a child leaf.
   specUnit =
     spec:
@@ -46,7 +66,7 @@ let
         ++ map (entryUnit "templates") (spec.templates or [ ]);
     };
 
-  # home-manager config for a resolved spec: package + noctalia template scripts.
+  # home-manager config for a resolved spec, package plus noctalia templates.
   hmConfig =
     # home-manager's extended lib (has lib.hm.dag for activation scripts).
     lib: spec: pkgs:
@@ -89,7 +109,7 @@ let
             path = f.src;
             name = "skadi-" + baseNameOf f.dest;
           };
-        }) (spec.files or [ ])
+        }) (builtins.filter (f: !(isFurnishManaged f)) (spec.files or [ ]))
       ))
 
       # serialise noctaliaConfig to toml so noctalia merges it
@@ -102,8 +122,9 @@ let
 in
 spec:
 let
-  # home units: the whole spec as one root leaf (the nixos slice stays separate).
+  # home units are the whole spec as one root leaf, with the nixos slice apart.
   homeUnits = [ (specUnit spec) ];
+  ownsFiles = builtins.any isFurnishManaged (spec.files or [ ]);
 in
 {
   # home slices resolve at user scope from their own host/user args; both default
@@ -138,9 +159,9 @@ in
       files = hjemFiles resolved pkgs;
     };
 }
-// lib.optionalAttrs (spec ? nixos) {
-  # host-only system slice: resolves at host scope (no user), only emitted when
-  # the aspect declares one.
+// lib.optionalAttrs (spec ? nixos || ownsFiles) {
+  # host-only system slice, resolved at host scope with no user. emitted when
+  # the aspect declares one or when furnish owns one of its file entries.
   nixos =
     {
       pkgs,
@@ -148,5 +169,35 @@ in
       host ? null,
       ...
     }:
-    (resolveSystem (spec.nixos { inherit pkgs config; })) { inherit host; };
+    let
+      rawSlice = (resolveSystem (spec.nixos { inherit pkgs config; })) { inherit host; };
+    in
+    if !ownsFiles then
+      rawSlice
+    else
+      let
+        hostName = config.networking.hostName;
+        inherit (pkgs.stdenv.hostPlatform) system;
+        # the same system door the raw half uses, so a per-entry host claim
+        # reaches one verdict for both halves. a user-axis claim on one of these
+        # entries is refused there.
+        resolved = (resolveSystem [ (furnishUnit spec) ]) { inherit host; };
+      in
+      {
+        # a module that names a furnish option owns the import.
+        imports = [
+          ./furnish/runtime.nix
+          {
+            lexicon.furnish.declarations = furnishFiles.mkDeclarations {
+              filesystemNamespace = "${system}/${hostName}";
+              principals = hostPrincipals {
+                inherit system;
+                host = hostName;
+              };
+              files = resolved.files or [ ];
+            };
+          }
+        ]
+        ++ lib.optional (spec ? nixos) rawSlice;
+      };
 }
