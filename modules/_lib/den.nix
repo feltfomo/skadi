@@ -114,34 +114,56 @@ let
   # droppable top-level aspect names per host on a system, for the install menu.
   hostAspects = system: lib.mapAttrs (_: topLevelAspectNames) den.hosts.${system};
 
+  hostCtxFor = system: host: {
+    id = "${system}/${host}";
+    name = host;
+    inherit system;
+  };
+
+  userPrincipalFor = system: host: name: {
+    authority = {
+      scope = "user";
+      identity = name;
+    };
+    ctx = {
+      host = hostCtxFor system host;
+      user = { inherit name; };
+    };
+  };
+
+  # every authority a host's files could belong to, the host itself plus each
+  # user den knows about on it. an enumeration of the host, not a statement about
+  # which of those users any one aspect reaches.
+  # kept for the pure fixtures and furnish-check's principal contexts. a module
+  # that declares files takes filePrincipals instead, never this one.
   hostPrincipals =
     { system, host }:
     let
       h = den.hosts.${system}.${host};
-      hostCtx = {
-        id = "${system}/${host}";
-        name = host;
-        inherit system;
-      };
       systemPrincipal = {
         authority = {
           scope = "system";
           identity = "${system}/${host}";
         };
-        ctx.host = hostCtx;
+        ctx.host = hostCtxFor system host;
       };
-      userPrincipals = map (name: {
-        authority = {
-          scope = "user";
-          identity = name;
-        };
-        ctx = {
-          host = hostCtx;
-          user = { inherit name; };
-        };
-      }) (builtins.attrNames (h.users or { }));
     in
-    [ systemPrincipal ] ++ userPrincipals;
+    [ systemPrincipal ] ++ map (userPrincipalFor system host) (builtins.attrNames (h.users or { }));
+
+  # the principals a file-owning module declares for, given the user den resolved
+  # that module under. a null user is host scope, which owns no home.
+  # modules were handed hostPrincipals here instead, and on lumi that gave
+  # grandpa 29 declarations for files feltfomo receives.
+  filePrincipals =
+    {
+      system,
+      host,
+      user ? null,
+    }:
+    lib.optional (user != null) (userPrincipalFor system host user.name);
+
+  # the host's user names, for an error that has to say who was available.
+  hostUserNames = { system, host }: builtins.attrNames (den.hosts.${system}.${host}.users or { });
 
   # den normalizes its entire entity tree into one federated declaration stream,
   # then the shared descriptor projector produces the public roster shape. Hosts
@@ -183,8 +205,10 @@ in
   inherit
     mkTarget
     drop
+    filePrincipals
     hostAspects
     hostPrincipals
+    hostUserNames
     topLevelAspectNames
     roster
     ;

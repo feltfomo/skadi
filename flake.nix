@@ -146,7 +146,7 @@
           inherit resolve resolveSystem;
           program = import ./modules/_lib/program.nix {
             inherit lib resolve resolveSystem;
-            inherit (denApi) hostPrincipals;
+            inherit (denApi) filePrincipals hostUserNames;
           };
         };
       }
