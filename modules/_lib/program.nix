@@ -123,9 +123,7 @@ let
   # home units are the whole spec as one root leaf, with the nixos slice apart.
   homeUnits = [ (specUnit spec) ];
   ownsFiles =
-    (spec.files or [ ]) != [ ]
-    || (spec.templates or [ ]) != [ ]
-    || (spec.noctaliaConfig or { }) != { };
+    (spec.files or [ ]) != [ ] || (spec.templates or [ ]) != [ ] || (spec.noctaliaConfig or { }) != { };
 in
 {
   # home slices resolve at user scope from their own host/user args; both default
