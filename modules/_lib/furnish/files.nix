@@ -21,17 +21,26 @@ let
       # the destination is written relative to.
       managedRoot = "/home/${principal.authority.identity}";
       destination = entry.dest;
-      representation = contract.capabilities.symlink;
+      # representation travels with the entry. an entry that names none is a
+      # symlink, which is what every entry was before this layer could carry
+      # anything else, so the declarations already in service are unchanged.
+      representation = entry.representation or contract.capabilities.symlink;
       source = {
         kind = "path";
         value = entry.src;
       };
     }
+    # onConflict is emitted only when the entry names one, rather than defaulted
+    # here. core's materialize already supplies contract.conflictPolicies.error
+    # for a declaration that carries none, and writing that default twice would
+    # put a key on 29 declarations that do not have one today.
+    // lib.optionalAttrs (entry ? onConflict) { inherit (entry) onConflict; }
     // lib.optionalAttrs (entry ? provenance) { provenance.source = entry.provenance; };
 in
 {
-  # one declaration per surviving entry per user principal on the host being
-  # built. entries arrive already narrowed.
+  # one declaration per entry per user principal handed in.
+  # the caller handed this layer every user on the host, and on lumi grandpa
+  # took 29 declarations for files only feltfomo receives.
   mkDeclarations =
     {
       filesystemNamespace,

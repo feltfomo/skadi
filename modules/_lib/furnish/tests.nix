@@ -233,6 +233,22 @@ let
     userPrincipal
   ];
 
+  # a second user principal built here rather than taken from principalContexts,
+  # which comes from a single-user host and so cannot show per-user counting.
+  secondUserPrincipal = userPrincipal // {
+    authority = {
+      scope = "user";
+      identity = "grandpa";
+    };
+    ctx = userPrincipal.ctx // {
+      user.name = "grandpa";
+    };
+  };
+  twoUserPrincipals = [
+    userPrincipal
+    secondUserPrincipal
+  ];
+
   userClaim = (removeAttrs sample [ "users" ]) // {
     label = "user-claim";
     managedRoot = "/tmp";
@@ -355,6 +371,29 @@ let
     principals = [ systemPrincipal ];
     files = [ kittyEntry ];
   };
+
+  noPrincipalGenerated = furnish.files.mkDeclarations {
+    filesystemNamespace = "x86_64-linux/khion";
+    principals = [ ];
+    files = [ kittyEntry ];
+  };
+
+  twoUserGenerated = furnish.files.mkDeclarations {
+    filesystemNamespace = "x86_64-linux/khion";
+    principals = twoUserPrincipals;
+    files = [ kittyEntry ];
+  };
+
+  # the emission site's argument shape is what decides which scopes it runs
+  # under, so it is pinned here next to the counting it produces.
+  programSlice =
+    (import ../program.nix {
+      inherit lib resolve resolveSystem;
+      filePrincipals = _: [ ];
+      hostUserNames = _: [ ];
+    })
+      { files = [ kittyEntry ]; };
+  nixosArgs = builtins.functionArgs programSlice.nixos;
 
   # kitty's label carries brackets a store path cannot hold, and runtime names
   # the artifact after the destination.
@@ -654,7 +693,7 @@ let
       pass = (compileKitty [ kittyRecord ]).manifestJson == (compileKitty kittyGenerated).manifestJson;
     }
     {
-      name = "the files layer takes no claim key and drops nothing itself";
+      name = "the files layer takes no claim key and counts one declaration per principal handed in";
       pass =
         builtins.length (
           furnish.files.mkDeclarations {
@@ -665,7 +704,39 @@ let
               (kittyEntry // { dest = ".config/kitty/other.conf"; })
             ];
           }
-        ) == 2;
+        ) == 2
+        && builtins.length twoUserGenerated == 2;
+    }
+    {
+      name = "one entry and one user principal make exactly one declaration";
+      pass =
+        furnish.files.mkDeclarations {
+          filesystemNamespace = "x86_64-linux/khion";
+          principals = [ userPrincipal ];
+          files = [ kittyEntry ];
+        } == [ kittyRecord ];
+    }
+    {
+      name = "two user principals do not collapse onto one declaration";
+      pass =
+        map (declaration: declaration.authority.identity) twoUserGenerated == [
+          "feltfomo"
+          "grandpa"
+        ]
+        &&
+          map (declaration: declaration.managedRoot) twoUserGenerated == [
+            "/home/feltfomo"
+            "/home/grandpa"
+          ]
+        && builtins.all (declaration: declaration.destination == kittyEntry.dest) twoUserGenerated;
+    }
+    {
+      name = "no principal at all is a host-scope zero, not the same zero as a system principal";
+      pass = noPrincipalGenerated == [ ] && systemOnlyGenerated == [ ];
+    }
+    {
+      name = "the emission site names host and user with defaults so the class wrapper keeps it";
+      pass = nixosArgs.host && nixosArgs.user;
     }
     {
       name = "an empty file half generates an empty declaration set";
