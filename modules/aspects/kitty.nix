@@ -11,10 +11,6 @@
       {
         dest = ".config/kitty/kitty.conf";
         src = "${rootPath}/configs/kitty/kitty.conf";
-        # furnish owns this destination's lifecycle instead of hjem. the key goes
-        # away when the generated path is the only path and every file entry is
-        # furnish-owned by default.
-        furnishManaged = true;
         label = "kitty.files[0]";
         provenance = "modules/aspects/kitty.nix";
       }
