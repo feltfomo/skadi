@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/feltfomo/skadi/go/internal/harness"
 )
@@ -23,15 +24,17 @@ func main() {
 func run() int {
 	fs := flag.NewFlagSet("rebuild-vm-golden", flag.ContinueOnError)
 	var (
-		rev         = fs.String("rev", "", "approved git rev to rebuild (required)")
-		host        = fs.String("host", "vm", "nixos host to rebuild")
-		stateDir    = fs.String("state-dir", defaultStateDir(), "run state directory")
-		evidenceDir = fs.String("evidence-dir", "", "evidence/report directory (default: <state-dir>/<rev>)")
-		cacheDir    = fs.String("cache-dir", "", "binary cache directory (default: <state-dir>/cache)")
-		port        = fs.Int("port", 0, "loopback cache server port (0 = auto)")
-		ram         = fs.Int("ram", 4096, "guest RAM in MiB")
-		cores       = fs.Int("cores", 4, "guest vCPUs")
-		disk        = fs.String("disk", "20G", "guest disk size")
+		rev              = fs.String("rev", "", "approved git rev to rebuild (required)")
+		host             = fs.String("host", "vm", "nixos host to rebuild")
+		stateDir         = fs.String("state-dir", defaultStateDir(), "run state directory")
+		evidenceDir      = fs.String("evidence-dir", "", "evidence retention root (default: <state-dir>)")
+		cacheDir         = fs.String("cache-dir", "", "binary cache directory (default: <state-dir>/cache)")
+		trustedPublicKey = fs.String("trusted-public-key", "", "trusted binary-cache public key for gate-only runs")
+		preparedSource   = fs.String("prepared-source", "", "reuse an exact retained prepared source for check or gate")
+		port             = fs.Int("port", 0, "loopback cache server port (0 = auto)")
+		ram              = fs.Int("ram", 4096, "guest RAM in MiB")
+		cores            = fs.Int("cores", 4, "guest vCPUs")
+		disk             = fs.String("disk", "20G", "guest disk size")
 	)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: rebuild-vm-golden [flags] <check|build-cache|gate|provision|all>\n\n")
@@ -51,9 +54,14 @@ func run() int {
 		return 2
 	}
 
-	ev := *evidenceDir
-	if ev == "" {
-		ev = filepath.Join(*stateDir, shortLabel(*rev))
+	evidenceRoot := *evidenceDir
+	if evidenceRoot == "" {
+		evidenceRoot = *stateDir
+	}
+	ev, err := harness.CreateRunDir(evidenceRoot, *rev, sub, time.Now().UTC())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: create evidence run directory: %v\n", err)
+		return 1
 	}
 	cd := *cacheDir
 	if cd == "" {
@@ -64,17 +72,19 @@ func run() int {
 	defer stop()
 
 	cfg := harness.Config{
-		Rev:         *rev,
-		Host:        *host,
-		StateDir:    *stateDir,
-		EvidenceDir: ev,
-		CacheDir:    cd,
-		Port:        *port,
-		RAM:         *ram,
-		Cores:       *cores,
-		Disk:        *disk,
-		Subcommand:  sub,
-		Confirm:     stdinConfirm,
+		Rev:              *rev,
+		Host:             *host,
+		StateDir:         *stateDir,
+		EvidenceDir:      ev,
+		CacheDir:         cd,
+		TrustedPublicKey: strings.TrimSpace(*trustedPublicKey),
+		PreparedSource:   strings.TrimSpace(*preparedSource),
+		Port:             *port,
+		RAM:              *ram,
+		Cores:            *cores,
+		Disk:             *disk,
+		Subcommand:       sub,
+		Confirm:          stdinConfirm,
 	}
 
 	h := harness.New(cfg, harness.ExecRunner{}, nil)
@@ -99,14 +109,6 @@ func defaultStateDir() string {
 		return filepath.Join(os.TempDir(), "skadi-vm", "rebuild-vm-golden")
 	}
 	return filepath.Join(home, ".local", "state", "skadi-vm", "rebuild-vm-golden")
-}
-
-func shortLabel(rev string) string {
-	rev = strings.TrimSpace(rev)
-	if len(rev) > 12 {
-		return rev[:12]
-	}
-	return rev
 }
 
 // stdinConfirm implements the interactive human gate: it prints the prompt and

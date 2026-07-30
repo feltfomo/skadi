@@ -39,7 +39,7 @@ func TestManifestJSONRoundTrip(t *testing.T) {
 }
 
 func TestManifestWriteFiles(t *testing.T) {
-	m := &Manifest{Rev: "d33f37a5", Status: "complete", FinalStage: "finalize", LiveBuildCount: 0}
+	m := &Manifest{Rev: "d33f37a5", Status: "complete", FinalStage: "finalize"}
 	dir := t.TempDir()
 	if err := m.WriteJSON(filepath.Join(dir, "report.json")); err != nil {
 		t.Fatalf("write json: %v", err)
@@ -51,7 +51,61 @@ func TestManifestWriteFiles(t *testing.T) {
 	if !strings.Contains(h, "rebuild-vm-golden report") {
 		t.Fatal("human report missing header")
 	}
-	if !strings.Contains(h, "build count: 0") {
-		t.Fatal("human report missing build count")
+	if strings.Contains(h, "build count") || strings.Contains(h, "fetch count") {
+		t.Fatal("human report invented unobserved counts")
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "gate_build_count") || strings.Contains(string(b), "gate_fetch_count") || strings.Contains(string(b), "overlay_proof") || strings.Contains(string(b), "base_untouched") {
+		t.Fatalf("json invented unobserved measurements: %s", b)
+	}
+}
+
+func TestManifestEmitsFreshPreparedSourceProvenance(t *testing.T) {
+	m := &Manifest{
+		PreparedSourcePath:   "/evidence/fresh/prepared-source",
+		PreparedSourceReused: boolPtr(false),
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"prepared_source_reused":false`) {
+		t.Fatalf("json omitted fresh prepared-source provenance: %s", b)
+	}
+	if !strings.Contains(m.Human(), "prepared reused: false") {
+		t.Fatalf("human report omitted fresh prepared-source provenance:\n%s", m.Human())
+	}
+}
+
+func TestManifestEmitsObservedMeasurements(t *testing.T) {
+	m := &Manifest{
+		PreparedSourcePath:   "/evidence/build-cache/prepared-source",
+		PreparedSourceReused: boolPtr(true),
+		PreparedSourceOrigin: "/evidence/build-cache",
+		GateBuildCount:       intPtr(0),
+		GateFetchCount:       intPtr(9),
+		ProvisionBuildCount:  intPtr(0),
+		OverlayProof:         boolPtr(true),
+		BaseUntouched:        boolPtr(true),
+		Identity:             []IdentityProof{{Name: "host", Expected: "vm", Observed: "vm", Match: true}},
+		Secrets:              []SecretProof{{Name: "notion-token", SHA256: "abc", Match: true}},
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"\"prepared_source_reused\":true", "\"prepared_source_origin_run\":\"/evidence/build-cache\"", "\"gate_build_count\":0", "\"gate_fetch_count\":9", "\"provision_build_count\":0", "\"overlay_proof\":true", "\"base_untouched\":true", "\"sha256\":\"abc\""} {
+		if !strings.Contains(string(b), want) {
+			t.Fatalf("json missing %s: %s", want, b)
+		}
+	}
+	h := m.Human()
+	for _, want := range []string{"prepared reused: true", "prepared origin run: /evidence/build-cache", "gate build count: 0", "gate fetch count: 9", "provision build count: 0", "sha256=abc"} {
+		if !strings.Contains(h, want) {
+			t.Fatalf("human report missing %q:\n%s", want, h)
+		}
 	}
 }

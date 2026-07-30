@@ -62,11 +62,7 @@ func (h *Harness) newGuest(label, disk, vars, serial string) (*Guest, error) {
 }
 
 func (h *Harness) guestWorkDir() string {
-	base := h.cfg.EvidenceDir
-	if base == "" {
-		base = h.cfg.StateDir
-	}
-	return filepath.Join(base, "guest")
+	return filepath.Join(h.cfg.EvidenceDir, "guest")
 }
 
 func (h *Harness) servedSubstituter() (string, error) {
@@ -349,18 +345,71 @@ func (g *Guest) waitLogin(ctx context.Context) error {
 	return fmt.Errorf("guest %s never reached a login prompt\nserial tail:\n%s", g.label, tailFile(g.serial, 40))
 }
 
-func (g *Guest) poweroff(ctx context.Context) {
-	_ = g.ssh(ctx, "poweroff")
+func (g *Guest) poweroff(ctx context.Context) error {
+	shutdown := g.ssh(ctx, "poweroff")
 	deadline := time.Now().Add(90 * time.Second)
 	for time.Now().Before(deadline) {
 		if g.exited() {
 			g.cancel = nil
-			return
+			return validatePoweroffOutcome(shutdown.ExitCode, true, g.res.ExitCode, g.res.Err)
 		}
 		time.Sleep(2 * time.Second)
 	}
 	g.stop()
 	g.cancel = nil
+	return validatePoweroffOutcome(shutdown.ExitCode, false, g.res.ExitCode, g.res.Err)
+}
+
+func validatePoweroffOutcome(sshExit int, exited bool, qemuExit int, qemuErr error) error {
+	if sshExit != 0 && sshExit != 255 {
+		return fmt.Errorf("guest poweroff command failed with exit %d", sshExit)
+	}
+	if !exited {
+		return fmt.Errorf("guest did not power off within 90 seconds")
+	}
+	if qemuErr != nil || qemuExit != 0 {
+		return fmt.Errorf("qemu exited uncleanly after poweroff (exit %d): %w", qemuExit, qemuErr)
+	}
+	return nil
+}
+
+func parseUnitState(output string) (string, error) {
+	state := strings.TrimSpace(output)
+	if state == "" || strings.Contains(state, "\n") {
+		return "", fmt.Errorf("malformed unit state %q", output)
+	}
+	return state, nil
+}
+
+func parseQemuImgCheck(output string) error {
+	if !strings.Contains(output, "No errors were found on the image") {
+		return fmt.Errorf("qemu-img check did not report a clean image: %q", strings.TrimSpace(output))
+	}
+	return nil
+}
+
+func (h *Harness) checkGuestDisk(ctx context.Context, phase string, g *Guest) error {
+	res := h.runner.Run(ctx, CmdSpec{Name: "qemu-img", Args: []string{"check", g.disk}}, nil)
+	observed := strings.TrimSpace(res.Stdout)
+	match := res.Err == nil && res.ExitCode == 0 && parseQemuImgCheck(res.Combined) == nil
+	h.manifest.Checks = append(h.manifest.Checks, Proof{Name: phase + " qcow2 integrity", Expected: "clean", Observed: observed, Match: match})
+	if !match {
+		return fmt.Errorf("%s qcow2 integrity failed (exit %d): %w\n%s", phase, res.ExitCode, res.Err, res.Combined)
+	}
+	return nil
+}
+
+func (h *Harness) assertVarsWritable(phase string, path string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	match := err == nil
+	if f != nil {
+		_ = f.Close()
+	}
+	h.manifest.Checks = append(h.manifest.Checks, Proof{Name: phase + " OVMF vars writable", Expected: "writable", Observed: fmt.Sprint(match), Match: match})
+	if err != nil {
+		return fmt.Errorf("%s OVMF vars are not writable at %s: %w", phase, path, err)
+	}
+	return nil
 }
 
 func (g *Guest) stop() {
@@ -462,7 +511,19 @@ func (h *Harness) stageNegativeWipeProbe(ctx context.Context) error {
 	if len(devs) != 1 || devs[0] != "/dev/vda" {
 		return fmt.Errorf("negative-wipe probe: disko script %s targets %v, expected exactly [/dev/vda]", script, devs)
 	}
-	return nil
+	deriver := g.ssh(ctx, "nix-store --query --deriver "+shellSingleQuote(script))
+	if deriver.Err != nil || deriver.ExitCode != 0 {
+		return fmt.Errorf("query live disko script deriver (exit %d): %w\n%s", deriver.ExitCode, deriver.Err, deriver.Combined)
+	}
+	observedDrv, err := singleStorePath(deriver.Stdout, ".drv")
+	if err != nil {
+		return fmt.Errorf("parse live disko script deriver: %w", err)
+	}
+	expectedDrv := h.manifest.DrvPaths["disko"]
+	if expectedDrv == "" {
+		return fmt.Errorf("disko proof cannot run without an expected drvPath")
+	}
+	return h.recordDrvComparison("live disko --dry-run", expectedDrv, observedDrv)
 }
 
 func (h *Harness) stageGuestProvision(ctx context.Context) error {
@@ -485,7 +546,7 @@ func (h *Harness) stageGuestProvision(ctx context.Context) error {
 		}
 	}
 	plan := ScanBuildPlan(res.Combined)
-	h.manifest.LiveBuildCount = plan.BuildCount()
+	h.recordProvisionBuildCount(plan)
 	if errors.Is(res.Err, ErrEmergencyStop) {
 		return fmt.Errorf("%w: build announced during guest install: %s (log: %s)", ErrEmergencyStop, violation, logPath)
 	}
@@ -495,8 +556,14 @@ func (h *Harness) stageGuestProvision(ctx context.Context) error {
 	if res.Err != nil || res.ExitCode != 0 {
 		return fmt.Errorf("guest skadi-install failed (exit %d): %w\ninstall log: %s", res.ExitCode, res.Err, logPath)
 	}
-	g.poweroff(ctx)
+	if err := g.poweroff(ctx); err != nil {
+		return err
+	}
 	return nil
+}
+
+func (h *Harness) recordProvisionBuildCount(plan BuildPlan) {
+	h.manifest.ProvisionBuildCount = intPtr(plan.BuildCount())
 }
 
 func (h *Harness) stageFirstBootProof(ctx context.Context) error {
@@ -514,17 +581,22 @@ func (h *Harness) stageFirstBootProof(ctx context.Context) error {
 	if err := g.waitSSH(ctx); err != nil {
 		return err
 	}
-	if err := h.assertGuestIdentity(ctx); err != nil {
+	if err := h.assertVarsWritable("first boot", g.vars); err != nil {
+		return err
+	}
+	if err := h.assertGuestIdentity(ctx, "first boot"); err != nil {
 		return err
 	}
 	if sum, e := sha256File(g.serial); e == nil {
 		h.manifest.FirstBootSerialSHA256 = sum
 	}
-	g.poweroff(ctx)
-	return nil
+	if err := g.poweroff(ctx); err != nil {
+		return err
+	}
+	return h.checkGuestDisk(ctx, "first boot", g)
 }
 
-func (h *Harness) assertGuestIdentity(ctx context.Context) error {
+func (h *Harness) assertGuestIdentity(ctx context.Context, phase string) error {
 	g := h.guest
 	if h.vmIdentity == nil {
 		return fmt.Errorf("vm identity not prepared")
@@ -535,12 +607,12 @@ func (h *Harness) assertGuestIdentity(ctx context.Context) error {
 	}
 	gotAlgoBlob := firstTwoFields(obs.Stdout)
 	idMatch := gotAlgoBlob == h.vmIdentity.PublicKeyAlgoBlob
-	h.manifest.Identity = []IdentityProof{{
-		Name:     "ssh_host_ed25519_key.pub",
+	h.manifest.Identity = append(h.manifest.Identity, IdentityProof{
+		Name:     phase + " ssh_host_ed25519_key.pub",
 		Expected: h.vmIdentity.PublicKeyAlgoBlob,
 		Observed: gotAlgoBlob,
 		Match:    idMatch,
-	}}
+	})
 	if !idMatch {
 		return fmt.Errorf("installed vm host identity does not match this run's generated key")
 	}
@@ -551,19 +623,23 @@ func (h *Harness) assertGuestIdentity(ctx context.Context) error {
 	}
 	host := strings.TrimSpace(hn.Stdout)
 	hostMatch := host == h.cfg.Host
-	h.manifest.Identity = append(h.manifest.Identity, IdentityProof{Name: "hostname", Expected: h.cfg.Host, Observed: host, Match: hostMatch})
+	h.manifest.Identity = append(h.manifest.Identity, IdentityProof{Name: phase + " hostname", Expected: h.cfg.Host, Observed: host, Match: hostMatch})
 	if !hostMatch {
 		return fmt.Errorf("guest hostname mismatch: expected %q got %q", h.cfg.Host, host)
 	}
 
-	if want := h.manifest.StorePaths["toplevel"]; want != "" {
+	want := h.manifest.StorePaths["toplevel"]
+	if want == "" {
+		return fmt.Errorf("toplevel proof cannot run without an expected store path")
+	}
+	{
 		tp := g.ssh(ctx, "readlink -f /run/current-system")
 		if tp.Err != nil || tp.ExitCode != 0 {
 			return fmt.Errorf("read guest toplevel (exit %d): %w\n%s", tp.ExitCode, tp.Err, tp.Combined)
 		}
 		got := strings.TrimSpace(tp.Stdout)
 		tpMatch := got == want
-		h.manifest.Identity = append(h.manifest.Identity, IdentityProof{Name: "toplevel", Expected: want, Observed: got, Match: tpMatch})
+		h.manifest.Identity = append(h.manifest.Identity, IdentityProof{Name: phase + " toplevel", Expected: want, Observed: got, Match: tpMatch})
 		if !tpMatch {
 			return fmt.Errorf("guest toplevel mismatch: expected %q got %q", want, got)
 		}
@@ -577,21 +653,55 @@ func (h *Harness) assertGuestIdentity(ctx context.Context) error {
 	if token.Err != nil || token.ExitCode != 0 {
 		return fmt.Errorf("read notion token secret (exit %d): %w\n%s", token.ExitCode, token.Err, token.Combined)
 	}
-	h.manifest.Secrets = []SecretProof{
-		{Name: "feltfomo-password", Match: strings.TrimSpace(pw.Stdout) == fixedVMPasswordHash},
-		{Name: "notion-token", Match: strings.TrimSpace(token.Stdout) == fixedVMNotionToken},
+	secretSpecs := []struct {
+		name  string
+		path  string
+		value string
+		read  CmdResult
+	}{
+		{name: "feltfomo-password", path: "/run/secrets-for-users/feltfomo-password", value: fixedVMPasswordHash, read: pw},
+		{name: "notion-token", path: "/run/secrets/notion-token", value: fixedVMNotionToken, read: token},
 	}
-	for _, proof := range h.manifest.Secrets {
+	for _, spec := range secretSpecs {
+		hash := g.ssh(ctx, "sha256sum "+shellSingleQuote(spec.path))
+		fields := strings.Fields(hash.Stdout)
+		if hash.Err != nil || hash.ExitCode != 0 || len(fields) != 2 {
+			return fmt.Errorf("hash secret proof for %s (exit %d): %w\n%s", spec.name, hash.ExitCode, hash.Err, hash.Combined)
+		}
+		proof := SecretProof{
+			Name:   phase + " " + spec.name,
+			SHA256: fields[0],
+			Match:  strings.TrimSpace(spec.read.Stdout) == spec.value,
+		}
+		h.manifest.Secrets = append(h.manifest.Secrets, proof)
 		if !proof.Match {
 			return fmt.Errorf("secret proof failed for %s", proof.Name)
 		}
+	}
+
+	notionSync := g.ssh(ctx, "command -v notion-sync")
+	notionObserved := strings.TrimSpace(notionSync.Stdout)
+	notionMatch := notionSync.Err == nil && notionSync.ExitCode == 0 && notionObserved != ""
+	h.manifest.Checks = append(h.manifest.Checks, Proof{Name: phase + " notion-sync present", Expected: "present", Observed: notionObserved, Match: notionMatch})
+	if !notionMatch {
+		return fmt.Errorf("notion-sync is not present in guest (exit %d): %w\n%s", notionSync.ExitCode, notionSync.Err, notionSync.Combined)
+	}
+
+	sshd := g.ssh(ctx, "systemctl is-active sshd")
+	sshdState, stateErr := parseUnitState(sshd.Stdout)
+	sshdMatch := sshd.Err == nil && sshd.ExitCode == 0 && stateErr == nil && sshdState == "active"
+	h.manifest.Checks = append(h.manifest.Checks, Proof{Name: phase + " sshd active", Expected: "active", Observed: sshdState, Match: sshdMatch})
+	if !sshdMatch {
+		return fmt.Errorf("sshd is not active (exit %d): %w\n%s", sshd.ExitCode, sshd.Err, sshd.Combined)
 	}
 
 	fu := g.ssh(ctx, "systemctl --failed --no-legend --plain")
 	if fu.Err != nil || fu.ExitCode != 0 {
 		return fmt.Errorf("query failed guest units (exit %d): %w\n%s", fu.ExitCode, fu.Err, fu.Combined)
 	}
-	if strings.TrimSpace(fu.Stdout) != "" {
+	failedUnits := strings.TrimSpace(fu.Stdout)
+	h.manifest.Checks = append(h.manifest.Checks, Proof{Name: phase + " failed units", Expected: "none", Observed: failedUnits, Match: failedUnits == ""})
+	if failedUnits != "" {
 		return fmt.Errorf("guest has failed units:\n%s", fu.Combined)
 	}
 	return nil
@@ -615,18 +725,14 @@ func (h *Harness) stageFreeze(ctx context.Context) error {
 	vars := filepath.Join(dir, "program-files-base-vars.fd")
 	meta := filepath.Join(dir, "program-files-base.json")
 
-	refreeze := os.Getenv("SKADI_REBUILD_REFREEZE") == "1"
+	if os.Getenv("SKADI_REBUILD_REFREEZE") == "1" {
+		return fmt.Errorf("SKADI_REBUILD_REFREEZE=1 is forbidden; remove or relocate the prior golden explicitly")
+	}
 	for _, p := range []string{qcow, vars, meta} {
 		if _, err := os.Stat(p); err == nil {
-			if !refreeze {
-				return fmt.Errorf("refusing to overwrite existing golden artifact %s (a prior run published here); re-run with SKADI_REBUILD_REFREEZE=1 to clear and re-freeze, or remove the golden in %s manually", p, dir)
-			}
-			if err := os.Chmod(p, 0o644); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("clear prior golden %s: %w", p, err)
-			}
-			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("remove prior golden %s: %w", p, err)
-			}
+			return fmt.Errorf("refusing to overwrite existing golden artifact %s; remove or relocate the prior golden explicitly", p)
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("inspect golden artifact %s: %w", p, err)
 		}
 	}
 	if err := copyFile(g.disk, qcow, 0o444); err != nil {
@@ -719,18 +825,26 @@ func (h *Harness) stageOverlayProof(ctx context.Context) error {
 	if err := g.waitSSH(ctx); err != nil {
 		return err
 	}
-	if err := h.assertGuestIdentity(ctx); err != nil {
+	if err := h.assertVarsWritable("overlay", g.vars); err != nil {
 		return err
 	}
-	g.poweroff(ctx)
+	if err := h.assertGuestIdentity(ctx, "overlay"); err != nil {
+		return err
+	}
+	if err := g.poweroff(ctx); err != nil {
+		return err
+	}
+	if err := h.checkGuestDisk(ctx, "overlay", g); err != nil {
+		return err
+	}
 	h.guest = nil
 	afterBase, err := sha256File(base)
 	if err != nil {
 		return fmt.Errorf("hash base after overlay: %w", err)
 	}
-	h.manifest.OverlayProof = true
-	h.manifest.BaseUntouched = beforeBase == afterBase
-	if beforeBase != afterBase {
+	baseUnchanged := beforeBase == afterBase
+	h.manifest.BaseUntouched = boolPtr(baseUnchanged)
+	if !baseUnchanged {
 		return fmt.Errorf("golden base mutated during overlay proof: before=%s after=%s", beforeBase, afterBase)
 	}
 	for _, p := range []string{base, baseVars} {
@@ -742,6 +856,7 @@ func (h *Harness) stageOverlayProof(ctx context.Context) error {
 			return fmt.Errorf("golden artifact %s no longer 0444 (got %o)", p, fi.Mode().Perm())
 		}
 	}
+	h.manifest.OverlayProof = boolPtr(true)
 	return nil
 }
 

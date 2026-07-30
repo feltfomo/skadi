@@ -9,10 +9,9 @@ import (
 	"strings"
 )
 
-// Nix / Lix build-plan grammar. These markers are what the build-count safety
-// invariant keys on. They are currently tuned against the synthetic fixtures
-// under testdata/; revalidate them byte-for-byte against real captured
-// d33f37a5 build output before trusting the gate.
+// nix and Lix build-plan grammar validated against real CLI captures from
+// nix (Lix, like Nix) 2.96.0-dev-pre20260728-dev_64c99ac. Revalidate the
+// fixtures and markers whenever the toolchain version changes.
 var (
 	// "these N derivations will be built:" or "this derivation will be built:".
 	reWillBeBuiltHeader = regexp.MustCompile(`^\s*(?:these\s+\d+\s+derivations|this\s+derivation)\s+will\s+be\s+built:`)

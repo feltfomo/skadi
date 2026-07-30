@@ -27,8 +27,17 @@ type IdentityProof struct {
 
 // SecretProof records that a decrypted secret matched its fixture plaintext.
 type SecretProof struct {
-	Name  string `json:"name"`
-	Match bool   `json:"match"`
+	Name   string `json:"name"`
+	SHA256 string `json:"sha256"`
+	Match  bool   `json:"match"`
+}
+
+// Proof records an expected value beside what a stage actually observed.
+type Proof struct {
+	Name     string `json:"name"`
+	Expected string `json:"expected"`
+	Observed string `json:"observed"`
+	Match    bool   `json:"match"`
 }
 
 // Artifact records a frozen golden file: its path, content hash, and octal mode
@@ -43,37 +52,47 @@ type Artifact struct {
 // JSON and rendered to a human-readable text report; nothing is published to
 // Notion.
 type Manifest struct {
-	Rev                   string              `json:"rev"`
-	ApprovedRev           string              `json:"approved_rev,omitempty"`
-	Subcommand            string              `json:"subcommand"`
-	Host                  string              `json:"host"`
-	StartedAt             time.Time           `json:"started_at"`
-	FinishedAt            time.Time           `json:"finished_at,omitempty"`
-	FinalStage            string              `json:"final_stage"`
-	Status                string              `json:"status"`
-	CacheKey              string              `json:"cache_key,omitempty"`
-	PublicKey             string              `json:"public_key,omitempty"`
-	PreparedSourcePath    string              `json:"prepared_source_path,omitempty"`
-	PreparedSourceHash    string              `json:"prepared_source_hash,omitempty"`
-	PreparedSourceStatus  string              `json:"prepared_source_status,omitempty"`
-	VMIdentityRecipient   string              `json:"vm_identity_recipient,omitempty"`
-	VMIdentityFingerprint string              `json:"vm_identity_fingerprint,omitempty"`
-	VMFixtureSHA256       string              `json:"vm_fixture_sha256,omitempty"`
-	DrvPaths              map[string]string   `json:"drv_paths,omitempty"`
-	StorePaths            map[string]string   `json:"store_paths,omitempty"`
-	LiveBuildCount        int                 `json:"live_build_count"`
-	FetchCount            int                 `json:"fetch_count"`
-	Identity              []IdentityProof     `json:"identity,omitempty"`
-	Secrets               []SecretProof       `json:"secrets,omitempty"`
-	GoldenDir             string              `json:"golden_dir,omitempty"`
-	Artifacts             map[string]Artifact `json:"artifacts,omitempty"`
-	InstallLogSHA256      string              `json:"install_log_sha256,omitempty"`
-	FirstBootSerialSHA256 string              `json:"first_boot_serial_sha256,omitempty"`
-	SourceTarballSHA256   string              `json:"source_tarball_sha256,omitempty"`
-	Snapshot              string              `json:"snapshot,omitempty"`
-	OverlayProof          bool                `json:"overlay_proof"`
-	BaseUntouched         bool                `json:"base_untouched"`
-	Stages                []StageRecord       `json:"stages,omitempty"`
+	Rev                    string              `json:"rev"`
+	ApprovedRev            string              `json:"approved_rev,omitempty"`
+	Subcommand             string              `json:"subcommand"`
+	Host                   string              `json:"host"`
+	RunDir                 string              `json:"run_dir"`
+	StartedAt              time.Time           `json:"started_at"`
+	FinishedAt             time.Time           `json:"finished_at,omitempty"`
+	FinalStage             string              `json:"final_stage"`
+	Status                 string              `json:"status"`
+	CacheKey               string              `json:"cache_key,omitempty"`
+	CacheDir               string              `json:"cache_dir,omitempty"`
+	CacheNarinfoCount      *int                `json:"cache_narinfo_count,omitempty"`
+	PublicKey              string              `json:"public_key,omitempty"`
+	PreparedSourcePath     string              `json:"prepared_source_path,omitempty"`
+	PreparedSourceHash     string              `json:"prepared_source_hash,omitempty"`
+	PreparedSourceStatus   string              `json:"prepared_source_status,omitempty"`
+	PreparedSourceReused   *bool               `json:"prepared_source_reused,omitempty"`
+	PreparedSourceOrigin   string              `json:"prepared_source_origin_run,omitempty"`
+	VMIdentityRecipient    string              `json:"vm_identity_recipient,omitempty"`
+	VMIdentityFingerprint  string              `json:"vm_identity_fingerprint,omitempty"`
+	VMFixtureSHA256        string              `json:"vm_fixture_sha256,omitempty"`
+	DrvPaths               map[string]string   `json:"drv_paths,omitempty"`
+	DrvComparisons         []Proof             `json:"drv_comparisons,omitempty"`
+	StorePaths             map[string]string   `json:"store_paths,omitempty"`
+	GateBuildCount         *int                `json:"gate_build_count,omitempty"`
+	GateFetchCount         *int                `json:"gate_fetch_count,omitempty"`
+	ProvisionBuildCount    *int                `json:"provision_build_count,omitempty"`
+	RealizationBeforePaths *int                `json:"realization_before_paths,omitempty"`
+	RealizationAfterPaths  *int                `json:"realization_after_paths,omitempty"`
+	Identity               []IdentityProof     `json:"identity,omitempty"`
+	Secrets                []SecretProof       `json:"secrets,omitempty"`
+	Checks                 []Proof             `json:"checks,omitempty"`
+	GoldenDir              string              `json:"golden_dir,omitempty"`
+	Artifacts              map[string]Artifact `json:"artifacts,omitempty"`
+	InstallLogSHA256       string              `json:"install_log_sha256,omitempty"`
+	FirstBootSerialSHA256  string              `json:"first_boot_serial_sha256,omitempty"`
+	SourceTarballSHA256    string              `json:"source_tarball_sha256,omitempty"`
+	Snapshot               string              `json:"snapshot,omitempty"`
+	OverlayProof           *bool               `json:"overlay_proof,omitempty"`
+	BaseUntouched          *bool               `json:"base_untouched,omitempty"`
+	Stages                 []StageRecord       `json:"stages,omitempty"`
 }
 
 // WriteJSON writes the manifest as indented JSON to path.
@@ -105,14 +124,28 @@ func (m *Manifest) Human() string {
 	}
 	fmt.Fprintf(&b, "subcommand:  %s\n", m.Subcommand)
 	fmt.Fprintf(&b, "host:        %s\n", m.Host)
+	fmt.Fprintf(&b, "run dir:     %s\n", m.RunDir)
 	fmt.Fprintf(&b, "status:      %s\n", m.Status)
 	fmt.Fprintf(&b, "final stage: %s\n", m.FinalStage)
 	fmt.Fprintf(&b, "started:     %s\n", m.StartedAt.Format(time.RFC3339))
 	if !m.FinishedAt.IsZero() {
 		fmt.Fprintf(&b, "finished:    %s\n", m.FinishedAt.Format(time.RFC3339))
 	}
-	fmt.Fprintf(&b, "build count: %d\n", m.LiveBuildCount)
-	fmt.Fprintf(&b, "fetch count: %d\n", m.FetchCount)
+	if m.GateBuildCount != nil {
+		fmt.Fprintf(&b, "gate build count: %d\n", *m.GateBuildCount)
+	}
+	if m.GateFetchCount != nil {
+		fmt.Fprintf(&b, "gate fetch count: %d\n", *m.GateFetchCount)
+	}
+	if m.ProvisionBuildCount != nil {
+		fmt.Fprintf(&b, "provision build count: %d\n", *m.ProvisionBuildCount)
+	}
+	if m.RealizationBeforePaths != nil {
+		fmt.Fprintf(&b, "realization paths before: %d\n", *m.RealizationBeforePaths)
+	}
+	if m.RealizationAfterPaths != nil {
+		fmt.Fprintf(&b, "realization paths after: %d\n", *m.RealizationAfterPaths)
+	}
 	if m.PreparedSourcePath != "" {
 		fmt.Fprintf(&b, "prepared src: %s\n", m.PreparedSourcePath)
 	}
@@ -121,6 +154,12 @@ func (m *Manifest) Human() string {
 	}
 	if m.PreparedSourceStatus != "" {
 		fmt.Fprintf(&b, "prepared status: %s\n", m.PreparedSourceStatus)
+	}
+	if m.PreparedSourceReused != nil {
+		fmt.Fprintf(&b, "prepared reused: %t\n", *m.PreparedSourceReused)
+		if *m.PreparedSourceReused && m.PreparedSourceOrigin != "" {
+			fmt.Fprintf(&b, "prepared origin run: %s\n", m.PreparedSourceOrigin)
+		}
 	}
 	if m.VMIdentityFingerprint != "" {
 		fmt.Fprintf(&b, "vm identity: %s\n", m.VMIdentityFingerprint)
@@ -134,6 +173,12 @@ func (m *Manifest) Human() string {
 	if m.CacheKey != "" {
 		fmt.Fprintf(&b, "cache key:   %s\n", m.CacheKey)
 	}
+	if m.CacheDir != "" {
+		fmt.Fprintf(&b, "cache dir:   %s\n", m.CacheDir)
+	}
+	if m.CacheNarinfoCount != nil {
+		fmt.Fprintf(&b, "cache narinfos: %d\n", *m.CacheNarinfoCount)
+	}
 	if m.PublicKey != "" {
 		fmt.Fprintf(&b, "public key:  %s\n", m.PublicKey)
 	}
@@ -141,6 +186,12 @@ func (m *Manifest) Human() string {
 		b.WriteString("\nderivations:\n")
 		for _, k := range sortedKeys(m.DrvPaths) {
 			fmt.Fprintf(&b, "  %-12s %s\n", k+":", m.DrvPaths[k])
+		}
+	}
+	if len(m.DrvComparisons) > 0 {
+		b.WriteString("\ndrv comparisons:\n")
+		for _, proof := range m.DrvComparisons {
+			fmt.Fprintf(&b, "  [%s] %s expected=%s observed=%s\n", mark(proof.Match), proof.Name, proof.Expected, proof.Observed)
 		}
 	}
 	if len(m.StorePaths) > 0 {
@@ -158,7 +209,13 @@ func (m *Manifest) Human() string {
 	if len(m.Secrets) > 0 {
 		b.WriteString("\nsecrets:\n")
 		for _, s := range m.Secrets {
-			fmt.Fprintf(&b, "  [%s] %s\n", mark(s.Match), s.Name)
+			fmt.Fprintf(&b, "  [%s] %s sha256=%s\n", mark(s.Match), s.Name, s.SHA256)
+		}
+	}
+	if len(m.Checks) > 0 {
+		b.WriteString("\nchecks:\n")
+		for _, proof := range m.Checks {
+			fmt.Fprintf(&b, "  [%s] %s expected=%s observed=%s\n", mark(proof.Match), proof.Name, proof.Expected, proof.Observed)
 		}
 	}
 	if m.GoldenDir != "" {
@@ -170,8 +227,12 @@ func (m *Manifest) Human() string {
 			a := m.Artifacts[k]
 			fmt.Fprintf(&b, "  %-26s mode=%s sha256=%s %s\n", k+":", a.Mode, a.SHA256, a.Path)
 		}
-		fmt.Fprintf(&b, "overlay proof:  %s\n", mark(m.OverlayProof))
-		fmt.Fprintf(&b, "base untouched: %s\n", mark(m.BaseUntouched))
+	}
+	if m.OverlayProof != nil {
+		fmt.Fprintf(&b, "overlay proof:  %s\n", mark(*m.OverlayProof))
+	}
+	if m.BaseUntouched != nil {
+		fmt.Fprintf(&b, "base untouched: %s\n", mark(*m.BaseUntouched))
 	}
 	if m.InstallLogSHA256 != "" {
 		fmt.Fprintf(&b, "install-log sha256:       %s\n", m.InstallLogSHA256)
@@ -194,6 +255,10 @@ func (m *Manifest) Human() string {
 	}
 	return b.String()
 }
+
+func intPtr(v int) *int { return &v }
+
+func boolPtr(v bool) *bool { return &v }
 
 func mark(ok bool) string {
 	if ok {

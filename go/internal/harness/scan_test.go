@@ -19,26 +19,31 @@ func readFixture(t *testing.T, name string) string {
 func TestScanBuildPlanGreenIsClean(t *testing.T) {
 	p := ScanBuildPlan(readFixture(t, "green_zero_build.log"))
 	if !p.IsClean() {
-		t.Fatalf("expected clean plan, got WillBuild=%v", p.WillBuild)
+		t.Fatalf("observed build plan %v", p.WillBuild)
 	}
-	if p.BuildCount() != 0 {
-		t.Fatalf("expected build count 0, got %d", p.BuildCount())
+	if p.BuildCount() != 0 || p.FetchCount() != 1 || len(p.Copied) != 1 {
+		t.Fatalf("observed builds=%d fetches=%d copied=%d", p.BuildCount(), p.FetchCount(), len(p.Copied))
 	}
-	if len(p.Copied) == 0 {
-		t.Fatal("expected substituted (copied) paths in a green run, got none")
+}
+
+func TestScanBuildPlanPluralFetchHeader(t *testing.T) {
+	p := ScanBuildPlan(readFixture(t, "green_multiple_fetch.log"))
+	if p.BuildCount() != 0 || p.FetchCount() != 3 || len(p.Copied) != 3 {
+		t.Fatalf("observed builds=%d fetches=%d copied=%d", p.BuildCount(), p.FetchCount(), len(p.Copied))
 	}
 }
 
 func TestScanBuildPlanFailedCountsBuilds(t *testing.T) {
 	p := ScanBuildPlan(readFixture(t, "failed_will_be_built.log"))
-	if p.IsClean() {
-		t.Fatal("expected a non-clean plan for the failed fixture")
+	if p.IsClean() || p.BuildCount() != 1 || len(p.Building) != 1 {
+		t.Fatalf("observed clean=%t builds=%d building=%d", p.IsClean(), p.BuildCount(), len(p.Building))
 	}
-	if p.BuildCount() != 2 {
-		t.Fatalf("expected 2 derivations to build, got %d (%v)", p.BuildCount(), p.WillBuild)
-	}
-	if len(p.Building) != 1 {
-		t.Fatalf("expected 1 building line, got %d", len(p.Building))
+}
+
+func TestScanBuildPlanPluralBuildHeader(t *testing.T) {
+	p := ScanBuildPlan(readFixture(t, "multiple_will_be_built.log"))
+	if p.IsClean() || p.BuildCount() != 3 || len(p.Building) != 3 {
+		t.Fatalf("observed clean=%t builds=%d building=%d", p.IsClean(), p.BuildCount(), len(p.Building))
 	}
 }
 
