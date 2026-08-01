@@ -19,11 +19,3 @@ builtin_ids = [
   "wezterm",
 ]
 community_ids = ["zed", "discord", "steam", "telegram"]
-
-[theme.templates.user.firefox-chrome]
-input_path = "~/.config/noctalia/templates/firefox/userChrome.css"
-output_path = "~/.config/mozilla/firefox/feltfomo/chrome/userChrome.css"
-
-[theme.templates.user.firefox-content]
-input_path = "~/.config/noctalia/templates/firefox/userContent.css"
-output_path = "~/.config/mozilla/firefox/feltfomo/chrome/userContent.css"

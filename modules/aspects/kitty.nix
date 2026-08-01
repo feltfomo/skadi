@@ -16,9 +16,6 @@
     theme.noctalia = {
       id = "kitty";
       source = "${rootPath}/configs/kitty/themes/skadi.conf";
-      # the seed lands flat as kitty.conf; the repo source is skadi.conf
-      placedAs = "kitty.conf";
-      subdir = null;
       output = ".config/kitty/themes/skadi.conf";
       reload = "pkill -SIGUSR1 kitty";
     };
