@@ -5,6 +5,7 @@ _: {
       furnish-coordinator-gate = pkgs.writeShellApplication {
         name = "furnish-coordinator-gate";
         runtimeInputs = with pkgs; [
+          bash
           bc
           coreutils
           findutils

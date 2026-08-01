@@ -82,15 +82,22 @@ let
 
   ledgerPath = "${cfg.state.path}/${contract.ledger.fileName}";
 
-  # activation and the boot unit must invoke the coordinator identically. two
-  # verbatim copies were survivable while they took the same three arguments;
-  # they are a drift source the moment a fourth is added.
   reconcileCommand = ''
     ${coordinator}/bin/furnish-coordinator reconcile \
       --manifest ${manifestPath} \
       --lock-name furnish-${lockName}.lock \
       --state-dir ${cfg.state.path} \
       --setpriv ${pkgs.util-linux}/bin/setpriv
+  '';
+
+  # nixos marks the initrd invocation before it enters the target root. every
+  # other activation remains a reconcile, including an invocation with no mark.
+  activationCommand = ''
+    if [ "''${IN_NIXOS_SYSTEMD_STAGE1:-}" = true ]; then
+      printf '%s\n' 'furnish activation boot path defers reconciliation to furnish.service'
+    else
+      ${reconcileCommand}
+    fi
   '';
 in
 {
@@ -155,7 +162,7 @@ in
       # manifest (and its context-retained targets) part of the active toplevel.
       system.activationScripts.furnish = {
         deps = [ "users" ];
-        text = reconcileCommand;
+        text = activationCommand;
       };
 
       # activation runs before persisted destination mounts are guaranteed to be

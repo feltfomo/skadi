@@ -35,6 +35,67 @@ capture_tests() {
     "$passed" "$failed" "$minimum" "$result_lines"
 }
 
+# creating the missing directory would turn an ordering refusal into hidden
+# bootstrap behavior, so absence after the failed call is part of the result.
+absent_lock_dir_proof() {
+  local host="$1" coordinator="$2" case_dir manifest_path manifest missing diagnostic diagnostic_line status
+  case_dir="$scratch/absent-lock-$host"
+  manifest="$case_dir/manifest.json"
+  missing="$case_dir/missing-lock"
+  diagnostic="$case_dir/diagnostic.json"
+  rm -rf "$case_dir"
+  mkdir -p "$case_dir/state"
+  manifest_path="$(nix eval --raw ".#nixosConfigurations.${host}.config.lexicon.furnish.manifestPath")"
+  jq '.entries = []' "$manifest_path" > "$manifest"
+
+  status=0
+  "$coordinator" reconcile \
+    --manifest "$manifest" \
+    --lock-name absent.lock \
+    --state-dir "$case_dir/state" \
+    --setpriv "$(command -v setpriv)" \
+    --lock-dir "$missing" 2> "$case_dir/stderr.log" || status=$?
+  [ "$status" -ne 0 ] || die 'absent lock directory unexpectedly reconciled'
+  diagnostic_line="$(grep -m1 -F '"message":"open-run-lock failed"' "$case_dir/stderr.log" || true)"
+  [ -n "$diagnostic_line" ] || die 'absent lock directory emitted no open-run-lock diagnostic'
+  printf '%s\n' "$diagnostic_line" > "$diagnostic"
+  jq -e '.code == "runtime/invalid-manifest" and .cause.operation == "open-run-lock" and .cause.errno == 2' \
+    "$diagnostic" >/dev/null || die 'absent lock directory emitted the wrong diagnostic'
+  [ ! -e "$missing" ] || die 'coordinator created the absent lock directory'
+  printf '[coordinator-gate] observed  lock_dir_created=0 operation=open-run-lock errno=2\n'
+}
+
+# matching shell text cannot show which branch executes. replace only the
+# coordinator path with a scratch stub so both branches stay safe to run.
+activation_guard_proof() {
+  local host="$1" activation_text real_coordinator stub probe boot_output default_output
+  activation_text="$scratch/activation-$host.sh"
+  stub="$scratch/coordinator-stub-$host"
+  probe="$scratch/activation-probe-$host.sh"
+  nix eval --raw ".#nixosConfigurations.${host}.config.system.activationScripts.furnish.text" \
+    > "$activation_text"
+  real_coordinator="$(grep -Eo '/nix/store/[^[:space:]]+/bin/furnish-coordinator' "$activation_text" | head -n1)"
+  [ -n "$real_coordinator" ] || die 'activation text contains no furnish coordinator command'
+  printf '%s\n' '#!/usr/bin/env bash' "printf '%s\\n' reconcile-called" > "$stub"
+  chmod +x "$stub"
+  sed "s|$real_coordinator|$stub|g" "$activation_text" > "$probe"
+
+  boot_output="$(env IN_NIXOS_SYSTEMD_STAGE1=true bash "$probe")"
+  grep -Fqx 'furnish activation boot path defers reconciliation to furnish.service' <<<"$boot_output" \
+    || die 'boot activation did not defer to the unit'
+  if grep -Fqx reconcile-called <<<"$boot_output"; then
+    die 'boot activation reached the coordinator'
+  fi
+
+  default_output="$(env -u IN_NIXOS_SYSTEMD_STAGE1 bash "$probe")"
+  grep -Fqx reconcile-called <<<"$default_output" \
+    || die 'activation without the boot mark did not reconcile'
+  if grep -Fq 'defers reconciliation' <<<"$default_output"; then
+    die 'activation without the boot mark took the defer branch'
+  fi
+  printf '[coordinator-gate] observed  activation_boot=deferred activation_default=reconciled\n'
+}
+
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
@@ -110,7 +171,8 @@ assert_suppression_symbols "$crate/tests/crash_recovery.rs" 2 record_json prior_
 assert_suppression_symbols "$crate/tests/lifecycle.rs" 1 record_json
 
 if grep -RInE '\bSP[0-9]+\b|\bsub-phase\b|\bruling\b|\broadmap\b' \
-  "$crate/src" "$repo/scripts/furnish-coordinator-gate.sh" "$repo/modules/furnish-coordinator-gate.nix"; then
+  "$crate/src" "$repo/scripts/furnish-coordinator-gate.sh" \
+  "$repo/scripts/program-files-regression.sh" "$repo/modules/furnish-coordinator-gate.nix"; then
   die 'process vocabulary found in touched production sources or gate files'
 fi
 printf '[coordinator-gate] observed  suppressions=%s too_many_arguments=%s vocabulary_matches=0\n' \
@@ -156,30 +218,32 @@ esac
 
 host="$(hostnamectl --static 2>/dev/null || printf 'unknown')"
 case "$host" in
-  khion)
-    run 'khion exact furnish target' nix run .#program-files-regression -- furnish-symlink --host khion
-    run 'khion retained-target roots' nix run .#program-files-regression -- roots --host khion
-    fault_coordinator="$(nix build --no-link --print-out-paths .#checks.x86_64-linux.furnish-coordinator-fault-injection)/bin/furnish-coordinator"
-    for point in pre-pending pending-committed stage-written stage-synced published published-synced verified exchange-published; do
-      run "fault prepare: $point" nix run .#program-files-regression -- fault-prepare --host khion --point "$point" --coordinator "$fault_coordinator"
-      run "fault assert: $point" nix run .#program-files-regression -- fault-assert --host khion --point "$point" --coordinator "$fault_coordinator"
-    done
-    if [ "$activation" -eq 1 ]; then
-      run 'khion activation test' /run/wrappers/bin/sudo nixos-rebuild test --flake "$repo#khion"
-    else
-      step 'khion activation skipped; set FURNISH_COORDINATOR_ACTIVATE=1 with router authorization'
-    fi
-    ;;
-  lumi)
-    if [ "$activation" -eq 1 ]; then
-      run 'lumi activation test' /run/wrappers/bin/sudo nixos-rebuild test --flake "$repo#lumi"
-    else
-      step 'lumi activation skipped; set FURNISH_COORDINATOR_ACTIVATE=1 with router authorization'
-    fi
-    ;;
-  *)
-    step "host-specific checks and activation skipped on $host"
-    ;;
+  khion|lumi) ;;
+  *) die "unsupported gate host: $host" ;;
 esac
 
+production_coordinator="$(nix build --no-link --print-out-paths .#furnish-coordinator)/bin/furnish-coordinator"
+fault_coordinator="$(nix build --no-link --print-out-paths .#checks.x86_64-linux.furnish-coordinator-fault-injection)/bin/furnish-coordinator"
+run 'absent lock directory refusal' absent_lock_dir_proof "$host" "$production_coordinator"
+run 'activation boot guard' activation_guard_proof "$host"
+run "$host exact furnish target" nix run .#program-files-regression -- furnish-symlink --host "$host"
+run "$host retained-target roots" nix run .#program-files-regression -- roots --host "$host"
+run "$host runtime-wins scratch proof" nix run .#program-files-regression -- runtime-wins-proof --host "$host" --coordinator "$production_coordinator"
+
+fault_pairs=0
+for point in pre-pending pending-committed stage-written stage-synced published published-synced verified exchange-published; do
+  run "fault prepare: $point" nix run .#program-files-regression -- fault-prepare --host "$host" --point "$point" --coordinator "$fault_coordinator"
+  run "fault assert: $point" nix run .#program-files-regression -- fault-assert --host "$host" --point "$point" --coordinator "$fault_coordinator"
+  fault_pairs=$((fault_pairs + 1))
+done
+[ "$fault_pairs" -eq 8 ] || die "host coverage produced $fault_pairs fault pairs"
+
+if [ "$activation" -eq 1 ]; then
+  run "$host activation test" /run/wrappers/bin/sudo nixos-rebuild test --flake "$repo#$host"
+else
+  step "$host activation skipped; activation is disabled"
+fi
+
+printf '[coordinator-gate] coverage  {"host":"%s","hostChecks":"ran","faultPairs":%s}\n' \
+  "$host" "$fault_pairs"
 printf '\n[coordinator-gate] complete  host=%s activation=%s\n' "$host" "$activation"

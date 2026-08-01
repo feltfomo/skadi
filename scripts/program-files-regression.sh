@@ -19,8 +19,8 @@ program-files-regression <command>
   natural-assert --host khion --drift <path>
   restore --host khion --drift <path>
   assemble --khion <path> --lumi <path> --output <path>
-  roots --host khion
-  furnish-symlink --host <khion|vm>
+  roots --host <khion|lumi>
+  furnish-symlink --host <khion|lumi|vm>
   case-prepare --host khion --mode <absent|dangling|drifted>
   case-switch-assert --host khion --mode <absent|dangling|drifted>
   case-boot-assert --host khion --mode <absent|dangling|drifted>
@@ -29,8 +29,9 @@ program-files-regression <command>
   vm migrate-gate [--base <path>] --release-toplevel <path> --adopt-toplevel <path>
   reboot-prepare --host vm --mode <absent|dangling|drifted> --run-id <id>
   reboot-assert --host vm --mode <absent|dangling|drifted> --run-id <id>
-  fault-prepare --host khion --point <boundary> --coordinator <path>
-  fault-assert --host khion --point <boundary> --coordinator <path>
+  fault-prepare --host <khion|lumi> --point <boundary> --coordinator <path>
+  fault-assert --host <khion|lumi> --point <boundary> --coordinator <path>
+  runtime-wins-proof --host <khion|lumi> --coordinator <path>
 USAGE
 }
 
@@ -466,6 +467,62 @@ fault_assert() {
   log "fault point $point recovered to exact known state"
 }
 
+# only b, s, and d all distinct reaches the policy branch. a one-sided change
+# could preserve the destination through the ordinary no-op path instead.
+runtime_wins_proof() {
+  local host="$1" coordinator="$2" scratch manifest destination ledger key
+  local baseline_hash source_hash runtime_hash destination_after baseline_after
+  local generation_before generation_after
+  require_host "$host"
+  [ -x "$coordinator" ] || die "runtime-wins coordinator is not executable: $coordinator"
+  scratch="$(fault_scratch runtime-wins)"
+  manifest="$scratch/manifest.json"
+  destination="$scratch/managed/value"
+  ledger="$scratch/state/applied-state.json"
+  key="fault:$destination"
+
+  printf 'baseline payload\n' > "$scratch/source"
+  fault_manifest_json "$destination" "$scratch/managed" "$scratch/source" \
+    writable furnish/native-writable exact-source-content \
+    | jq '.entries[0].onConflict = "runtime-wins"' > "$manifest"
+  fault_run "$coordinator" "$scratch" "$manifest" "" \
+    || die "runtime-wins proof could not establish the baseline"
+  baseline_hash="$(content_hash "$scratch/source")"
+  [ "$(content_hash "$destination")" = "$baseline_hash" ] \
+    || die "runtime-wins proof did not establish matching baseline bytes"
+  [ "$(jq -r --arg key "$key" '.records[$key].baselineHash // empty' "$ledger")" = "$baseline_hash" ] \
+    || die "runtime-wins proof did not record the initial baseline"
+  generation_before="$(jq -r --arg key "$key" '.records[$key].appliedOperationGeneration' "$ledger")"
+
+  printf 'new declared payload\n' > "$scratch/source"
+  printf 'runtime edited payload\n' > "$destination"
+  source_hash="$(content_hash "$scratch/source")"
+  runtime_hash="$(content_hash "$destination")"
+  [ "$source_hash" != "$baseline_hash" ] && [ "$runtime_hash" != "$baseline_hash" ] \
+    && [ "$runtime_hash" != "$source_hash" ] \
+    || die "runtime-wins proof did not form the three-way conflict"
+  fault_run "$coordinator" "$scratch" "$manifest" "" \
+    || die "runtime-wins proof reconcile failed"
+
+  destination_after="$(content_hash "$destination")"
+  baseline_after="$(jq -r --arg key "$key" '.records[$key].baselineHash // empty' "$ledger")"
+  generation_after="$(jq -r --arg key "$key" '.records[$key].appliedOperationGeneration' "$ledger")"
+  [ "$destination_after" = "$runtime_hash" ] \
+    || die "runtime-wins proof overwrote the runtime edit"
+  [ "$baseline_after" = "$source_hash" ] \
+    || die "runtime-wins proof did not settle at the refused source baseline"
+  [ "$generation_after" = "$generation_before" ] \
+    || die "runtime-wins proof recorded a publication that did not occur"
+
+  jq -n --arg host "$host" --arg baselineBefore "$baseline_hash" \
+    --arg sourceBefore "$source_hash" --arg destinationBefore "$runtime_hash" \
+    --arg destinationAfter "$destination_after" --arg baselineAfter "$baseline_after" \
+    --argjson generationBefore "$generation_before" --argjson generationAfter "$generation_after" \
+    '{schemaVersion:1,status:"pass",host:$host,before:{baseline:$baselineBefore,source:$sourceBefore,destination:$destinationBefore},after:{baseline:$baselineAfter,destination:$destinationAfter},runtimeEditPreserved:($destinationAfter==$destinationBefore),baselineAdvancedToSource:($baselineAfter==$sourceBefore),publicationGenerationUnchanged:($generationAfter==$generationBefore)}' \
+    > "$CACHE/furnish-runtime-wins-${host}.json"
+  log "runtime-wins preserved the runtime edit and settled the source baseline"
+}
+
 ensure_matrix() {
   # null cells make an interrupted matrix obvious instead of looking like a pass.
   local matrix
@@ -647,13 +704,13 @@ case_boot_assert() {
 
 roots_check() {
   # a live target isn't retention evidence until an active root reaches it.
-  require_host khion
+  local host="$1" target roots
+  require_host "$host"
   [ -L "$KITTY_PATH" ] || die "kitty.conf is not a symlink"
-  local target roots
   target="$(readlink -f -- "$KITTY_PATH")"
   roots="$(nix-store -q --roots "$target" 2>/dev/null || true)"
   [ -n "$roots" ] || die "no GC root reaches $target"
-  printf '%s\n' "$roots" > "$CACHE/khion-kitty-roots.txt"
+  printf '%s\n' "$roots" > "$CACHE/${host}-kitty-roots.txt"
   log "active roots retain $target"
 }
 
@@ -1460,7 +1517,13 @@ case "$command" in
     [ -n "$khion" ] && [ -n "$output" ] || die "assemble needs --khion and --output"
     assemble "$khion" "$lumi" "$output"
     ;;
-  roots) [ "${1:-}" = --host ] && [ "${2:-}" = khion ] || die "roots requires --host khion"; roots_check;;
+  roots)
+    [ "${1:-}" = --host ] || die "roots requires --host khion or lumi"
+    case "${2:-}" in
+      khion|lumi) ;;
+      *) die "roots requires --host khion or lumi";;
+    esac
+    roots_check "$2";;
   furnish-symlink)
     [ "${1:-}" = --host ] && [ -n "${2:-}" ] || die "furnish-symlink needs --host"
     furnish_symlink "$2";;
@@ -1499,6 +1562,17 @@ case "$command" in
       *) die "unknown vm action: $action";;
     esac
     ;;
+  runtime-wins-proof)
+    host=""; coordinator=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --host) host="$2"; shift 2;;
+        --coordinator) coordinator="$2"; shift 2;;
+        *) die "unknown runtime-wins-proof argument: $1";;
+      esac
+    done
+    [ -n "$host" ] && [ -n "$coordinator" ] || die "runtime-wins-proof needs --host and --coordinator"
+    runtime_wins_proof "$host" "$coordinator";;
   fault-prepare|fault-assert)
     action="$command"; host=""; point=""; coordinator=""
     while [ "$#" -gt 0 ]; do
