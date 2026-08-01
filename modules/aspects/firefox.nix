@@ -17,7 +17,7 @@
             enable = true;
             # opt into the new XDG profile dir now rather than waiting on a
             # home.stateVersion bump, which would silently flip unrelated option
-            # defaults too. noctaliaConfig below points at the same path.
+            # defaults too. the theme.noctalia block below points at the same path.
             configPath = "${config.xdg.configHome}/mozilla/firefox";
             profiles.feltfomo = {
               id = 0;
@@ -29,28 +29,20 @@
         }
       )
     ];
-    templates = [
-      {
-        name = "userChrome.css";
-        templateFile = "${rootPath}/configs/firefox/chrome/userChrome.css";
-        subdir = "firefox/";
-      }
-      {
-        name = "userContent.css";
-        templateFile = "${rootPath}/configs/firefox/chrome/userContent.css";
-        subdir = "firefox/";
-      }
-    ];
-    noctaliaConfig = {
-      _fileName = "firefox";
-      theme.templates.user.firefox-chrome = {
-        input_path = "~/.config/noctalia/templates/firefox/userChrome.css";
-        output_path = "~/.config/mozilla/firefox/feltfomo/chrome/userChrome.css";
-      };
-      theme.templates.user.firefox-content = {
-        input_path = "~/.config/noctalia/templates/firefox/userContent.css";
-        output_path = "~/.config/mozilla/firefox/feltfomo/chrome/userContent.css";
-      };
+    theme.noctalia = {
+      id = "firefox";
+      templates = [
+        {
+          subId = "chrome";
+          source = "${rootPath}/configs/firefox/chrome/userChrome.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+        }
+        {
+          subId = "content";
+          source = "${rootPath}/configs/firefox/chrome/userContent.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+        }
+      ];
     };
   };
 }
