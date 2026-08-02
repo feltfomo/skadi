@@ -127,6 +127,19 @@ let
     package = poisonDerivation;
     secret = poisonSecret;
   };
+  poisonType = {
+    type = throw "forced a type-shaped value";
+    token = throw "forced a type-shaped payload";
+  };
+  poisonNamedDerivation = {
+    type = "derivation";
+    name = throw "forced a derivation name";
+    drvPath = throw "forced a derivation field";
+  };
+  poisonList = [
+    "visible"
+    (throw "forced a list payload")
+  ];
 
   inactive = sample // {
     label = "inactive-poison";
@@ -490,6 +503,30 @@ let
         && !(ownerships ? engineArgsFor)
         && !(ownerships ? resolveWith)
         && furnish.core.isOwnerTagged (lib.genAttrs ownerships.claimKeys (_: [ ]));
+    }
+    {
+      name = "safe rendering never traverses arbitrary attribute values";
+      pass =
+        krisis.safeRender poisonSecret == "<unrenderable value>"
+        && krisis.safeRender poisonType == "<unrenderable value>"
+        && krisis.safeShape poisonType == "{ token, type }";
+    }
+    {
+      name = "safe rendering tolerates poisoned derivation names";
+      pass =
+        krisis.safeRender poisonNamedDerivation == "<derivation ?>"
+        && krisis.safeShape poisonNamedDerivation == "<derivation ?>";
+    }
+    {
+      name = "safe rendering keeps flat scalar lists and rejects unsafe list members";
+      pass =
+        krisis.safeRender [
+          "visible"
+          1
+          true
+          null
+        ] == ''["visible",1,true,null]''
+        && krisis.safeRender poisonList == "<unrenderable value>";
     }
     {
       name = "sample manifest is byte-stable and entry order is canonical";
