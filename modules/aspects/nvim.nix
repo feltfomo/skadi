@@ -20,7 +20,6 @@
           rust-analyzer
           jdt-language-server
           kotlin-language-server
-          metals
           pyright
           zls
           ols
@@ -53,9 +52,18 @@
         src = "${rootPath}/configs/nvim/lua/plugins/lsp.lua";
       }
       {
-        dest = ".config/nvim/lua/plugins/metals.lua";
-        src = "${rootPath}/configs/nvim/lua/plugins/metals.lua";
+        dest = ".config/nvim/lua/plugins/icons.lua";
+        src = "${rootPath}/configs/nvim/lua/plugins/icons.lua";
+      }
+      {
+        dest = ".config/nvim/lua/plugins/blink.lua";
+        src = "${rootPath}/configs/nvim/lua/plugins/blink.lua";
       }
     ];
+    theme.noctalia = {
+      id = "nvim";
+      source = "${rootPath}/configs/nvim/colors/reactive.lua";
+      output = ".config/nvim/colors/reactive.lua";
+    };
   };
 }

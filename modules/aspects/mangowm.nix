@@ -5,7 +5,7 @@
   ...
 }:
 {
-  # vm excluded -- the installer-test VM doesn't need a compositor
+  # vm excluded. the installer-test VM doesn't need a compositor
   # closure. coexists with hyprland, not a replacement.
   den.aspects.mangowm = program {
     hosts = [
@@ -24,7 +24,7 @@
           package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
         };
         # wlr screencast portal for mango sessions (hyprland keeps its own).
-        # a plain systemPackages install was the bug: nixos only exposes a
+        # a plain systemPackages install was the bug. nixos only exposes a
         # backend's .portal file to the wrapped xdg-desktop-portal service when
         # it's in xdg.portal.extraPortals, so the router had no ScreenCast impl
         # under mango and the share picker never appeared. wlr.enable registers
@@ -84,22 +84,13 @@
         src = "${rootPath}/configs/mango/portal.conf";
       }
     ];
-    templates = [
-      {
-        name = "colors.conf";
-        templateFile = "${rootPath}/configs/mango/colors.conf.tpl";
-        subdir = "mango/";
-      }
-    ];
-    noctaliaConfig = {
-      _fileName = "mango";
-      theme.templates.user.mango = {
-        input_path = "~/.config/noctalia/templates/mango/colors.conf";
-        output_path = "~/.config/mango/colors.conf";
-        # reload so the new palette applies live (kitty does the same
-        # with pkill -SIGUSR1).
-        post_hook = "mmsg -d reload_config";
-      };
+    theme.noctalia = {
+      id = "mango";
+      source = "${rootPath}/configs/mango/colors.conf";
+      output = ".config/mango/colors.conf";
+      # reload so the new palette applies live (kitty does the same
+      # with pkill -SIGUSR1).
+      reload = "mmsg -d reload_config";
     };
   };
 }

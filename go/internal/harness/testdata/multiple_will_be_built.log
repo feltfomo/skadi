@@ -1,0 +1,17 @@
+# provenance real Lix CLI grammar capture
+# command env NO_COLOR=1 TERM=dumb nix --log-format raw build --impure --file /tmp/skadi-h6-lix-grammar.neguBY/plural.nix --store 'local?root=/tmp/skadi-h6-lix-grammar.neguBY/plain-build-plural-store' --no-link -L --option sandbox false --option substituters '' --option require-sigs false --option builders '' --option max-jobs 1
+# lix version nix (Lix, like Nix) 2.96.0-dev-pre20260728-dev_64c99ac
+# store root /tmp/skadi-h6-lix-grammar.neguBY/plain-build-plural-store
+# capture date 2026-07-29T17:18:59+00:00
+# raw capture sha256 a04435491b486a791fc0628c894debabdb0b9f125cfb256f5811c5ba7ec64195
+these 3 derivations will be built:
+  /nix/store/5wwmipb8q5662120gn9abhrrlk9n95nv-skadi-h6-plural-two.drv
+  /nix/store/qvwnxp7n3bncqk3xm094fkr27yyk2i8h-skadi-h6-plural-one.drv
+  /nix/store/8sgryb2j4b9mxyh82a30cya2cl34n1hq-skadi-h6-plural-root.drv
+warning: auto-enabling the sandbox due to using a diverted store
+warning: Failed to use the system-wide build directory '/nix/var/nix/b', falling back to a temporary directory inside '/tmp/nix-builds-1000-5sn22j03jv2ljs3j0pahp54jz2'
+building '/nix/store/5wwmipb8q5662120gn9abhrrlk9n95nv-skadi-h6-plural-two.drv'...
+warning: auto-enabling the sandbox due to using a diverted store
+building '/nix/store/qvwnxp7n3bncqk3xm094fkr27yyk2i8h-skadi-h6-plural-one.drv'...
+warning: auto-enabling the sandbox due to using a diverted store
+building '/nix/store/8sgryb2j4b9mxyh82a30cya2cl34n1hq-skadi-h6-plural-root.drv'...

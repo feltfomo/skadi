@@ -10,6 +10,7 @@
       shell
       theming
       hyprland
+      mangowm
       kitty
       nvim
       fuzzel
@@ -167,6 +168,8 @@
           gamescope
           gifski
           zenity
+          nushell
+          spotatui
           logseqPkgs.logseq
           python3
           equibop
@@ -190,7 +193,6 @@
           appimage-run
           ayugram-desktop
           translate-shell
-          jetbrains.idea-oss
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           (prismlauncher.override {

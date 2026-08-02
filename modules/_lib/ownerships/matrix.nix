@@ -6,7 +6,7 @@
 { lib }:
 let
   engine = import ./engine.nix { inherit lib; };
-  inherit (import ./safe-render.nix { inherit lib; }) safeShape;
+  inherit (import ../krisis { inherit lib; }) safeShape;
 
   leafKey = index: "leaf-${toString index}";
 

@@ -1,10 +1,8 @@
 name: ci
-
 on:
   push:
   pull_request:
   workflow_dispatch:
-
 jobs:
   # fast gate (~1-2 min): eval the whole flake + check formatting without
   # realising the world, so eval errors and treefmt drift fail here immediately
@@ -48,7 +46,6 @@ jobs:
       # the local formatter would have fixed.
       - name: formatting (treefmt)
         run: nix fmt -- --ci
-
   # heavy builds run only after lint is green; the two hosts build as separate
   # parallel jobs (not a matrix) so they run on their own runners at once.
   build-khion:
@@ -67,7 +64,6 @@ jobs:
       # only paid once.
       - name: build khion
         run: nix build .#nixosConfigurations.khion.config.system.build.toplevel --accept-flake-config --print-out-paths --print-build-logs
-
   build-lumi:
     needs: lint
     runs-on: ubuntu-latest

@@ -18,7 +18,8 @@ let
     length
     ;
 
-  inherit (import ./safe-render.nix { inherit lib; }) safeShape;
+  krisis = import ../krisis { inherit lib; };
+  inherit (krisis) safeShape;
 
   # every registered axis at its identity: globally owned on all axes. a claim
   # missing an axis key falls back to that axis's top, so untagged == global.
@@ -106,7 +107,7 @@ let
       diagnostics = concatMap (row: lib.concatLists row) matrix;
     in
     {
-      value = if diagnostics == [ ] then leaves else throw (renderDiags diagnostics);
+      value = if diagnostics == [ ] then leaves else throwDiags diagnostics;
       trace = builtins.genList (i: concatMap (row: builtins.elemAt row i) matrix) (length leaves);
       reports = map (diagnosticsForStage: {
         view = "leaf";
@@ -132,7 +133,7 @@ let
       input = if view == "tree" then args.leaves else args.survivors;
     in
     {
-      value = if diagnostics == [ ] then input else throw (renderDiags diagnostics);
+      value = if diagnostics == [ ] then input else throwDiags diagnostics;
       trace = entries;
     };
 
@@ -158,31 +159,55 @@ let
     else
       "unlabeled unit ${safeShape d.unit}";
 
+  toDiagnostic =
+    diagnostic:
+    krisis.mkDiagnostic {
+      severity = "error";
+      code = diagnostic.kind;
+      message = diagnostic.reason;
+      primary =
+        let
+          pointer =
+            lib.optionalAttrs (diagnostic.label or null != null) { inherit (diagnostic) label; }
+            // lib.optionalAttrs (diagnostic.source or null != null) { inherit (diagnostic) source; };
+        in
+        if pointer == { } then null else pointer;
+      context = diagnostic;
+    };
+
   renderDiag =
-    d:
+    diagnostic:
     let
+      domain = diagnostic.context;
       axisPart =
-        if d ? axis then
-          "axis '${d.axis}'"
-        else if d ? axes then
-          "axes ${lib.concatStringsSep ", " d.axes}"
+        if domain ? axis then
+          "axis '${domain.axis}'"
+        else if domain ? axes then
+          "axes ${lib.concatStringsSep ", " domain.axes}"
         else
           null;
       claimsPart =
-        if d ? claims then "claim ${lib.generators.toPretty { multiline = false; } d.claims}" else null;
+        if domain ? claims then
+          "claim ${lib.generators.toPretty { multiline = false; } domain.claims}"
+        else
+          null;
       detail = lib.concatStringsSep ", " (
-        lib.filter (x: x != null) [
+        lib.filter (part: part != null) [
           axisPart
           claimsPart
         ]
       );
     in
-    "  - ${identifyUnit d}: ${d.reason}" + (if detail == "" then "" else " (${detail})");
+    "  - ${identifyUnit domain}: ${diagnostic.message}" + (if detail == "" then "" else " (${detail})");
 
-  renderDiags =
-    diags:
-    "ownerships: ${toString (length diags)} ownership error(s):\n"
-    + lib.concatMapStringsSep "\n" renderDiag diags;
+  renderArgs = diagnostics: {
+    diagnostics = map toDiagnostic diagnostics;
+    formatHeader = count: "ownerships: ${toString count} ownership error(s):";
+    formatDiagnostic = renderDiag;
+  };
+
+  renderDiags = diagnostics: krisis.renderDiagnostics (renderArgs diagnostics);
+  throwDiags = diagnostics: krisis.throwDiagnostics (renderArgs diagnostics);
 
   # keep the leaves this build's ctx falls under on every axis; dropped leaves are
   # inactive -- silent, not an error. runs AFTER check, so an impossible leaf
@@ -404,7 +429,7 @@ let
       diagnostics = concatMap (entry: entry.diagnostics) entries;
     in
     {
-      value = if diagnostics == [ ] then ctx else throw (renderDiags diagnostics);
+      value = if diagnostics == [ ] then ctx else throwDiags diagnostics;
       trace = map (entry: entry.requirements) entries;
     };
 

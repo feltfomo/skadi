@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# skadi-install [<host>] [--drop a,b,c] [--print-target]: two-phase reinstall from
+# skadi-install [<host>] [--drop a,b,c] [--print-target] [--yes-wipe-all-disks]: two-phase reinstall from
 # the installer iso. steps: disko format+mount, host key + sops secrets into
 # /persist, nixos-install. --drop removes named top-level aspects for this install
 # only via mkInstallTarget; the committed nixosConfigurations.<host> and
@@ -35,7 +35,7 @@ detect_generic_disk() {
     die "generic: no whole-disk device detected (lsblk saw none). This slice installs to a single internal disk -- attach one and retry."
   elif [ "$n" -gt 1 ]; then
     lsblk --nodeps --output NAME,SIZE,TYPE,MODEL >&2
-    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection for 'generic' is a planned 2e follow-on and isn't wired yet -- for multi-disk hardware add an explicit per-host layout (khion/lumi-style modules/hosts/_<host>/{disko,hardware}.nix)."
+    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection isn't wired yet; add an explicit per-host layout for multi-disk hardware (khion/lumi-style modules/hosts/_<host>/{disko,hardware}.nix)."
   fi
   GENERIC_DEVICE="/dev/${disks[0]}"
   log "generic: detected sole target disk $GENERIC_DEVICE"
@@ -134,6 +134,7 @@ select_target() {
 HOST=""
 DROP=()
 PRINT_TARGET=0
+YES_WIPE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --drop)
@@ -144,7 +145,8 @@ while [ $# -gt 0 ]; do
       IFS=', ' read -r -a _drop_raw <<<"${1#--drop=}"; shift
       for a in "${_drop_raw[@]}"; do [ -n "$a" ] || continue; DROP+=("$a"); done ;;
     --print-target) PRINT_TARGET=1; shift ;;
-    -*) die "unknown flag: $1 (usage: skadi-install [<host>] [--drop a,b,c] [--print-target])" ;;
+    --yes-wipe-all-disks) YES_WIPE=1; shift ;;
+    -*) die "unknown flag: $1 (usage: skadi-install [<host>] [--drop a,b,c] [--print-target] [--yes-wipe-all-disks])" ;;
     *)  [ -z "$HOST" ] || die "unexpected extra argument: $1"; HOST="$1"; shift ;;
   esac
 done
@@ -158,11 +160,39 @@ if [ "$PRINT_TARGET" != 1 ] && [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
   die "this looks like a booted skadi system, not the ISO -- refusing to repartition."
 fi
 
-# clone the flake we install from (writable tree with .git for notion-sync).
-rm -rf "$WORK"
-log "cloning skadi from $SKADI_REMOTE"
-git clone "$SKADI_REMOTE" "$WORK"
+# obtain the flake we install from (writable tree with .git for notion-sync).
+# SKADI_INSTALL_SOURCE lets a caller pin us to a pre-staged source tree instead of
+# cloning from GitHub at run time -- the rebuild-vm-golden harness stages one
+# deterministic pinned-rev worktree and points both its disko dry-run probe and
+# this install at it, so probe and wipe validate byte-identical config. The tree
+# must be a real git worktree (git+file eval, hyprland's gitTracked, notion-sync
+# all require .git).
+if [ -n "${SKADI_INSTALL_SOURCE:-}" ]; then
+  [ -d "${SKADI_INSTALL_SOURCE}/.git" ] || die "SKADI_INSTALL_SOURCE=$SKADI_INSTALL_SOURCE is not a git worktree"
+  WORK="$SKADI_INSTALL_SOURCE"
+  log "using pre-staged pinned source at $WORK (skipping clone from $SKADI_REMOTE)"
+else
+  rm -rf "$WORK"
+  log "cloning skadi from $SKADI_REMOTE"
+  git clone "$SKADI_REMOTE" "$WORK"
+fi
 cd "$WORK"
+
+# Snapshot the real SOPS material before any VM-test work. The generated fixture
+# lives under modules/hosts/_vm and is intentionally excluded. Comparing this
+# deterministic inventory later avoids depending on Git worktree discovery after
+# disko and the installer store relocation.
+VM_REAL_SOPS_BASELINE=""
+hash_real_sops_material() {
+  local path
+  find .sops.yaml secrets -type f -print0 \
+    | sort -z \
+    | while IFS= read -r -d '' path; do sha256sum "$path"; done
+}
+if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "${HOST:-}" = vm ]; then
+  VM_REAL_SOPS_BASELINE="$(mktemp)"
+  hash_real_sops_material > "$VM_REAL_SOPS_BASELINE"
+fi
 
 # the builder's system, used to address flake.lib.<system>.* (the menu's
 # hostAspects, --print-target, and mkInstallTarget all live there).
@@ -175,7 +205,7 @@ if [ -z "$HOST" ]; then
   if [ "${SKADI_INSTALL_UNATTENDED:-}" != 1 ] && [ -t 0 ]; then
     select_target
   else
-    die "usage: skadi-install <host> [--drop a,b,c] [--print-target]   (e.g. skadi-install khion --drop gpu-nvidia)"
+    die "usage: skadi-install <host> [--drop a,b,c] [--print-target] [--yes-wipe-all-disks]   (e.g. skadi-install khion --drop gpu-nvidia)"
   fi
 fi
 
@@ -305,7 +335,9 @@ else
 fi
 [ "$confirm" = "$HOST" ] || die "aborted"
 log "running disko (destroy,format,mount)"
-disko --mode destroy,format,mount --flake ".#${HOST}"
+disko_wipe=()
+[ "$YES_WIPE" = 1 ] && disko_wipe=(--yes-wipe-all-disks)
+disko "${disko_wipe[@]}" --mode destroy,format,mount --flake ".#${HOST}"
 
 # generic: /mnt is now mounted, so generate hardware.nix from this machine and
 # stage it over the placeholder before the closure build reads it. disko owns the
@@ -325,6 +357,7 @@ STORE_RELOCATED=0
 teardown() {
   swapon --show=NAME --noheadings 2>/dev/null | grep -qxF "$SWAPFILE" && swapoff "$SWAPFILE" || true
   rm -f "$SWAPFILE"
+  [ -z "${VM_REAL_SOPS_BASELINE:-}" ] || rm -f "$VM_REAL_SOPS_BASELINE"
   # drop the disk-backed store overlay + its build cruft (best-effort; a reboot
   # / impermanence would also clear it, but don't leave it on the target).
   if [ "${STORE_RELOCATED:-0}" = 1 ]; then
@@ -397,22 +430,27 @@ systemctl restart nix-daemon
 mkdir -p "$MNT/nix-build-tmp"
 log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 
-# Host keys -> /persist. The disposable vm test uses a committed, explicitly
-# unsafe test identity so its encrypted fixture and resulting closure are stable.
-# Every other host keeps the ordinary fresh-key provisioning flow.
+# Host keys -> /persist. The disposable vm test uses the harness-generated,
+# per-run identity that encrypts its generated fixture. Every other host keeps
+# the ordinary fresh-key provisioning flow.
 install -d -m0755 "$MNT/persist/etc/ssh"
 VM_TEST_IDENTITY=0
-VM_TEST_DIR="$WORK/modules/hosts/_vm"
-VM_TEST_KEY="$VM_TEST_DIR/ssh_host_ed25519_key"
-VM_TEST_PUB="$VM_TEST_KEY.pub"
-VM_TEST_FIXTURE="$VM_TEST_DIR/secrets.yaml"
+VM_TEST_IDENTITY_DIR="${SKADI_VM_TEST_IDENTITY_DIR:-}"
+VM_TEST_KEY="$VM_TEST_IDENTITY_DIR/ssh_host_ed25519_key"
+VM_TEST_PUB="$VM_TEST_IDENTITY_DIR/ssh_host_ed25519_key.pub"
+VM_TEST_FIXTURE="$WORK/modules/hosts/_vm/secrets.yaml"
 
 if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "$HOST" = vm ]; then
   VM_TEST_IDENTITY=1
+  [ -n "$VM_TEST_IDENTITY_DIR" ] || die "vm test identity dir missing (set SKADI_VM_TEST_IDENTITY_DIR=/run/skadi-vm-identity)"
+  case "$VM_TEST_IDENTITY_DIR" in
+    "$WORK"|"$WORK"/*) die "vm test identity dir must stay outside the prepared source tree: $VM_TEST_IDENTITY_DIR" ;;
+    /nix/store|/nix/store/*) die "vm test identity dir must stay outside /nix/store: $VM_TEST_IDENTITY_DIR" ;;
+  esac
   for required in "$VM_TEST_KEY" "$VM_TEST_PUB" "$VM_TEST_FIXTURE"; do
     [ -f "$required" ] || die "vm test identity fixture missing: $required"
   done
-  log "installing fixed TEST-ONLY vm host identity"
+  log "installing throwaway TEST-ONLY vm host identity"
   install -m0600 "$VM_TEST_KEY" "$MNT/persist/etc/ssh/ssh_host_ed25519_key"
   install -m0644 "$VM_TEST_PUB" "$MNT/persist/etc/ssh/ssh_host_ed25519_key.pub"
   ssh-keygen -t rsa -b 4096 -N "" -C "root@vm-test" \
@@ -564,21 +602,31 @@ provision_secrets() {
 }
 
 assert_vm_test_identity() {
-  local expected_pub installed_pub actual_names fixture_hash configured_file configured_hash
+  local expected_pub runtime_pub actual_names fixture_hash configured_file configured_hash
   local age_key decrypted
 
-  expected_pub="$(cut -d' ' -f1-2 "$VM_TEST_PUB")"
-  installed_pub="$(ssh-keygen -y -f "$MNT/persist/etc/ssh/ssh_host_ed25519_key" | cut -d' ' -f1-2)"
-  [ "$installed_pub" = "$expected_pub" ] \
-    || die "installed vm test host identity does not match committed public key"
+  expected_pub="$(awk 'NF >= 2 { print $1 " " $2; exit }' "$VM_TEST_PUB")"
+  runtime_pub="$(ssh-keygen -y -f "$VM_TEST_KEY" | awk 'NF >= 2 { print $1 " " $2; exit }')"
+  [ -n "$expected_pub" ] || die "vm test public key is malformed"
+  [ -n "$runtime_pub" ] || die "vm test private key did not yield a public key"
+  [ "$runtime_pub" = "$expected_pub" ] \
+    || die "vm test runtime identity does not match its public key"
 
   # The public test identity must never be a recipient of real encrypted files
   # or real creation rules. The real files must also remain byte-untouched.
-  if grep -Fq "$AGE_RECIP" .sops.yaml secrets/lumi.yaml secrets/secrets.yaml; then
+  if grep -R -Fq -- "$AGE_RECIP" .sops.yaml secrets; then
     die "SECURITY INVARIANT: vm test recipient appears in real SOPS material"
   fi
-  git diff --quiet -- .sops.yaml secrets/lumi.yaml secrets/secrets.yaml \
-    || die "SECURITY INVARIANT: real SOPS material changed during vm test install"
+  local current_real_sops
+  [ -n "$VM_REAL_SOPS_BASELINE" ] && [ -f "$VM_REAL_SOPS_BASELINE" ] \
+    || die "SECURITY INVARIANT: real SOPS baseline is missing"
+  current_real_sops="$(mktemp)"
+  hash_real_sops_material > "$current_real_sops"
+  if ! cmp -s "$VM_REAL_SOPS_BASELINE" "$current_real_sops"; then
+    rm -f "$current_real_sops"
+    die "SECURITY INVARIANT: real SOPS material changed during vm test install"
+  fi
+  rm -f "$current_real_sops"
 
   actual_names="$(eval_target .config.sops.secrets | jq -c 'keys | sort')"
   [ "$actual_names" = '["feltfomo-password","notion-token"]' ] \
@@ -590,12 +638,12 @@ assert_vm_test_identity() {
     [ -f "$configured_file" ] || die "$name effective sopsFile is missing"
     configured_hash="$(sha256sum "$configured_file" | awk '{print $1}')"
     [ "$configured_hash" = "$fixture_hash" ] \
-      || die "$name does not resolve to the committed _vm fixture"
+      || die "$name does not resolve to the generated _vm fixture"
   done
 
   age_key="$(mktemp)"
   chmod 0600 "$age_key"
-  ssh-to-age -private-key -i "$MNT/persist/etc/ssh/ssh_host_ed25519_key" > "$age_key"
+  ssh-to-age -private-key -i "$VM_TEST_KEY" > "$age_key"
   decrypted="$(SOPS_AGE_KEY_FILE="$age_key" sops --decrypt --output-type json "$VM_TEST_FIXTURE")"
   rm -f "$age_key"
   jq -e '
@@ -603,12 +651,12 @@ assert_vm_test_identity() {
     and .["feltfomo-password"] == "$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0"
     and .["notion-token"] == "NOTION_TOKEN=REPLACE_ME"
   ' >/dev/null <<<"$decrypted" || die "vm test fixture plaintext failed invariant check"
-  log "vm test identity assertions passed (fixed key, exact secret set, fixture decrypt, real secrets untouched)"
+  log "vm test identity assertions passed (per-run key, exact secret set, fixture decrypt, real secrets untouched)"
 }
 
 if [ "$VM_TEST_IDENTITY" = 1 ]; then
   assert_vm_test_identity
-  log "using committed byte-identical vm test fixture; skipping provision_secrets"
+  log "using generated byte-identical vm test fixture; skipping provision_secrets"
 else
   provision_secrets
 fi

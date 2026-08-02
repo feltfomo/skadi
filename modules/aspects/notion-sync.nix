@@ -76,6 +76,7 @@
                   "result"
                   "result-*"
                   "node_modules"
+                  "target"
                   "*.lock"
                   ".direnv"
                   "assets"
@@ -119,7 +120,6 @@
                   "*.fd"
                 ];
               }
-              # reference clone of den -- read-only source exploration (see "Exploring den")
               {
                 name = "den";
                 local_root = "/home/feltfomo/Reference-Projects/den";
@@ -140,7 +140,7 @@
                   "*.fd"
                 ];
               }
-              # workflow-workbench -- the spw build/publish tool (Sol dogfood). process
+              # workflow-workbench -- the spw build/publish tool. process
               # docs (roadmap, maintainer guide) stay Notion-only; this mirrors the repo
               # source. keep flake.lock synced -- do NOT ignore it.
               {

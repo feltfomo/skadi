@@ -5,13 +5,17 @@ source = "wallpaper"
 wallpaper_scheme = "m3-content"
 
 [theme.templates]
-builtin_ids = ["alacritty", "btop", "cava", "emacs", "foot", "gtk3", "gtk4", "helix", "kcolorscheme", "qt", "wezterm"]
+builtin_ids = [
+  "alacritty",
+  "btop",
+  "cava",
+  "emacs",
+  "foot",
+  "gtk3",
+  "gtk4",
+  "helix",
+  "kcolorscheme",
+  "qt",
+  "wezterm",
+]
 community_ids = ["zed", "discord", "steam", "telegram"]
-
-[theme.templates.user.firefox-chrome]
-input_path = "~/.config/noctalia/templates/firefox/userChrome.css"
-output_path = "~/.config/mozilla/firefox/feltfomo/chrome/userChrome.css"
-
-[theme.templates.user.firefox-content]
-input_path = "~/.config/noctalia/templates/firefox/userContent.css"
-output_path = "~/.config/mozilla/firefox/feltfomo/chrome/userContent.css"

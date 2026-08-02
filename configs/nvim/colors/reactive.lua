@@ -1,0 +1,374 @@
+-- reactive is a colorscheme driven by the noctalia palette. the repo copy is a
+-- template and noctalia renders it into ~/.config/nvim/colors/reactive.lua on
+-- every theme change. edit the template, never the rendered file.
+
+vim.cmd("hi clear")
+if vim.fn.exists("syntax_on") then
+	vim.cmd("syntax reset")
+end
+vim.g.colors_name = "reactive"
+
+local dark = {
+	bg = "{{ colors.background.dark.hex }}",
+	bg_dim = "{{ colors.surface_dim.dark.hex }}",
+	surface = "{{ colors.surface.dark.hex }}",
+	container = "{{ colors.surface_container.dark.hex }}",
+	container_high = "{{ colors.surface_container_high.dark.hex }}",
+	container_highest = "{{ colors.surface_container_highest.dark.hex }}",
+	fg = "{{ colors.on_surface.dark.hex }}",
+	fg_muted = "{{ colors.on_surface_variant.dark.hex }}",
+	primary = "{{ colors.primary.dark.hex }}",
+	on_primary = "{{ colors.on_primary.dark.hex }}",
+	primary_container = "{{ colors.primary_container.dark.hex }}",
+	on_primary_container = "{{ colors.on_primary_container.dark.hex }}",
+	secondary = "{{ colors.secondary.dark.hex }}",
+	secondary_container = "{{ colors.secondary_container.dark.hex }}",
+	on_secondary_container = "{{ colors.on_secondary_container.dark.hex }}",
+	tertiary = "{{ colors.tertiary.dark.hex }}",
+	on_tertiary = "{{ colors.on_tertiary.dark.hex }}",
+	tertiary_container = "{{ colors.tertiary_container.dark.hex }}",
+	on_tertiary_container = "{{ colors.on_tertiary_container.dark.hex }}",
+	error = "{{ colors.error.dark.hex }}",
+	error_container = "{{ colors.error_container.dark.hex }}",
+	on_error_container = "{{ colors.on_error_container.dark.hex }}",
+	outline = "{{ colors.outline.dark.hex }}",
+	outline_variant = "{{ colors.outline_variant.dark.hex }}",
+	green = "{{ colors.terminal_normal_green.dark.hex }}",
+	yellow = "{{ colors.terminal_normal_yellow.dark.hex }}",
+	term = {
+		"{{ colors.terminal_normal_black.dark.hex }}",
+		"{{ colors.terminal_normal_red.dark.hex }}",
+		"{{ colors.terminal_normal_green.dark.hex }}",
+		"{{ colors.terminal_normal_yellow.dark.hex }}",
+		"{{ colors.terminal_normal_blue.dark.hex }}",
+		"{{ colors.terminal_normal_magenta.dark.hex }}",
+		"{{ colors.terminal_normal_cyan.dark.hex }}",
+		"{{ colors.terminal_normal_white.dark.hex }}",
+		"{{ colors.terminal_bright_black.dark.hex }}",
+		"{{ colors.terminal_bright_red.dark.hex }}",
+		"{{ colors.terminal_bright_green.dark.hex }}",
+		"{{ colors.terminal_bright_yellow.dark.hex }}",
+		"{{ colors.terminal_bright_blue.dark.hex }}",
+		"{{ colors.terminal_bright_magenta.dark.hex }}",
+		"{{ colors.terminal_bright_cyan.dark.hex }}",
+		"{{ colors.terminal_bright_white.dark.hex }}",
+	},
+}
+
+local light = {
+	bg = "{{ colors.background.light.hex }}",
+	bg_dim = "{{ colors.surface_dim.light.hex }}",
+	surface = "{{ colors.surface.light.hex }}",
+	container = "{{ colors.surface_container.light.hex }}",
+	container_high = "{{ colors.surface_container_high.light.hex }}",
+	container_highest = "{{ colors.surface_container_highest.light.hex }}",
+	fg = "{{ colors.on_surface.light.hex }}",
+	fg_muted = "{{ colors.on_surface_variant.light.hex }}",
+	primary = "{{ colors.primary.light.hex }}",
+	on_primary = "{{ colors.on_primary.light.hex }}",
+	primary_container = "{{ colors.primary_container.light.hex }}",
+	on_primary_container = "{{ colors.on_primary_container.light.hex }}",
+	secondary = "{{ colors.secondary.light.hex }}",
+	secondary_container = "{{ colors.secondary_container.light.hex }}",
+	on_secondary_container = "{{ colors.on_secondary_container.light.hex }}",
+	tertiary = "{{ colors.tertiary.light.hex }}",
+	on_tertiary = "{{ colors.on_tertiary.light.hex }}",
+	tertiary_container = "{{ colors.tertiary_container.light.hex }}",
+	on_tertiary_container = "{{ colors.on_tertiary_container.light.hex }}",
+	error = "{{ colors.error.light.hex }}",
+	error_container = "{{ colors.error_container.light.hex }}",
+	on_error_container = "{{ colors.on_error_container.light.hex }}",
+	outline = "{{ colors.outline.light.hex }}",
+	outline_variant = "{{ colors.outline_variant.light.hex }}",
+	green = "{{ colors.terminal_normal_green.light.hex }}",
+	yellow = "{{ colors.terminal_normal_yellow.light.hex }}",
+	term = {
+		"{{ colors.terminal_normal_black.light.hex }}",
+		"{{ colors.terminal_normal_red.light.hex }}",
+		"{{ colors.terminal_normal_green.light.hex }}",
+		"{{ colors.terminal_normal_yellow.light.hex }}",
+		"{{ colors.terminal_normal_blue.light.hex }}",
+		"{{ colors.terminal_normal_magenta.light.hex }}",
+		"{{ colors.terminal_normal_cyan.light.hex }}",
+		"{{ colors.terminal_normal_white.light.hex }}",
+		"{{ colors.terminal_bright_black.light.hex }}",
+		"{{ colors.terminal_bright_red.light.hex }}",
+		"{{ colors.terminal_bright_green.light.hex }}",
+		"{{ colors.terminal_bright_yellow.light.hex }}",
+		"{{ colors.terminal_bright_blue.light.hex }}",
+		"{{ colors.terminal_bright_magenta.light.hex }}",
+		"{{ colors.terminal_bright_cyan.light.hex }}",
+		"{{ colors.terminal_bright_white.light.hex }}",
+	},
+}
+
+local p = vim.o.background == "light" and light or dark
+
+local function hl(group, opts)
+	vim.api.nvim_set_hl(0, group, opts)
+end
+
+hl("Normal", { fg = p.fg, bg = p.bg })
+hl("NormalNC", { link = "Normal" })
+hl("NormalFloat", { fg = p.fg, bg = p.surface })
+hl("FloatBorder", { fg = p.outline, bg = p.surface })
+hl("FloatTitle", { fg = p.primary, bg = p.surface })
+hl("Cursor", { fg = p.bg, bg = p.fg })
+hl("CursorLine", { bg = p.container })
+hl("CursorColumn", { link = "CursorLine" })
+hl("ColorColumn", { bg = p.container })
+hl("LineNr", { fg = p.outline_variant })
+hl("CursorLineNr", { fg = p.primary, bold = true })
+hl("CursorLineSign", { link = "SignColumn" })
+hl("CursorLineFold", { link = "FoldColumn" })
+hl("SignColumn", { bg = p.bg })
+hl("FoldColumn", { fg = p.outline_variant })
+hl("Folded", { fg = p.fg_muted, bg = p.surface })
+hl("StatusLine", { fg = p.fg, bg = p.container })
+hl("StatusLineNC", { fg = p.fg_muted, bg = p.bg_dim })
+hl("WinSeparator", { fg = p.outline_variant })
+hl("TabLine", { fg = p.fg_muted, bg = p.bg_dim })
+hl("TabLineSel", { fg = p.fg, bg = p.container })
+hl("TabLineFill", { bg = p.bg_dim })
+hl("Pmenu", { fg = p.fg, bg = p.surface })
+hl("PmenuSel", { fg = p.on_primary_container, bg = p.primary_container })
+hl("PmenuSbar", { bg = p.container })
+hl("PmenuThumb", { bg = p.outline })
+hl("PmenuKind", { fg = p.secondary })
+hl("PmenuKindSel", { fg = p.on_secondary_container, bg = p.secondary_container })
+hl("PmenuExtra", { fg = p.fg_muted })
+hl("PmenuExtraSel", { fg = p.on_secondary_container, bg = p.secondary_container })
+hl("PmenuMatch", { fg = p.primary, bold = true })
+hl("PmenuMatchSel", { fg = p.on_primary_container, bg = p.primary_container, bold = true })
+hl("Search", { fg = p.on_tertiary_container, bg = p.tertiary_container })
+hl("IncSearch", { fg = p.on_tertiary, bg = p.tertiary })
+hl("CurSearch", { link = "IncSearch" })
+hl("Substitute", { link = "IncSearch" })
+hl("Visual", { bg = p.primary_container })
+hl("VisualNOS", { link = "Visual" })
+hl("MatchParen", { fg = p.on_secondary_container, bg = p.secondary_container, bold = true })
+hl("NonText", { fg = p.outline_variant })
+hl("Whitespace", { link = "NonText" })
+hl("SpecialKey", { link = "NonText" })
+hl("Conceal", { fg = p.fg_muted })
+hl("EndOfBuffer", { fg = p.bg })
+hl("Directory", { fg = p.primary })
+hl("Title", { fg = p.primary, bold = true })
+hl("ModeMsg", { fg = p.fg_muted })
+hl("MoreMsg", { fg = p.primary })
+hl("Question", { fg = p.primary })
+hl("WarningMsg", { fg = p.error })
+hl("ErrorMsg", { fg = p.error })
+hl("MsgSeparator", { fg = p.outline_variant })
+hl("WinBar", { fg = p.fg_muted })
+hl("WinBarNC", { fg = p.outline_variant })
+hl("QuickFixLine", { bg = p.container })
+hl("SpellBad", { undercurl = true, sp = p.error })
+hl("SpellCap", { undercurl = true, sp = p.tertiary })
+hl("SpellLocal", { undercurl = true, sp = p.secondary })
+hl("SpellRare", { undercurl = true, sp = p.outline_variant })
+hl("WildMenu", { link = "PmenuSel" })
+hl("Comment", { fg = p.fg_muted, italic = true })
+hl("Constant", { fg = p.secondary })
+hl("String", { fg = p.tertiary })
+hl("Character", { link = "String" })
+hl("Number", { fg = p.secondary })
+hl("Boolean", { fg = p.secondary, bold = true })
+hl("Float", { link = "Number" })
+hl("Identifier", { fg = p.fg })
+hl("Function", { fg = p.primary })
+hl("Statement", { fg = p.primary })
+hl("Conditional", { link = "Keyword" })
+hl("Repeat", { link = "Keyword" })
+hl("Label", { fg = p.secondary })
+hl("Operator", { fg = p.fg_muted })
+hl("Keyword", { fg = p.primary })
+hl("Exception", { fg = p.error })
+hl("PreProc", { fg = p.secondary })
+hl("Include", { fg = p.primary })
+hl("Define", { fg = p.secondary })
+hl("Macro", { fg = p.secondary })
+hl("PreCondit", { link = "PreProc" })
+hl("Type", { fg = p.secondary })
+hl("StorageClass", { fg = p.secondary })
+hl("Structure", { fg = p.secondary })
+hl("Typedef", { link = "Type" })
+hl("Special", { fg = p.tertiary })
+hl("SpecialChar", { fg = p.tertiary })
+hl("Tag", { fg = p.primary })
+hl("Delimiter", { fg = p.fg_muted })
+hl("SpecialComment", { fg = p.fg_muted })
+hl("Debug", { fg = p.error })
+hl("Underlined", { fg = p.primary, underline = true })
+hl("Ignore", { fg = p.outline_variant })
+hl("Error", { fg = p.error })
+hl("Todo", { fg = p.on_tertiary_container, bg = p.tertiary_container, bold = true })
+hl("Added", { fg = p.green })
+hl("Changed", { fg = p.tertiary })
+hl("Removed", { fg = p.error })
+hl("@variable", { fg = p.fg })
+hl("@variable.builtin", { fg = p.secondary, italic = true })
+hl("@variable.parameter", { fg = p.fg })
+hl("@variable.member", { fg = p.tertiary })
+hl("@constant", { link = "Constant" })
+hl("@constant.builtin", { fg = p.secondary, bold = true })
+hl("@constant.macro", { link = "Macro" })
+hl("@module", { fg = p.secondary })
+hl("@label", { link = "Label" })
+hl("@string", { link = "String" })
+hl("@string.documentation", { link = "String" })
+hl("@string.escape", { fg = p.secondary })
+hl("@string.special", { link = "SpecialChar" })
+hl("@character", { link = "Character" })
+hl("@character.special", { link = "SpecialChar" })
+hl("@boolean", { link = "Boolean" })
+hl("@number", { link = "Number" })
+hl("@number.float", { link = "Float" })
+hl("@float", { link = "Float" })
+hl("@function", { link = "Function" })
+hl("@function.builtin", { fg = p.primary, bold = true })
+hl("@function.call", { link = "Function" })
+hl("@function.macro", { link = "Macro" })
+hl("@function.method", { link = "Function" })
+hl("@function.method.call", { link = "Function" })
+hl("@constructor", { fg = p.secondary })
+hl("@operator", { link = "Operator" })
+hl("@keyword", { link = "Keyword" })
+hl("@keyword.function", { fg = p.primary })
+hl("@keyword.operator", { fg = p.primary })
+hl("@keyword.import", { link = "Include" })
+hl("@keyword.type", { fg = p.secondary })
+hl("@keyword.modifier", { fg = p.secondary })
+hl("@keyword.repeat", { fg = p.primary })
+hl("@keyword.return", { fg = p.primary })
+hl("@keyword.conditional", { fg = p.primary })
+hl("@keyword.exception", { fg = p.error })
+hl("@keyword.coroutine", { fg = p.primary })
+hl("@keyword.debug", { link = "Debug" })
+hl("@keyword.directive", { link = "PreProc" })
+hl("@keyword.directive.define", { link = "Define" })
+hl("@type", { link = "Type" })
+hl("@type.builtin", { fg = p.secondary, italic = true })
+hl("@type.definition", { link = "Typedef" })
+hl("@type.qualifier", { fg = p.secondary })
+hl("@attribute", { fg = p.tertiary })
+hl("@property", { fg = p.tertiary })
+hl("@punctuation.delimiter", { link = "Delimiter" })
+hl("@punctuation.bracket", { fg = p.fg_muted })
+hl("@punctuation.special", { fg = p.tertiary })
+hl("@comment", { link = "Comment" })
+hl("@comment.documentation", { fg = p.fg_muted, italic = true })
+hl("@comment.error", { fg = p.error })
+hl("@comment.warning", { fg = p.tertiary })
+hl("@comment.note", { fg = p.secondary })
+hl("@comment.todo", { link = "Todo" })
+hl("@markup.heading", { fg = p.primary, bold = true })
+hl("@markup.link", { fg = p.tertiary })
+hl("@markup.link.label", { fg = p.secondary })
+hl("@markup.link.url", { fg = p.primary, underline = true })
+hl("@markup.raw", { fg = p.tertiary })
+hl("@markup.quote", { fg = p.fg_muted, italic = true })
+hl("@markup.list", { fg = p.secondary })
+hl("@markup.strong", { bold = true })
+hl("@markup.italic", { italic = true })
+hl("@markup.strikethrough", { strikethrough = true })
+hl("@markup.underline", { underline = true })
+hl("@tag", { fg = p.primary })
+hl("@tag.builtin", { fg = p.primary })
+hl("@tag.attribute", { fg = p.secondary })
+hl("@tag.delimiter", { fg = p.fg_muted })
+hl("@diff.plus", { fg = p.green })
+hl("@diff.minus", { fg = p.error })
+hl("@diff.delta", { fg = p.tertiary })
+hl("@none", {})
+hl("DiagnosticError", { fg = p.error })
+hl("DiagnosticWarn", { fg = p.tertiary })
+hl("DiagnosticInfo", { fg = p.secondary })
+hl("DiagnosticHint", { fg = p.fg_muted })
+hl("DiagnosticOk", { fg = p.green })
+hl("DiagnosticVirtualTextError", { fg = p.error, bg = p.error_container })
+hl("DiagnosticVirtualTextWarn", { fg = p.on_tertiary_container, bg = p.tertiary_container })
+hl("DiagnosticVirtualTextInfo", { fg = p.on_secondary_container, bg = p.secondary_container })
+hl("DiagnosticVirtualTextHint", { fg = p.fg_muted, bg = p.surface })
+hl("DiagnosticVirtualTextOk", { fg = p.green, bg = p.surface })
+hl("DiagnosticUnderlineError", { undercurl = true, sp = p.error })
+hl("DiagnosticUnderlineWarn", { undercurl = true, sp = p.tertiary })
+hl("DiagnosticUnderlineInfo", { undercurl = true, sp = p.secondary })
+hl("DiagnosticUnderlineHint", { undercurl = true, sp = p.outline_variant })
+hl("DiagnosticUnderlineOk", { undercurl = true, sp = p.green })
+hl("DiagnosticFloatingError", { link = "DiagnosticError" })
+hl("DiagnosticFloatingWarn", { link = "DiagnosticWarn" })
+hl("DiagnosticFloatingInfo", { link = "DiagnosticInfo" })
+hl("DiagnosticFloatingHint", { link = "DiagnosticHint" })
+hl("DiagnosticFloatingOk", { link = "DiagnosticOk" })
+hl("DiagnosticSignError", { link = "DiagnosticError" })
+hl("DiagnosticSignWarn", { link = "DiagnosticWarn" })
+hl("DiagnosticSignInfo", { link = "DiagnosticInfo" })
+hl("DiagnosticSignHint", { link = "DiagnosticHint" })
+hl("DiagnosticSignOk", { link = "DiagnosticOk" })
+hl("DiagnosticDeprecated", { strikethrough = true, sp = p.error })
+hl("DiagnosticUnnecessary", { fg = p.outline_variant })
+hl("DiffAdd", { fg = p.green, bg = p.surface })
+hl("DiffChange", { fg = p.tertiary, bg = p.surface })
+hl("DiffDelete", { fg = p.error, bg = p.surface })
+hl("DiffText", { fg = p.on_tertiary_container, bg = p.tertiary_container })
+hl("diffAdded", { link = "Added" })
+hl("diffRemoved", { link = "Removed" })
+hl("diffChanged", { link = "Changed" })
+hl("diffOldFile", { fg = p.error })
+hl("diffNewFile", { fg = p.green })
+hl("diffFile", { fg = p.primary })
+hl("diffLine", { fg = p.fg_muted })
+hl("diffIndexLine", { fg = p.secondary })
+hl("LspReferenceText", { bg = p.container })
+hl("LspReferenceRead", { bg = p.container })
+hl("LspReferenceWrite", { bg = p.container_high })
+hl("LspInlayHint", { fg = p.outline_variant, bg = p.surface })
+hl("LspCodeLens", { fg = p.outline_variant })
+hl("LspSignatureActiveParameter", { fg = p.on_tertiary_container, bg = p.tertiary_container })
+hl("TelescopeNormal", { fg = p.fg, bg = p.surface })
+hl("TelescopeBorder", { fg = p.outline, bg = p.surface })
+hl("TelescopePromptNormal", { fg = p.fg, bg = p.container })
+hl("TelescopePromptBorder", { fg = p.outline, bg = p.container })
+hl("TelescopePromptTitle", { fg = p.on_primary, bg = p.primary })
+hl("TelescopePromptPrefix", { fg = p.primary })
+hl("TelescopePromptCounter", { fg = p.fg_muted })
+hl("TelescopeResultsTitle", { fg = p.fg_muted, bg = p.surface })
+hl("TelescopePreviewTitle", { fg = p.fg_muted, bg = p.surface })
+hl("TelescopeSelection", { fg = p.fg, bg = p.container })
+hl("TelescopeSelectionCaret", { fg = p.primary, bg = p.container })
+hl("TelescopeMatching", { fg = p.primary, bold = true })
+hl("TelescopeMultiSelection", { fg = p.secondary })
+hl("BlinkCmpMenu", { link = "Pmenu" })
+hl("BlinkCmpMenuBorder", { link = "FloatBorder" })
+hl("BlinkCmpMenuSelection", { link = "PmenuSel" })
+hl("BlinkCmpScrollBarThumb", { link = "PmenuThumb" })
+hl("BlinkCmpScrollBarGutter", { link = "PmenuSbar" })
+hl("BlinkCmpLabel", { fg = p.fg })
+hl("BlinkCmpLabelDeprecated", { fg = p.outline_variant, strikethrough = true })
+hl("BlinkCmpLabelMatch", { fg = p.primary, bold = true })
+hl("BlinkCmpLabelDetail", { fg = p.fg_muted })
+hl("BlinkCmpLabelDescription", { fg = p.fg_muted })
+hl("BlinkCmpKind", { fg = p.secondary })
+hl("BlinkCmpSource", { fg = p.outline_variant })
+hl("BlinkCmpGhostText", { fg = p.outline_variant })
+hl("BlinkCmpDoc", { fg = p.fg, bg = p.surface })
+hl("BlinkCmpDocBorder", { fg = p.outline, bg = p.surface })
+hl("BlinkCmpDocSeparator", { fg = p.outline_variant, bg = p.surface })
+hl("BlinkCmpSignatureHelp", { fg = p.fg, bg = p.surface })
+hl("BlinkCmpSignatureHelpBorder", { fg = p.outline, bg = p.surface })
+hl("LazyNormal", { fg = p.fg, bg = p.surface })
+hl("LazyButton", { fg = p.fg, bg = p.container })
+hl("LazyButtonActive", { fg = p.on_primary_container, bg = p.primary_container })
+hl("LazyH1", { fg = p.on_primary, bg = p.primary })
+hl("LazyH2", { fg = p.primary, bold = true })
+hl("LazySpecial", { fg = p.secondary })
+hl("LazyProgressDone", { fg = p.primary })
+hl("LazyProgressTodo", { fg = p.outline_variant })
+hl("LazyReasonPlugin", { fg = p.tertiary })
+
+vim.g.terminal_color_background = p.bg
+vim.g.terminal_color_foreground = p.fg
+for i, c in ipairs(p.term) do
+	vim.g["terminal_color_" .. (i - 1)] = c
+end

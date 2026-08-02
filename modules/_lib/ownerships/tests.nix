@@ -10,7 +10,7 @@ let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   merge = import ./merge.nix { inherit lib; };
-  safeRenderLib = import ./safe-render.nix { inherit lib; };
+  krisis = import ../krisis { inherit lib; };
 
   inherit (axes)
     include
@@ -19,7 +19,7 @@ let
     mkSetAxis
     predicateAxis
     ;
-  inherit (safeRenderLib) safeRender safeShape;
+  inherit (krisis) safeRender safeShape;
 
   # stubbed roster -- the real den-backed one replaces this later.
   registry = axes.registry {
@@ -1226,7 +1226,13 @@ let
 
     {
       name = "golden error: renderDiags exactly renders 2 diagnostics (unlabeled poison-carrying unit + labeled unit) without forcing either payload";
-      pass = builtins.length goldenDiags == 2 && engine.renderDiags goldenDiags == goldenExpected;
+      pass =
+        let
+          rendered = engine.renderDiags goldenDiags;
+        in
+        builtins.length goldenDiags == 2
+        && (builtins.tryEval (builtins.deepSeq rendered rendered)).success
+        && rendered == goldenExpected;
     }
 
     {

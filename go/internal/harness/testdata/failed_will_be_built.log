@@ -1,0 +1,11 @@
+# provenance real Lix CLI grammar capture
+# command env NO_COLOR=1 TERM=dumb nix --log-format raw build --impure --file /tmp/skadi-h6-lix-grammar.neguBY/single.nix --store 'local?root=/tmp/skadi-h6-lix-grammar.neguBY/plain-build-single-store' --no-link -L --option sandbox false --option substituters '' --option require-sigs false --option builders '' --option max-jobs 1
+# lix version nix (Lix, like Nix) 2.96.0-dev-pre20260728-dev_64c99ac
+# store root /tmp/skadi-h6-lix-grammar.neguBY/plain-build-single-store
+# capture date 2026-07-29T17:18:59+00:00
+# raw capture sha256 77169bba2b4eabe163c1a0372732391d74dffb429c19348911df20abc1097c9f
+this derivation will be built:
+  /nix/store/c5xv7ki7swz81azqjfcg449ajmm9v97s-skadi-h6-single.drv
+warning: auto-enabling the sandbox due to using a diverted store
+warning: Failed to use the system-wide build directory '/nix/var/nix/b', falling back to a temporary directory inside '/tmp/nix-builds-1000-7fvvbl6krxz4mjpz2r4rb6qwwl'
+building '/nix/store/c5xv7ki7swz81azqjfcg449ajmm9v97s-skadi-h6-single.drv'...
