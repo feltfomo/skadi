@@ -7,10 +7,10 @@
   # kitty claims no host or user, so it is globally owned.
   den.aspects.kitty = program {
     pkg = pkgs: pkgs.kitty;
-    files = [
+    directories = [
       {
-        dest = ".config/kitty/kitty.conf";
-        src = "${rootPath}/configs/kitty/kitty.conf";
+        src = "${rootPath}/configs/kitty";
+        dest = ".config/kitty";
       }
     ];
     theme.noctalia = {

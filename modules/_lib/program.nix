@@ -19,6 +19,12 @@ let
     "when"
   ];
   claimKeysAttrs = lib.genAttrs claimKeys (_: null);
+  lifecycleKeys = [
+    "representation"
+    "onConflict"
+    "provenance"
+  ];
+  lifecycleKeysAttrs = lib.genAttrs lifecycleKeys (_: null);
 
   problem =
     code: message:
@@ -68,6 +74,9 @@ let
           ++ lib.optional (spec ? files && !builtins.isList spec.files) (
             problem "program/files-shape" "files must be a list"
           )
+          ++ lib.optional (spec ? directories && !builtins.isList spec.directories) (
+            problem "program/directories-shape" "directories must be a list"
+          )
           ++ lib.optional (!themeIsAttrs) (problem "program/theme-shape" "theme must be an attribute set")
           ++ lib.optional (!blockIsAttrs) (
             problem "program/noctalia-shape" "theme.noctalia must be an attribute set"
@@ -94,6 +103,52 @@ let
     (if builtins.isAttrs entry then builtins.intersectAttrs claimKeysAttrs entry else { })
     // {
       ${fieldName} = [ (if builtins.isAttrs entry then removeAttrs entry claimKeys else entry) ];
+    };
+
+  safeRuleNames =
+    rule:
+    if builtins.isAttrs rule && rule ? names && builtins.isList rule.names then
+      builtins.filter builtins.isString rule.names
+    else
+      [ ];
+
+  directoryUnit =
+    index: directory:
+    let
+      body = if builtins.isAttrs directory then removeAttrs directory claimKeys else directory;
+      rules =
+        if builtins.isAttrs directory && directory ? files && builtins.isList directory.files then
+          directory.files
+        else
+          [ ];
+      parentClaims =
+        if builtins.isAttrs directory then builtins.intersectAttrs claimKeysAttrs directory else { };
+    in
+    parentClaims
+    // {
+      children = [
+        {
+          directoryEntries = [
+            {
+              inherit index;
+              entry = body;
+              reservedNames = builtins.concatMap safeRuleNames rules;
+            }
+          ];
+        }
+      ]
+      ++ map (
+        rule:
+        (if builtins.isAttrs rule then builtins.intersectAttrs claimKeysAttrs rule else { })
+        // {
+          directoryFileRules = [
+            {
+              inherit index;
+              entry = if builtins.isAttrs rule then removeAttrs rule claimKeys else rule;
+            }
+          ];
+        }
+      ) rules;
     };
 
   # theme entries stay descriptive until ownership has selected them.
@@ -126,7 +181,10 @@ let
     spec:
     (builtins.intersectAttrs claimKeysAttrs spec)
     // {
-      children = map (entryUnit "files") (spec.files or [ ]) ++ themeUnits spec;
+      children =
+        map (entryUnit "files") (spec.files or [ ])
+        ++ lib.imap0 directoryUnit (spec.directories or [ ])
+        ++ themeUnits spec;
     };
 
   specUnit =
@@ -170,6 +228,243 @@ let
           )
       ) files
     );
+
+  validRelativeName =
+    value:
+    builtins.isString value
+    && value != ""
+    && !lib.hasPrefix "/" value
+    && builtins.all (part: part != "" && part != "." && part != "..") (lib.splitString "/" value);
+
+  directoryShapeErrors =
+    wrapped:
+    let
+      subject = "directories[${toString wrapped.index}]";
+      inherit (wrapped) entry;
+    in
+    if !builtins.isAttrs entry then
+      [ (problem "program/directory-entry-shape" "${subject} must be an attribute set") ]
+    else
+      lib.optional (!(entry ? src)) (problem "program/directory-source" "${subject}.src is required")
+      ++ lib.optional (entry ? src && !(builtins.isPath entry.src || builtins.isString entry.src)) (
+        problem "program/directory-source-shape" "${subject}.src must be a path or string"
+      )
+      ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (
+        problem "program/directory-destination" "${subject}.dest must be a non-empty string"
+      )
+      ++ lib.optional (entry ? exclude && !builtins.isList entry.exclude) (
+        problem "program/directory-exclude-shape" "${subject}.exclude must be a list"
+      )
+      ++ lib.optionals (entry ? exclude && builtins.isList entry.exclude) (
+        lib.optional (!(builtins.all validRelativeName entry.exclude)) (
+          problem "program/directory-exclude-name" "${subject}.exclude must contain normalized relative paths"
+        )
+      )
+      ++ lib.optional (entry ? files && !builtins.isList entry.files) (
+        problem "program/directory-files-shape" "${subject}.files must be a list"
+      )
+      ++ lib.optional (entry ? representation && !builtins.isString entry.representation) (
+        problem "program/directory-representation" "${subject}.representation must be a string"
+      )
+      ++ lib.optional (entry ? onConflict && !builtins.isString entry.onConflict) (
+        problem "program/directory-conflict-policy" "${subject}.onConflict must be a string"
+      )
+      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (
+        problem "program/directory-provenance" "${subject}.provenance must be a string"
+      );
+
+  directoryRuleErrors =
+    wrapped:
+    let
+      subject = "directories[${toString wrapped.index}].files";
+      inherit (wrapped) entry;
+    in
+    if !builtins.isAttrs entry then
+      [ (problem "program/directory-file-shape" "${subject} entries must be attribute sets") ]
+    else
+      lib.optional (!(entry ? names) || !builtins.isList entry.names || entry.names == [ ]) (
+        problem "program/directory-file-names" "${subject}.names must be a non-empty list"
+      )
+      ++ lib.optionals (entry ? names && builtins.isList entry.names) (
+        lib.optional (!(builtins.all validRelativeName entry.names)) (
+          problem "program/directory-file-name" "${subject}.names must contain normalized relative paths"
+        )
+      )
+      ++ lib.optional (entry ? src || entry ? dest) (
+        problem "program/directory-file-address" "${subject} entries cannot override src or dest"
+      )
+      ++ lib.optional (entry ? representation && !builtins.isString entry.representation) (
+        problem "program/directory-file-representation" "${subject}.representation must be a string"
+      )
+      ++ lib.optional (entry ? onConflict && !builtins.isString entry.onConflict) (
+        problem "program/directory-file-conflict-policy" "${subject}.onConflict must be a string"
+      )
+      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (
+        problem "program/directory-file-provenance" "${subject}.provenance must be a string"
+      );
+
+  walkDirectory =
+    root:
+    let
+      walk =
+        relative:
+        let
+          current = if relative == "" then root else "${root}/${relative}";
+          scanned = builtins.tryEval (builtins.readDir current);
+        in
+        if !scanned.success then
+          {
+            diagnostics = [
+              (problem "program/directory-source-kind" "directory source ${toString current} is not readable as a directory")
+            ];
+            files = [ ];
+          }
+        else
+          lib.foldl'
+            (
+              state: name:
+              let
+                kind = scanned.value.${name};
+                child = if relative == "" then name else "${relative}/${name}";
+              in
+              if kind == "directory" then
+                let
+                  nested = walk child;
+                in
+                {
+                  diagnostics = state.diagnostics ++ nested.diagnostics;
+                  files = state.files ++ nested.files;
+                }
+              else if kind == "regular" then
+                state
+                // {
+                  files = state.files ++ [ child ];
+                }
+              else
+                state
+                // {
+                  diagnostics = state.diagnostics ++ [
+                    (problem "program/directory-member-kind" "directory source member ${child} must be a regular file or directory, not ${kind}")
+                  ];
+                }
+            )
+            {
+              diagnostics = [ ];
+              files = [ ];
+            }
+            (builtins.attrNames scanned.value);
+    in
+    walk "";
+
+  sourceRelativeTo =
+    root: source:
+    let
+      rootString = lib.removeSuffix "/" (toString root);
+      prefix = "${rootString}/";
+      sourceString = toString source;
+    in
+    if lib.hasPrefix prefix sourceString then lib.removePrefix prefix sourceString else null;
+
+  expandDirectory =
+    wrapped: rules: themeEntries:
+    let
+      shapeErrors = directoryShapeErrors wrapped;
+      entry = if builtins.isAttrs wrapped.entry then wrapped.entry else { };
+      selectedRules = builtins.filter (rule: rule.index == wrapped.index) rules;
+      selectedRuleErrors = builtins.concatMap directoryRuleErrors selectedRules;
+      sourceKind =
+        if shapeErrors != [ ] then
+          null
+        else if !builtins.pathExists entry.src then
+          "missing"
+        else
+          builtins.readFileType entry.src;
+      sourceErrors = lib.optional (shapeErrors == [ ] && sourceKind != "directory") (
+        problem "program/directory-source-kind" "directories[${toString wrapped.index}].src must be a directory, not ${sourceKind}"
+      );
+      walked =
+        if sourceErrors == [ ] && shapeErrors == [ ] then
+          walkDirectory entry.src
+        else
+          {
+            diagnostics = [ ];
+            files = [ ];
+          };
+      inventory = walked.files;
+      exclude = if entry ? exclude && builtins.isList entry.exclude then entry.exclude else [ ];
+      reserved = wrapped.reservedNames;
+      duplicateReserved = lib.filter (name: lib.count (candidate: candidate == name) reserved > 1) (
+        lib.unique reserved
+      );
+      unknownExcluded = builtins.filter (name: !(builtins.elem name inventory)) exclude;
+      unknownReserved = builtins.filter (name: !(builtins.elem name inventory)) (lib.unique reserved);
+      excludedOverrides = builtins.filter (name: builtins.elem name exclude) (lib.unique reserved);
+      themeNames = builtins.filter (name: name != null) (
+        map (theme: sourceRelativeTo entry.src theme.source) themeEntries
+      );
+      themeOverrides = builtins.filter (name: builtins.elem name themeNames) (lib.unique reserved);
+      semanticErrors =
+        lib.optional (duplicateReserved != [ ]) (
+          problem "program/directory-file-duplicate" "directories[${toString wrapped.index}] repeats override names: ${lib.concatStringsSep ", " duplicateReserved}"
+        )
+        ++ lib.optional (unknownExcluded != [ ]) (
+          problem "program/directory-exclude-unknown" "directories[${toString wrapped.index}] excludes unknown names: ${lib.concatStringsSep ", " unknownExcluded}"
+        )
+        ++ lib.optional (unknownReserved != [ ]) (
+          problem "program/directory-file-unknown" "directories[${toString wrapped.index}] overrides unknown names: ${lib.concatStringsSep ", " unknownReserved}"
+        )
+        ++ lib.optional (excludedOverrides != [ ]) (
+          problem "program/directory-file-excluded" "directories[${toString wrapped.index}] both excludes and overrides: ${lib.concatStringsSep ", " excludedOverrides}"
+        )
+        ++ lib.optional (themeOverrides != [ ]) (
+          problem "program/directory-file-themed" "directories[${toString wrapped.index}] overrides theme.noctalia sources: ${lib.concatStringsSep ", " themeOverrides}"
+        );
+      defaults = builtins.intersectAttrs lifecycleKeysAttrs entry;
+      destinationRoot = lib.removeSuffix "/" (entry.dest or "");
+      fileFor =
+        extra: name:
+        defaults
+        // builtins.intersectAttrs lifecycleKeysAttrs extra
+        // {
+          src = "${entry.src}/${name}";
+          dest = "${destinationRoot}/${name}";
+        };
+      inheritedNames = builtins.filter (
+        name:
+        !(builtins.elem name exclude) && !(builtins.elem name reserved) && !(builtins.elem name themeNames)
+      ) inventory;
+      selectedFiles = builtins.concatMap (
+        rule:
+        if builtins.isAttrs rule.entry && rule.entry ? names && builtins.isList rule.entry.names then
+          map (fileFor rule.entry) rule.entry.names
+        else
+          [ ]
+      ) selectedRules;
+      errors = shapeErrors ++ selectedRuleErrors ++ sourceErrors ++ walked.diagnostics ++ semanticErrors;
+    in
+    {
+      inherit errors;
+      files = if errors == [ ] then map (fileFor { }) inheritedNames ++ selectedFiles else [ ];
+    };
+
+  expandDirectories =
+    directories: rules: themeEntries:
+    lib.foldl'
+      (
+        state: directory:
+        let
+          expanded = expandDirectory directory rules themeEntries;
+        in
+        {
+          errors = state.errors ++ expanded.errors;
+          files = state.files ++ expanded.files;
+        }
+      )
+      {
+        errors = [ ];
+        files = [ ];
+      }
+      directories;
 
   themeEntryErrors =
     themeEntries:
@@ -233,13 +528,17 @@ let
     };
 
   validateSelected =
-    files: themeEntries:
+    files: directories: directoryFileRules: themeEntries:
     let
-      errors = fileErrors files ++ themeEntryErrors themeEntries;
+      themeErrors = themeEntryErrors themeEntries;
+      normalizedThemeEntries = if themeErrors == [ ] then map normalizeThemeEntry themeEntries else [ ];
+      expanded = expandDirectories directories directoryFileRules normalizedThemeEntries;
+      errors = fileErrors files ++ themeErrors ++ expanded.errors;
     in
     checked errors {
       inherit files;
-      themeEntries = map normalizeThemeEntry themeEntries;
+      directoryFiles = expanded.files;
+      themeEntries = normalizedThemeEntries;
     };
 
   hmConfig =
@@ -301,7 +600,10 @@ in
 rawSpec:
 let
   spec = validateSpec rawSpec;
-  ownsFiles = (spec.files or [ ]) != [ ] || (spec.theme.noctalia or null) != null;
+  ownsFiles =
+    (spec.files or [ ]) != [ ]
+    || (spec.directories or [ ]) != [ ]
+    || (spec.theme.noctalia or null) != null;
   needsHomeManager = (spec.pkg or null) != null || (spec.imports or [ ]) != [ ];
   homeUnits = [ (specUnit spec) ];
 in
@@ -345,8 +647,9 @@ lib.optionalAttrs needsHomeManager {
         hostName = config.networking.hostName;
         inherit (pkgs.stdenv.hostPlatform) system;
         resolved = (resolveSystem [ (furnishUnit spec) ]) { inherit host; };
-        selected = validateSelected (resolved.files or [ ]) (resolved.themeEntries or [ ]);
-        hostFiles = selected.files ++ themeFiles selected.themeEntries pkgs;
+        selected = validateSelected (resolved.files or [ ]) (resolved.directoryEntries or [ ]
+        ) (resolved.directoryFileRules or [ ]) (resolved.themeEntries or [ ]);
+        hostFiles = selected.files ++ selected.directoryFiles ++ themeFiles selected.themeEntries pkgs;
       in
       {
         imports = [

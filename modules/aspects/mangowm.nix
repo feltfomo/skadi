@@ -43,42 +43,27 @@
         };
       }
     ];
+    directories = [
+      {
+        src = "${rootPath}/configs/mango";
+        dest = ".config/mango";
+        exclude = [ "portal.conf" ];
+        files = [
+          {
+            names = [
+              "environment-khion.conf"
+              "monitors-khion.conf"
+            ];
+            hosts = [ "khion" ];
+          }
+          {
+            names = [ "monitors-lumi.conf" ];
+            hosts = [ "lumi" ];
+          }
+        ];
+      }
+    ];
     files = [
-      {
-        dest = ".config/mango/config.conf";
-        src = "${rootPath}/configs/mango/config.conf";
-      }
-      {
-        dest = ".config/mango/settings.conf";
-        src = "${rootPath}/configs/mango/settings.conf";
-      }
-      {
-        dest = ".config/mango/environment.conf";
-        src = "${rootPath}/configs/mango/environment.conf";
-      }
-      {
-        dest = ".config/mango/environment-khion.conf";
-        src = "${rootPath}/configs/mango/environment-khion.conf";
-        hosts = [ "khion" ];
-      }
-      {
-        dest = ".config/mango/monitors-khion.conf";
-        src = "${rootPath}/configs/mango/monitors-khion.conf";
-        hosts = [ "khion" ];
-      }
-      {
-        dest = ".config/mango/monitors-lumi.conf";
-        src = "${rootPath}/configs/mango/monitors-lumi.conf";
-        hosts = [ "lumi" ];
-      }
-      {
-        dest = ".config/mango/autostart.conf";
-        src = "${rootPath}/configs/mango/autostart.conf";
-      }
-      {
-        dest = ".config/mango/binds.conf";
-        src = "${rootPath}/configs/mango/binds.conf";
-      }
       {
         dest = ".config/xdg-desktop-portal/mango-portals.conf";
         src = "${rootPath}/configs/mango/portal.conf";
