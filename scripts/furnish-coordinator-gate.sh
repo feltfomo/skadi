@@ -99,6 +99,15 @@ activation_guard_proof() {
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
+# the gate certifies a host, so it must evaluate with that host's evaluator.
+# bundling nix silently certified lumi under a Nix the host did not run.
+step 'host nix evaluator'
+host_nix="$(command -v nix || true)"
+[ -n "$host_nix" ] || die 'gate requires the host nix on PATH'
+host_nix="$(readlink -f "$host_nix")"
+host_nix_version="$("$host_nix" --version | paste -sd' ' -)"
+printf '[coordinator-gate] evaluator  path=%s version=%s\n' "$host_nix" "$host_nix_version"
+
 run 'rust formatter' nix develop -c cargo fmt --manifest-path "$crate/Cargo.toml" -- --check
 run 'production compiler' nix develop -c cargo check --release --manifest-path "$crate/Cargo.toml"
 run 'production clippy' nix develop -c cargo clippy --release --manifest-path "$crate/Cargo.toml" -- -D warnings
