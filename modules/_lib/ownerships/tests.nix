@@ -1821,6 +1821,58 @@ let
           ]
         );
     }
+    {
+      name = "equal derivations merge as terminal values";
+      pass =
+        let
+          left = {
+            type = "derivation";
+            outPath = "/nix/store/ownerships-same";
+            drvPath = throw "forced left derivation internals";
+          };
+          right = {
+            type = "derivation";
+            outPath = "/nix/store/ownerships-same";
+            drvPath = throw "forced right derivation internals";
+          };
+          merged = (merge.mkMerge { }).mergeTwo "pkg" left right;
+        in
+        merged.outPath == left.outPath;
+    }
+    {
+      name = "different derivations conflict without forcing their internals";
+      pass =
+        let
+          left = {
+            type = "derivation";
+            outPath = "/nix/store/ownerships-left";
+            drvPath = throw "forced left derivation internals";
+          };
+          right = {
+            type = "derivation";
+            outPath = "/nix/store/ownerships-right";
+            drvPath = throw "forced right derivation internals";
+          };
+        in
+        throws ((merge.mkMerge { }).mergeTwo "pkg" left right);
+    }
+    {
+      name = "function-valued co-owners use the ownership conflict path";
+      pass = throws ((merge.mkMerge { }).mergeTwo "handler" (_: 1) (_: 2));
+    }
+    {
+      name = "stage validation rejects a missing or non-function callback";
+      pass =
+        throws (engine.check [ { view = "leaf"; } ] registry [ ])
+        && throws (
+          engine.check [
+            {
+              view = "tree";
+              run = 1;
+            }
+          ] registry [ ]
+        );
+    }
   ];
 
   failing = builtins.filter (c: !c.pass) cases;

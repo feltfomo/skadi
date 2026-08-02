@@ -27,12 +27,22 @@ let
     path: contributor:
     "ownerships: single-writer lock violation at ${shownPath path}: foreign contributor ${safeRender contributor.identity}";
 
-  # Equal scalars retain the old result. A difference still throws at the same
-  # point, but identifies the contributing units without rendering either
-  # arbitrary value.
+  isDerivation = value: isAttrs value && (value.type or null) == "derivation";
+  mergeAttrs = value: isAttrs value && !isDerivation value;
+  terminalEqual =
+    a: b:
+    if builtins.isFunction a || builtins.isFunction b then
+      false
+    else if isDerivation a || isDerivation b then
+      isDerivation a && isDerivation b && a.outPath == b.outPath
+    else
+      a == b;
+
+  # equal terminal values retain the first contributor's value. functions are
+  # deliberately unequal because nix can't compare them.
   strictScalar =
     path: a: b:
-    if a.value == b.value then
+    if terminalEqual a.value b.value then
       a.value
     else
       throw (renderConflict path (a.contributors ++ b.contributors));
@@ -73,7 +83,6 @@ let
       lockingEnabled = args ? lockFor;
       profilingEnabled = args ? profiles;
       subPath = path: key: if path == "" then key else "${path}.${key}";
-      provenanceAttrs = value: isAttrs value && (value.type or null) != "derivation";
 
       profileNamed =
         path: name:
@@ -139,7 +148,7 @@ let
         path: node:
         let
           children =
-            if provenanceAttrs node.value then
+            if mergeAttrs node.value then
               lib.mapAttrs (
                 key: value:
                 adoptNode (subPath path key) {
@@ -161,7 +170,7 @@ let
               builtins.seq (if lockingEnabled then authorize path node.contributors else true) (
                 builtins.seq (
                   if profilingEnabled then lib.all validateContributorProfile node.contributors else true
-                ) (if provenanceAttrs node.value then lib.mapAttrs (_: child: child.value) children else node.value)
+                ) (if mergeAttrs node.value then lib.mapAttrs (_: child: child.value) children else node.value)
               );
         in
         node
@@ -231,7 +240,7 @@ let
         in
         builtins.seq checked (
           builtins.seq profilesChecked (
-            if isAttrs a.value && isAttrs b.value then
+            if mergeAttrs a.value && mergeAttrs b.value then
               if
                 profilingEnabled
                 && !decision.unitDisagreement

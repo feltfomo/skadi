@@ -50,27 +50,37 @@ let
   # rather than resolve something the author never meant.
   checkShape =
     unit:
-    let
-      checkedClaims = axes.validateUnit axisDescriptors unit;
-      badLabel = unit ? label && !builtins.isString unit.label;
-      badSource = unit ? source && !builtins.isString unit.source;
-      # a value block routes unambiguously only when it's the sole non-reserved
-      # content on the unit -- claims and children still narrow around it
-      # exactly as they do around inline config, so only a genuine leftover
-      # inline key next to `value` is the ambiguous case.
-      leftover = removeAttrs unit reserved;
-      badMixed = unit ? value && leftover != { };
-    in
-    builtins.seq checkedClaims (
-      if badLabel then
-        throw "ownerships: 'label' must be a plain string; got ${builtins.typeOf unit.label}"
-      else if badSource then
-        throw "ownerships: 'source' must be a plain string; got ${builtins.typeOf unit.source}"
-      else if badMixed then
-        throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
-      else
-        unit
-    );
+    if !builtins.isAttrs unit then
+      throw "ownerships: a unit must be an attribute set; got ${builtins.typeOf unit}"
+    else
+      let
+        checkedClaims = axes.validateUnit axisDescriptors unit;
+        badChildren =
+          unit ? children && (!builtins.isList unit.children || !lib.all builtins.isAttrs unit.children);
+        badValue = unit ? value && !builtins.isAttrs unit.value;
+        badLabel = unit ? label && !builtins.isString unit.label;
+        badSource = unit ? source && !builtins.isString unit.source;
+        # a value block routes unambiguously only when it's the sole non-reserved
+        # content on the unit -- claims and children still narrow around it
+        # exactly as they do around inline config, so only a genuine leftover
+        # inline key next to `value` is the ambiguous case.
+        leftover = removeAttrs unit reserved;
+        badMixed = unit ? value && leftover != { };
+      in
+      builtins.seq checkedClaims (
+        if badChildren then
+          throw "ownerships: 'children' must be a list of unit attribute sets"
+        else if badValue then
+          throw "ownerships: 'value' must be an attribute set; got ${builtins.typeOf unit.value}"
+        else if badLabel then
+          throw "ownerships: 'label' must be a plain string; got ${builtins.typeOf unit.label}"
+        else if badSource then
+          throw "ownerships: 'source' must be a plain string; got ${builtins.typeOf unit.source}"
+        else if badMixed then
+          throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
+        else
+          unit
+      );
 
   claimOf = axes.claimOf axisDescriptors;
 

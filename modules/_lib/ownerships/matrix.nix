@@ -134,10 +134,15 @@ let
           }
         ) (builtins.length liveEntries);
 
+      selectionsByContext = map (context: {
+        inherit context;
+        selections = selectionFor context;
+      }) contexts;
+
       contextEntries = map (
-        context:
+        entry:
         let
-          selections = selectionFor context;
+          inherit (entry) context selections;
           selected = builtins.filter (selection: selection.selected) selections;
         in
         {
@@ -149,7 +154,7 @@ let
           preMergePaths = lib.unique (builtins.concatMap (selection: selection.offeredPaths) selected);
         }
         // lib.optionalAttrs (context ? userName) { inherit (context) userName; }
-      ) contexts;
+      ) selectionsByContext;
 
       byContext = builtins.listToAttrs (
         map (entry: {
@@ -241,12 +246,12 @@ let
         (projectLeaf entry)
         // {
           rejections = builtins.listToAttrs (
-            map (context: {
-              name = context.key;
+            map (contextEntry: {
+              name = contextEntry.context.key;
               value =
-                (builtins.head (builtins.filter (selection: selection.key == entry.key) (selectionFor context)))
+                (builtins.head (builtins.filter (selection: selection.key == entry.key) contextEntry.selections))
                 .rejectedBy;
-            }) contexts
+            }) selectionsByContext
           );
         }
       ) (builtins.filter (entry: !selectedSomewhere entry.key && !(possiblyUnknown entry)) liveEntries);

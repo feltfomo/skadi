@@ -113,6 +113,70 @@ let
           systemPackages = [ "vim" ];
         };
     }
+    {
+      name = "distinct canonical user ids select without conflating a shared bare name";
+      pass =
+        let
+          federated = toRoster [
+            (define.host "khion")
+            (define.host "lumi")
+            (define.user "operator" {
+              id = "khion/operator";
+              hosts = [ "khion" ];
+            })
+            (define.user "operator" {
+              id = "lumi/operator";
+              hosts = [ "lumi" ];
+            })
+          ];
+          selected =
+            resolveWith
+              {
+                roster = federated;
+                ctx = {
+                  host.name = "khion";
+                  user = {
+                    name = "operator";
+                    id = "khion/operator";
+                  };
+                };
+              }
+              {
+                claim.user = include [ "khion/operator" ];
+                value.x = 1;
+              };
+          ambiguous =
+            resolveWith
+              {
+                roster = federated;
+                ctx = {
+                  host.name = "khion";
+                  user = {
+                    name = "operator";
+                    id = "khion/operator";
+                  };
+                };
+              }
+              {
+                claim.user = include [ "operator" ];
+                value.x = 1;
+              };
+        in
+        selected == { x = 1; } && throws ambiguous;
+    }
+    {
+      name = "explicit unknown and ambiguous user host references fail during roster construction";
+      pass =
+        throws (toRoster [
+          (define.host "khion")
+          (define.user "operator" { hosts = [ "ghost" ]; })
+        ])
+        && throws (toRoster [
+          (define.host "khion" { system = "x86_64-linux"; })
+          (define.host "khion" { system = "aarch64-linux"; })
+          (define.user "operator" { hosts = [ "khion" ]; })
+        ]);
+    }
   ];
 
   failing = builtins.filter (c: !c.pass) cases;

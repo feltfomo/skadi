@@ -853,6 +853,26 @@ let
         ] ctx
       );
     }
+    {
+      name = "a unit must be an attribute set";
+      pass = throws (translate "not-a-unit");
+    }
+    {
+      name = "children must be a list of unit attribute sets";
+      pass =
+        throws (translate {
+          children = { };
+        })
+        && throws (translate {
+          children = [ 1 ];
+        });
+    }
+    {
+      name = "value escape hatch requires an attribute set";
+      pass = throws (translate {
+        value = "not-config";
+      });
+    }
   ];
 
   failing = builtins.filter (c: !c.pass) checks;

@@ -74,7 +74,7 @@ let
   validateStages =
     stages:
     let
-      invalid = filter (
+      badView = builtins.filter (
         stage:
         !(
           builtins.isAttrs stage
@@ -83,16 +83,30 @@ let
           && builtins.elem stage.view knownViews
         )
       ) stages;
-      bad = if invalid == [ ] then null else builtins.head invalid;
-      shown =
-        if bad == null then
+      badRun = builtins.filter (
+        stage:
+        builtins.isAttrs stage
+        && stage ? view
+        && builtins.isString stage.view
+        && builtins.elem stage.view knownViews
+        && (!(stage ? run) || !builtins.isFunction stage.run)
+      ) stages;
+      invalidView = if badView == [ ] then null else builtins.head badView;
+      shownView =
+        if invalidView == null then
           null
-        else if builtins.isAttrs bad && bad ? view then
-          builtins.toJSON bad.view
+        else if builtins.isAttrs invalidView && invalidView ? view then
+          builtins.toJSON invalidView.view
         else
           "<missing>";
+      invalidRun = if badRun == [ ] then null else builtins.head badRun;
     in
-    if bad == null then stages else throw "ownerships: unknown stage view ${shown}";
+    if invalidView != null then
+      throw "ownerships: unknown stage view ${shownView}"
+    else if invalidRun != null then
+      throw "ownerships: stage for view '${invalidRun.view}' must provide a 'run' function"
+    else
+      stages;
 
   stagesFor = view: stages: filter (stage: stage.view == view) (validateStages stages);
 

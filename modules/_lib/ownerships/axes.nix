@@ -250,7 +250,7 @@ let
         result: alias:
         result
         // {
-          ${alias} = (result.${alias} or [ ]) ++ [ entry.id ];
+          ${alias} = lib.unique ((result.${alias} or [ ]) ++ [ entry.id ]);
         }
       ) aliases entry.aliases
     ) { } entries;
@@ -321,42 +321,67 @@ let
 
   userRoster = {
     membersField = "users";
+    memberOf = entity: entity.id or entity.name;
     define =
       name:
       {
         hosts ? null,
         id ? name,
+        aliases ? [ name ],
       }:
       {
         kind = "user";
-        inherit name hosts id;
+        inherit
+          name
+          hosts
+          id
+          aliases
+          ;
       };
     project =
       { declarations, roster }:
       let
         users = builtins.filter (d: d.kind == "user") declarations;
-        # A user's declared hosts may be bare aliases or canonical ids; resolve
-        # each against the projected host roster so membership is always keyed by
-        # canonical host id.
+        # a user's declared hosts may be bare aliases or canonical ids. explicit
+        # unknown and ambiguous references fail while the roster is constructed.
         resolveHost =
-          name: if builtins.elem name roster.hosts then [ name ] else roster.aliases.host.${name} or [ ];
+          name:
+          if builtins.elem name roster.hosts then
+            [ name ]
+          else
+            let
+              matches = roster.aliases.host.${name} or [ ];
+            in
+            if matches == [ ] then
+              throw "ownerships: user roster references unknown host '${name}'"
+            else if builtins.length matches > 1 then
+              throw "ownerships: user roster host alias '${name}' is ambiguous; use a canonical system/name"
+            else
+              matches;
         canonHosts = u: if u.hosts == null then null else builtins.concatMap resolveHost u.hosts;
         usersOn =
           h:
-          map (u: u.id) (
-            builtins.filter (
-              u:
-              let
-                ch = canonHosts u;
-              in
-              ch != null && builtins.elem h ch
-            ) users
+          lib.unique (
+            map (u: u.id) (
+              builtins.filter (
+                u:
+                let
+                  ch = canonHosts u;
+                in
+                ch != null && builtins.elem h ch
+              ) users
+            )
           );
       in
       {
         users = lib.unique (map (u: u.id) users);
+        aliases = (roster.aliases or { }) // {
+          user = aliasesFor users;
+        };
         membership = lib.genAttrs roster.hosts usersOn;
-        usersWithUnknownMembership = map (u: u.id) (builtins.filter (u: u.hosts == null) users);
+        usersWithUnknownMembership = lib.unique (
+          map (u: u.id) (builtins.filter (u: u.hosts == null) users)
+        );
         display = (roster.display or { }) // {
           user = builtins.listToAttrs (
             map (u: {
