@@ -592,7 +592,7 @@ let
       ++ [
         {
           dest = ".config/noctalia/${blockId}.toml";
-          src = "${(pkgs.formats.toml { }).generate "noctalia-${blockId}.toml" fragmentAttrset}";
+          src = (pkgs.formats.toml { }).generate "noctalia-${blockId}.toml" fragmentAttrset;
           provenance = "modules/_lib/program.nix";
         }
       ];

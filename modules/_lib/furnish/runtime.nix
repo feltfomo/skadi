@@ -13,6 +13,12 @@ let
   };
   cfg = config.lexicon.furnish;
 
+  # generated file sources are build-time inputs to retained artifacts. keeping
+  # them in the system closure makes fresh evaluation substitutable.
+  generatedSources = builtins.filter lib.isDerivation (
+    map (declaration: declaration.source.value) cfg.declarations
+  );
+
   coordinator = import ./coordinator.nix { inherit pkgs; };
 
   nativeSymlinkExecutor = {
@@ -156,6 +162,7 @@ in
       };
     }
     (lib.mkIf cfg.enable {
+      system.extraDependencies = generatedSources;
       environment.systemPackages = [ coordinator ];
 
       # this is intentionally thin. the literal manifest interpolation makes the
