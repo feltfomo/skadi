@@ -805,25 +805,14 @@ vm_require_run() {
 }
 
 vm_provision() {
-  local flake="$1" installed_disk installed_vars tmp_disk tmp_vars
-  vm_require_common
-  [ ! -e "$VM_BASE" ] || die "base already exists at $VM_BASE; remove it explicitly before reprovisioning"
-  installed_disk="$VM_CACHE/vm.qcow2"
-  installed_vars="$VM_CACHE/vm-vars.fd"
-  log "provisioning the lifecycle base through the installer harness"
-  nix run "${flake}#vm-test" -- --host vm --reset --keep
-  [ -f "$installed_disk" ] && [ -f "$installed_vars" ] || die "installer harness did not leave complete VM artifacts"
-  tmp_disk="${VM_BASE}.tmp"
-  tmp_vars="${VM_BASE_VARS}.tmp"
-  cp --reflink=auto --sparse=always "$installed_disk" "$tmp_disk"
-  cp "$installed_vars" "$tmp_vars"
-  chmod 0444 "$tmp_disk" "$tmp_vars"
-  mv "$tmp_disk" "$VM_BASE"
-  mv "$tmp_vars" "$VM_BASE_VARS"
-  jq -n --arg flake "$flake" --arg disk "$VM_BASE" --arg vars "$VM_BASE_VARS" \
-    --arg createdAt "$(date --iso-8601=seconds)" \
-    '{schemaVersion:1,flake:$flake,disk:$disk,ovmfVariables:$vars,createdAt:$createdAt}' > "$VM_PROVISION"
-  log "provisioned immutable lifecycle base at $VM_BASE"
+  # the go harness owns identity generation, signed cache setup and freezing.
+  local flake="$1" rev status
+  command -v git >/dev/null || die "git is required"
+  rev="$(git -C "$flake" rev-parse --verify HEAD)"
+  status="$(git -C "$flake" status --porcelain=v1)"
+  [ -z "$status" ] || die "golden provisioning requires a committed clean tree"
+  log "provisioning the lifecycle base through rebuild-vm-golden at $rev"
+  nix run "${flake}#rebuild-vm-golden" -- --rev "$rev" all
 }
 
 vm_wait_ssh() {
@@ -1282,7 +1271,6 @@ vm_run() {
   VM_TEST_FLAKE="$run_dir/source"
   vm_prepare_test_flake "$flake" "$VM_TEST_FLAKE"
   VM_TOPLEVEL="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.system.build.toplevel")"
-  VM_LEDGER="$(nix eval --raw "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.lexicon.furnish.ledgerPath")"
   VM_APP="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#program-files-regression")"
   archive_json="$(nix flake archive --json "$VM_TEST_FLAKE")"
   VM_ARCHIVE="$(jq -r .path <<<"$archive_json")"
