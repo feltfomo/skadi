@@ -32,9 +32,9 @@ func run() int {
 		trustedPublicKey = fs.String("trusted-public-key", "", "trusted binary-cache public key for gate-only runs")
 		preparedSource   = fs.String("prepared-source", "", "reuse an exact retained prepared source for check or gate")
 		port             = fs.Int("port", 0, "loopback cache server port (0 = auto)")
-		ram              = fs.Int("ram", 4096, "guest RAM in MiB")
+		ram              = fs.Int("ram", 8192, "guest RAM in MiB")
 		cores            = fs.Int("cores", 4, "guest vCPUs")
-		disk             = fs.String("disk", "20G", "guest disk size")
+		disk             = fs.String("disk", "48G", "guest disk size")
 	)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: rebuild-vm-golden [flags] <check|build-cache|gate|provision|all>\n\n")

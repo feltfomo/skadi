@@ -85,7 +85,7 @@ func (h *Harness) guestNixConfig() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("substituters = %s https://cache.nixos.org\ntrusted-public-keys = %s cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\nrequire-sigs = true\nalways-allow-substitutes = true\nprint-build-logs = true", sub, strings.TrimSpace(h.manifest.PublicKey)), nil
+	return fmt.Sprintf("substituters = %s https://cache.nixos.org\ntrusted-public-keys = %s cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY=\nrequire-sigs = true\nalways-allow-substitutes = true", sub, strings.TrimSpace(h.manifest.PublicKey)), nil
 }
 
 const guestSrcDir = "/tmp/skadi-install"
