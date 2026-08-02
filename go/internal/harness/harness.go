@@ -533,7 +533,7 @@ func (h *Harness) stageEvalDrv(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	disko, err := evalDrv("disko", fmt.Sprintf("nixosConfigurations.%s.config.system.build.diskoScript.drvPath", h.cfg.Host))
+	disko, err := evalDrv("disko", fmt.Sprintf("nixosConfigurations.%s.config.system.build._cliDestroyFormatMount.drvPath", h.cfg.Host))
 	if err != nil {
 		return err
 	}

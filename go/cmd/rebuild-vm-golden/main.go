@@ -53,6 +53,10 @@ func run() int {
 		fmt.Fprintln(os.Stderr, "error: --rev is required")
 		return 2
 	}
+	if err := raiseNoFileLimit(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: raise open-file limit: %v\n", err)
+		return 1
+	}
 
 	evidenceRoot := *evidenceDir
 	if evidenceRoot == "" {
@@ -98,6 +102,18 @@ func run() int {
 	}
 	fmt.Printf("rebuild-vm-golden: %s complete (rev %s)\n", sub, manifest.Rev)
 	return 0
+}
+
+func raiseNoFileLimit() error {
+	var limit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
+		return err
+	}
+	if limit.Cur == limit.Max {
+		return nil
+	}
+	limit.Cur = limit.Max
+	return syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit)
 }
 
 func defaultStateDir() string {

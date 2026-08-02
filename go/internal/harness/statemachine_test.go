@@ -402,6 +402,7 @@ func TestEvalBearingSubcommandsIncludePrepareSource(t *testing.T) {
 func TestEvalDrvStoresCleanStdoutPath(t *testing.T) {
 	want := "/nix/store/aaa1111bbbb2222cccc3333dddd4444eeee5555-nixos-system-vm-26.05.drv"
 	prepared := t.TempDir()
+	var evalAttrs []string
 	runner := fakeRunner{responder: func(spec CmdSpec) ([]string, int) {
 		if spec.Name == "bash" {
 			wantEnv := "SKADI_INSTALL_SOURCE=" + prepared
@@ -409,6 +410,9 @@ func TestEvalDrvStoresCleanStdoutPath(t *testing.T) {
 				t.Fatalf("installer probe env = %v, want [%s]", spec.Env, wantEnv)
 			}
 			return []string{"[skadi-install] using pre-staged pinned source", "resolved: skadi-install vm", "drvPath: " + want}, 0
+		}
+		if spec.Name == "nix" && len(spec.Args) == 3 && spec.Args[0] == "eval" {
+			evalAttrs = append(evalAttrs, spec.Args[2])
 		}
 		return []string{want}, 0
 	}}
@@ -419,6 +423,9 @@ func TestEvalDrvStoresCleanStdoutPath(t *testing.T) {
 	}
 	if got := h.manifest.DrvPaths["toplevel"]; got != want {
 		t.Fatalf("stored drv = %q, want %q", got, want)
+	}
+	if len(evalAttrs) != 2 || !strings.HasSuffix(evalAttrs[1], "#nixosConfigurations.vm.config.system.build._cliDestroyFormatMount.drvPath") {
+		t.Fatalf("disko eval did not select the cli destroy-format-mount derivation: %v", evalAttrs)
 	}
 }
 
