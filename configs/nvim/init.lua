@@ -12,3 +12,9 @@ vim.opt.tabstop = 2
 vim.opt.softtabstop = 2
 
 require("config.lazy")
+
+-- rendered into colors/reactive.lua by noctalia at runtime, so it is missing
+-- until the first render on a fresh boot. fall back once, not every boot.
+if not pcall(vim.cmd.colorscheme, "reactive") then
+	vim.cmd.colorscheme("habamax")
+end

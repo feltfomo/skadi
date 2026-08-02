@@ -60,5 +60,10 @@
         src = "${rootPath}/configs/nvim/lua/plugins/blink.lua";
       }
     ];
+    theme.noctalia = {
+      id = "nvim";
+      source = "${rootPath}/configs/nvim/colors/reactive.lua";
+      output = ".config/nvim/colors/reactive.lua";
+    };
   };
 }
