@@ -11,8 +11,12 @@
 let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
-  axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
-  relationRegistrations = if relations == null then axes.relations else relations;
+  axisDescriptors = axes.validateDescriptors (
+    if descriptors == null then axes.descriptors else descriptors
+  );
+  relationRegistrations = axes.validateRelations axisDescriptors (
+    if relations == null then axes.relations else relations
+  );
   mergeLib = import ./merge.nix { inherit lib; };
   rosterLib = import ./roster.nix {
     inherit lib;

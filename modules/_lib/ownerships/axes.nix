@@ -438,10 +438,119 @@ let
 
   relations = [ hostUserRelation ];
 
+  duplicates =
+    values:
+    builtins.filter (
+      value: builtins.length (builtins.filter (candidate: candidate == value) values) > 1
+    ) (lib.unique values);
+
+  validateDescriptors =
+    axisDescriptors:
+    let
+      malformed = builtins.filter (
+        descriptor:
+        !(
+          builtins.isAttrs descriptor
+          && descriptor ? name
+          && builtins.isString descriptor.name
+          && descriptor ? authorKeys
+          && builtins.isList descriptor.authorKeys
+          && lib.all (
+            key:
+            builtins.isAttrs key
+            && key ? name
+            && builtins.isString key.name
+            && key ? order
+            && builtins.isInt key.order
+            && key ? valid
+            && builtins.isFunction key.valid
+            && key ? shapeError
+            && builtins.isFunction key.shapeError
+          ) descriptor.authorKeys
+          && descriptor ? roster
+          && (descriptor.roster == null || builtins.isAttrs descriptor.roster)
+          && descriptor ? allowedScopes
+          && builtins.isList descriptor.allowedScopes
+          && lib.all builtins.isString descriptor.allowedScopes
+          && descriptor ? parse
+          && builtins.isFunction descriptor.parse
+          && descriptor ? axisFor
+          && builtins.isFunction descriptor.axisFor
+          && descriptor ? ctxClaim
+          && builtins.isFunction descriptor.ctxClaim
+          && descriptor ? ctxLabel
+          && builtins.isFunction descriptor.ctxLabel
+          && descriptor ? leafStages
+          && builtins.isFunction descriptor.leafStages
+          && descriptor ? scopeError
+          && builtins.isFunction descriptor.scopeError
+        )
+      ) axisDescriptors;
+      names = map (descriptor: descriptor.name) axisDescriptors;
+      keys = builtins.concatMap (descriptor: descriptor.authorKeys) axisDescriptors;
+      duplicateNames = duplicates names;
+      duplicateKeys = duplicates (map (key: key.name) keys);
+      duplicateOrders = duplicates (map (key: key.order) keys);
+    in
+    if malformed != [ ] then
+      throw "ownerships: malformed axis descriptor registration"
+    else if duplicateNames != [ ] then
+      throw "ownerships: duplicate axis descriptor names ${lib.concatStringsSep ", " duplicateNames}"
+    else if duplicateKeys != [ ] then
+      throw "ownerships: duplicate ownership author keys ${lib.concatStringsSep ", " duplicateKeys}"
+    else if duplicateOrders != [ ] then
+      throw "ownerships: duplicate ownership author-key orders ${lib.concatStringsSep ", " (map toString duplicateOrders)}"
+    else
+      axisDescriptors;
+
+  validateRelations =
+    axisDescriptors: relationRegistrations:
+    let
+      checkedDescriptors = validateDescriptors axisDescriptors;
+      axisNames = map (descriptor: descriptor.name) checkedDescriptors;
+      malformed = builtins.filter (
+        relation:
+        !(
+          builtins.isAttrs relation
+          && relation ? name
+          && builtins.isString relation.name
+          && relation ? leftAxis
+          && builtins.isString relation.leftAxis
+          && relation ? rightAxis
+          && builtins.isString relation.rightAxis
+          && relation ? unknownFor
+          && builtins.isFunction relation.unknownFor
+          && relation ? compatibleFor
+          && builtins.isFunction relation.compatibleFor
+          && relation ? reason
+          && builtins.isFunction relation.reason
+        )
+      ) relationRegistrations;
+      names = map (relation: relation.name) relationRegistrations;
+      duplicateNames = duplicates names;
+      unknownAxes = lib.unique (
+        builtins.concatMap (
+          relation:
+          builtins.filter (name: !(builtins.elem name axisNames)) [
+            relation.leftAxis
+            relation.rightAxis
+          ]
+        ) relationRegistrations
+      );
+    in
+    if malformed != [ ] then
+      throw "ownerships: malformed relation registration"
+    else if duplicateNames != [ ] then
+      throw "ownerships: duplicate relation names ${lib.concatStringsSep ", " duplicateNames}"
+    else if unknownAxes != [ ] then
+      throw "ownerships: relation registrations reference unknown axes ${lib.concatStringsSep ", " unknownAxes}"
+    else
+      relationRegistrations;
+
   authorKeysFor =
     axisDescriptors:
     builtins.sort (a: b: a.order < b.order) (
-      builtins.concatMap (descriptor: descriptor.authorKeys) axisDescriptors
+      builtins.concatMap (descriptor: descriptor.authorKeys) (validateDescriptors axisDescriptors)
     );
 
   claimKeysFor = axisDescriptors: map (key: key.name) (authorKeysFor axisDescriptors);
@@ -466,7 +575,7 @@ let
       map (descriptor: {
         inherit (descriptor) name;
         value = descriptor.axisFor roster;
-      }) axisDescriptors
+      }) (validateDescriptors axisDescriptors)
     );
 
   relationsFor =
@@ -555,6 +664,8 @@ in
     descriptors
     hostUserRelation
     relations
+    validateDescriptors
+    validateRelations
     authorKeysFor
     claimKeysFor
     validateUnit

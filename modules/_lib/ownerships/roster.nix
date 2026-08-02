@@ -10,14 +10,17 @@
 }:
 let
   axes = import ./axes.nix { inherit lib; };
-  axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
+  axisDescriptors = axes.validateDescriptors (
+    if descriptors == null then axes.descriptors else descriptors
+  );
 
   rosterDescriptors = builtins.filter (descriptor: descriptor.roster != null) axisDescriptors;
 
   mkRoster =
     descriptorSet:
     let
-      projected = builtins.filter (descriptor: descriptor.roster != null) descriptorSet;
+      checked = axes.validateDescriptors descriptorSet;
+      projected = builtins.filter (descriptor: descriptor.roster != null) checked;
       define = builtins.listToAttrs (
         map (descriptor: {
           inherit (descriptor) name;

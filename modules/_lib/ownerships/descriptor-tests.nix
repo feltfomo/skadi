@@ -257,6 +257,67 @@ let
         userDescriptor.scopeError "system" "users" [ "feltfomo" ]
         == "ownerships: a system-scope (host-only) unit sets 'users' = [ \"feltfomo\" ] -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope.";
     }
+    {
+      name = "descriptor registration rejects malformed, duplicate-name, duplicate-key, and duplicate-order entries";
+      pass =
+        let
+          duplicateKey = roleDescriptor // {
+            name = "other";
+          };
+          duplicateOrder = roleDescriptor // {
+            name = "other";
+            authorKeys = [
+              (
+                (builtins.elemAt roleDescriptor.authorKeys 0)
+                // {
+                  name = "otherRoles";
+                }
+              )
+              (
+                (builtins.elemAt roleDescriptor.authorKeys 1)
+                // {
+                  name = "otherExceptRoles";
+                }
+              )
+            ];
+          };
+        in
+        throws (axes.validateDescriptors [ { } ])
+        && throws (
+          axes.validateDescriptors [
+            roleDescriptor
+            roleDescriptor
+          ]
+        )
+        && throws (
+          axes.validateDescriptors [
+            roleDescriptor
+            duplicateKey
+          ]
+        )
+        && throws (
+          axes.validateDescriptors [
+            roleDescriptor
+            duplicateOrder
+          ]
+        );
+    }
+    {
+      name = "relation registration rejects malformed, duplicate-name, and unknown-axis entries";
+      pass =
+        throws (axes.validateRelations descriptors [ (removeAttrs hostRoleRelation [ "reason" ]) ])
+        && throws (
+          axes.validateRelations descriptors [
+            hostRoleRelation
+            (hostRoleRelation // { rightAxis = "user"; })
+          ]
+        )
+        && throws (
+          axes.validateRelations descriptors [
+            (hostRoleRelation // { rightAxis = "missing"; })
+          ]
+        );
+    }
   ];
 
   failing = builtins.filter (case: !case.pass) cases;
