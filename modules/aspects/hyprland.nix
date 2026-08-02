@@ -40,7 +40,7 @@ let
     };
 in
 {
-  # nixos = compositor, homeManager = daemon, hjem = config files. owned by
+  # nixos owns the compositor and daemon while furnish owns config files.
   # khion + lumi; vm stays excluded so the headless installer-test VM never
   # pulls the compositor closure.
   den.aspects.hyprland = program {

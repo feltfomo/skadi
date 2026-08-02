@@ -26,7 +26,6 @@ program-files-regression <command>
   case-boot-assert --host khion --mode <absent|dangling|drifted>
   vm provision --flake <path>
   vm run --flake <path> --khion-matrix <path>
-  vm migrate-gate [--base <path>] --release-toplevel <path> --adopt-toplevel <path>
   reboot-prepare --host vm --mode <absent|dangling|drifted> --run-id <id>
   reboot-assert --host vm --mode <absent|dangling|drifted> --run-id <id>
   fault-prepare --host <khion|lumi> --point <boundary> --coordinator <path>
@@ -104,10 +103,8 @@ store_object() {
 
 desired_manifest() {
   # this path evaluates a host but never activates it, so lumi can be compared from khion.
-  local host="$1" output="$2" desired_files desired_tmp declaration destination source_kind source_path desired_target desired_hash expected_type
-  desired_files="$(mktemp)"
+  local host="$1" output="$2" desired_tmp declaration destination source_kind source_path desired_target desired_hash expected_type
   desired_tmp="$(mktemp)"
-  nix eval --json ".#nixosConfigurations.${host}.config.hjem.users.feltfomo.files" > "$desired_files"
   while IFS=$'\t' read -r declaration destination source_kind source_path; do
     if [ "$source_kind" = "activation-template" ]; then
       expected_type="regular"
@@ -115,10 +112,7 @@ desired_manifest() {
       [ -f "$desired_target" ] || die "desired template source missing: $source_path"
     else
       expected_type="symlink"
-      desired_target="$(jq -r --arg destination "$destination" '.[$destination].source // empty' "$desired_files")"
-      if [ -z "$desired_target" ]; then
-        desired_target="$(furnish_target "$host" "$destination")"
-      fi
+      desired_target="$(furnish_target "$host" "$destination")"
       if [ -z "$desired_target" ]; then
         # ownership may legitimately exclude an entry from this host's desired set.
         continue
@@ -134,20 +128,18 @@ desired_manifest() {
   done < <(entries)
   jq -S -n --arg host "$host" --arg systemToplevel "$(nix eval --raw ".#nixosConfigurations.${host}.config.system.build.toplevel")" --slurpfile entries "$desired_tmp" \
     '{host:$host,systemToplevel:$systemToplevel,homeGeneration:null,homePersistence:null,entries:($entries|sort_by(.destination))}' > "$output"
-  rm -f "$desired_files" "$desired_tmp"
+  rm -f "$desired_tmp"
   log "captured desired manifest for $host -> $output"
 }
 
 inventory() {
   # desired and realized state are emitted independently so drift never pollutes parity data.
   local host="$1" desired_output="$2" drift_output="$3" healthy_output="$4"
-  local desired_files desired_tmp drift_tmp declaration destination source_kind source_path
+  local desired_tmp drift_tmp declaration destination source_kind source_path
   local path expected_type desired_target desired_hash status observed_type raw_target resolved_target actual_hash actual_store
   require_host "$host"
-  desired_files="$(mktemp)"
   desired_tmp="$(mktemp)"
   drift_tmp="$(mktemp)"
-  nix eval --json ".#nixosConfigurations.${host}.config.hjem.users.feltfomo.files" > "$desired_files"
 
   while IFS=$'\t' read -r declaration destination source_kind source_path; do
     path="$HOME/$destination"
@@ -157,10 +149,7 @@ inventory() {
       [ -f "$desired_target" ] || die "desired template source missing: $source_path"
     else
       expected_type="symlink"
-      desired_target="$(jq -r --arg destination "$destination" '.[$destination].source // empty' "$desired_files")"
-      if [ -z "$desired_target" ]; then
-        desired_target="$(furnish_target "$host" "$destination")"
-      fi
+      desired_target="$(furnish_target "$host" "$destination")"
       [ -n "$desired_target" ] && [ -e "$desired_target" ] || die "evaluation did not produce a live source for $destination"
     fi
     desired_hash="$(content_hash "$desired_target")"
@@ -230,7 +219,7 @@ inventory() {
   jq -S -n --arg host "$host" --arg systemToplevel "$(system_toplevel)" --arg homePersistence "$persistence" --slurpfile entries "$drift_tmp" \
     '{host:$host,systemToplevel:$systemToplevel,homePersistence:$homePersistence,entries:($entries|sort_by(.destination)),summary:($entries|group_by(.status)|map({key:.[0].status,value:length})|from_entries)}' > "$drift_output"
   drift_count="$(jq '[.entries[]|select(.status!="healthy")]|length' "$drift_output")"
-  rm -f "$desired_files" "$desired_tmp" "$drift_tmp"
+  rm -f "$desired_tmp" "$drift_tmp"
 
   if [ "$drift_count" -ne 0 ]; then
     # keep scanning evidence useful while refusing to bless any unhealthy corpus.
@@ -984,59 +973,6 @@ vm_prepare_test_flake() {
     -c user.email=program-files-regression@invalid commit -qm "disposable VM test source"
 }
 
-vm_build_release_toplevel() {
-  # the release generation must own no files, and that decision lives in the
-  # program layer rather than in furnish's option. forcing
-  # lexicon.furnish.declarations empty from outside leaves every aspect still
-  # holding its own file entries, which is the exact state program.nix asserts
-  # against, so the release build failed on the assertion it was tripping itself.
-  # empty the binding that produces the entries instead. the furnish runtime
-  # import sits under ownsFiles rather than under hostFiles, so it survives and
-  # the generation stays enabled with nothing declared.
-  local source="$1" destination="$2" lowering flake_ref probe toplevel
-  [ ! -e "$destination" ] || die "release source already exists: $destination"
-  cp -a "$source" "$destination"
-  lowering="$destination/modules/_lib/program.nix"
-  [ -f "$lowering" ] || die "release source is missing the program lowering: $lowering"
-  # a substitution that matched nothing would build an ordinary generation and
-  # read as a pass, so the anchor is proved present before and the result after.
-  grep -Fq 'hostFiles = (resolved.files or [ ]) ++ themeFiles (resolved.themeEntries or [ ]) pkgs;' "$lowering" \
-    || die "program lowering does not carry the expected hostFiles binding"
-  sed -i 's|hostFiles = (resolved.files or \[ \]) ++ themeFiles (resolved.themeEntries or \[ \]) pkgs;|hostFiles = [ ];|' "$lowering"
-  grep -Fq 'hostFiles = [ ];' "$lowering" || die "release patch did not apply"
-  git -C "$destination" -c user.name=program-files-regression \
-    -c user.email=program-files-regression@invalid commit -qam "release generation declares no furnish files"
-
-  flake_ref="$(printf '%s' "git+file://$destination" | jq -Rs .)"
-  probe="$(nix eval --impure --json --expr "let release = (builtins.getFlake $flake_ref).nixosConfigurations.vm; in {
-    runtimeModulePresent = release.options.lexicon.furnish ? declarations;
-    declarations = release.config.lexicon.furnish.declarations;
-    manifestData = release.config.lexicon.furnish.manifestData;
-    manifestPath = release.config.lexicon.furnish.manifestPath;
-    hasActivation = release.config.system.activationScripts ? furnish;
-    hasBootService = release.config.systemd.services ? furnish;
-  }")"
-  # enabled with nothing declared is a running state, not an inert one. the empty
-  # reconciliation is what retires entries a later generation stops declaring, so
-  # it needs a manifest, an activation and a unit even at zero entries, and
-  # furnish running there with an empty ledger and pruning nothing is a stronger
-  # non-interference proof than furnish not running at all.
-  jq -e '.runtimeModulePresent == true and .declarations == [] and .manifestData == [] and .manifestPath != null and .hasActivation == true and .hasBootService == true' <<<"$probe" >/dev/null \
-    || die "release generation did not keep furnish enabled and running with an empty desired set"
-  printf '%s\n' "$probe" | jq -S . > "$CACHE/release-generation-probe.json"
-  toplevel="$(nix build --no-link --print-out-paths "${destination}#nixosConfigurations.vm.config.system.build.toplevel")"
-  { [[ "$toplevel" == /nix/store/* ]] && [ -e "$toplevel" ]; } \
-    || die "release generation did not produce a live system toplevel: $toplevel"
-  printf '%s\n' "$toplevel"
-}
-
-vm_record_integrated_migration() {
-  ssh_vm mkdir -p /home/feltfomo/.cache/skadi-program-files-regression
-  jq -n --arg base "$VM_BASE" --arg release "$VM_RELEASE_TOPLEVEL" --arg adopt "$VM_TOPLEVEL" \
-    '{schemaVersion:1,status:"pass",base:$base,releaseToplevel:$release,adoptToplevel:$adopt,selfSmokePassed:true,releaseEnabledEmpty:true,releaseHandoff:true,adoptTakeover:true,adoptSelectedForBoot:true}' \
-    | ssh_vm 'cat > /home/feltfomo/.cache/skadi-program-files-regression/furnish-migrate-gate.json'
-}
-
 vm_copy_closures() {
   local ssh_opts
   ssh_opts="-i $VM_KEY -p $VM_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
@@ -1048,25 +984,23 @@ vm_copy_closures() {
 }
 
 vm_copy_toplevel() {
-  # the two-generation migration check needs only a system toplevel, with no app,
-  # archive, or in-guest harness, so it roots exactly one path.
+  # variant checks need only one rooted system toplevel.
   local toplevel="$1" ssh_opts
   ssh_opts="-i $VM_KEY -p $VM_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
   env NIX_SSHOPTS="$ssh_opts" nix copy --no-check-sigs --to "ssh-ng://$VM_USER@localhost" "$toplevel"
   ssh_root mkdir -p /nix/var/nix/gcroots/program-files-regression
-  ssh_root ln -sfn "$toplevel" /nix/var/nix/gcroots/program-files-regression/migrate-system
+  ssh_root ln -sfn "$toplevel" /nix/var/nix/gcroots/program-files-regression/variant-system
 }
 
 vm_select_toplevel() {
-  # migrate_apply already activated and verified the adopt generation. publish it
-  # as the boot default without replaying activation a third time.
+  # activate and select the native furnish generation directly.
   ssh_root nix-env -p /nix/var/nix/profiles/system --set "$VM_TOPLEVEL"
-  ssh_root "$VM_TOPLEVEL/bin/switch-to-configuration" boot
+  ssh_root "$VM_TOPLEVEL/bin/switch-to-configuration" switch
   [ "$(ssh_vm readlink -f /run/current-system)" = "$VM_TOPLEVEL" ] \
-    || die "adopt generation stopped being active before boot selection"
+    || die "native generation stopped being active before boot selection"
   [ "$(ssh_vm readlink -f /nix/var/nix/profiles/system)" = "$VM_TOPLEVEL" ] \
-    || die "adopt generation was not selected as the boot profile"
-  log "adopt generation selected as the boot default"
+    || die "native generation was not selected as the boot profile"
+  log "native generation selected as the boot default"
 }
 
 vm_assert_selected_after_boot() {
@@ -1282,7 +1216,7 @@ vm_collect_evidence() {
 
 vm_equivalence() {
   local khion_matrix="$1" evidence="$2" output="$3" expected khion vm status
-  local khion_expected vm_expected vm_khion boot_ids switches persistence generations fixtures gc_survival gc_repair migration release_probe ledger_survival all_true
+  local khion_expected vm_expected vm_khion boot_ids switches persistence generations fixtures gc_survival gc_repair ledger_survival all_true
   expected="$(expected_matrix | jq -Sc .)"
   khion="$(normalize_matrix "$khion_matrix" | jq -Sc .)"
   vm="$(normalize_matrix "$evidence/repair-matrix.json" | jq -Sc .)"
@@ -1298,10 +1232,8 @@ vm_equivalence() {
   fixtures="$(jq -s 'length==3 and all(.[];.fixtureStateValid==true)' "$evidence"/case-*-boot-evidence.json)"
   gc_survival="$(jq -e '.status=="pass" and .positiveGcRun==true and .exactTargetSurvived==true and .targetExistsAfterGc==true and .rootPresentAfter==true' "$evidence/furnish-gc-survival.json" >/dev/null && printf true || printf false)"
   gc_repair="$(jq -e '.status=="pass" and .twoGenerations==true and .updatedWhileRecordedTargetLive==true and .updateLedgerAdvanced==true and .updateRecordedBranch=="update" and .inertAcrossIntermediateBoot==true and .furnishUnitAbsentWhileInert==true and .reapedByOrdinaryGc==true and .ignoreLivenessUsed==false and .repairedAfterGc==true and .ledgerRecordAdvanced==true and .repairRecordedBranch=="repair"' "$evidence/furnish-gc-repair.json" >/dev/null && printf true || printf false)"
-  migration="$(jq -e '.status=="pass" and .selfSmokePassed==true and .releaseEnabledEmpty==true and .releaseHandoff==true and .adoptTakeover==true and .adoptSelectedForBoot==true' "$evidence/furnish-migrate-gate.json" >/dev/null && printf true || printf false)"
-  release_probe="$(jq -e '.runtimeModulePresent==true and .declarations==[] and .manifestData==[] and .manifestPath!=null and .hasActivation==true and .hasBootService==true' "$evidence/release-generation-probe.json" >/dev/null && printf true || printf false)"
   all_true=false
-  if [ "$khion_expected" = true ] && [ "$vm_expected" = true ] && [ "$vm_khion" = true ] && [ "$boot_ids" = true ] && [ "$switches" = true ] && [ "$persistence" = true ] && [ "$generations" = true ] && [ "$fixtures" = true ] && [ "$gc_survival" = true ] && [ "$gc_repair" = true ] && [ "$migration" = true ] && [ "$release_probe" = true ] && [ "$ledger_survival" = true ]; then all_true=true; fi
+  if [ "$khion_expected" = true ] && [ "$vm_expected" = true ] && [ "$vm_khion" = true ] && [ "$boot_ids" = true ] && [ "$switches" = true ] && [ "$persistence" = true ] && [ "$generations" = true ] && [ "$fixtures" = true ] && [ "$gc_survival" = true ] && [ "$gc_repair" = true ] && [ "$ledger_survival" = true ]; then all_true=true; fi
   status=finding; [ "$all_true" = true ] && status=pass
   jq -S -n --arg status "$status" --argjson expected "$expected" --argjson khion "$khion" --argjson vm "$vm" \
     --arg khionMatrixPath "$khion_matrix" --arg khionMatrixSha256 "$(content_hash "$khion_matrix")" \
@@ -1314,9 +1246,8 @@ vm_equivalence() {
     --argjson byteIdenticalSwitches "$switches" --argjson persistenceControls "$persistence" \
     --argjson exactGenerationSelected "$generations" --argjson fixtureStates "$fixtures" --argjson positiveGcSurvival "$gc_survival" \
     --argjson twoGenerationGcRepair "$gc_repair" \
-    --argjson releaseAdoptHandoff "$migration" --argjson releaseEnabledEmpty "$release_probe" \
     --argjson ledgerSurvivedRootWipe "$ledger_survival" \
-    '{schemaVersion:1,status:$status,authority:{expectedMatrix:$expected},khionEvidence:{path:$khionMatrixPath,sha256:$khionMatrixSha256,modifiedAt:$khionMatrixModifiedAt,baselineGeneratedBy:$baselineGeneratedBy,baselineSystemToplevel:$baselineSystemToplevel,matrix:$khion},vmEvidence:{matrix:$vm,archive:$archive,testedToplevel:$testedToplevel,regressionApp:$regressionApp},invariants:{khionMatchesExpected:$khionMatchesExpected,vmMatchesExpected:$vmMatchesExpected,vmMatchesKhion:$vmMatchesKhion,changedBootIds:$changedBootIds,byteIdenticalNoOpSwitches:$byteIdenticalSwitches,persistenceAndNegativeControls:$persistenceControls,exactGenerationSelected:$exactGenerationSelected,fixtureStatesValid:$fixtureStates,positiveGcSurvival:$positiveGcSurvival,twoGenerationGcRepair:$twoGenerationGcRepair,releaseAdoptHandoff:$releaseAdoptHandoff,releaseEnabledEmpty:$releaseEnabledEmpty,ledgerSurvivedRootWipe:$ledgerSurvivedRootWipe}}' > "$output"
+    '{schemaVersion:1,status:$status,authority:{expectedMatrix:$expected},khionEvidence:{path:$khionMatrixPath,sha256:$khionMatrixSha256,modifiedAt:$khionMatrixModifiedAt,baselineGeneratedBy:$baselineGeneratedBy,baselineSystemToplevel:$baselineSystemToplevel,matrix:$khion},vmEvidence:{matrix:$vm,archive:$archive,testedToplevel:$testedToplevel,regressionApp:$regressionApp},invariants:{khionMatchesExpected:$khionMatchesExpected,vmMatchesExpected:$vmMatchesExpected,vmMatchesKhion:$vmMatchesKhion,changedBootIds:$changedBootIds,byteIdenticalNoOpSwitches:$byteIdenticalSwitches,persistenceAndNegativeControls:$persistenceControls,exactGenerationSelected:$exactGenerationSelected,fixtureStatesValid:$fixtureStates,positiveGcSurvival:$positiveGcSurvival,twoGenerationGcRepair:$twoGenerationGcRepair,ledgerSurvivedRootWipe:$ledgerSurvivedRootWipe}}' > "$output"
   jq . "$output"
   [ "$status" = pass ] || return 1
 }
@@ -1352,21 +1283,12 @@ vm_run() {
   vm_prepare_test_flake "$flake" "$VM_TEST_FLAKE"
   VM_TOPLEVEL="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.system.build.toplevel")"
   VM_LEDGER="$(nix eval --raw "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.lexicon.furnish.ledgerPath")"
-  VM_RELEASE_TOPLEVEL="$(vm_build_release_toplevel "$VM_TEST_FLAKE" "$run_dir/release-source")"
-  [ "$VM_RELEASE_TOPLEVEL" != "$VM_TOPLEVEL" ] || die "release and adopt generations are identical; no ownership handoff can be proved"
-  log "built enabled-empty furnish release toplevel $VM_RELEASE_TOPLEVEL"
   VM_APP="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#program-files-regression")"
   archive_json="$(nix flake archive --json "$VM_TEST_FLAKE")"
   VM_ARCHIVE="$(jq -r .path <<<"$archive_json")"
   [[ "$VM_ARCHIVE" == /nix/store/* ]] || die "flake archive is not an immutable store path"
   vm_copy_closures
-  migrate_smoke
-  migrate_apply "$VM_RELEASE_TOPLEVEL"
-  migrate_assert_release
-  migrate_apply "$VM_TOPLEVEL"
-  migrate_assert_adopt
   vm_select_toplevel
-  vm_record_integrated_migration
   vm_reboot
   vm_assert_selected_after_boot initial
   vm_guest_harness furnish-symlink --host vm
@@ -1386,145 +1308,10 @@ vm_run() {
   done
   vm_gc_repair_survival "$VM_TEST_FLAKE" "$run_dir/variant-source"
   vm_collect_evidence "$evidence"
-  cp "$CACHE/release-generation-probe.json" "$evidence/"
   cp "$CACHE/disabled-generation-probe.json" "$evidence/"
   cp "$evidence/repair-matrix.json" "$CACHE/vm-repair-matrix.json"
   vm_equivalence "$khion_matrix" "$evidence" "$output"
   log "VM proof passed; disposable overlay retained at $run_dir"
-}
-
-migrate_smoke() {
-  # a false green is the real risk. unless the base truly starts pre-furnish with
-  # hjem owning kitty.conf, the two-step handoff proves nothing.
-  local path=/home/feltfomo/.config/kitty/kitty.conf raw
-  ssh_vm test -L "$path" || die "self-smoke: base does not start with a managed kitty.conf symlink"
-  raw="$(ssh_vm readlink -- "$path")"
-  case "$raw" in
-    *-skadi-*) ;;
-    *) die "self-smoke: base kitty.conf is not a pre-furnish hjem target: $raw";;
-  esac
-  log "self-smoke: base starts pre-furnish, hjem owns kitty.conf ($raw)"
-}
-
-migrate_apply() {
-  # test activation only; a probed generation must never become the boot default.
-  local toplevel="$1" rc active
-  vm_copy_toplevel "$toplevel"
-  rc=0
-  ssh_root "$toplevel/bin/switch-to-configuration" test || rc=$?
-  # current-system moves even when a later unit fails, so this catches a skipped
-  # activation while leaving unit-level failures to the per-generation asserts.
-  active="$(ssh_vm readlink -f /run/current-system)"
-  [ "$active" = "$toplevel" ] || die "guest did not activate $toplevel (current-system=$active, switch rc=$rc)"
-}
-
-migrate_assert_release() {
-  # furnish is loaded with an empty desired set, so only hjem may release its prior link.
-  local path=/home/feltfomo/.config/kitty/kitty.conf result errors
-  local templates=/home/feltfomo/.config/noctalia/templates present owned
-  result="$(ssh_root systemctl show -p Result --value hjem-activate@feltfomo.service)"
-  [ "$result" = success ] || die "release: hjem-activate did not finish cleanly (Result=$result)"
-  errors="$(ssh_root journalctl -b -u hjem-activate@feltfomo.service --no-pager | grep -c 'File is not the same as expected' || true)"
-  [ "$errors" = 0 ] || die "release: hjem hit a teardown collision ($errors occurrences)"
-  ! ssh_vm test -L "$path" || die "release: kitty.conf link survived hjem teardown"
-  ! ssh_vm test -e "$path" || die "release: kitty.conf still present after hjem teardown"
-  log "release generation handed kitty.conf back; hjem removed its own link"
-
-  # the golden base predates 0aee617, so its noctalia templates were written by a
-  # home-manager activation heredoc. a heredoc leaves unmanaged files behind:
-  # nothing removes them when the declaration goes away, so they outlive the
-  # release generation as plain unowned content sitting on the exact destinations
-  # furnish declares as writable seeds, and furnish rightly refuses to adopt what
-  # it does not own. clearing them is the migration step a real pre-furnish host
-  # has to perform, so it runs here explicitly and is proved on both sides rather
-  # than assumed. leaving it implicit would also let the dangling and drifted
-  # no-op switches pass on this diagnostic instead of on their own fixture.
-  present="$(ssh_vm find "$templates" -type f 2>/dev/null | wc -l)"
-  [ "$present" -gt 0 ] \
-    || die "release: base carries no pre-furnish noctalia templates; the migration step would prove nothing"
-  if [ -n "${VM_LEDGER:-}" ] && ssh_vm test -f "$VM_LEDGER"; then
-    owned="$(ssh_vm cat "$VM_LEDGER" | jq -r --arg root "$templates" '[.records[]|select(.destination|startswith($root))]|length')"
-    [ "$owned" = 0 ] \
-      || die "release: furnish already records $owned template destinations; that is managed state, not pre-furnish content"
-  fi
-  ssh_vm rm -rf -- "$templates"
-  ! ssh_vm test -e "$templates" || die "release: pre-furnish noctalia templates were not cleared"
-  log "release: cleared $present unowned pre-furnish noctalia template files"
-}
-
-migrate_assert_adopt() {
-  # furnish now owns the path from absent; hjem must stay out of it.
-  local path=/home/feltfomo/.config/kitty/kitty.conf target result errors
-  local templates=/home/feltfomo/.config/noctalia/templates seeded
-  ssh_vm test -L "$path" || die "adopt: furnish did not create the kitty.conf symlink"
-  target="$(ssh_vm readlink -- "$path")"
-  case "$target" in
-    *furnish-kitty.conf) ;;
-    *) die "adopt: kitty.conf points at $target, not the furnish artifact";;
-  esac
-  case "$target" in
-    *-skadi-*) die "adopt: kitty.conf still points at a hjem target: $target";;
-  esac
-  ssh_vm test -e "$path" || die "adopt: furnish kitty.conf target is missing"
-  result="$(ssh_root systemctl show -p Result --value hjem-activate@feltfomo.service)"
-  [ "$result" = success ] || die "adopt: hjem-activate is not active (Result=$result)"
-  errors="$(ssh_root journalctl -b -u hjem-activate@feltfomo.service --no-pager | grep -c 'File is not the same as expected' || true)"
-  [ "$errors" = 0 ] || die "adopt: hjem attempted a kitty.conf teardown ($errors occurrences)"
-  # the release step cleared the heredoc-written templates, so seeing them again
-  # here is furnish publishing its own writable seeds from absent. without this
-  # the clearing would read as a deletion rather than as a completed handoff.
-  seeded="$(ssh_vm find "$templates" -type f 2>/dev/null | wc -l)"
-  [ "$seeded" -gt 0 ] || die "adopt: furnish did not re-establish the noctalia template seeds"
-  log "adopt generation took over kitty.conf and seeded $seeded noctalia templates; furnish target exact, hjem quiet"
-}
-
-migrate_gate() {
-  # prove every pre-furnish base migrates deliberately. a release generation hands
-  # kitty.conf back to hjem, then the adopt generation lets furnish take it over.
-  # khion's own migration was accidental, so this is the only positive proof.
-  local base="" release="" adopt="" run_id run_dir
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      --base) base="$2"; shift 2;;
-      --release-toplevel) release="$2"; shift 2;;
-      --adopt-toplevel) adopt="$2"; shift 2;;
-      *) die "unknown migrate-gate argument: $1";;
-    esac
-  done
-  vm_require_run
-  base="${base:-$VM_BASE}"
-  [ -f "$base" ] || die "migration base image is missing: $base"
-  [ -f "$VM_BASE_VARS" ] || die "lifecycle base vars are missing; run vm provision once"
-  [ -n "$release" ] && [ -n "$adopt" ] || die "migrate-gate needs --release-toplevel and --adopt-toplevel"
-  { [[ "$release" == /nix/store/* ]] && [ -e "$release" ]; } || die "release toplevel is not a live store path: $release"
-  { [[ "$adopt" == /nix/store/* ]] && [ -e "$adopt" ]; } || die "adopt toplevel is not a live store path: $adopt"
-  # identical generations can't demonstrate a handoff.
-  [ "$release" != "$adopt" ] || die "release and adopt toplevels are identical; nothing to migrate"
-
-  run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
-  run_dir="$VM_CACHE/program-files-migrate-$run_id"
-  mkdir -p "$run_dir"
-  VM_OVERLAY="$run_dir/disk.qcow2"
-  VM_RUN_VARS="$run_dir/vars.fd"
-  VM_SERIAL="$run_dir/serial.log"
-  VM_CODE="$OVMF_FD/FV/OVMF_CODE.fd"
-  qemu-img create -f qcow2 -F qcow2 -b "$base" "$VM_OVERLAY" >/dev/null
-  cp "$VM_BASE_VARS" "$VM_RUN_VARS"
-  chmod 0600 "$VM_RUN_VARS"
-  QEMU_PID=""
-  trap 'vm_stop' EXIT
-  vm_start
-
-  migrate_smoke
-  migrate_apply "$release"
-  migrate_assert_release
-  migrate_apply "$adopt"
-  migrate_assert_adopt
-
-  jq -n --arg base "$base" --arg release "$release" --arg adopt "$adopt" \
-    '{schemaVersion:1,status:"pass",base:$base,releaseToplevel:$release,adoptToplevel:$adopt,selfSmokePassed:true,releaseHandoff:true,adoptTakeover:true}' \
-    > "$CACHE/furnish-migrate-gate.json"
-  log "migration proof passed; disposable overlay retained at $run_dir"
 }
 
 command="${1:-}"
@@ -1586,8 +1373,7 @@ case "$command" in
     [ "${1:-}" = --host ] && [ -n "${2:-}" ] && [ "${3:-}" = --mode ] && [ -n "${4:-}" ] && [ "${5:-}" = --run-id ] && [ -n "${6:-}" ] || die "reboot-assert needs --host, --mode, and --run-id"
     reboot_assert "$2" "$4" "$6";;
   vm)
-    action="${1:-}"; [ -n "$action" ] || die "vm needs provision, run, or migrate-gate"; shift
-    if [ "$action" = migrate-gate ]; then migrate_gate "$@"; exit $?; fi
+    action="${1:-}"; [ -n "$action" ] || die "vm needs provision or run"; shift
     flake="."; khion_matrix=""
     while [ "$#" -gt 0 ]; do
       case "$1" in

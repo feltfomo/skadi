@@ -20,7 +20,7 @@
   # flake inputs
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # temporary: logseq's buildPhase hangs on nixos-unstable until the yauzl fix
+    # temporary logseq's buildPhase hangs on nixos-unstable until the yauzl fix
     # (nixpkgs #536292) reaches that branch; pull logseq from master meanwhile.
     # drop this input and revert feltfomo.nix once nixos-unstable has the fix.
     nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
@@ -88,7 +88,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     lix = {
-      # tracks Lix HEAD; exact commit is pinned in flake.lock
+      # the lix head revision is pinned in flake.lock
       url = "https://git.lix.systems/lix-project/lix/archive/main.tar.gz";
       flake = false;
     };
@@ -101,10 +101,6 @@
       url = "github:abenz1267/walker";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.elephant.follows = "elephant";
-    };
-    hjem = {
-      url = "github:feel-co/hjem";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     zen-browser = {
       url = "github:0xc000022070/zen-browser-flake";

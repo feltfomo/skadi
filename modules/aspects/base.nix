@@ -13,8 +13,7 @@
     ];
 
     nixos = {
-      # home-manager + lix modules. hjem is already wired by den; disko is
-      # imported per host, next to its disko.devices.
+      # disko stays beside each host's device declaration.
       imports = [
         inputs.home-manager.nixosModules.home-manager
         inputs.lix-module.nixosModules.default
@@ -25,10 +24,7 @@
       home-manager.useUserPackages = true;
       home-manager.extraSpecialArgs = { inherit inputs; };
 
-      # Assembly installs furnish once, and enablement is deliberately
-      # independent of whether any entry is declared: an enabled host with an
-      # empty entry set still reconciles, which is what retires entries a later
-      # generation stops declaring.
+      # an empty declaration set still retires files from older generations.
       lexicon.furnish.enable = true;
     };
   };

@@ -6,13 +6,10 @@
 {
   imports = [ inputs.den.flakeModule ];
 
-  # feltfomo runs both home-manager and hjem
-  den.schema.user.classes = lib.mkDefault [
-    "homeManager"
-    "hjem"
-  ];
+  # home-manager owns packages and program modules
+  den.schema.user.classes = lib.mkDefault [ "homeManager" ];
 
-  # global state version, do not change
+  # the shared state version stays pinned
   den.default.homeManager.home.stateVersion = "25.11";
   den.default.nixos.system.stateVersion = "25.11";
 }

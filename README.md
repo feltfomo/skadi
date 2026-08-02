@@ -43,7 +43,7 @@ modules/hosts/                khion.nix, lumi.nix, and per-host hardware in
                               networking, environment)
 modules/users/feltfomo.nix    the user, and the home aspects it includes
 modules/_lib/program.nix      turns a small spec into matching home-manager,
-                              hjem, and host-only nixos config
+                              furnish files and host-only nixos config
 modules/_lib/ownerships/      ownership engine: aspects claim config for
                               hosts or users; see docs/ownerships/ for the how-to
 modules/_pkgs/lucid.nix       spicetify Lucid theme, built from source

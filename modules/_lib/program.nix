@@ -1,6 +1,3 @@
-# _lib/program.nix lowers one aspect spec into NixOS / Home Manager / hjem
-# class modules. ownership rides the spec (hosts/users/exceptHosts/exceptUsers/
-# when) and resolves lazily; untagged specs stay global.
 {
   lib,
   resolve,
@@ -9,13 +6,11 @@
   hostUserNames,
 }:
 let
-  # the file lifecycle layer, reached through the furnish facade like every
-  # other furnish surface. it never sees a claim key.
   furnish = import ./furnish { inherit lib resolve resolveSystem; };
+  krisis = import ./krisis { inherit lib; };
   inherit (furnish) contract;
   furnishFiles = furnish.files;
 
-  # keys that mark ownership; everything else is config.
   claimKeys = [
     "hosts"
     "users"
@@ -25,34 +20,202 @@ let
   ];
   claimKeysAttrs = lib.genAttrs claimKeys (_: null);
 
-  # each files entry is its own leaf so a per-entry claim can drop it.
+  problem =
+    code: message:
+    krisis.mkDiagnostic {
+      severity = "error";
+      inherit code message;
+    };
+
+  checked =
+    diagnostics: value:
+    if diagnostics == [ ] then
+      value
+    else
+      krisis.throwDiagnostics {
+        inherit diagnostics;
+        formatHeader = count: "program: ${toString count} declaration error(s)";
+        formatDiagnostic = diagnostic: "  - [${diagnostic.code}] ${diagnostic.message}";
+      };
+
+  validateSpec =
+    spec:
+    if !builtins.isAttrs spec then
+      checked [ (problem "program/spec-shape" "declaration must be an attribute set") ] spec
+    else
+      let
+        themeIsAttrs = !(spec ? theme) || builtins.isAttrs spec.theme;
+        block = if themeIsAttrs then spec.theme.noctalia or null else null;
+        blockIsAttrs = block == null || builtins.isAttrs block;
+        blockExtra =
+          if blockIsAttrs && block != null && block ? templates then
+            removeAttrs block [
+              "id"
+              "templates"
+            ]
+          else
+            { };
+        errors =
+          lib.optional (spec ? pkg && !builtins.isFunction spec.pkg) (
+            problem "program/pkg-shape" "pkg must be a function"
+          )
+          ++ lib.optional (spec ? nixos && !builtins.isFunction spec.nixos) (
+            problem "program/nixos-shape" "nixos must be a function"
+          )
+          ++ lib.optional (spec ? imports && !builtins.isList spec.imports) (
+            problem "program/imports-shape" "imports must be a list"
+          )
+          ++ lib.optional (spec ? files && !builtins.isList spec.files) (
+            problem "program/files-shape" "files must be a list"
+          )
+          ++ lib.optional (!themeIsAttrs) (problem "program/theme-shape" "theme must be an attribute set")
+          ++ lib.optional (!blockIsAttrs) (
+            problem "program/noctalia-shape" "theme.noctalia must be an attribute set"
+          )
+          ++ lib.optionals (blockIsAttrs && block != null) (
+            lib.optional (!(block ? id) || !builtins.isString block.id || block.id == "") (
+              problem "program/noctalia-id" "theme.noctalia.id must be a non-empty string"
+            )
+            ++ lib.optional (block ? templates && !builtins.isList block.templates) (
+              problem "program/noctalia-templates-shape" "theme.noctalia.templates must be a list"
+            )
+            ++ lib.optional (block ? templates && block ? source) (
+              problem "program/noctalia-mixed-syntax" "theme.noctalia cannot mix templates with single-entry fields"
+            )
+            ++ lib.optional (blockExtra != { }) (
+              problem "program/noctalia-block-fields" "theme.noctalia with templates accepts only id and templates at block level"
+            )
+          );
+      in
+      checked errors spec;
+
   entryUnit =
     fieldName: entry:
-    if builtins.isAttrs entry then
-      (builtins.intersectAttrs claimKeysAttrs entry)
-      // {
-        ${fieldName} = [ (removeAttrs entry claimKeys) ];
-      }
-    else
-      { ${fieldName} = [ entry ]; };
+    (if builtins.isAttrs entry then builtins.intersectAttrs claimKeysAttrs entry else { })
+    // {
+      ${fieldName} = [ (if builtins.isAttrs entry then removeAttrs entry claimKeys else entry) ];
+    };
 
-  # one theme entry, normalized. input_path is never written on the surface; it
-  # derives from the placed destination at generation time. subdir is
-  # tri-state. absent means "${id}/", null means flat, a string is itself.
-  normalizeThemeEntry =
-    id: entry:
+  # theme entries stay descriptive until ownership has selected them.
+  themeUnits =
+    spec:
     let
-      source = entry.source or (throw ''program: theme.noctalia.${id} entry is missing "source"'');
-      output = entry.output or (throw ''program: theme.noctalia.${id} entry is missing "output"'');
+      block = spec.theme.noctalia or null;
+    in
+    if block == null then
+      [ ]
+    else
+      let
+        inherit (block) id;
+        rawEntries = block.templates or [ (removeAttrs block [ "id" ]) ];
+      in
+      map (
+        raw:
+        (if builtins.isAttrs raw then builtins.intersectAttrs claimKeysAttrs raw else { })
+        // {
+          themeEntries = [
+            {
+              blockId = id;
+              entry = if builtins.isAttrs raw then removeAttrs raw claimKeys else raw;
+            }
+          ];
+        }
+      ) rawEntries;
+
+  furnishUnit =
+    spec:
+    (builtins.intersectAttrs claimKeysAttrs spec)
+    // {
+      children = map (entryUnit "files") (spec.files or [ ]) ++ themeUnits spec;
+    };
+
+  specUnit =
+    spec:
+    let
+      pkg = spec.pkg or null;
+      imports = spec.imports or [ ];
+    in
+    (builtins.intersectAttrs claimKeysAttrs spec)
+    // {
+      children =
+        lib.optional (pkg != null) { inherit pkg; } ++ lib.optional (imports != [ ]) { inherit imports; };
+    };
+
+  fileErrors =
+    files:
+    lib.concatLists (
+      lib.imap0 (
+        index: entry:
+        let
+          subject = "files[${toString index}]";
+        in
+        if !builtins.isAttrs entry then
+          [ (problem "program/file-entry-shape" "${subject} must be an attribute set") ]
+        else
+          lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (
+            problem "program/file-destination" "${subject}.dest must be a non-empty string"
+          )
+          ++ lib.optional (!(entry ? src)) (problem "program/file-source" "${subject}.src is required")
+          ++ lib.optional (entry ? label && !builtins.isString entry.label) (
+            problem "program/file-label" "${subject}.label must be a string"
+          )
+          ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (
+            problem "program/file-provenance" "${subject}.provenance must be a string"
+          )
+          ++ lib.optional (entry ? representation && !builtins.isString entry.representation) (
+            problem "program/file-representation" "${subject}.representation must be a string"
+          )
+          ++ lib.optional (entry ? onConflict && !builtins.isString entry.onConflict) (
+            problem "program/file-conflict-policy" "${subject}.onConflict must be a string"
+          )
+      ) files
+    );
+
+  themeEntryErrors =
+    themeEntries:
+    lib.concatLists (
+      lib.imap0 (
+        index: wrapped:
+        let
+          subject = "theme.noctalia.${wrapped.blockId}.templates[${toString index}]";
+          inherit (wrapped) entry;
+        in
+        if !builtins.isAttrs entry then
+          [ (problem "program/theme-entry-shape" "${subject} must be an attribute set") ]
+        else
+          lib.optional (!(entry ? source)) (problem "program/theme-source" "${subject}.source is required")
+          ++ lib.optional (!(entry ? output) || !builtins.isString entry.output || entry.output == "") (
+            problem "program/theme-output" "${subject}.output must be a non-empty string"
+          )
+          ++ lib.optional (entry ? subdir && entry.subdir != null && !builtins.isString entry.subdir) (
+            problem "program/theme-subdir" "${subject}.subdir must be null or a string"
+          )
+          ++ lib.optional (entry ? placedAs && !builtins.isString entry.placedAs) (
+            problem "program/theme-placed-name" "${subject}.placedAs must be a string"
+          )
+          ++ lib.optional (entry ? subId && entry.subId != null && !builtins.isString entry.subId) (
+            problem "program/theme-sub-id" "${subject}.subId must be null or a string"
+          )
+          ++ lib.optional (entry ? reload && entry.reload != null && !builtins.isString entry.reload) (
+            problem "program/theme-reload" "${subject}.reload must be null or a string"
+          )
+      ) themeEntries
+    );
+
+  normalizeThemeEntry =
+    wrapped:
+    let
+      inherit (wrapped) blockId;
+      inherit (wrapped.entry) source output;
+      inherit (wrapped) entry;
       subdir =
         if !(entry ? subdir) then
-          "${id}/"
+          "${blockId}/"
         else if entry.subdir == null then
           ""
         else
           entry.subdir;
-      # baseNameOf keeps the source's store context; a placed name is a name,
-      # not a path, and attr names downstream forbid the reference
+      # the placed name must not retain the source path's string context.
       placedAs = entry.placedAs or (builtins.unsafeDiscardStringContext (baseNameOf source));
       subId = entry.subId or null;
     in
@@ -63,131 +226,55 @@ let
         subdir
         placedAs
         subId
+        blockId
         ;
       reload = entry.reload or null;
-      blockId = id;
-      registrationId = if subId == null then id else "${id}-${subId}";
+      registrationId = if subId == null then blockId else "${blockId}-${subId}";
     };
 
-  # theme.noctalia as per-entry units, mirroring the files leaf shape so a
-  # claim drops an entry's placed file and its registration together. a block
-  # with no templates key is sugar for one entry with no subId. block level
-  # takes only "id" and "templates"; claims ride each raw entry.
-  themeUnits =
-    spec:
+  validateSelected =
+    files: themeEntries:
     let
-      block = spec.theme.noctalia or null;
+      errors = fileErrors files ++ themeEntryErrors themeEntries;
     in
-    if block == null then
-      [ ]
-    else if !builtins.isAttrs block then
-      throw "program: theme.noctalia must be an attribute set"
-    else
-      let
-        id = block.id or (throw ''program: theme.noctalia is missing "id"'');
-        rawEntries =
-          if block ? templates && block ? source then
-            throw ''program: theme.noctalia.${id} mixes "templates" with single-entry fields''
-          else if block ? templates then
-            let
-              extra = removeAttrs block [
-                "id"
-                "templates"
-              ];
-            in
-            if extra != { } then
-              throw ''program: theme.noctalia.${id} takes only "id" and "templates" at block level, got ${lib.concatStringsSep ", " (builtins.attrNames extra)}''
-            else
-              block.templates
-          else
-            [ (removeAttrs block [ "id" ]) ];
-      in
-      map (
-        raw:
-        (builtins.intersectAttrs claimKeysAttrs raw)
-        // {
-          themeEntries = [ (normalizeThemeEntry id (removeAttrs raw claimKeys)) ];
-        }
-      ) rawEntries;
-
-  # every file entry and every theme entry is its own root unit under the
-  # spec's own claims, so a per-entry claim still drops one before it becomes a
-  # declaration. these units resolve through the system door, so an entry
-  # naming a user axis is refused there rather than narrowed. that gap is
-  # recorded rather than closed, and the refusal is meant to be loud.
-  furnishUnit =
-    spec:
-    (builtins.intersectAttrs claimKeysAttrs spec)
-    // {
-      children = map (entryUnit "files") (spec.files or [ ]) ++ themeUnits spec;
+    checked errors {
+      inherit files;
+      themeEntries = map normalizeThemeEntry themeEntries;
     };
 
-  # the spec is the root unit; each pkg/import/file/theme entry a child leaf.
-  specUnit =
-    spec:
-    let
-      pkg = spec.pkg or null;
-      imports = spec.imports or [ ];
-    in
-    (builtins.intersectAttrs claimKeysAttrs spec)
-    // {
-      children =
-        lib.optional (pkg != null) { inherit pkg; }
-        ++ lib.optional (imports != [ ]) { inherit imports; }
-        ++ map (entryUnit "files") (spec.files or [ ])
-        ++ themeUnits spec;
-    };
-
-  # home-manager config for a resolved spec. it is the package and nothing
-  # else now. the noctalia templates used to be written here by an activation
-  # heredoc, which made home-manager a second authority over destinations
-  # furnish is meant to own. they route through the file layer instead.
   hmConfig =
-    lib: spec: pkgs:
-    (
-      let
-        pkg = spec.pkg or null;
-      in
-      lib.mkIf (pkg != null) {
-        home.packages = [ (pkg pkgs) ];
-      }
-    );
+    lib: resolved: pkgs:
+    let
+      pkg = resolved.pkg or null;
+    in
+    lib.mkIf (pkg != null) {
+      home.packages = [ (pkg pkgs) ];
+    };
 
-  # resolved theme entries become furnish entries, the seed templates plus one
-  # registration fragment per block. seeds are writable + runtimeWins because
-  # the theme engine rewrites them at runtime, so source-changed-and-disk-
-  # changed is the ordinary case rather than drift, and furnish ships the
-  # initial content without ever clobbering a rewrite. the fragment is a plain
-  # symlink like any generated config, and its store path is forced to a string
-  # because a declaration source is plain data. input_path/output_path/
-  # post_hook are noctalia's wire names. the surface stays home-relative and
-  # the "~/" prefix lands here.
   themeFiles =
     entries: pkgs:
     let
-      ids = map (e: e.registrationId) entries;
-      # a shared registration id would silently overwrite in the fragment, so
-      # name the dup and fail before generating anything.
-      dupIds = lib.filter (x: lib.count (y: y == x) ids > 1) (lib.unique ids);
-      seedFileOf = e: {
-        dest = ".config/noctalia/templates/${e.subdir}${e.placedAs}";
-        src = e.source;
+      ids = map (entry: entry.registrationId) entries;
+      dupIds = lib.filter (id: lib.count (candidate: candidate == id) ids > 1) (lib.unique ids);
+      seedFileOf = entry: {
+        dest = ".config/noctalia/templates/${entry.subdir}${entry.placedAs}";
+        src = entry.source;
         representation = contract.capabilities.writable;
         onConflict = contract.conflictPolicies.runtimeWins;
         provenance = "modules/_lib/program.nix";
       };
       registrationOf =
-        e:
+        entry:
         {
-          input_path = "~/.config/noctalia/templates/${e.subdir}${e.placedAs}";
-          output_path = "~/${e.output}";
+          input_path = "~/.config/noctalia/templates/${entry.subdir}${entry.placedAs}";
+          output_path = "~/${entry.output}";
         }
-        // lib.optionalAttrs (e.reload != null) { post_hook = e.reload; };
+        // lib.optionalAttrs (entry.reload != null) { post_hook = entry.reload; };
       fragmentAttrset = {
         theme.templates.user = builtins.listToAttrs (
-          map (e: {
-            name = e.registrationId;
-            value = registrationOf e;
+          map (entry: {
+            name = entry.registrationId;
+            value = registrationOf entry;
           }) entries
         );
       };
@@ -196,7 +283,11 @@ let
     if entries == [ ] then
       [ ]
     else if dupIds != [ ] then
-      throw "program: theme.noctalia.${blockId} has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}"
+      checked
+        [
+          (problem "program/theme-registration-duplicate" "theme.noctalia.${blockId} has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}")
+        ]
+        [ ]
     else
       map seedFileOf entries
       ++ [
@@ -207,15 +298,14 @@ let
         }
       ];
 in
-spec:
+rawSpec:
 let
-  # home units are the whole spec as one root leaf, with the nixos slice apart.
-  homeUnits = [ (specUnit spec) ];
+  spec = validateSpec rawSpec;
   ownsFiles = (spec.files or [ ]) != [ ] || (spec.theme.noctalia or null) != null;
+  needsHomeManager = (spec.pkg or null) != null || (spec.imports or [ ]) != [ ];
+  homeUnits = [ (specUnit spec) ];
 in
-{
-  # home slices resolve at user scope from their own host/user args; both default
-  # null so an untagged spec resolves globally.
+lib.optionalAttrs needsHomeManager {
   homeManager =
     {
       pkgs,
@@ -231,20 +321,8 @@ in
       imports = resolved.imports or [ ];
       config = hmConfig lib resolved pkgs;
     };
-
-  # the hjem slice stays as the class contract's shape while declaring nothing,
-  # because furnish is the only authority for these destinations now and two
-  # authorities on one path is the thing being prevented.
-  hjem = _: {
-    files = { };
-  };
 }
 // lib.optionalAttrs (spec ? nixos || ownsFiles) {
-  # system slice, emitted when the aspect declares one or when furnish owns one
-  # of its file entries. den resolves it once per scope it reaches, so it runs at
-  # host scope and again under each user that includes the aspect. both entity
-  # args carry defaults, which is what keeps den's class wrapper from dropping
-  # the module for naming an arg the scope cannot fill.
   nixos =
     {
       pkgs,
@@ -254,7 +332,11 @@ in
       ...
     }:
     let
-      rawSlice = (resolveSystem (spec.nixos { inherit pkgs config; })) { inherit host; };
+      rawSlice =
+        if spec ? nixos then
+          (resolveSystem (spec.nixos { inherit pkgs config; })) { inherit host; }
+        else
+          { };
     in
     if !ownsFiles then
       rawSlice
@@ -262,21 +344,14 @@ in
       let
         hostName = config.networking.hostName;
         inherit (pkgs.stdenv.hostPlatform) system;
-        # the same system door the raw half uses, so a per-entry host claim
-        # reaches one verdict for both halves. a user-axis claim on one of these
-        # entries is refused there.
         resolved = (resolveSystem [ (furnishUnit spec) ]) { inherit host; };
-        hostFiles = (resolved.files or [ ]) ++ themeFiles (resolved.themeEntries or [ ]) pkgs;
+        selected = validateSelected (resolved.files or [ ]) (resolved.themeEntries or [ ]);
+        hostFiles = selected.files ++ themeFiles selected.themeEntries pkgs;
       in
       {
-        # a module that names a furnish option owns the import.
         imports = [
           ./furnish/runtime.nix
           {
-            # the file half is delivered per user, so a host where no user
-            # received it declares nothing and activates an empty furnish. the
-            # check is host-global because a single host-scope emission
-            # legitimately contributes zero.
             assertions = lib.optional (hostFiles != [ ]) {
               assertion = config.lexicon.furnish.declarations != [ ];
               message = "furnish: file entries on ${hostName} reached no user principal (have: ${
@@ -286,8 +361,7 @@ in
                 })
               })";
             };
-            # on lumi this asked den for every user on the host, and grandpa
-            # took 29 declarations for files feltfomo receives.
+            # den reaches this slice once per selected user.
             lexicon.furnish.declarations = furnishFiles.mkDeclarations {
               filesystemNamespace = "${system}/${hostName}";
               principals = filePrincipals {

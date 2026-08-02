@@ -262,26 +262,6 @@
         "type": "github"
       }
     },
-    "hjem": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1785216864,
-        "narHash": "sha256-QF9moiMJtq6OVOmzJhpjM78tlMAC5J+tvNWaOz4v9wY=",
-        "owner": "feel-co",
-        "repo": "hjem",
-        "rev": "7dc2f4b1ee69c9ae3f223ab1fa4e95b93f72bc68",
-        "type": "github"
-      },
-      "original": {
-        "owner": "feel-co",
-        "repo": "hjem",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -1030,7 +1010,6 @@
         "elephant": "elephant",
         "flake-parts": "flake-parts",
         "hermes-agent": "hermes-agent",
-        "hjem": "hjem",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
         "impermanence": "impermanence",
