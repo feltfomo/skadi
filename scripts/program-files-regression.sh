@@ -1351,6 +1351,7 @@ vm_run() {
   VM_TEST_FLAKE="$run_dir/source"
   vm_prepare_test_flake "$flake" "$VM_TEST_FLAKE"
   VM_TOPLEVEL="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.system.build.toplevel")"
+  VM_LEDGER="$(nix eval --raw "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.lexicon.furnish.ledgerPath")"
   VM_RELEASE_TOPLEVEL="$(vm_build_release_toplevel "$VM_TEST_FLAKE" "$run_dir/release-source")"
   [ "$VM_RELEASE_TOPLEVEL" != "$VM_TOPLEVEL" ] || die "release and adopt generations are identical; no ownership handoff can be proved"
   log "built enabled-empty furnish release toplevel $VM_RELEASE_TOPLEVEL"
@@ -1420,6 +1421,7 @@ migrate_apply() {
 migrate_assert_release() {
   # furnish is loaded with an empty desired set, so only hjem may release its prior link.
   local path=/home/feltfomo/.config/kitty/kitty.conf result errors
+  local templates=/home/feltfomo/.config/noctalia/templates present owned
   result="$(ssh_root systemctl show -p Result --value hjem-activate@feltfomo.service)"
   [ "$result" = success ] || die "release: hjem-activate did not finish cleanly (Result=$result)"
   errors="$(ssh_root journalctl -b -u hjem-activate@feltfomo.service --no-pager | grep -c 'File is not the same as expected' || true)"
@@ -1427,11 +1429,33 @@ migrate_assert_release() {
   ! ssh_vm test -L "$path" || die "release: kitty.conf link survived hjem teardown"
   ! ssh_vm test -e "$path" || die "release: kitty.conf still present after hjem teardown"
   log "release generation handed kitty.conf back; hjem removed its own link"
+
+  # the golden base predates 0aee617, so its noctalia templates were written by a
+  # home-manager activation heredoc. a heredoc leaves unmanaged files behind:
+  # nothing removes them when the declaration goes away, so they outlive the
+  # release generation as plain unowned content sitting on the exact destinations
+  # furnish declares as writable seeds, and furnish rightly refuses to adopt what
+  # it does not own. clearing them is the migration step a real pre-furnish host
+  # has to perform, so it runs here explicitly and is proved on both sides rather
+  # than assumed. leaving it implicit would also let the dangling and drifted
+  # no-op switches pass on this diagnostic instead of on their own fixture.
+  present="$(ssh_vm find "$templates" -type f 2>/dev/null | wc -l)"
+  [ "$present" -gt 0 ] \
+    || die "release: base carries no pre-furnish noctalia templates; the migration step would prove nothing"
+  if [ -n "${VM_LEDGER:-}" ] && ssh_vm test -f "$VM_LEDGER"; then
+    owned="$(ssh_vm cat "$VM_LEDGER" | jq -r --arg root "$templates" '[.records[]|select(.destination|startswith($root))]|length')"
+    [ "$owned" = 0 ] \
+      || die "release: furnish already records $owned template destinations; that is managed state, not pre-furnish content"
+  fi
+  ssh_vm rm -rf -- "$templates"
+  ! ssh_vm test -e "$templates" || die "release: pre-furnish noctalia templates were not cleared"
+  log "release: cleared $present unowned pre-furnish noctalia template files"
 }
 
 migrate_assert_adopt() {
   # furnish now owns the path from absent; hjem must stay out of it.
   local path=/home/feltfomo/.config/kitty/kitty.conf target result errors
+  local templates=/home/feltfomo/.config/noctalia/templates seeded
   ssh_vm test -L "$path" || die "adopt: furnish did not create the kitty.conf symlink"
   target="$(ssh_vm readlink -- "$path")"
   case "$target" in
@@ -1446,7 +1470,12 @@ migrate_assert_adopt() {
   [ "$result" = success ] || die "adopt: hjem-activate is not active (Result=$result)"
   errors="$(ssh_root journalctl -b -u hjem-activate@feltfomo.service --no-pager | grep -c 'File is not the same as expected' || true)"
   [ "$errors" = 0 ] || die "adopt: hjem attempted a kitty.conf teardown ($errors occurrences)"
-  log "adopt generation took over kitty.conf; furnish target exact, hjem quiet"
+  # the release step cleared the heredoc-written templates, so seeing them again
+  # here is furnish publishing its own writable seeds from absent. without this
+  # the clearing would read as a deletion rather than as a completed handoff.
+  seeded="$(ssh_vm find "$templates" -type f 2>/dev/null | wc -l)"
+  [ "$seeded" -gt 0 ] || die "adopt: furnish did not re-establish the noctalia template seeds"
+  log "adopt generation took over kitty.conf and seeded $seeded noctalia templates; furnish target exact, hjem quiet"
 }
 
 migrate_gate() {
