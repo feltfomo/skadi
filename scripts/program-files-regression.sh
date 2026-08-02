@@ -985,19 +985,30 @@ vm_prepare_test_flake() {
 }
 
 vm_build_release_toplevel() {
-  local flake="$1" flake_ref release_expr probe toplevel
-  flake_ref="$(printf '%s' "git+file://$flake" | jq -Rs .)"
-  release_expr="let
-    flake = builtins.getFlake $flake_ref;
-  in
-    flake.nixosConfigurations.vm.extendModules {
-      modules = [
-        ({ lib, ... }: {
-          lexicon.furnish.declarations = lib.mkForce [ ];
-        })
-      ];
-    }"
-  probe="$(nix eval --impure --json --expr "let release = ($release_expr); in {
+  # the release generation must own no files, and that decision lives in the
+  # program layer rather than in furnish's option. forcing
+  # lexicon.furnish.declarations empty from outside leaves every aspect still
+  # holding its own file entries, which is the exact state program.nix asserts
+  # against, so the release build failed on the assertion it was tripping itself.
+  # empty the binding that produces the entries instead. the furnish runtime
+  # import sits under ownsFiles rather than under hostFiles, so it survives and
+  # the generation stays enabled with nothing declared.
+  local source="$1" destination="$2" lowering flake_ref probe toplevel
+  [ ! -e "$destination" ] || die "release source already exists: $destination"
+  cp -a "$source" "$destination"
+  lowering="$destination/modules/_lib/program.nix"
+  [ -f "$lowering" ] || die "release source is missing the program lowering: $lowering"
+  # a substitution that matched nothing would build an ordinary generation and
+  # read as a pass, so the anchor is proved present before and the result after.
+  grep -Fq 'hostFiles = (resolved.files or [ ]) ++ themeFiles (resolved.themeEntries or [ ]) pkgs;' "$lowering" \
+    || die "program lowering does not carry the expected hostFiles binding"
+  sed -i 's|hostFiles = (resolved.files or \[ \]) ++ themeFiles (resolved.themeEntries or \[ \]) pkgs;|hostFiles = [ ];|' "$lowering"
+  grep -Fq 'hostFiles = [ ];' "$lowering" || die "release patch did not apply"
+  git -C "$destination" -c user.name=program-files-regression \
+    -c user.email=program-files-regression@invalid commit -qam "release generation declares no furnish files"
+
+  flake_ref="$(printf '%s' "git+file://$destination" | jq -Rs .)"
+  probe="$(nix eval --impure --json --expr "let release = (builtins.getFlake $flake_ref).nixosConfigurations.vm; in {
     runtimeModulePresent = release.options.lexicon.furnish ? declarations;
     declarations = release.config.lexicon.furnish.declarations;
     manifestData = release.config.lexicon.furnish.manifestData;
@@ -1013,8 +1024,8 @@ vm_build_release_toplevel() {
   jq -e '.runtimeModulePresent == true and .declarations == [] and .manifestData == [] and .manifestPath != null and .hasActivation == true and .hasBootService == true' <<<"$probe" >/dev/null \
     || die "release generation did not keep furnish enabled and running with an empty desired set"
   printf '%s\n' "$probe" | jq -S . > "$CACHE/release-generation-probe.json"
-  toplevel="$(nix build --impure --no-link --print-out-paths --expr "($release_expr).config.system.build.toplevel")"
-  [[ "$toplevel" == /nix/store/* ]] && [ -e "$toplevel" ] \
+  toplevel="$(nix build --no-link --print-out-paths "${destination}#nixosConfigurations.vm.config.system.build.toplevel")"
+  { [[ "$toplevel" == /nix/store/* ]] && [ -e "$toplevel" ]; } \
     || die "release generation did not produce a live system toplevel: $toplevel"
   printf '%s\n' "$toplevel"
 }
@@ -1340,7 +1351,7 @@ vm_run() {
   VM_TEST_FLAKE="$run_dir/source"
   vm_prepare_test_flake "$flake" "$VM_TEST_FLAKE"
   VM_TOPLEVEL="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#nixosConfigurations.vm.config.system.build.toplevel")"
-  VM_RELEASE_TOPLEVEL="$(vm_build_release_toplevel "$VM_TEST_FLAKE")"
+  VM_RELEASE_TOPLEVEL="$(vm_build_release_toplevel "$VM_TEST_FLAKE" "$run_dir/release-source")"
   [ "$VM_RELEASE_TOPLEVEL" != "$VM_TOPLEVEL" ] || die "release and adopt generations are identical; no ownership handoff can be proved"
   log "built enabled-empty furnish release toplevel $VM_RELEASE_TOPLEVEL"
   VM_APP="$(nix build --no-link --print-out-paths "${VM_TEST_FLAKE}#program-files-regression")"
