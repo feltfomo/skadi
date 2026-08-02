@@ -424,8 +424,8 @@ func TestEvalDrvStoresCleanStdoutPath(t *testing.T) {
 	if got := h.manifest.DrvPaths["toplevel"]; got != want {
 		t.Fatalf("stored drv = %q, want %q", got, want)
 	}
-	if len(evalAttrs) != 2 || !strings.HasSuffix(evalAttrs[1], "#nixosConfigurations.vm.config.system.build._cliDestroyFormatMount.drvPath") {
-		t.Fatalf("disko eval did not select the cli destroy-format-mount derivation: %v", evalAttrs)
+	if len(evalAttrs) != 2 || !strings.HasSuffix(evalAttrs[1], "#nixosConfigurations.vm.config.system.build.destroyFormatMount.drvPath") {
+		t.Fatalf("disko eval did not select the pinned destroy-format-mount derivation: %v", evalAttrs)
 	}
 }
 
