@@ -29,74 +29,110 @@ let
       primary.label = entry;
     };
 
-  entryName = declaration: declaration.label or "unlabeled declaration";
-
-  require =
-    declaration: condition: code: reason:
-    if condition then
-      true
-    else
-      fail (diagnostic "shape-validation" code (entryName declaration) reason);
-
-  validateShape =
+  entryName =
     declaration:
-    let
-      isAttrs = builtins.isAttrs declaration;
-      checked =
-        require declaration isAttrs "declaration-type" "a declaration must be an attribute set"
-        && require declaration (
-          declaration ? label && builtins.isString declaration.label
-        ) "label-type" "label must be a string"
-        && require declaration (
-          declaration ? filesystemNamespace && builtins.isString declaration.filesystemNamespace
-        ) "namespace-type" "filesystemNamespace must be a string"
-        && require declaration (
-          declaration ? authority && builtins.isAttrs declaration.authority
-        ) "authority-type" "authority must be an attribute set"
-        && require declaration (
-          declaration.authority ? scope
-          && builtins.elem declaration.authority.scope [
-            "user"
-            "system"
-          ]
-        ) "authority-scope" "authority.scope must be 'user' or 'system'"
-        && require declaration (
-          declaration.authority ? identity && builtins.isString declaration.authority.identity
-        ) "authority-identity" "authority.identity must be a canonical string id"
-        &&
-          require declaration
-            (declaration.authority.scope != "system" || lib.hasInfix "/" declaration.authority.identity)
-            "system-authority-identity"
-            "a system authority identity must be the canonical '<system>/<name>' id"
-        && require declaration (
-          declaration ? managedRoot && builtins.isString declaration.managedRoot
-        ) "managed-root-type" "managedRoot must be a string"
-        && require declaration (
-          declaration ? destination && builtins.isString declaration.destination
-        ) "destination-type" "destination must be a string"
-        && require declaration (
-          declaration ? representation && builtins.isString declaration.representation
-        ) "representation-type" "representation must be a string"
-        && require declaration (
-          declaration ? source
-          && builtins.isAttrs declaration.source
-          && declaration.source ? kind
-          && builtins.isString declaration.source.kind
-          && declaration.source ? value
-        ) "source-shape" "source must carry a string kind and a lazy value"
-        && require declaration (
+    if builtins.isAttrs declaration && declaration ? label && builtins.isString declaration.label then
+      declaration.label
+    else
+      "unlabeled declaration";
+
+  shapeDiagnostics =
+    declaration:
+    if !builtins.isAttrs declaration then
+      [
+        (diagnostic "shape-validation" "declaration-type" "unlabeled declaration"
+          "a declaration must be an attribute set"
+        )
+      ]
+    else
+      let
+        name = entryName declaration;
+        authority =
+          if declaration ? authority && builtins.isAttrs declaration.authority then
+            declaration.authority
+          else
+            { };
+        source =
+          if declaration ? source && builtins.isAttrs declaration.source then declaration.source else { };
+        provenanceValid =
           !(declaration ? provenance)
           || (
             builtins.isAttrs declaration.provenance
             && lib.all builtins.isString (builtins.attrValues declaration.provenance)
+          );
+        issue =
+          condition: code: reason:
+          lib.optional condition (diagnostic "shape-validation" code name reason);
+      in
+      issue (
+        !(declaration ? label) || !builtins.isString declaration.label
+      ) "label-type" "label must be a string"
+      ++ issue (
+        !(declaration ? filesystemNamespace) || !builtins.isString declaration.filesystemNamespace
+      ) "namespace-type" "filesystemNamespace must be a string"
+      ++ issue (
+        !(declaration ? authority) || !builtins.isAttrs declaration.authority
+      ) "authority-type" "authority must be an attribute set"
+      ++ issue (
+        !(authority ? scope)
+        || !builtins.isString authority.scope
+        || !(builtins.elem authority.scope [
+          "user"
+          "system"
+        ])
+      ) "authority-scope" "authority.scope must be 'user' or 'system'"
+      ++ issue (
+        !(authority ? identity) || !builtins.isString authority.identity
+      ) "authority-identity" "authority.identity must be a canonical string id"
+      ++
+        issue
+          (
+            authority ? scope
+            && builtins.isString authority.scope
+            && authority.scope == "system"
+            && authority ? identity
+            && builtins.isString authority.identity
+            && !lib.hasInfix "/" authority.identity
           )
-        ) "provenance-shape" "provenance values must be strings"
-        && require declaration (
-          !(declaration ? onConflict)
-          || builtins.elem declaration.onConflict (builtins.attrValues contract.conflictPolicies)
-        ) "on-conflict-value" "onConflict must be one of the declared conflict policies";
+          "system-authority-identity"
+          "a system authority identity must be the canonical '<system>/<name>' id"
+      ++ issue (
+        !(declaration ? managedRoot) || !builtins.isString declaration.managedRoot
+      ) "managed-root-type" "managedRoot must be a string"
+      ++ issue (
+        !(declaration ? destination) || !builtins.isString declaration.destination
+      ) "destination-type" "destination must be a string"
+      ++ issue (
+        !(declaration ? representation)
+        || !builtins.isString declaration.representation
+        || declaration.representation == ""
+      ) "representation-type" "representation must be a non-empty string"
+      ++ issue (
+        !(declaration ? source) || !builtins.isAttrs declaration.source
+      ) "source-type" "source must be an attribute set"
+      ++ issue (
+        !(source ? kind) || !builtins.isString source.kind
+      ) "source-kind" "source.kind must be a string"
+      ++ issue (
+        !(source ? value)
+      ) "source-value" "source.value is required and remains lazy during validation"
+      ++ issue (!provenanceValid) "provenance-shape" "provenance values must be strings"
+      ++ issue (
+        declaration ? onConflict
+        && (
+          !builtins.isString declaration.onConflict
+          || !(builtins.elem declaration.onConflict (builtins.attrValues contract.conflictPolicies))
+        )
+      ) "on-conflict-value" "onConflict must be one of the declared conflict policies";
+
+  validateShapes =
+    declarations:
+    let
+      diagnostics = builtins.concatMap shapeDiagnostics declarations;
     in
-    builtins.seq checked declaration;
+    if diagnostics == [ ] then declarations else failAll diagnostics;
+
+  validateShape = declaration: builtins.head (validateShapes [ declaration ]);
 
   ownershipUnit =
     declaration:
@@ -247,25 +283,7 @@ let
     "${claimant.authority.scope}/${claimant.authority.identity} (${claimant.provenance.declaration} at ${claimant.provenance.source})";
 
   groupProjections =
-    projections:
-    builtins.foldl'
-      (
-        groups: projection:
-        let
-          key = projection.filesystemIdentity.canonical;
-        in
-        groups // { ${key} = (groups.${key} or [ ]) ++ [ projection ]; }
-      )
-      { }
-      (
-        builtins.sort (
-          a: b:
-          if a.filesystemIdentity.canonical == b.filesystemIdentity.canonical then
-            claimantLess a b
-          else
-            identityLess a b
-        ) projections
-      );
+    projections: builtins.groupBy (projection: projection.filesystemIdentity.canonical) projections;
 
   collisionDiagnostics =
     projections:
@@ -300,21 +318,28 @@ let
     else
       lib.mapAttrs (_: claimants: builtins.head claimants) groups;
 
+  projectValidatedPrincipal =
+    {
+      declarations,
+      principal,
+      provider,
+    }:
+    let
+      owned = builtins.filter (declaration: declaration.authority == principal.authority) declarations;
+      selected = provider.selectApplicable owned principal.ctx;
+    in
+    map (declaration: indexProjection (deriveDestination declaration)) selected;
+
   projectPrincipal =
     {
       declarations,
       principal,
       provider ? defaultProvider,
     }:
-    let
-      validated = map validateShape declarations;
-      shapeChecked = builtins.deepSeq (map (
-        declaration: declaration.authority.scope
-      ) validated) validated;
-      owned = builtins.filter (declaration: declaration.authority == principal.authority) shapeChecked;
-      selected = provider.selectApplicable owned principal.ctx;
-    in
-    map (declaration: indexProjection (deriveDestination declaration)) selected;
+    projectValidatedPrincipal {
+      declarations = validateShapes declarations;
+      inherit principal provider;
+    };
 
   buildHostIndex =
     {
@@ -322,16 +347,75 @@ let
       principals ? [ ],
       provider ? defaultProvider,
     }:
+    let
+      validated = validateShapes declarations;
+    in
     buildIndex (
-      builtins.concatMap (
-        principal: projectPrincipal { inherit declarations principal provider; }
-      ) principals
+      builtins.seq validated (
+        builtins.concatMap (
+          principal:
+          projectValidatedPrincipal {
+            declarations = validated;
+            inherit principal provider;
+          }
+        ) principals
+      )
     );
 
   requiredCapabilities = declaration: [
     contract.capabilities.lifecycleBaseline
     declaration.representation
   ];
+
+  executorName =
+    executor:
+    if builtins.isAttrs executor && executor ? identity && builtins.isString executor.identity then
+      executor.identity
+    else
+      "unlabeled executor";
+
+  executorDiagnostics =
+    executor:
+    if !builtins.isAttrs executor then
+      [
+        (diagnostic "executor-validation" "executor-type" "unlabeled executor"
+          "an executor must be an attribute set"
+        )
+      ]
+    else
+      let
+        name = executorName executor;
+        issue =
+          condition: code: reason:
+          lib.optional condition (diagnostic "executor-validation" code name reason);
+      in
+      issue (
+        !(executor ? identity) || !builtins.isString executor.identity
+      ) "identity-type" "identity must be a string"
+      ++ issue (
+        !(executor ? priority) || !builtins.isInt executor.priority
+      ) "priority-type" "priority must be an integer"
+      ++ issue (
+        executor ? enabled && !builtins.isBool executor.enabled
+      ) "enabled-type" "enabled must be a boolean when present"
+      ++ issue (
+        !(executor ? protocolVersion) || !builtins.isInt executor.protocolVersion
+      ) "protocol-version-type" "protocolVersion must be an integer"
+      ++ issue (
+        !(executor ? capabilities)
+        || !builtins.isList executor.capabilities
+        || !(lib.all builtins.isString executor.capabilities)
+      ) "capabilities-shape" "capabilities must be a list of strings"
+      ++ issue (
+        !(executor ? materialize)
+      ) "materialize-missing" "materialize is required and remains lazy until selection";
+
+  validateExecutors =
+    executors:
+    let
+      diagnostics = builtins.concatMap executorDiagnostics executors;
+    in
+    if diagnostics == [ ] then executors else failAll diagnostics;
 
   executorLess =
     a: b:
@@ -340,7 +424,7 @@ let
     else
       builtins.lessThan a.priority b.priority;
 
-  selectExecutor =
+  selectValidatedExecutor =
     executors: declaration:
     let
       required = requiredCapabilities declaration;
@@ -350,20 +434,106 @@ let
         && lib.all (capability: builtins.elem capability executor.capabilities) required
       ) executors;
       ordered = builtins.sort executorLess capable;
+      enabledExecutors = builtins.sort (a: b: builtins.lessThan a.identity b.identity) (
+        builtins.filter (executor: executor.enabled or false) executors
+      );
+      available = lib.concatMapStringsSep "; " (
+        executor: "${executor.identity} [${lib.concatStringsSep ", " executor.capabilities}]"
+      ) enabledExecutors;
     in
     if ordered == [ ] then
       fail (
         diagnostic "capability-selection" "no-capable-executor" (entryName declaration)
-          "no enabled executor provides ${lib.concatStringsSep ", " required}"
+          "no enabled executor provides ${lib.concatStringsSep ", " required}; available: ${
+            if available == "" then "none" else available
+          }"
       )
     else
       builtins.head ordered;
 
+  selectExecutor =
+    executors: declaration: selectValidatedExecutor (validateExecutors executors) declaration;
+
+  validateArtifact =
+    selected: declaration: artifact:
+    let
+      name = entryName declaration;
+      strategies = builtins.attrValues contract.strategies;
+      diagnostics =
+        if !builtins.isAttrs artifact then
+          [
+            (diagnostic "artifact-validation" "artifact-type" name
+              "${selected.identity} must return an attribute set"
+            )
+          ]
+        else
+          lib.optional (!(artifact ? retainedArtifactTarget)) (
+            diagnostic "artifact-validation" "retained-target-missing" name
+              "${selected.identity} must return retainedArtifactTarget"
+          )
+          ++
+            lib.optional
+              (
+                artifact ? retainedArtifactTarget
+                && !(
+                  builtins.isString artifact.retainedArtifactTarget
+                  || builtins.isPath artifact.retainedArtifactTarget
+                  || lib.isDerivation artifact.retainedArtifactTarget
+                )
+              )
+              (
+                diagnostic "artifact-validation" "retained-target-type" name
+                  "${selected.identity} must return a path-like retainedArtifactTarget"
+              )
+          ++
+            lib.optional
+              (
+                artifact ? cleanupStrategy
+                && (
+                  !builtins.isString artifact.cleanupStrategy || !(builtins.elem artifact.cleanupStrategy strategies)
+                )
+              )
+              (
+                diagnostic "artifact-validation" "cleanup-strategy" name
+                  "${selected.identity} returned an unknown cleanup strategy"
+              )
+          ++ lib.optional (!(artifact ? cleanupStrategy)) (
+            diagnostic "artifact-validation" "cleanup-strategy-missing" name
+              "${selected.identity} must return cleanupStrategy"
+          )
+          ++
+            lib.optional
+              (
+                artifact ? selfHealStrategy
+                && (
+                  !builtins.isString artifact.selfHealStrategy
+                  || !(builtins.elem artifact.selfHealStrategy strategies)
+                )
+              )
+              (
+                diagnostic "artifact-validation" "self-heal-strategy" name
+                  "${selected.identity} returned an unknown self-heal strategy"
+              )
+          ++ lib.optional (!(artifact ? selfHealStrategy)) (
+            diagnostic "artifact-validation" "self-heal-strategy-missing" name
+              "${selected.identity} must return selfHealStrategy"
+          );
+    in
+    if diagnostics == [ ] then artifact else failAll diagnostics;
+
   materialize =
     executors: declaration:
     let
-      selected = selectExecutor executors declaration;
-      artifact = selected.materialize declaration;
+      selected = selectValidatedExecutor executors declaration;
+      implementation =
+        if builtins.isFunction selected.materialize then
+          selected.materialize
+        else
+          fail (
+            diagnostic "executor-validation" "materialize-type" selected.identity
+              "the selected executor materialize implementation must be a function"
+          );
+      artifact = validateArtifact selected declaration (implementation declaration);
       retainedArtifactTarget = toString artifact.retainedArtifactTarget;
     in
     contract.mkEntry {
@@ -408,17 +578,13 @@ let
       }
     else
       let
-        validated = map validateShape declarations;
-        # force only the checked authority metadata so every cheap shape error
-        # wins before ownership selection without touching a source payload.
-        shapeChecked = builtins.deepSeq (map (
-          declaration: declaration.authority.scope
-        ) validated) validated;
-        selected = provider.selectApplicable shapeChecked ctx;
+        validated = validateShapes declarations;
+        checkedExecutors = validateExecutors executors;
+        selected = provider.selectApplicable validated ctx;
         normalized = map deriveDestination selected;
         ordered = builtins.sort identityLess normalized;
         index = buildIndex (map indexProjection ordered);
-        manifestEntries = builtins.seq index (map (materialize executors) ordered);
+        manifestEntries = builtins.seq index (map (materialize checkedExecutors) ordered);
       in
       (contract.emit manifestEntries)
       // {
@@ -432,6 +598,8 @@ in
     renderDiagnostic
     renderDiagnostics
     validateShape
+    shapeDiagnostics
+    validateExecutors
     isOwnerTagged
     mkEnabledProvider
     offProvider

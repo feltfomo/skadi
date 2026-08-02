@@ -21,43 +21,41 @@ let
 
   coordinator = import ./coordinator.nix { inherit pkgs; };
 
-  nativeSymlinkExecutor = {
-    inherit (contract.executors.nativeSymlink) identity protocolVersion;
-    priority = 0;
-    enabled = true;
-    capabilities = [
-      contract.capabilities.lifecycleBaseline
-      contract.capabilities.symlink
-    ];
-    materialize = declaration: {
-      retainedArtifactTarget = builtins.path {
-        path = declaration.source.value;
-        name = "furnish-${baseNameOf declaration.filesystemIdentity.destination}";
+  nativeExecutor =
+    {
+      executorContract,
+      representation,
+      strategy,
+    }:
+    {
+      inherit (executorContract) identity protocolVersion;
+      priority = 0;
+      enabled = true;
+      capabilities = [
+        contract.capabilities.lifecycleBaseline
+        representation
+      ];
+      materialize = declaration: {
+        retainedArtifactTarget = builtins.path {
+          path = declaration.source.value;
+          name = "furnish-${baseNameOf declaration.filesystemIdentity.destination}";
+        };
+        cleanupStrategy = strategy;
+        selfHealStrategy = strategy;
       };
-      cleanupStrategy = contract.strategies.exactSymlinkTarget;
-      selfHealStrategy = contract.strategies.exactSymlinkTarget;
     };
+
+  nativeSymlinkExecutor = nativeExecutor {
+    executorContract = contract.executors.nativeSymlink;
+    representation = contract.capabilities.symlink;
+    strategy = contract.strategies.exactSymlinkTarget;
   };
 
-  # same retained artifact, different representation at the destination. the
-  # source is still a store path; writable means the destination is an editable
-  # copy of it rather than a link to it.
-  nativeWritableExecutor = {
-    inherit (contract.executors.nativeWritable) identity protocolVersion;
-    priority = 0;
-    enabled = true;
-    capabilities = [
-      contract.capabilities.lifecycleBaseline
-      contract.capabilities.writable
-    ];
-    materialize = declaration: {
-      retainedArtifactTarget = builtins.path {
-        path = declaration.source.value;
-        name = "furnish-${baseNameOf declaration.filesystemIdentity.destination}";
-      };
-      cleanupStrategy = contract.strategies.exactSourceContent;
-      selfHealStrategy = contract.strategies.exactSourceContent;
-    };
+  # writable changes the destination strategy while retaining the same artifact shape
+  nativeWritableExecutor = nativeExecutor {
+    executorContract = contract.executors.nativeWritable;
+    representation = contract.capabilities.writable;
+    strategy = contract.strategies.exactSourceContent;
   };
 
   compiled = furnish.compile {

@@ -166,6 +166,46 @@ let
     onConflict = "merge";
   };
 
+  malformedShape = {
+    label = 1;
+    filesystemNamespace = false;
+    authority = {
+      scope = "unknown";
+    };
+    managedRoot = 1;
+    destination = false;
+    representation = "";
+    source = {
+      kind = 1;
+      value = throw "forced malformed shape payload";
+    };
+    onConflict = "merge";
+  };
+  malformedShapeDiagnostics = furnish.core.shapeDiagnostics malformedShape;
+  malformedShapeCodes = map (item: item.code) malformedShapeDiagnostics;
+
+  malformedExecutor = {
+    identity = 1;
+    priority = "first";
+    enabled = "yes";
+    protocolVersion = false;
+    capabilities = [ 1 ];
+    materialize = throw "forced malformed executor implementation";
+  };
+  malformedExecutorResult = builtins.tryEval (
+    builtins.deepSeq (furnish.core.validateExecutors [ malformedExecutor ]) true
+  );
+  malformedShapeResult = builtins.tryEval (builtins.deepSeq malformedShapeDiagnostics true);
+
+  invalidArtifactExecutor = preferredExecutor // {
+    identity = "executor/invalid-artifact";
+    materialize = _: {
+      retainedArtifactTarget = { };
+      cleanupStrategy = "unknown";
+      selfHealStrategy = "unknown";
+    };
+  };
+
   untagged = removeAttrs sample [ "users" ];
   offUntaggedResult = furnish.compile {
     declarations = [ untagged ];
@@ -248,6 +288,9 @@ let
     userPrincipal
     secondUserPrincipal
   ];
+  rootedUserPrincipal = userPrincipal // {
+    managedRoot = "/srv/furnish/feltfomo";
+  };
 
   userClaim = (removeAttrs sample [ "users" ]) // {
     label = "user-claim";
@@ -384,6 +427,20 @@ let
     files = [ kittyEntry ];
   };
 
+  rootedUserGenerated = furnish.files.mkDeclarations {
+    filesystemNamespace = "x86_64-linux/khion";
+    principals = [ rootedUserPrincipal ];
+    files = [ kittyEntry ];
+  };
+
+  invalidArtifactResult = builtins.tryEval (
+    builtins.deepSeq (furnish.compile {
+      declarations = [ sample ];
+      executors = [ invalidArtifactExecutor ];
+      inherit ctx;
+    }) true
+  );
+
   # the emission site's argument shape is what decides which scopes it runs
   # under, so it is pinned here next to the counting it produces.
   programSlice =
@@ -499,6 +556,23 @@ let
     {
       name = "a conflict policy outside the enum is refused by shape validation";
       pass = throws (furnish.core.validateShape bogusPolicy);
+    }
+    {
+      name = "shape validation accumulates metadata errors without forcing source value";
+      pass =
+        malformedShapeResult.success
+        && builtins.length malformedShapeDiagnostics >= 8
+        && builtins.elem "shape-validation/label-type" malformedShapeCodes
+        && builtins.elem "shape-validation/authority-identity" malformedShapeCodes
+        && builtins.elem "shape-validation/on-conflict-value" malformedShapeCodes;
+    }
+    {
+      name = "executor metadata validation rejects malformed records before selection";
+      pass = !malformedExecutorResult.success;
+    }
+    {
+      name = "selected executor artifacts must satisfy the lifecycle result contract";
+      pass = !invalidArtifactResult.success;
     }
     {
       name = "manifest document versions runtime diagnostics and carries entries";
@@ -729,6 +803,10 @@ let
             "/home/grandpa"
           ]
         && builtins.all (declaration: declaration.destination == kittyEntry.dest) twoUserGenerated;
+    }
+    {
+      name = "an explicit principal managed root overrides the conventional home";
+      pass = (builtins.head rootedUserGenerated).managedRoot == "/srv/furnish/feltfomo";
     }
     {
       name = "no principal at all is a host-scope zero, not the same zero as a system principal";

@@ -1,12 +1,7 @@
 { lib, pkgs }:
 let
-  claimKeys = [
-    "hosts"
-    "users"
-    "exceptHosts"
-    "exceptUsers"
-    "when"
-  ];
+  ownerships = import ./ownerships { inherit lib; };
+  inherit (ownerships) claimKeys;
 
   merge =
     left: right:
@@ -25,7 +20,7 @@ let
         right
       ];
 
-  # The test resolver isolates the program boundary from the fleet roster.
+  # the test resolver isolates the program boundary from the fleet roster
   collect =
     ctx: unit:
     let
@@ -45,11 +40,11 @@ let
   resolveSystem = resolve;
   program = import ./program.nix {
     inherit lib resolve resolveSystem;
-    filePrincipals = _: [
+    filePrincipals = args: [
       {
         authority = {
           scope = "user";
-          identity = "feltfomo";
+          identity = args.user.name;
         };
       }
     ];
@@ -66,12 +61,14 @@ let
     user.name = "feltfomo";
   };
 
-  declarationsOf =
-    spec:
+  declarationsOfWith =
+    args: spec:
     let
-      result = spec.nixos moduleArgs;
+      result = spec.nixos args;
     in
     (builtins.elemAt result.imports 1).lexicon.furnish.declarations;
+
+  declarationsOf = declarationsOfWith moduleArgs;
 
   packageOnly = program { pkg = pkgs': pkgs'.hello; };
   fileOnly = program {
@@ -123,6 +120,88 @@ let
     ) directoryDeclarations
   );
 
+  subtreeDirectory = program {
+    directories = [
+      {
+        src = ./furnish;
+        dest = ".config/furnish-source";
+        exclude = [ "coordinator" ];
+      }
+    ];
+  };
+  subtreeDeclarations = declarationsOf subtreeDirectory;
+  subtreeDestinations = map (declaration: declaration.destination) subtreeDeclarations;
+
+  userOnly = program {
+    files = [
+      {
+        users = [ "feltfomo" ];
+        dest = ".config/user-only";
+        src = ./program.nix;
+      }
+    ];
+  };
+  exceptFeltfomo = program {
+    files = [
+      {
+        exceptUsers = [ "feltfomo" ];
+        dest = ".config/except-user";
+        src = ./program.nix;
+      }
+    ];
+  };
+  grandpaArgs = moduleArgs // {
+    user.name = "grandpa";
+  };
+
+  unknownFileField = program {
+    files = [
+      {
+        dest = ".config/unknown";
+        src = ./program.nix;
+        typo = true;
+      }
+    ];
+  };
+  invalidPolicy = program {
+    files = [
+      {
+        dest = ".config/policy";
+        src = ./program.nix;
+        onConflict = "merge";
+      }
+    ];
+  };
+  excludedOverride = program {
+    directories = [
+      {
+        src = ./furnish;
+        dest = ".config/furnish-source";
+        exclude = [ "coordinator" ];
+        files = [
+          {
+            names = [ "coordinator/src/main.rs" ];
+            representation = "writable";
+          }
+        ];
+      }
+    ];
+  };
+  excludedTheme = program {
+    directories = [
+      {
+        src = ./furnish;
+        dest = ".config/furnish-source";
+        exclude = [ "coordinator" ];
+      }
+    ];
+    theme.noctalia = {
+      id = "excluded";
+      source = ./furnish/coordinator/Cargo.toml;
+      output = ".config/excluded.toml";
+    };
+  };
+
   inactiveMalformed = program {
     files = [
       {
@@ -164,6 +243,14 @@ let
   malformedDirectoryResult = builtins.tryEval (
     builtins.deepSeq (selectedMalformedDirectory.nixos moduleArgs) true
   );
+  unknownFileFieldResult = builtins.tryEval (
+    builtins.deepSeq (unknownFileField.nixos moduleArgs) true
+  );
+  invalidPolicyResult = builtins.tryEval (builtins.deepSeq (invalidPolicy.nixos moduleArgs) true);
+  excludedOverrideResult = builtins.tryEval (
+    builtins.deepSeq (excludedOverride.nixos moduleArgs) true
+  );
+  excludedThemeResult = builtins.tryEval (builtins.deepSeq (excludedTheme.nixos moduleArgs) true);
 in
 rec {
   tests = {
@@ -192,6 +279,20 @@ rec {
     writable-overrides-are-first-class =
       writableDeclaration.representation == "writable"
       && writableDeclaration.onConflict == "runtime-wins";
+    directory-subtrees-are-pruned =
+      !(builtins.any (destination: lib.hasInfix "/coordinator/" destination) subtreeDestinations);
+    directory-member-sources-stay-path-typed = builtins.all (
+      declaration: builtins.isPath declaration.source.value
+    ) subtreeDeclarations;
+    user-claims-select-the-current-user =
+      builtins.length (declarationsOf userOnly) == 1 && declarationsOfWith grandpaArgs userOnly == [ ];
+    except-user-claims-select-everyone-else =
+      declarationsOf exceptFeltfomo == [ ]
+      && builtins.length (declarationsOfWith grandpaArgs exceptFeltfomo) == 1;
+    unknown-file-fields-are-rejected = !unknownFileFieldResult.success;
+    invalid-conflict-policies-are-rejected = !invalidPolicyResult.success;
+    overrides-beneath-excluded-subtrees-are-rejected = !excludedOverrideResult.success;
+    theme-sources-beneath-excluded-subtrees-are-rejected = !excludedThemeResult.success;
   };
 
   ok = lib.all (value: value) (builtins.attrValues tests);
