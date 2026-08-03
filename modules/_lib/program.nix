@@ -501,9 +501,13 @@ let
           "missing"
         else
           builtins.readFileType entry.src;
-      sourceErrors = lib.optional (shapeErrors == [ ] && sourceKind != "directory") (
-        problem "program/directory-source-kind" "directories[${toString wrapped.index}].src must be a directory, not ${sourceKind}"
-      );
+      sourceErrors =
+        lib.optional (shapeErrors == [ ] && sourceKind == "missing") (
+          problem "program/directory-source-missing" "directories[${toString wrapped.index}].src does not exist in the flake source: ${toString entry.src}. git-backed flakes omit empty and untracked directories; add a tracked file beneath the directory or remove the declaration"
+        )
+        ++ lib.optional (shapeErrors == [ ] && sourceKind != "missing" && sourceKind != "directory") (
+          problem "program/directory-source-kind" "directories[${toString wrapped.index}].src must be a directory: ${toString entry.src} is ${sourceKind}"
+        );
       walked =
         if sourceErrors == [ ] && shapeErrors == [ ] then
           walkDirectory entry.src exclude

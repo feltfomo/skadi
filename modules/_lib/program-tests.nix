@@ -234,6 +234,14 @@ let
       }
     ];
   };
+  selectedMissingDirectory = program {
+    directories = [
+      {
+        src = "${./.}/program-tests-missing-directory";
+        dest = ".config/missing-directory";
+      }
+    ];
+  };
 
   inactiveResult = builtins.tryEval (builtins.deepSeq (inactiveMalformed.nixos moduleArgs) true);
   inactiveDirectoryResult = builtins.tryEval (
@@ -242,6 +250,9 @@ let
   malformedResult = builtins.tryEval (builtins.deepSeq (selectedMalformed.nixos moduleArgs) true);
   malformedDirectoryResult = builtins.tryEval (
     builtins.deepSeq (selectedMalformedDirectory.nixos moduleArgs) true
+  );
+  missingDirectoryResult = builtins.tryEval (
+    builtins.deepSeq (selectedMissingDirectory.nixos moduleArgs) true
   );
   unknownFileFieldResult = builtins.tryEval (
     builtins.deepSeq (unknownFileField.nixos moduleArgs) true
@@ -269,7 +280,8 @@ rec {
     inactive-payload-stays-lazy = inactiveResult.success;
     inactive-directory-stays-lazy = inactiveDirectoryResult.success;
     selected-payload-is-validated = !malformedResult.success;
-    selected-directory-is-validated = !malformedDirectoryResult.success;
+    selected-nondirectory-source-is-rejected = !malformedDirectoryResult.success;
+    selected-missing-directory-source-is-rejected = !missingDirectoryResult.success;
     directory-members-expand-to-files = builtins.elem ".config/example/default.nix" directoryDestinations;
     inactive-overrides-do-not-fall-back =
       !(builtins.elem ".config/example/diagnostics.nix" directoryDestinations);
