@@ -12,11 +12,10 @@
       hyprland
       mangowm
       kitty
+      ghostty
       nvim
-      fuzzel
       spicetify
       noctalia
-      walker
       firefox
       qt-hm
 
