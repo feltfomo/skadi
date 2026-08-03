@@ -1,8 +1,8 @@
 # _lib/ownerships/roster.nix
 #
-# Descriptor-driven roster construction and the den-free backend. Descriptors
+# descriptor-driven roster construction and the den-free backend. descriptors
 # with no roster projection are skipped, so select-only axes don't invent empty
-# roster fields. The den adapter feeds this same projector normalized standalone
+# roster fields. the den adapter feeds this same projector normalized standalone
 # declarations; den itself never leaks into this module.
 {
   lib,
@@ -10,17 +10,17 @@
 }:
 let
   axes = import ./axes.nix { inherit lib; };
-  axisDescriptors = axes.validateDescriptors (
+  descriptorSet = axes.compileDescriptors (
     if descriptors == null then axes.descriptors else descriptors
   );
-
-  rosterDescriptors = builtins.filter (descriptor: descriptor.roster != null) axisDescriptors;
+  axisDescriptors = descriptorSet.descriptors;
+  inherit (descriptorSet) rosterDescriptors;
 
   mkRoster =
     descriptorSet:
     let
-      checked = axes.validateDescriptors descriptorSet;
-      projected = builtins.filter (descriptor: descriptor.roster != null) checked;
+      compiled = axes.compileDescriptors descriptorSet;
+      projected = compiled.rosterDescriptors;
       define = builtins.listToAttrs (
         map (descriptor: {
           inherit (descriptor) name;

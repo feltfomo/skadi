@@ -1,7 +1,7 @@
 # _lib/ownerships/matrix.nix
 #
-# Read-only fleet projection over the same compose, checks, and trace path used
-# by resolution. Reports retain names and shallow shape only; config values
+# read-only fleet projection over the same compose, checks, and selection boundaries used
+# by resolution. reports retain names and shallow shape only; config values
 # never cross this boundary.
 { lib }:
 let
@@ -98,7 +98,6 @@ let
     {
       registry,
       stages,
-      merge,
       roster,
       contexts,
       unit,
@@ -107,25 +106,32 @@ let
     let
       composed = engine.compose registry unit;
       classified = classify registry stages composed;
-      deadEntries = builtins.filter (entry: entry.impossible != [ ]) classified;
-      liveEntries = builtins.filter (entry: entry.impossible == [ ]) classified;
-      liveForest = {
-        children = map (entry: entry.leaf) liveEntries;
+      classifiedParts = builtins.partition (entry: entry.impossible != [ ]) classified;
+      deadEntries = classifiedParts.right;
+      liveEntries = classifiedParts.wrong;
+      treeDiagnostics = engine.stageDiagnostics "tree" stages {
+        inherit registry;
+        leaves = map (entry: entry.leaf) liveEntries;
       };
+      liveLeaves =
+        if treeDiagnostics == [ ] then
+          map (entry: entry.leaf) liveEntries
+        else
+          throw (engine.renderDiags treeDiagnostics);
 
       selectionFor =
         context:
         let
-          traced = engine.trace {
-            inherit registry stages merge;
+          selected = engine.selectPrepared {
+            inherit registry stages;
             inherit (context) ctx;
-          } liveForest;
+          } liveLeaves;
         in
         builtins.genList (
           index:
           let
             entry = builtins.elemAt liveEntries index;
-            selection = builtins.elemAt traced.trace index;
+            selection = builtins.elemAt selected.selectionTrace index;
           in
           {
             inherit (entry) key;
@@ -163,17 +169,29 @@ let
         }) contextEntries
       );
 
-      selectedIn =
-        key:
-        map (entry: entry.key) (builtins.filter (entry: builtins.elem key entry.survivors) contextEntries);
+      unitSelections = builtins.groupBy (selection: selection.unit) (
+        builtins.concatMap (
+          entry:
+          map (unit: {
+            inherit unit;
+            context = entry.key;
+          }) entry.survivors
+        ) contextEntries
+      );
+      selectedIn = key: map (selection: selection.context) (unitSelections.${key} or [ ]);
       selectedSomewhere = key: selectedIn key != [ ];
 
+      pathSelections = builtins.groupBy (selection: selection.path) (
+        builtins.concatMap (
+          entry:
+          map (path: {
+            inherit path;
+            context = entry.key;
+          }) entry.preMergePaths
+        ) contextEntries
+      );
       allPaths = lib.unique (builtins.concatMap (entry: entry.preMergePaths) contextEntries);
-      pathSelectedIn =
-        path:
-        map (entry: entry.key) (
-          builtins.filter (entry: builtins.elem path entry.preMergePaths) contextEntries
-        );
+      pathSelectedIn = path: map (selection: selection.context) (pathSelections.${path} or [ ]);
 
       coverage = {
         units = builtins.listToAttrs (
@@ -239,7 +257,7 @@ let
         entry: !selectedSomewhere entry.key && possiblyUnknown entry
       ) liveEntries;
 
-      # Unknown membership explains non-selection more specifically than generic
+      # unknown membership explains non-selection more specifically than generic
       # dormancy, so indeterminate entries never appear in this list.
       neverSelectedInModeledContexts = map (
         entry:
@@ -269,7 +287,7 @@ let
         hostDiffs
         neverSelectedInModeledContexts
         ;
-      # Keys throughout are canonical ids; the display map lets a reader recover
+      # keys throughout are canonical ids; the display map lets a reader recover
       # the human-facing bare host/user names from those canonical ids.
       display = roster.display or { };
       dead = map (

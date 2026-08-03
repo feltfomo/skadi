@@ -1,7 +1,7 @@
 # _lib/ownerships/descriptor-tests.nix
 #
-# A throwaway axis proving that one descriptor carries author syntax, scope,
-# registry construction, and standalone roster projection end to end. Production
+# a throwaway axis proving that one descriptor carries author syntax, scope,
+# registry construction, and standalone roster projection end to end. production
 # defaults remain host, user, and when; this descriptor exists only in this test.
 { lib }:
 let
@@ -110,6 +110,26 @@ let
   );
 
   cases = [
+    {
+      name = "compiled descriptors retain ordered syntax and roster projections";
+      pass =
+        let
+          compiled = axes.compileDescriptors descriptors;
+        in
+        map (descriptor: descriptor.name) compiled.descriptors == [
+          "host"
+          "user"
+          "when"
+          "role"
+        ]
+        && compiled.claimKeys == surface.claimKeys
+        &&
+          map (descriptor: descriptor.name) compiled.rosterDescriptors == [
+            "host"
+            "user"
+            "role"
+          ];
+    }
     {
       name = "relation stages follow satisfiability in registry order";
       pass =

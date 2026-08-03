@@ -1,11 +1,11 @@
 # _lib/ownerships/surface.nix
 #
-# The surface aspects author against. Its only job is to erase the ceremony the
+# the surface aspects author against. its only job is to erase the ceremony the
 # old scoped path needed -- instead of `{ host, user }: let for = scoped.for ...`
 # an aspect hands `resolve` a plain list of self-labeling units, and the build
-# context is read in here, not by the author. A unit carries its owners as
+# context is read in here, not by the author. a unit carries its owners as
 # ordinary keys (hosts / users / exceptHosts / exceptUsers / when); whatever's
-# left is its config. Untagged means globally owned. This is a thin translator
+# left is its config. untagged means globally owned. this is a thin translator
 # onto the engine's claim tree and holds no resolution logic of its own, so every
 # nesting and conflict guarantee still comes from the engine.
 {
@@ -16,7 +16,10 @@
 let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
-  axisDescriptors = if descriptors == null then axes.descriptors else descriptors;
+  descriptorSet = axes.compileDescriptors (
+    if descriptors == null then axes.descriptors else descriptors
+  );
+  axisDescriptors = descriptorSet.descriptors;
   relationRegistrations = if relations == null then axes.relations else relations;
   resolveLib = import ./resolve.nix {
     inherit lib;
@@ -28,10 +31,10 @@ let
 
   defaultMerge = (mergeLib.mkMerge { }).mergeTracked;
 
-  # Descriptor key order is stable because it also controls which malformed key
+  # descriptor key order is stable because it also controls which malformed key
   # an author sees first when several are wrong.
-  claimKeys = axes.claimKeysFor axisDescriptors;
-  # label/source are reserved the same way `value`/`children` are: optional
+  inherit (descriptorSet) claimKeys;
+  # label/source are reserved like `value`/`children`, optional
   # plain-string identification for diagnostics, never config, never merged --
   # they ride the leaf as siblings of `value`, and `strip` only ever pulls
   # `.value`, so they're dropped before merge with no extra work.
@@ -54,7 +57,7 @@ let
       throw "ownerships: a unit must be an attribute set; got ${builtins.typeOf unit}"
     else
       let
-        checkedClaims = axes.validateUnit axisDescriptors unit;
+        checkedClaims = axes.validateUnitWith descriptorSet.authorKeys unit;
         badChildren =
           unit ? children && (!builtins.isList unit.children || !lib.all builtins.isAttrs unit.children);
         badValue = unit ? value && !builtins.isAttrs unit.value;
@@ -84,10 +87,10 @@ let
 
   claimOf = axes.claimOf axisDescriptors;
 
-  # the payload riding this leaf: the escape-hatch block verbatim when the unit
+  # the payload riding this leaf is the escape-hatch block verbatim when the unit
   # used one, otherwise whatever's left after stripping the reserved keys --
   # same rule as before the hatch existed. two different `value`s share the
-  # word, not the meaning: `checked.value` is the author-facing escape-hatch
+  # word, not the meaning. `checked.value` is the author-facing escape-hatch
   # key, `payload` becomes the engine leaf's `value` field (the config every
   # leaf carries, hatch or not) -- don't conflate them.
   translateWith =
@@ -138,8 +141,8 @@ let
       ctx = axes.contextFor base.registry rawCtx;
     } { children = map translate units; };
 
-  # Trace siblings use the same translated tree and engine pipeline as their
-  # value-only counterparts. They are exported for manual inspection and tests;
+  # trace siblings use the same translated tree and engine pipeline as their
+  # value-only counterparts. they are exported for manual inspection and tests;
   # ordinary aspect bindings keep their existing return type.
   mkResolveTrace =
     roster:
@@ -159,10 +162,15 @@ let
   # handed in, before resolve runs, naming the offending key and its value. the
   # engine's resolve-time missing-ctx throw still backstops a miss here, so this
   # is a clearer, earlier message rather than the only line of defense.
+  forbiddenByScope = lib.genAttrs [
+    "user"
+    "system"
+  ] (axes.forbiddenKeysFor axisDescriptors);
+
   assertScope =
     scope: unit:
     let
-      forbidden = axes.forbiddenKeysFor axisDescriptors scope;
+      forbidden = forbiddenByScope.${scope};
       offending = builtins.filter (key: unit ? ${key.name}) forbidden;
       bad = if offending == [ ] then null else builtins.head offending;
     in
@@ -171,7 +179,7 @@ let
     else
       lib.all (assertScope scope) (unit.children or [ ]);
 
-  # host-only sibling of mkResolve: same roster-bound registry + stages, but the
+  # host-only sibling of mkResolve uses the same roster-bound registry and stages, but the
   # ctx carries only a host (user = null). the retained user axis stays global on
   # every unit here -- the guard above forbids narrowing it -- so assertCtx never
   # demands a user entity and the membership check (which reads claims and
@@ -205,8 +213,8 @@ let
       } { children = map translate units; }
     );
 
-  # Matrix siblings keep config values inside the engine and return only stable
-  # snapshot keys, human identity, shallow shape, and selection metadata. A
+  # matrix siblings keep config values inside the engine and return only stable
+  # snapshot keys, human identity, shallow shape, and selection metadata. a
   # caller can enrich each roster context for predicates that read more than
   # entity names; the default is the smallest concrete context.
   mkResolveMatrix =
@@ -233,7 +241,6 @@ let
     matrixLib.report {
       inherit roster contexts;
       inherit (base) registry stages;
-      merge = defaultMerge;
       scope = "user";
       unit.children = map translate units;
     };
@@ -255,7 +262,6 @@ let
       matrixLib.report {
         inherit roster contexts;
         inherit (base) registry stages;
-        merge = defaultMerge;
         scope = "system";
         unit.children = map translate units;
       }
@@ -293,10 +299,10 @@ let
       } { children = map translateProfiled units; }
     );
 
-  # Opt-in strict siblings of mkResolve/mkResolveSystem: validate the ctx's
+  # opt-in strict siblings validate the ctx's
   # roster-backed context names before delegating to the exact same
   # resolve function, so the permissive path is byte-identical by
-  # construction rather than kept in sync by hand. Mode is a separate
+  # construction rather than kept in sync by hand. mode is a separate
   # function, not a flag -- the same precedent mkResolveSystem already set
   # against mkResolve.
   mkResolveStrict =
@@ -311,7 +317,7 @@ let
     in
     builtins.seq (resolveLib.validateRosterCtx roster ctx) (resolveFn units rawCtx);
 
-  # The descriptor projection fills unavailable entity keys with null, so strict
+  # the descriptor projection fills unavailable entity keys with null, so strict
   # system validation checks the host while every forbidden axis stays global.
   mkResolveSystemStrict =
     roster:

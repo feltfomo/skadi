@@ -1,7 +1,7 @@
 # _lib/ownerships/tests.nix
 #
-# Pure test gate for the engine. Nothing else consumes the engine yet, so this is
-# what proves it works: the three outcomes, a nested resolve, a throwaway third
+# pure test gate for the engine. nothing else consumes the engine yet, so this is
+# what proves it works, the three outcomes, a nested resolve, a throwaway third
 # axis composing with no core edit, an opt-in merge strategy registering with no
 # core edit, and the top identity law per axis. ownerships-check.nix forces `ok`
 # under `nix flake check`.
@@ -63,7 +63,7 @@ let
   # tryEval actually catches the impossible/conflict cases.
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
-  # Frozen pre-registry membership check. This is the migration oracle: the
+  # frozen pre-registry membership check. this is the migration oracle, the
   # generic relation checker must match it exactly, including diagnostics.
   inherit (builtins) elem;
   inherit (builtins) filter;
@@ -122,7 +122,7 @@ let
         rest = subsetsOf (builtins.tail xs);
       in
       rest ++ map (s: [ (builtins.head xs) ] ++ s) rest;
-  # every polarity value over the universe: both tags, every subset.
+  # every polarity value over the universe, both tags and every subset.
   lawValues = builtins.concatMap (s: [
     (include s)
     (exclude s)
@@ -139,7 +139,7 @@ let
   canon = v: v // { set = builtins.sort (a: b: a < b) v.set; };
   eqPolarity = a: b: canon a == canon b;
 
-  # laziness/secret guard fixtures: values whose unsafe fields throw if
+  # laziness and secret guard fixtures use values whose unsafe fields throw if
   # actually forced, standing in for a package or a secret that isn't
   # available at eval time. safeRender/safeShape must identify these by shape
   # alone and never touch the throwing fields.
@@ -153,11 +153,11 @@ let
     token = throw "forced a secret-shaped value";
   };
 
-  # golden-error test: crafts two leaves directly (no compose, no throw) so
+  # golden-error test crafts two leaves directly (no compose, no throw), so
   # the assertion pins exactly what an author sees on screen -- header count,
   # per-diagnostic bullet, the unit-identification branch (label vs unlabeled +
   # safeShape), and the axis/claim detail -- and proves the unlabeled branch
-  # never renders the leaf's real (poison) value, only its safe shape. The
+  # never renders the leaf's real (poison) value, only its safe shape. the
   # claim fragment below is rendered through the same toPretty call renderDiags
   # itself uses -- that's a trusted formatting primitive, not the logic under
   # test, so pinning it this way still exercises every line renderDiags/
@@ -303,7 +303,7 @@ let
     ];
   };
 
-  # A greeter claimed for vm is invalid for the fleet even while another host
+  # a greeter claimed for vm is invalid for the fleet even while another host
   # is building, so this rule consumes the composed tree before selection.
   greeterNeverOnVm = {
     view = "tree";
@@ -326,7 +326,7 @@ let
         );
   };
 
-  # Coverage is about this build, not the fleet declaration. Only selected
+  # coverage is about this build, not the fleet declaration. only selected
   # leaves can provide its one bootloader.
   exactlyOneBootloader = {
     view = "survivors";
@@ -1123,7 +1123,7 @@ let
           {
             inherit registry;
             merge = defaultMerge;
-            # a host-only build: real host, user absent from scope. the user axis
+            # a host-only build has a real host and no user in scope. the user axis
             # stays global for this claim, so assertCtx never demands it and
             # select never reads it -- the null-user tolerance the system binding
             # rides on.
@@ -1872,6 +1872,63 @@ let
             }
           ] registry [ ]
         );
+    }
+    {
+      name = "activated malformed merge profiles fail through ownerships validation";
+      pass =
+        let
+          profiles = merge.builtinProfiles // {
+            broken = {
+              listStrategy = "ordered-concat";
+              scalarPolicy = 1;
+              attrsetTreatment = "deep";
+            };
+          };
+          merged = (merge.mkMerge { inherit profiles; }).mergeTracked [
+            {
+              value.answer = 1;
+              contributor = {
+                identity = "broken-profile";
+                owners = { };
+                mergeProfile = "broken";
+              };
+            }
+          ];
+        in
+        throws merged.value.answer;
+    }
+    {
+      name = "unused malformed merge profile registrations stay lazy";
+      pass =
+        let
+          profiles = merge.builtinProfiles // {
+            broken = throw "forced an unused merge profile";
+          };
+          merged = (merge.mkMerge { inherit profiles; }).mergeTracked [
+            {
+              value.answer = 1;
+              contributor = {
+                identity = "plain";
+                owners = { };
+              };
+            }
+          ];
+        in
+        merged.value.answer == 1;
+    }
+    {
+      name = "activated non-function list strategies fail before application";
+      pass = throws (
+        (merge.mkMerge {
+          strategies = merge.builtinStrategies // {
+            broken = 1;
+          };
+          listStrategyFor = _path: "broken";
+        }).mergeTwo
+          "items"
+          [ 1 ]
+          [ 2 ]
+      );
     }
   ];
 

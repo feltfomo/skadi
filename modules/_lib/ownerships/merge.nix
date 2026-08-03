@@ -1,7 +1,7 @@
 # _lib/ownerships/merge.nix
 #
-# Values and their contributing units travel through one shape-keyed recursion.
-# Ordinary callers project the merged value; explanations and lock policies can
+# values and their contributing units travel through one shape-keyed recursion.
+# ordinary callers project the merged value; explanations and lock policies can
 # inspect the lazy provenance sibling without a second merge implementation.
 { lib }:
 let
@@ -89,8 +89,32 @@ let
         if !builtins.isString name then
           throw "ownerships: merge profile name at ${shownPath path} must be a string; got ${builtins.typeOf name}"
         else
-          profiles.${name}
-            or (throw "ownerships: unknown merge profile ${safeRender name} at ${shownPath path}");
+          let
+            profile =
+              profiles.${name}
+                or (throw "ownerships: unknown merge profile ${safeRender name} at ${shownPath path}");
+          in
+          if !builtins.isAttrs profile then
+            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} must be an attribute set"
+          else if !(profile ? listStrategy) || !builtins.isString profile.listStrategy then
+            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} must name a list strategy"
+          else if !(strategies ? ${profile.listStrategy}) then
+            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} names unknown list strategy ${safeRender profile.listStrategy}"
+          else if !builtins.isFunction strategies.${profile.listStrategy} then
+            throw "ownerships: list strategy ${safeRender profile.listStrategy} must be a function"
+          else if !(profile ? scalarPolicy) || !builtins.isFunction profile.scalarPolicy then
+            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} must provide a scalar policy function"
+          else if
+            !(profile ? attrsetTreatment)
+            || !builtins.isString profile.attrsetTreatment
+            || !(builtins.elem profile.attrsetTreatment [
+              "deep"
+              "take-right"
+            ])
+          then
+            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} has an unknown attrset treatment"
+          else
+            profile;
 
       validateContributorProfile =
         contributor:
@@ -140,8 +164,8 @@ let
         in
         if foreign == [ ] then true else throw (renderLockViolation path (head foreign));
 
-      # A branch written by only one input still needs a lazy provenance subtree.
-      # With no lockFor argument its value is returned untouched and the subtree
+      # a branch written by only one input still needs a lazy provenance subtree.
+      # with no lockFor argument its value is returned untouched and the subtree
       # isn't walked. An opt-in lock must inspect every descendant so a caller's
       # path policy covers writes below a locked subtree.
       adoptNode =
@@ -179,7 +203,7 @@ let
           inherit provenance;
         };
 
-      # Authorization is the first operation at every node. Scalar equality,
+      # authorization is the first operation at every node. scalar equality,
       # list strategy selection, and conflict policy dispatch happen only after
       # every contributor at that path has passed the caller's predicate.
       mergeNode =
@@ -272,11 +296,16 @@ let
               let
                 name = if profilingEnabled then listProfile.listStrategy else listStrategyFor path;
                 strategy = strategies.${name} or (throw "ownerships: no merge strategy '${name}' (at ${path})");
+                checkedStrategy =
+                  if builtins.isFunction strategy then
+                    strategy
+                  else
+                    throw "ownerships: merge strategy '${name}' at ${shownPath path} must be a function";
               in
               {
-                value = strategy a.value b.value;
+                value = checkedStrategy a.value b.value;
                 inherit contributors;
-                # Lists are terminal because their strategy merges the list as a
+                # lists are terminal because their strategy merges the list as a
                 # whole. Contributors are ordered leaves, never per-element owners.
                 provenance = {
                   inherit path contributors;
@@ -321,7 +350,7 @@ let
             inherit (merged) value provenance;
           };
 
-      # Kept for direct low-level callers, but projected from the tracked merge
+      # kept for direct low-level callers, but projected from the tracked merge
       # so there is only one shape recursion to maintain. The engine's resolve
       # path uses mergeTracked and never calls these compatibility projections.
       unattributed = {

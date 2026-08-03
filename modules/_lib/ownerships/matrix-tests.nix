@@ -1,10 +1,12 @@
 # _lib/ownerships/matrix-tests.nix
 #
-# Fleet audit proofs: parity with real resolution, engine-defined dead claims,
+# fleet audit proofs cover parity with real resolution, engine-defined dead claims,
 # open-roster uncertainty, separate user/system contexts, and report laziness.
 { lib }:
 let
   surface = import ./surface.nix { inherit lib; };
+  resolveLib = import ./resolve.nix { inherit lib; };
+  matrixLib = import ./matrix.nix { inherit lib; };
   inherit (surface)
     define
     toRoster
@@ -14,7 +16,7 @@ let
     mkResolveSystemMatrix
     ;
 
-  # Federate the fleet onto a real system so the canonical ids the matrix keys
+  # federate the fleet onto a real system so the canonical ids the matrix keys
   # by read as "<system>/<host>", the same shape the den-backed fleet resolves.
   roster = toRoster [
     (define.host "khion" { system = "x86_64-linux"; })
@@ -33,6 +35,37 @@ let
   resolveSystem = mkResolveSystem roster;
   resolveMatrix = mkResolveMatrix roster;
   resolveSystemMatrix = mkResolveSystemMatrix roster;
+  engineArgs = resolveLib.engineArgsFor roster;
+
+  diagnosticStage = view: reason: {
+    inherit view;
+    run = _args: [
+      {
+        kind = "matrix-stage";
+        unit = { };
+        label = "matrix stage";
+        inherit reason;
+      }
+    ];
+  };
+
+  reportWithStage =
+    stage:
+    matrixLib.report {
+      inherit roster;
+      inherit (engineArgs) registry;
+      stages = engineArgs.stages ++ [ stage ];
+      scope = "user";
+      contexts = [
+        {
+          key = "x86_64-linux/khion/feltfomo";
+          hostName = "x86_64-linux/khion";
+          userName = "feltfomo";
+          ctx = contexts.khionFeltfomo;
+        }
+      ];
+      unit.children = map surface.translate [ { marker = true; } ];
+    };
 
   contexts = {
     khionFeltfomo = {
@@ -331,6 +364,14 @@ let
           }
         ];
       });
+    }
+    {
+      name = "matrix runs tree stages before context projection";
+      pass = throws (reportWithStage (diagnosticStage "tree" "tree stage ran"));
+    }
+    {
+      name = "matrix runs survivor stages for every modeled context";
+      pass = throws (reportWithStage (diagnosticStage "survivors" "survivor stage ran"));
     }
   ];
 

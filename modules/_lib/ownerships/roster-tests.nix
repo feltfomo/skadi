@@ -1,8 +1,8 @@
 # _lib/ownerships/roster-tests.nix
 #
-# Pure gate for the roster interface and the den-free define.* backend. It
+# pure gate for the roster interface and the den-free define.* backend. it
 # imports nothing den-related, so a green run here is the proof the standalone
-# path resolves with no den present. Covers the cross-axis membership check, the
+# path resolves with no den present. covers the cross-axis membership check, the
 # null-vs-[] host distinction (unknown degrades, known-none stays a failure),
 # and a host-only config on a user-less host staying clear of the check.
 { lib }:
@@ -163,6 +163,20 @@ let
               };
         in
         selected == { x = 1; } && throws ambiguous;
+    }
+    {
+      name = "grouped host aliases retain declaration order";
+      pass =
+        let
+          federated = toRoster [
+            (define.host "khion" { system = "x86_64-linux"; })
+            (define.host "khion" { system = "aarch64-linux"; })
+          ];
+        in
+        federated.aliases.host.khion == [
+          "x86_64-linux/khion"
+          "aarch64-linux/khion"
+        ];
     }
     {
       name = "explicit unknown and ambiguous user host references fail during roster construction";

@@ -1,12 +1,12 @@
 # _lib/ownerships/engine.nix
 #
-# The pure ownerships engine: a fixed pipeline over an axis REGISTRY. It never
+# the pure ownerships engine is a fixed pipeline over an axis registry. it never
 # inspects a claim value and never names an axis -- every axis owns its value
 # type entirely and the engine only ever calls registered axis methods (top,
 # narrow, observe, satisfiable, select, isTop) and reads ctxKey to know whether the build
-# ctx needs an entity for it. That is what lets a new axis of any value shape
+# ctx needs an entity for it. that is what lets a new axis of any value shape
 # (a set axis, a predicate axis, a future role/trait axis) compose with zero
-# edits here. Roster access lives behind satisfiable/select only; compose/narrow
+# edits here. roster access lives behind satisfiable/select only; compose/narrow
 # are roster-independent, so the whole thing runs against a stubbed roster.
 { lib }:
 let
@@ -61,7 +61,7 @@ let
     in
     go (topClaim registry) unit;
 
-  # Stages register against a closed set of pipeline views. Rejecting an
+  # stages register against a closed set of pipeline views. rejecting an
   # unknown view keeps a misspelled coverage rule from silently failing open.
   # A merged-output view can extend this set later with only the merged value
   # and safe metadata; no such boundary exists until an invariant needs it.
@@ -110,7 +110,7 @@ let
 
   stagesFor = view: stages: filter (stage: stage.view == view) (validateStages stages);
 
-  # Leaf stages retain one trace entry per leaf, but diagnostics flatten in
+  # leaf stages retain one trace entry per leaf, but diagnostics flatten in
   # stage-registration order so one rule reports every leaf it rejects before
   # the next registered rule reports. The matrix is shared by both projections;
   # callbacks aren't evaluated twice.
@@ -133,7 +133,7 @@ let
     stages: registry: leaves:
     (observeLeafStages stages registry leaves).value;
 
-  # Tree and survivor callbacks get different records on purpose: a tree rule
+  # tree and survivor callbacks get different records on purpose. a tree rule
   # has no ctx to consult, while a survivor rule is handed the post-selection
   # set explicitly. Cross-view order comes from the pipeline, never list order.
   observeViewStages =
@@ -230,7 +230,7 @@ let
   # owns everyone, so isTop short-circuits it in before select runs -- that's
   # what keeps an untagged unit safe against a null or absent ctx entity, since
   # only a narrowing claim ever reaches the axis's select and reads the entity.
-  # Selection returns both the surviving leaves and a lazy account of the same
+  # selection returns both the surviving leaves and a lazy account of the same
   # decisions. Normal resolution projects only `selected`, so unit identity and
   # shape stay unforced unless a caller explicitly asks for the trace.
   observeSelect =
@@ -301,7 +301,7 @@ let
 
   strip = leaves: map (leaf: leaf.value) leaves;
 
-  # Identity names the authoring leaf through identifyUnit; it doesn't inherit
+  # identity names the authoring leaf through identifyUnit; it doesn't inherit
   # from a parent. Owners are that leaf's effective claim after every parent and
   # child meet, so narrowing flows in while identity does not. An untagged set
   # axis remains its exclude [] top: global and narrowed leaves are distinct
@@ -340,7 +340,7 @@ let
       }
     ) (attrNames registry);
 
-  # Relations are registered data over two set-like axes. The checker owns the
+  # relations are registered data over two set-like axes. the checker owns the
   # shared skip/rescue/compatibility semantics, while axis names, roster data,
   # and diagnostic wording arrive entirely through the registration.
   mkRelationCheck =
@@ -447,8 +447,37 @@ let
       trace = map (entry: entry.requirements) entries;
     };
 
-  # The fixed order is leaf -> tree -> ctx -> select -> survivors -> strip ->
-  # merge. Each diagnostic phase aggregates fully before throwing, while a
+  # prepared leaves have already passed leaf and tree checks. matrix projection
+  # uses this boundary too, so context demand, selection, and survivor rules
+  # can't drift away from ordinary resolution.
+  selectPrepared =
+    {
+      registry,
+      stages,
+      ctx,
+    }:
+    leaves:
+    let
+      ctxObservation = observeCtx registry ctx leaves;
+      ctx' = ctxObservation.value;
+      selection = observeSelect registry ctx' leaves;
+      survivorObservation = observeViewStages "survivors" stages {
+        inherit registry;
+        ctx = ctx';
+        survivors = selection.selected;
+      };
+      survivors = survivorObservation.value;
+    in
+    {
+      ctx = ctx';
+      inherit survivors;
+      selectionTrace = builtins.seq survivors selection.trace;
+      ctxTrace = ctxObservation.trace;
+      survivorTrace = survivorObservation.trace;
+    };
+
+  # the fixed order is leaf -> tree -> ctx -> select -> survivors -> strip ->
+  # merge. each diagnostic phase aggregates fully before throwing, while a
   # failed earlier phase prevents every later phase from being evaluated.
   pipeline =
     {
@@ -467,34 +496,28 @@ let
         leaves = leafChecked;
       };
       treeChecked = treeObservation.value;
-      ctxObservation = observeCtx registry ctx treeChecked;
-      ctx' = ctxObservation.value;
-      selection = observeSelect registry ctx' treeChecked;
-      survivorObservation = observeViewStages "survivors" stages {
-        inherit registry;
-        ctx = ctx';
-        survivors = selection.selected;
-      };
-      survivors = survivorObservation.value;
-      merged = merge (stripForMerge survivors);
+      selected = selectPrepared {
+        inherit registry stages ctx;
+      } treeChecked;
+      merged = merge (stripForMerge selected.survivors);
     in
     {
       inherit (merged) value;
       mergeProvenance = merged.provenance;
       trace = builtins.genList (
         i:
-        (builtins.elemAt selection.trace i)
+        (builtins.elemAt selected.selectionTrace i)
         // {
           checkResults = builtins.elemAt leafObservation.trace i;
-          ctxRequirements = builtins.elemAt ctxObservation.trace i;
+          ctxRequirements = builtins.elemAt selected.ctxTrace i;
         }
-      ) (length selection.trace);
+      ) (length selected.selectionTrace);
       stageReports = {
         leaf = leafObservation.reports;
         tree = treeObservation.trace;
-        survivors = survivorObservation.trace;
+        survivors = selected.survivorTrace;
       };
-      # Kept lazy so a failing trace can expose the exact text its leaf phase
+      # kept lazy so a failing trace can expose the exact text its leaf phase
       # would throw without forcing the phase's value projection.
       diagnosticText.leaf =
         let
@@ -518,6 +541,7 @@ in
     defaultStages
     knownViews
     stageDiagnostics
+    selectPrepared
     topClaim
     identifyUnit
     # exported so a golden-error test can assert its exact output against

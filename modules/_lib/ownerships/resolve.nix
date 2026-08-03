@@ -1,6 +1,6 @@
 # _lib/ownerships/resolve.nix
 #
-# Public entry. Axis descriptors and relation registrations turn one roster
+# public entry. axis descriptors and relation registrations turn one roster
 # into the engine registry and leaf-stage set, so standalone and den-backed
 # callers share the same path.
 {
@@ -11,9 +11,10 @@
 let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
-  axisDescriptors = axes.validateDescriptors (
+  descriptorSet = axes.compileDescriptors (
     if descriptors == null then axes.descriptors else descriptors
   );
+  axisDescriptors = descriptorSet.descriptors;
   relationRegistrations = axes.validateRelations axisDescriptors (
     if relations == null then axes.relations else relations
   );
@@ -28,7 +29,7 @@ let
   engineArgsFor =
     roster:
     let
-      registry = axes.registryFor axisDescriptors roster;
+      registry = axes.registryForCompiled descriptorSet roster;
       relationStages = map (relation: {
         inherit (relation) name;
         view = "leaf";
@@ -38,7 +39,7 @@ let
     {
       inherit registry;
       stages = [
-        # Alias ambiguity is rejected before satisfiability and relations so a
+        # alias ambiguity is rejected before satisfiability and relations so a
         # bare alias spanning multiple canonical members fails loud with its own
         # wording rather than surfacing as a generic unknown-name/disjoint error.
         {

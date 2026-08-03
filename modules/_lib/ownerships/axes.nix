@@ -1,8 +1,8 @@
 # _lib/ownerships/axes.nix
 #
-# Axis implementations, authoring descriptors, and cross-axis relation data.
-# The engine consumes registries built from these records; it never learns axis
-# names, author keys, roster fields, or which scopes may use them. New axes and
+# axis implementations, authoring descriptors, and cross-axis relation data.
+# the engine consumes registries built from these records; it never learns axis
+# names, author keys, roster fields, or which scopes may use them. new axes and
 # relations extend data here instead of branching the translator or resolver.
 { lib }:
 let
@@ -33,10 +33,10 @@ let
 
   resolveMembers = members: v: if v.tag == "include" then inter v.set members else diff members v.set;
 
-  # Shared alias/canonical resolution, used by every set axis and by the
-  # registered alias-validation stage. A claim name that is already a canonical
+  # shared alias/canonical resolution, used by every set axis and by the
+  # registered alias-validation stage. a claim name that is already a canonical
   # member is kept as-is; otherwise it expands through the roster-provided alias
-  # map (default {} = identity). An unknown name stays itself and falls through
+  # map (default {} = identity). an unknown name stays itself and falls through
   # to the existing unknown-name/disjoint diagnostic.
   canonicalizeName =
     aliasMap: members: name:
@@ -46,7 +46,7 @@ let
     aliasMap: members: set:
     lib.unique (builtins.concatMap (canonicalizeName aliasMap members) set);
 
-  # Bare aliases that resolve to more than one canonical member. A bare claim
+  # bare aliases that resolve to more than one canonical member. a bare claim
   # never fans out silently; the registered alias-validation stage fails loud on
   # these before satisfiability or relations run.
   ambiguousNames =
@@ -235,7 +235,7 @@ let
       "no user in { ${builtins.concatStringsSep ", " users} } lives on any host in { ${builtins.concatStringsSep ", " hosts} } -- this host/user co-ownership can never apply";
   };
 
-  # Canonical host identity is "<system>/<name>"; a bare name is an alias. A
+  # canonical host identity is "<system>/<name>"; a bare name is an alias. a
   # one-arg `define.host "khion"` stays a standalone declaration (system
   # "standalone", bare-name alias) so existing callers keep byte-identical
   # resolve/config output; the optional attrs form federates a host onto a real
@@ -244,21 +244,22 @@ let
 
   aliasesFor =
     entries:
-    lib.foldl' (
-      aliases: entry:
-      lib.foldl' (
-        result: alias:
-        result
-        // {
-          ${alias} = lib.unique ((result.${alias} or [ ]) ++ [ entry.id ]);
-        }
-      ) aliases entry.aliases
-    ) { } entries;
+    let
+      registrations = builtins.concatMap (
+        entry:
+        map (alias: {
+          name = alias;
+          value = entry.id;
+        }) entry.aliases
+      ) entries;
+      grouped = builtins.groupBy (registration: registration.name) registrations;
+    in
+    lib.mapAttrs (_: group: lib.unique (map (registration: registration.value) group)) grouped;
 
   hostRoster = {
     membersField = "hosts";
-    # A host ctx entity resolves to its canonical id: an explicit id wins,
-    # otherwise it is derived from the entity's own system/name. A caller adds
+    # a host ctx entity resolves to its canonical id, an explicit id wins,
+    # otherwise it is derived from the entity's own system/name. a caller adds
     # host.system additively; a bare standalone ctx defaults the system.
     memberOf = entity: entity.id or (canonicalHostId (entity.system or "standalone") entity.name);
     define =
@@ -547,36 +548,50 @@ let
     else
       relationRegistrations;
 
-  authorKeysFor =
+  compileDescriptors =
     axisDescriptors:
-    builtins.sort (a: b: a.order < b.order) (
-      builtins.concatMap (descriptor: descriptor.authorKeys) (validateDescriptors axisDescriptors)
-    );
-
-  claimKeysFor = axisDescriptors: map (key: key.name) (authorKeysFor axisDescriptors);
-
-  validateUnit =
-    axisDescriptors: unit:
     let
-      invalid = builtins.filter (key: unit ? ${key.name} && !key.valid unit.${key.name}) (
-        authorKeysFor axisDescriptors
+      descriptors = validateDescriptors axisDescriptors;
+      authorKeys = builtins.sort (a: b: a.order < b.order) (
+        builtins.concatMap (descriptor: descriptor.authorKeys) descriptors
       );
+    in
+    {
+      inherit descriptors authorKeys;
+      claimKeys = map (key: key.name) authorKeys;
+      rosterDescriptors = builtins.filter (descriptor: descriptor.roster != null) descriptors;
+    };
+
+  authorKeysFor = axisDescriptors: (compileDescriptors axisDescriptors).authorKeys;
+
+  claimKeysFor = axisDescriptors: (compileDescriptors axisDescriptors).claimKeys;
+
+  validateUnitWith =
+    authorKeys: unit:
+    let
+      invalid = builtins.filter (key: unit ? ${key.name} && !key.valid unit.${key.name}) authorKeys;
       bad = if invalid == [ ] then null else builtins.head invalid;
     in
     if bad == null then unit else throw (bad.shapeError unit.${bad.name});
+
+  validateUnit = axisDescriptors: validateUnitWith (compileDescriptors axisDescriptors).authorKeys;
 
   claimOf =
     axisDescriptors: unit:
     lib.foldl' (claim: descriptor: claim // descriptor.parse unit) { } axisDescriptors;
 
-  registryFor =
+  registryFrom =
     axisDescriptors: roster:
     builtins.listToAttrs (
       map (descriptor: {
         inherit (descriptor) name;
         value = descriptor.axisFor roster;
-      }) (validateDescriptors axisDescriptors)
+      }) axisDescriptors
     );
+
+  registryFor = axisDescriptors: registryFrom (validateDescriptors axisDescriptors);
+
+  registryForCompiled = descriptorSet: registryFrom descriptorSet.descriptors;
 
   relationsFor =
     relationRegistrations: roster:
@@ -596,9 +611,9 @@ let
     axisDescriptors: roster:
     builtins.concatMap (descriptor: descriptor.leafStages roster) axisDescriptors;
 
-  # Registered leaf stage (ordered before satisfiability and relations by
+  # registered leaf stage (ordered before satisfiability and relations by
   # resolve.nix) that fails loud when a bare alias resolves to more than one
-  # canonical member. Wording is distinct from the unknown-name/disjoint
+  # canonical member. wording is distinct from the unknown-name/disjoint
   # diagnostic; every set axis exposes `ambiguous`, predicate axes contribute
   # none.
   aliasValidationCheck =
@@ -626,9 +641,9 @@ let
         map (key: key // { inherit (descriptor) scopeError; }) descriptor.authorKeys
     ) axisDescriptors;
 
-  # Project only entity keys named by the instantiated registry. A narrowed axis
+  # project only entity keys named by the instantiated registry. a narrowed axis
   # whose raw entity is absent receives null; the engine's missing-context phase
-  # rejects it before selection. Predicate axes contribute no key because their
+  # rejects it before selection. predicate axes contribute no key because their
   # ctxKey is null.
   contextFor =
     registry: rawCtx:
@@ -666,11 +681,14 @@ in
     relations
     validateDescriptors
     validateRelations
+    compileDescriptors
     authorKeysFor
     claimKeysFor
+    validateUnitWith
     validateUnit
     claimOf
     registryFor
+    registryForCompiled
     relationsFor
     leafStagesFor
     aliasValidationCheck
