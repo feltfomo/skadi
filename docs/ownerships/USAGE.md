@@ -555,7 +555,7 @@ profiledResolve = ownerships.mkResolveProfiled profileArgs roster;
 value = profiledResolve units context;
 ```
 
-Built-in profile names are `strict-ordered` and `last-wins`. Built-in list strategies are `ordered-concat`, `dedup-union`, and `take-right`. A profile is validated only when a selected contributor activates it.
+Built-in profile names are `strict-ordered` and `last-wins`. Built-in list strategies are `ordered-concat`, `dedup-union`, and `take-right`. Profiles and their strategies are validated lazily when an active merge path requests them—either through a selected contributor’s `mergeProfile` or through `profileForPath`. Unselected units and unused profile definitions remain unforced.
 
 ---
 
