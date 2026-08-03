@@ -1,6 +1,6 @@
 # Program
 
-`program` is the normal aspect-authoring facade for software that may install a package, import Home Manager modules, place managed files, expand a configuration directory, register Noctalia templates, or emit NixOS configuration.
+`program` is the normal aspect-authoring facade for software that may install a package, import Home Manager modules, place managed files, expand a configuration directory, register Noctalia or DMS application templates, or emit NixOS configuration.
 
 It combines three internal systems:
 
@@ -45,6 +45,7 @@ A Program declaration accepts these top-level fields:
 | `files` | list | Declare individual managed files. |
 | `directories` | list | Expand a source directory into managed files. |
 | `theme.noctalia` | attrset | Seed and register Noctalia templates. |
+| `theme.dms` | attrset | Seed and register DMS/Matugen templates. |
 | Ownership claim keys | varies | Narrow the Home Manager and file-producing portion. |
 
 Unknown top-level fields are errors. Program is intentionally a bounded facade, not an open-ended attrset that forwards arbitrary Home Manager options.
@@ -63,7 +64,7 @@ The following keys can appear on the Program declaration and on supported nested
 
 No claim means global ownership.
 
-Top-level claims narrow `pkg`, `imports`, `files`, `directories`, and `theme.noctalia`. Nested file, directory, directory-rule, and theme entries may narrow that ownership further. A child cannot widen the ownership inherited from its parent.
+Top-level claims narrow `pkg`, `imports`, `files`, `directories`, `theme.noctalia`, and `theme.dms`. Nested file, directory, directory-rule, and theme entries may narrow that ownership further. A child cannot widen the ownership inherited from its parent.
 
 ```nix
 den.aspects.example = program {
@@ -209,7 +210,7 @@ directories = [
 ];
 ```
 
-A file named by an override is removed from the inherited/default set and emitted only through that rule. Duplicate overrides, unknown names, overrides beneath excluded paths, and overrides of Noctalia-reserved sources are errors.
+A file named by an override is removed from the inherited/default set and emitted only through that rule. Duplicate overrides, unknown names, overrides beneath excluded paths, and overrides of renderer-reserved theme sources are errors.
 
 ### Empty and untracked directories
 
@@ -266,6 +267,60 @@ Each template accepts:
 If `subdir` is omitted, the block `id` is used. If it is `null` or empty, the seed is placed directly under the templates root. Registration IDs must be unique.
 
 When a template source lives inside a declared directory, Program reserves it so the ordinary directory expansion does not also furnish it to the directory destination.
+
+## DMS templates
+
+DMS uses the same declaration shape under an independent backend:
+
+```nix
+theme.dms = {
+  id = "example";
+  source = "${rootPath}/themes/example.mustache";
+  output = ".config/example/theme.toml";
+};
+```
+
+Program places DMS seed templates under `.config/matugen/dms/templates` and emits one composable Matugen fragment per block under `.config/matugen/dms/configs`. DMS merges those fragments when it renders a theme, so separate aspects do not compete for a single user-owned `config.toml`.
+
+The template source is passed through unchanged. DMS-only expressions such as `dank16` therefore remain available without requiring a Noctalia declaration. Conversely, a Noctalia-only template can use its full template language without a DMS declaration.
+
+Use `native` for renderer registration fields that Program does not model directly:
+
+```nix
+theme.dms = {
+  id = "example";
+  source = "${rootPath}/themes/example.mustache";
+  output = ".config/example/theme.toml";
+  native = {
+    compare_to = "dark";
+  };
+};
+```
+
+Program retains ownership of `input_path`, `output_path`, and the optional `post_hook` produced from `reload`; other native fields pass through to the selected renderer.
+
+### Sharing and divergence
+
+Sharing is explicit ordinary Nix reuse:
+
+```nix
+let
+  shared = {
+    source = "${rootPath}/themes/portable.mustache";
+    output = ".config/example/theme.toml";
+  };
+in
+{
+  theme = {
+    noctalia = { id = "example"; } // shared;
+    dms = { id = "example"; } // shared;
+  };
+}
+```
+
+Declare only one backend for an engine-specific template. Use separate `source` values when both backends target the same output but need different syntax. Cross-backend output reuse is intentional: only the renderer selected by the active compositor session should run.
+
+Shell palettes are not translated by Program. Noctalia retains its native palette schema, while DMS retains its custom themes, Matugen scheme controls, and `dank16` palette.
 
 ## NixOS configuration
 
@@ -338,9 +393,9 @@ The directory is absent from the evaluated flake. This commonly means it is empt
 
 An override names a file that was not found in the source inventory, or that was excluded.
 
-### Duplicate Noctalia registration
+### Duplicate theme registration
 
-Two templates produced the same registration ID. Set distinct `subId` values.
+Two templates in one renderer block produced the same registration ID. Set distinct `subId` values.
 
 ### Ownership contradiction
 
@@ -357,7 +412,7 @@ Program is an adapter, not a general merge engine.
 1. `validateSpec` checks the bounded outer vocabulary.
 1. `furnishUnit` and `specUnit` translate Program fields into Ownerships trees.
 1. Ownerships selects home/file content for `{ host; user; }` and system units for `{ host; }`.
-1. `validateSelected` validates selected files, expands directories, and normalizes themes.
+1. `validateSelected` validates selected files, expands directories, and normalizes renderer-tagged themes.
 1. `furnish.files.mkDeclarations` lowers home-relative files to principal-aware declarations.
 1. Furnish compiles those declarations into the host manifest.
 

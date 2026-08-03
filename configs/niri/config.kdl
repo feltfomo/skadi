@@ -1,0 +1,85 @@
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+        numlock
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+    }
+}
+
+layout {
+    gaps 12
+    center-focused-column "never"
+
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+    }
+
+    default-column-width { proportion 0.5; }
+}
+
+prefer-no-csd
+spawn-at-startup "xwayland-satellite"
+screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+environment {
+    QT_QPA_PLATFORM "wayland"
+    QT_QPA_PLATFORMTHEME "gtk3"
+    QT_QPA_PLATFORMTHEME_QT6 "gtk3"
+    ELECTRON_OZONE_PLATFORM_HINT "auto"
+}
+
+include optional=true "colors.kdl"
+
+binds {
+    Mod+T { spawn "kitty"; }
+    Mod+Space { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
+    Mod+V { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
+    Mod+Shift+Slash { spawn "dms" "ipc" "call" "keybinds" "toggle" "niri"; }
+    Mod+Alt+L { spawn "dms" "ipc" "call" "lock" "lock"; }
+
+    Mod+Q { close-window; }
+    Mod+Shift+E { quit; }
+
+    Mod+Left { focus-column-left; }
+    Mod+Down { focus-window-down; }
+    Mod+Up { focus-window-up; }
+    Mod+Right { focus-column-right; }
+    Mod+H { focus-column-left; }
+    Mod+J { focus-window-down; }
+    Mod+K { focus-window-up; }
+    Mod+L { focus-column-right; }
+
+    Mod+Shift+Left { move-column-left; }
+    Mod+Shift+Down { move-window-down; }
+    Mod+Shift+Up { move-window-up; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+H { move-column-left; }
+    Mod+Shift+J { move-window-down; }
+    Mod+Shift+K { move-window-up; }
+    Mod+Shift+L { move-column-right; }
+
+    Mod+Page_Down { focus-workspace-down; }
+    Mod+Page_Up { focus-workspace-up; }
+    Mod+Shift+Page_Down { move-column-to-workspace-down; }
+    Mod+Shift+Page_Up { move-column-to-workspace-up; }
+
+    Mod+R { switch-preset-column-width; }
+    Mod+F { maximize-column; }
+    Mod+Shift+F { fullscreen-window; }
+    Mod+C { center-column; }
+
+    Print { screenshot; }
+    Mod+Print { screenshot-window; }
+}

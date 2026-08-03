@@ -11,11 +11,13 @@
       theming
       hyprland
       mangowm
+      niri
       kitty
       ghostty
       nvim
       spicetify
       noctalia
+      dms
       firefox
       qt-hm
 

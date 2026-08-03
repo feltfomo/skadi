@@ -26,11 +26,13 @@ _: {
       time.timeZone = "America/Los_Angeles";
       i18n.defaultLocale = "en_US.UTF-8";
 
+      services.printing.enable = true;
+
       security.sudo.wheelNeedsPassword = true;
 
       # audio. pipewire replaces pulseaudio; the pulse shim is what provides
       # pactl, which the steam runtime shells out to -- without it steam logged
-      # "pactl: command not found" and skipped audio device setup.
+      # "pactl command not found" and skipped audio device setup.
       services.pulseaudio.enable = false;
       security.rtkit.enable = true;
       services.pipewire = {
@@ -53,16 +55,25 @@ _: {
       # weekly trim for the luks+btrfs ssd root
       services.fstrim.enable = true;
 
-      # base fonts: noto for broad coverage + color emoji, a nerd font for the
-      # ricing glyphs (eza, fastfetch, noctalia), liberation for office docs.
-      fonts.packages = with pkgs; [
-        noto-fonts
-        noto-fonts-cjk-sans
-        noto-fonts-color-emoji
-        liberation_ttf
-        nerd-fonts.jetbrains-mono
-        nerd-fonts.symbols-only
-      ];
+      # noto covers broad scripts and emoji; the nerd fonts cover terminal glyphs.
+      fonts = {
+        packages = with pkgs; [
+          noto-fonts
+          noto-fonts-cjk-sans
+          noto-fonts-color-emoji
+          liberation_ttf
+          inter
+          fira-code
+          maple-mono.variable
+          nerd-fonts.jetbrains-mono
+          nerd-fonts.symbols-only
+        ];
+        fontconfig.defaultFonts = {
+          serif = [ "Maple Mono" ];
+          sansSerif = [ "Maple Mono" ];
+          monospace = [ "Maple Mono" ];
+        };
+      };
 
       services.openssh = {
         enable = true;
@@ -93,8 +104,7 @@ _: {
         xclip
         ffmpeg
         cliphist
-        # pactl: pipewire ships the pulse server, not the cli, and the steam
-        # runtime shells out to pactl
+        # pipewire ships the pulse server but not pactl, which steam invokes directly
         pulseaudio
         grub2_efi
         efibootmgr

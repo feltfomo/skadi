@@ -60,6 +60,11 @@ let
     "placedAs"
     "subId"
     "reload"
+    "native"
+  ];
+  themeBackends = [
+    "noctalia"
+    "dms"
   ];
 
   claimsOf =
@@ -126,19 +131,45 @@ let
       let
         unknownSpec = unknownFields specFields spec;
         themeIsAttrs = !(spec ? theme) || builtins.isAttrs spec.theme;
-        unknownTheme =
-          if themeIsAttrs && spec ? theme then unknownFields [ "noctalia" ] spec.theme else [ ];
-        block = if themeIsAttrs then spec.theme.noctalia or null else null;
-        blockIsAttrs = block == null || builtins.isAttrs block;
-        blockAllowed =
-          if blockIsAttrs && block != null && block ? templates then
-            [
-              "id"
-              "templates"
-            ]
-          else
-            [ "id" ] ++ themeEntryFields;
-        unknownBlock = if blockIsAttrs && block != null then unknownFields blockAllowed block else [ ];
+        unknownTheme = if themeIsAttrs && spec ? theme then unknownFields themeBackends spec.theme else [ ];
+        themeBlockErrors =
+          backend:
+          let
+            block = if themeIsAttrs then spec.theme.${backend} or null else null;
+            blockIsAttrs = block == null || builtins.isAttrs block;
+            blockAllowed =
+              if blockIsAttrs && block != null && block ? templates then
+                [
+                  "id"
+                  "templates"
+                ]
+              else
+                [ "id" ] ++ themeEntryFields;
+            unknownBlock = if blockIsAttrs && block != null then unknownFields blockAllowed block else [ ];
+          in
+          lib.optional (!blockIsAttrs) (
+            problem "program/${backend}-shape" "theme.${backend} must be an attribute set"
+          )
+          ++ lib.optionals (blockIsAttrs && block != null) (
+            lib.optional (!(block ? id) || !validBaseName block.id) (
+              problem "program/${backend}-id" "theme.${backend}.id must be a normalized non-empty name"
+            )
+            ++ lib.optional (block ? templates && !builtins.isList block.templates) (
+              problem "program/${backend}-templates-shape" "theme.${backend}.templates must be a list"
+            )
+            ++
+              lib.optional
+                (
+                  block ? templates
+                  && builtins.any (name: builtins.elem name themeEntryFields) (builtins.attrNames block)
+                )
+                (
+                  problem "program/${backend}-mixed-syntax" "theme.${backend} cannot mix templates with single-entry fields"
+                )
+            ++ lib.optional (unknownBlock != [ ]) (
+              problem "program/${backend}-block-fields" "theme.${backend} has unknown fields: ${lib.concatStringsSep ", " unknownBlock}"
+            )
+          );
         errors =
           lib.optional (unknownSpec != [ ]) (
             problem "program/spec-fields" "declaration has unknown fields: ${lib.concatStringsSep ", " unknownSpec}"
@@ -162,29 +193,7 @@ let
           ++ lib.optional (unknownTheme != [ ]) (
             problem "program/theme-fields" "theme has unknown fields: ${lib.concatStringsSep ", " unknownTheme}"
           )
-          ++ lib.optional (!blockIsAttrs) (
-            problem "program/noctalia-shape" "theme.noctalia must be an attribute set"
-          )
-          ++ lib.optionals (blockIsAttrs && block != null) (
-            lib.optional (!(block ? id) || !validBaseName block.id) (
-              problem "program/noctalia-id" "theme.noctalia.id must be a normalized non-empty name"
-            )
-            ++ lib.optional (block ? templates && !builtins.isList block.templates) (
-              problem "program/noctalia-templates-shape" "theme.noctalia.templates must be a list"
-            )
-            ++
-              lib.optional
-                (
-                  block ? templates
-                  && builtins.any (name: builtins.elem name themeEntryFields) (builtins.attrNames block)
-                )
-                (
-                  problem "program/noctalia-mixed-syntax" "theme.noctalia cannot mix templates with single-entry fields"
-                )
-            ++ lib.optional (unknownBlock != [ ]) (
-              problem "program/noctalia-block-fields" "theme.noctalia has unknown fields: ${lib.concatStringsSep ", " unknownBlock}"
-            )
-          );
+          ++ builtins.concatMap themeBlockErrors themeBackends;
       in
       checked errors spec;
 
@@ -241,10 +250,10 @@ let
     };
 
   # theme entries stay descriptive until ownership has selected them.
-  themeUnits =
-    spec:
+  themeUnitsFor =
+    spec: renderer:
     let
-      block = spec.theme.noctalia or null;
+      block = spec.theme.${renderer} or null;
     in
     if block == null then
       [ ]
@@ -259,12 +268,15 @@ let
         // {
           themeEntries = [
             {
+              inherit renderer;
               blockId = id;
               entry = withoutClaims raw;
             }
           ];
         }
       ) rawEntries;
+
+  themeUnits = spec: builtins.concatMap (themeUnitsFor spec) themeBackends;
 
   furnishUnit =
     spec:
@@ -545,10 +557,10 @@ let
           problem "program/directory-file-excluded" "directories[${toString wrapped.index}] overrides excluded names: ${lib.concatStringsSep ", " excludedOverrides}"
         )
         ++ lib.optional (excludedThemes != [ ]) (
-          problem "program/directory-theme-excluded" "directories[${toString wrapped.index}] excludes theme.noctalia sources: ${lib.concatStringsSep ", " excludedThemes}"
+          problem "program/directory-theme-excluded" "directories[${toString wrapped.index}] excludes theme sources: ${lib.concatStringsSep ", " excludedThemes}"
         )
         ++ lib.optional (themeOverrides != [ ]) (
-          problem "program/directory-file-themed" "directories[${toString wrapped.index}] overrides theme.noctalia sources: ${lib.concatStringsSep ", " themeOverrides}"
+          problem "program/directory-file-themed" "directories[${toString wrapped.index}] overrides theme sources: ${lib.concatStringsSep ", " themeOverrides}"
         );
       defaults = builtins.intersectAttrs lifecycleKeysAttrs entry;
       destinationRoot = lib.removeSuffix "/" (entry.dest or "");
@@ -593,7 +605,7 @@ let
       indexed:
       let
         inherit (indexed) index wrapped;
-        subject = "theme.noctalia.${wrapped.blockId}.templates[${toString index}]";
+        subject = "theme.${wrapped.renderer}.${wrapped.blockId}.templates[${toString index}]";
         inherit (wrapped) entry;
         unknown = unknownFields themeEntryFields entry;
       in
@@ -621,12 +633,15 @@ let
         ++ lib.optional (entry ? reload && entry.reload != null && !builtins.isString entry.reload) (
           problem "program/theme-reload" "${subject}.reload must be null or a string"
         )
+        ++ lib.optional (entry ? native && !builtins.isAttrs entry.native) (
+          problem "program/theme-native" "${subject}.native must be an attribute set"
+        )
     ) (lib.imap0 (index: wrapped: { inherit index wrapped; }) themeEntries);
 
   normalizeThemeEntry =
     wrapped:
     let
-      inherit (wrapped) blockId;
+      inherit (wrapped) blockId renderer;
       inherit (wrapped.entry) source output;
       inherit (wrapped) entry;
       rawSubdir =
@@ -649,8 +664,10 @@ let
         placedAs
         subId
         blockId
+        renderer
         ;
       reload = entry.reload or null;
+      native = entry.native or { };
       registrationId = if subId == null then blockId else "${blockId}-${subId}";
     };
 
@@ -677,13 +694,16 @@ let
       home.packages = [ (pkg pkgs) ];
     };
 
-  themeFiles =
-    entries: pkgs:
+  themeGroupFiles =
+    pkgs: entries:
     let
+      inherit ((builtins.head entries)) blockId renderer;
       ids = map (entry: entry.registrationId) entries;
       dupIds = duplicateValues ids;
+      templateRoot =
+        if renderer == "noctalia" then ".config/noctalia/templates" else ".config/matugen/dms/templates";
       seedFileOf = entry: {
-        dest = ".config/noctalia/templates/${entry.subdir}${entry.placedAs}";
+        dest = "${templateRoot}/${entry.subdir}${entry.placedAs}";
         src = entry.source;
         representation = contract.capabilities.writable;
         onConflict = contract.conflictPolicies.runtimeWins;
@@ -691,38 +711,50 @@ let
       };
       registrationOf =
         entry:
-        {
-          input_path = "~/.config/noctalia/templates/${entry.subdir}${entry.placedAs}";
+        entry.native
+        // {
+          input_path = "~/${templateRoot}/${entry.subdir}${entry.placedAs}";
           output_path = "~/${entry.output}";
         }
         // lib.optionalAttrs (entry.reload != null) { post_hook = entry.reload; };
-      fragmentAttrset = {
-        theme.templates.user = builtins.listToAttrs (
-          map (entry: {
-            name = entry.registrationId;
-            value = registrationOf entry;
-          }) entries
-        );
-      };
-      inherit ((builtins.head entries)) blockId;
+      registrations = builtins.listToAttrs (
+        map (entry: {
+          name = entry.registrationId;
+          value = registrationOf entry;
+        }) entries
+      );
+      fragmentAttrset =
+        if renderer == "noctalia" then
+          { theme.templates.user = registrations; }
+        else
+          { templates = registrations; };
+      fragmentDestination =
+        if renderer == "noctalia" then
+          ".config/noctalia/${blockId}.toml"
+        else
+          ".config/matugen/dms/configs/${blockId}.toml";
     in
-    if entries == [ ] then
-      [ ]
-    else if dupIds != [ ] then
+    if dupIds != [ ] then
       checked
         [
-          (problem "program/theme-registration-duplicate" "theme.noctalia.${blockId} has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}")
+          (problem "program/theme-registration-duplicate" "theme.${renderer}.${blockId} has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}")
         ]
         [ ]
     else
       map seedFileOf entries
       ++ [
         {
-          dest = ".config/noctalia/${blockId}.toml";
-          src = (pkgs.formats.toml { }).generate "noctalia-${blockId}.toml" fragmentAttrset;
+          dest = fragmentDestination;
+          src = (pkgs.formats.toml { }).generate "${renderer}-${blockId}.toml" fragmentAttrset;
           provenance = "modules/_lib/program.nix";
         }
       ];
+
+  themeFiles =
+    entries: pkgs:
+    builtins.concatMap (themeGroupFiles pkgs) (
+      builtins.attrValues (builtins.groupBy (entry: "${entry.renderer}:${entry.blockId}") entries)
+    );
 in
 rawSpec:
 let
@@ -730,7 +762,7 @@ let
   ownsFiles =
     (spec.files or [ ]) != [ ]
     || (spec.directories or [ ]) != [ ]
-    || (spec.theme.noctalia or null) != null;
+    || builtins.any (backend: (spec.theme.${backend} or null) != null) themeBackends;
   needsHomeManager = (spec.pkg or null) != null || (spec.imports or [ ]) != [ ];
   homeUnits = [ (specUnit spec) ];
 in

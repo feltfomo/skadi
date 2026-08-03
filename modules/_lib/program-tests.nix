@@ -114,6 +114,34 @@ let
   };
   directoryDeclarations = declarationsOf directoryOnly;
   directoryDestinations = map (declaration: declaration.destination) directoryDeclarations;
+
+  dmsOnly = program {
+    theme.dms = {
+      id = "dms-example";
+      source = ./program.nix;
+      output = ".config/example/dms.conf";
+      native = {
+        compare_to = "dark";
+      };
+    };
+  };
+  dmsDestinations = map (declaration: declaration.destination) (declarationsOf dmsOnly);
+
+  dualTheme = program {
+    theme = {
+      noctalia = {
+        id = "shared";
+        source = ./program.nix;
+        output = ".config/example/shared.conf";
+      };
+      dms = {
+        id = "shared";
+        source = ./program.nix;
+        output = ".config/example/shared.conf";
+      };
+    };
+  };
+  dualThemeDestinations = map (declaration: declaration.destination) (declarationsOf dualTheme);
   writableDeclaration = builtins.head (
     builtins.filter (
       declaration: declaration.destination == ".config/example/default.nix"
@@ -162,6 +190,14 @@ let
         typo = true;
       }
     ];
+  };
+  unknownDmsField = program {
+    theme.dms = {
+      id = "invalid";
+      source = ./program.nix;
+      output = ".config/invalid";
+      typo = true;
+    };
   };
   invalidPolicy = program {
     files = [
@@ -257,6 +293,7 @@ let
   unknownFileFieldResult = builtins.tryEval (
     builtins.deepSeq (unknownFileField.nixos moduleArgs) true
   );
+  unknownDmsFieldResult = builtins.tryEval (builtins.deepSeq (unknownDmsField.nixos moduleArgs) true);
   invalidPolicyResult = builtins.tryEval (builtins.deepSeq (invalidPolicy.nixos moduleArgs) true);
   excludedOverrideResult = builtins.tryEval (
     builtins.deepSeq (excludedOverride.nixos moduleArgs) true
@@ -288,6 +325,14 @@ rec {
     noctalia-sources-are-reserved =
       !(builtins.elem ".config/example/safe-render.nix" directoryDestinations)
       && builtins.elem ".config/noctalia/templates/example/safe-render.nix" directoryDestinations;
+    dms-templates-lower-to-independent-fragments =
+      builtins.elem ".config/matugen/dms/templates/dms-example/program.nix" dmsDestinations
+      && builtins.elem ".config/matugen/dms/configs/dms-example.toml" dmsDestinations;
+    explicit-dual-registration-emits-both-backends =
+      builtins.elem ".config/noctalia/templates/shared/program.nix" dualThemeDestinations
+      && builtins.elem ".config/noctalia/shared.toml" dualThemeDestinations
+      && builtins.elem ".config/matugen/dms/templates/shared/program.nix" dualThemeDestinations
+      && builtins.elem ".config/matugen/dms/configs/shared.toml" dualThemeDestinations;
     writable-overrides-are-first-class =
       writableDeclaration.representation == "writable"
       && writableDeclaration.onConflict == "runtime-wins";
@@ -302,6 +347,7 @@ rec {
       declarationsOf exceptFeltfomo == [ ]
       && builtins.length (declarationsOfWith grandpaArgs exceptFeltfomo) == 1;
     unknown-file-fields-are-rejected = !unknownFileFieldResult.success;
+    unknown-dms-fields-are-rejected = !unknownDmsFieldResult.success;
     invalid-conflict-policies-are-rejected = !invalidPolicyResult.success;
     overrides-beneath-excluded-subtrees-are-rejected = !excludedOverrideResult.success;
     theme-sources-beneath-excluded-subtrees-are-rejected = !excludedThemeResult.success;
