@@ -1,88 +1,102 @@
 # skadi
 
-NixOS config for two machines, built on Den. one flake, one set of feature
-modules, composed per host.
+A personal NixOS fleet built with [Den](https://github.com/denful/den), Home Manager, and a small set of local configuration subsystems. One flake defines physical hosts, installer targets, users, reusable aspects, managed files, and the checks that keep them aligned.
 
-## hosts
+## Systems
 
-- khion: nvidia desktop. hyprland and gnome, steam, impermanence (root wiped to
-  a blank snapshot on every boot).
-- lumi: gnome laptop.
+- **khion** — NVIDIA desktop with Wayland, gaming, impermanence, and the full `feltfomo` environment.
+- **lumi** — laptop with GNOME, `feltfomo`, and the restricted `grandpa` account.
+- **vm** — throwaway QEMU target for testing the installer, disk layout, secrets, and rollback flow.
+- **generic** — hardware-discovered installation target with a minimal `owner` account.
 
-## how it fits together
+`khion` and `lumi` are the real machines. `vm` and `generic` exercise the same configuration and installation machinery without pretending to be additional fleet hardware.
 
-Den loads everything under modules/ automatically. features are aspects: small
-modules under modules/aspects/ that each set up one thing (shell, theming,
-hyprland, firefox, ...). a host turns aspects on by listing them in the includes
-of its host aspect, and Den activates the host aspect named after the host.
+## How the configuration fits together
 
-aspects carry nixos config, home-manager config, or both. Den 0.17 does not
-forward home-manager config from a host to its users, so home aspects are listed
-on the user in modules/users/feltfomo.nix, not on the host. nixos-only aspects
-stay on the host.
+Den defines the host and user roster and activates feature **aspects** from `modules/aspects/`. Host aspects own NixOS features; user aspects own Home Manager features. Machine-specific hardware, disk, boot, and networking facts stay under `modules/hosts/`.
 
-aspects also say who they are for, right on the config. a hosts or users list on
-a block, file, or option path claims it for those hosts or users; untagged
-config is for everyone. the ownerships engine in modules/_lib/ownerships/ reads
-those claims and merges what survives: resolve builds the per-user view,
-resolveSystem the per-host one. see docs/ownerships/README.md.
+The local libraries under `modules/_lib/` provide the machinery around those aspects:
 
-the username lives in exactly one file: modules/users/feltfomo.nix.
+- **Program** turns a compact package, file, directory, and template declaration into matching NixOS, Home Manager, and Furnish slices.
+- **Ownerships** validates host and user claims, selects units for one context, and merges the surviving plain Nix values.
+- **Furnish** describes managed files and directories; its Rust coordinator reconciles manifests onto the filesystem with ledger, recovery, and safety checks.
+- **Krisis** provides structured diagnostic aggregation and safe rendering for the other libraries.
 
-## layout
+The normal flow is:
 
-flake.nix                     inputs and Den wiring
-modules/den.nix               Den schema, host and user classes, stateVersion
-modules/aspects/              feature modules (base, system, shell, theming,
-                              hyprland, kitty, fuzzel, walker, thunar,
-                              spicetify, noctalia, firefox, steam, gnome,
-                              wayland, qt-hm, impermanence, gpu-nvidia,
-                              docker, hermes, notion-sync, sops)
-modules/hosts/                khion.nix, lumi.nix, and per-host hardware in
-                              _khion/ and _lumi/ (disko, hardware,
-                              networking, environment)
-modules/users/feltfomo.nix    the user, and the home aspects it includes
-modules/_lib/program.nix      turns a small spec into matching home-manager,
-                              furnish files and host-only nixos config
-modules/_lib/ownerships/      ownership engine: aspects claim config for
-                              hosts or users; see docs/ownerships/ for the how-to
-modules/_pkgs/lucid.nix       spicetify Lucid theme, built from source
-modules/graalvm-oracle-21/    graalvm overlay
-modules/formatting.nix        treefmt config
-modules/checks.nix            per-host build and treefmt checks
-.github/workflows/ci.yml      CI
+```text
+aspect declarations
+  → Program or explicit Ownerships units
+  → host/user selection and merge
+  → NixOS + Home Manager configuration
+  → Furnish manifests and coordinator reconciliation
+```
 
-## build and deploy
+These are repository libraries, not requirements for unrelated Nix configurations. Ownerships and its unit import helpers can also be used without Den.
 
-    nix fmt                                              format the tree
-    nix flake check                                      build both hosts, run treefmt
-    sudo nixos-rebuild test --flake /etc/skadi#khion     activate now, reverts on reboot
-    sudo nixos-rebuild switch --flake /etc/skadi#khion   make it the boot default
+## Repository layout
 
-see what an upgrade changes before switching:
+| Path | Purpose |
+| --- | --- |
+| `flake.nix` | Inputs, caches, Den wiring, and shared module arguments. |
+| `modules/aspects/` | Reusable system and user features. |
+| `modules/hosts/` | Host declarations plus hardware, disk, boot, and networking facts. |
+| `modules/users/` | User declarations, account policy, Home Manager features, and persistence. |
+| `modules/_lib/program.nix` | High-level package and managed-file declaration surface. |
+| `modules/_lib/ownerships/` | Claim, selection, merge, trace, matrix, and standalone unit discovery. |
+| `modules/_lib/furnish/` | Managed-file declaration engine and Rust reconciliation coordinator. |
+| `modules/_lib/krisis/` | Structured diagnostics and safe rendering. |
+| `configs/` | Source configuration trees consumed by aspects and Program. |
+| `docs/` | User and maintainer documentation for the local subsystems. |
+| `scripts/` | Installer, VM, coordinator, and regression entry points. |
+| `tests/` | Checked-in regression manifests and baselines. |
+| `go/` | VM golden-image rebuild tooling and harness code. |
+| `.github/workflows/ci.yml` | Repository CI. |
 
-    nix build .#nixosConfigurations.khion.config.system.build.toplevel
-    nix store diff-closures /run/current-system ./result
+## Documentation
 
-## notes
+- [Program usage and behavior](docs/program.md)
+- [Ownerships](docs/ownerships/README.md)
+- [Ownerships standalone usage](docs/ownerships/USAGE.md)
+- [Furnish](docs/furnish/README.md)
+- [Furnish coordinator](docs/furnish/coordinator/README.md)
+- [Krisis](docs/krisis/README.md)
 
-- impermanence: khion wipes root on every boot. anything not under
-  environment.persistence is gone after reboot. declare new system paths in
-  modules/aspects/impermanence.nix and new user paths in
-  modules/users/feltfomo.nix before relying on them.
-- never run disko or disko-install against a running host. it repartitions.
-- nixfmt runs after deadnix and statix in formatting.nix so one nix fmt pass
-  converges.
-- spicetify Lucid needs modules/_pkgs/package-lock.json. if it drifts,
-  regenerate it (npm install --package-lock-only in the upstream repo), run
-  prefetch-npm-deps on the lock, and update npmDepsHash in lucid.nix.
-- the "unknown flake output denful" warning is expected.
-- electron-39.8.10 is allowed for logseq. drop it when logseq updates.
-- gifski is built with doCheck = false because its upstream test is flaky.
-- secrets are managed with sops-nix. the encrypted store is secrets/secrets.yaml,
-  decrypted with khion's ssh host key (persisted across the boot rollback). the
-  sops aspect lives in modules/aspects/sops.nix and .sops.yaml holds the recipient
-  age key. keep secrets/ in the notion-sync ignore list so the encrypted file
-  never round-trips through Notion. to provision: derive the age key from the host
-  key, paste it into .sops.yaml, then `sops secrets/secrets.yaml`. rebuild with
-  `nixos-rebuild test` first and confirm login on a fresh tty before `switch`.
+## Build and deploy
+
+Format and run the complete repository gate:
+
+```fish
+nix fmt
+nix flake check -L
+```
+
+Test a host configuration without changing the boot default:
+
+```fish
+sudo nixos-rebuild test --flake /etc/skadi#khion
+```
+
+Make the tested generation the boot default:
+
+```fish
+sudo nixos-rebuild switch --flake /etc/skadi#khion
+```
+
+Inspect a system closure before activation:
+
+```fish
+nix build .#nixosConfigurations.khion.config.system.build.toplevel
+nix store diff-closures /run/current-system ./result
+```
+
+Replace `khion` with the intended real host. The VM and generic targets are driven through the installer and test tooling rather than deployed over a running physical machine.
+
+## Operational notes
+
+- `khion` uses impermanence and restores a blank root snapshot at boot. Anything that must survive belongs in the declared system or user persistence sets.
+- Never run Disko or the installer against a running host disk. Both are allowed to repartition storage.
+- Provision required SOPS secrets before rebuilding a new account or machine. Use `nixos-rebuild test` and confirm login from a fresh TTY before `switch`.
+- Secrets live outside the Notion synchronization surface. Do not add encrypted or decrypted secret material to synchronized mappings.
+- `nix fmt` runs the repository's configured formatting and static-analysis pipeline; a second pass should converge with no changes.
+- The `unknown flake output 'denful'` warning is expected from the current Den integration.
