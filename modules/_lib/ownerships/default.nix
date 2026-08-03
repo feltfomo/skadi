@@ -7,6 +7,7 @@ let
   surface = import ./surface.nix {
     inherit lib descriptors relations;
   };
+  unitImporter = import ./import-units.nix { inherit lib; };
 in
 {
   inherit (surface)
@@ -25,5 +26,9 @@ in
     define
     toRoster
     mkRoster
+    ;
+  inherit (unitImporter)
+    importUnits
+    importUnitSets
     ;
 }

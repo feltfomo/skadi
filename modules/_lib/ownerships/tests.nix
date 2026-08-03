@@ -10,6 +10,7 @@ let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   merge = import ./merge.nix { inherit lib; };
+  importUnitTests = import ./import-units-tests.nix { inherit lib; };
   krisis = import ../krisis { inherit lib; };
 
   inherit (axes)
@@ -1935,7 +1936,7 @@ let
   failing = builtins.filter (c: !c.pass) cases;
 
   ok =
-    if failing == [ ] then
+    if failing == [ ] && importUnitTests.ok then
       true
     else
       throw "ownerships tests FAILED: ${lib.concatMapStringsSep ", " (c: c.name) failing}";
