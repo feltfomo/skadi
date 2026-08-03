@@ -2,10 +2,21 @@
 
 Ownerships is descriptor-driven at the author and roster boundaries and axis-agnostic in the engine.
 
+## Optional unit discovery
+
+`import-units.nix` is a standalone input convenience in front of the resolver pipeline. It does not add a selection stage or infer ownership from file paths.
+
+`importUnits` recursively discovers regular `.nix` files, sorts them by relative path, imports them, calls function files with the supplied `args`, and flattens one-unit and list-returning files into one unit list. It validates only the outer unit shape; payload fields remain lazy.
+
+`importUnitSets` classifies a mixed tree through explicit top-level `system` and `home` directories and returns both collections. It rejects loose root `.nix` files and unknown top-level directories rather than guessing which module system owns their payload.
+
+The resulting lists enter the same translation and resolver pipeline as manually assembled lists.
+
 ## Pipeline
 
 ```text
-translate
+optional file discovery
+→ translate
 → compose
 → leaf stages
 → tree stages
@@ -146,6 +157,7 @@ The merge layer interprets value shape and merge policy, never ownership semanti
 
 Ownerships must preserve:
 
+- imported files force only the unit shell needed for normalization; payload fields remain lazy;
 - inactive payloads are never merged;
 - safe identity does not serialize arbitrary payloads;
 - ordinary resolve does not force trace details;

@@ -48,6 +48,8 @@ All functions are exported from `modules/_lib/ownerships/default.nix`.
 | `define.<axis>` | Standalone declaration constructor. |
 | `toRoster declarations` | Project the default descriptor roster. |
 | `mkRoster descriptors` | Construct a custom descriptor-driven roster facade. |
+| `importUnits { dir; args ? { }; }` | Recursively import one unit collection. |
+| `importUnitSets { dir; args ? { }; }` | Import optional `system` and `home` collections from one tree. |
 
 The first argument set is curried. For example:
 
@@ -55,6 +57,60 @@ The first argument set is curried. For example:
 resolve = ownerships.mkResolve roster;
 value = resolve units ctx;
 ```
+
+## Unit import helpers
+
+### `importUnits`
+
+```nix
+units = ownerships.importUnits {
+  dir = ./units;
+  args = { inherit pkgs; };
+};
+```
+
+Behavior:
+
+- recursively visits directories;
+- imports regular files ending in `.nix`;
+- ignores regular non-Nix files;
+- rejects symlink and unknown filesystem entry types;
+- sorts files by relative path before import;
+- calls function files with `args`;
+- accepts one unit attrset or a list of unit attrsets from each file;
+- flattens all results into one list;
+- rejects non-attrset results with the relative source path;
+- validates the outer unit shell without forcing payload fields.
+
+The helper does not assign a scope. Pass the resulting list to the appropriate user or system resolver.
+
+### `importUnitSets`
+
+```nix
+unitSets = ownerships.importUnitSets {
+  dir = ./units;
+  args = { inherit pkgs; };
+};
+```
+
+The root may contain `system`, `home`, or both as directories. The result always has both keys; a missing collection is an empty list:
+
+```nix
+{
+  system = [ ... ];
+  home = [ ... ];
+}
+```
+
+At the mixed-tree root:
+
+- loose `.nix` files are rejected as unclassifiable;
+- directories other than `system` and `home` are rejected;
+- `system` or `home` entries that are not directories are rejected;
+- regular non-Nix files are ignored;
+- unsupported filesystem entry types are rejected.
+
+Each recognized collection uses the same recursive behavior and ordering as `importUnits`.
 
 ## Current public claim keys
 
@@ -169,6 +225,15 @@ Strict doors additionally reject unknown or incompatible supplied contexts even 
 ### Stage
 
 Unknown view, malformed callback, or a stage-produced structured diagnostic.
+
+### Unit import
+
+- non-attrset `args`;
+- imported file returns neither a unit attrset nor a list of unit attrsets;
+- unsafe filesystem entry type;
+- mixed tree has a loose root `.nix` file;
+- mixed tree has an unknown top-level directory;
+- mixed tree has no `system` or `home` directory.
 
 ## Glossary
 

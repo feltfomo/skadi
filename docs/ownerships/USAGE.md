@@ -7,12 +7,12 @@ This guide starts with standalone use, including ordinary NixOS and Home Manager
 ## Ways to use Ownerships
 
 1. **Pure Nix:** construct a roster, create a resolver, and resolve ordinary values.
-2. **NixOS or Home Manager without Den:** return resolved configuration from a normal module.
-3. **skadi integration:** use Program or Den-provided resolvers when those layers are already available.
+1. **NixOS or Home Manager without Den:** return resolved configuration from a normal module.
+1. **skadi integration:** use Program or Den-provided resolvers when those layers are already available.
 
 All three paths use the same claims and selection machinery.
 
----
+______________________________________________________________________
 
 ## Standalone quick start
 
@@ -84,7 +84,7 @@ Den normally wires several values together. Standalone callers make them explici
 
 Ownerships does not discover machines or accounts from NixOS. The roster is the finite ownership model against which claims are validated.
 
----
+______________________________________________________________________
 
 ## Build a standalone roster
 
@@ -153,7 +153,7 @@ hosts = [ "x86_64-linux/build" ];
 
 Unknown and ambiguous members are declaration errors, not inactive claims.
 
----
+______________________________________________________________________
 
 ## Contexts and scopes
 
@@ -201,18 +201,134 @@ resolveSystemStrict = ownerships.mkResolveSystemStrict roster;
 
 Use strict mode at standalone entry points when every supplied entity must be roster-valid even if all selected units are global.
 
----
+______________________________________________________________________
+
+## Import unit directories
+
+Standalone callers can discover unit files without maintaining an import list.
+
+### One scope
+
+When one directory contains units for one resolver scope:
+
+```text
+units/
+├── shared.nix
+├── desktop.nix
+└── hosts/
+    ├── khion.nix
+    └── lumi.nix
+```
+
+load the complete tree with:
+
+```nix
+units = ownerships.importUnits {
+  dir = ./units;
+  args = { inherit pkgs; };
+};
+```
+
+Then choose the scope through the resolver:
+
+```nix
+systemConfig = resolveSystem units { inherit host; };
+homeConfig = resolve units { inherit host user; };
+```
+
+`importUnits` does not infer NixOS or Home Manager from payload keys. The caller chooses the correct resolver.
+
+### Unit-file contract
+
+Every regular `.nix` file below `dir` is imported recursively. A file may return one unit:
+
+```nix
+{ pkgs }:
+{
+  hosts = [ "khion" ];
+  environment.systemPackages = [ pkgs.helix ];
+}
+```
+
+or a list:
+
+```nix
+{ pkgs }:
+[
+  { services.openssh.enable = true; }
+  {
+    hosts = [ "khion" ];
+    environment.systemPackages = [ pkgs.helix ];
+  }
+]
+```
+
+Function files receive the supplied `args`. Plain attrsets and lists also work. Results are flattened into one list after validating that every unit is an attrset.
+
+Discovery is deterministic: files are sorted by relative path before import. This order controls ordered list concatenation and contributor order. Regular non-Nix files are ignored. Symlink and unknown filesystem entry types are rejected rather than followed or silently omitted.
+
+The importer forces only enough structure to distinguish one unit from a list and verify each unit attrset. Unit payload fields remain lazy.
+
+### NixOS and Home Manager in one tree
+
+A mixed tree needs an explicit scope boundary because plain Nix attrsets do not reveal which module system owns them:
+
+```text
+units/
+├── system/
+│   ├── shared.nix
+│   └── hosts/
+│       ├── khion.nix
+│       └── lumi.nix
+└── home/
+    ├── shared.nix
+    └── users/
+        └── feltfomo.nix
+```
+
+Import both collections with one call:
+
+```nix
+unitSets = ownerships.importUnitSets {
+  dir = ./units;
+  args = { inherit pkgs; };
+};
+```
+
+The result is:
+
+```nix
+{
+  system = [ ... ];
+  home = [ ... ];
+}
+```
+
+Either directory may be absent; its result is an empty list. Resolve the collections separately:
+
+```nix
+systemConfig = resolveSystem unitSets.system { inherit host; };
+homeConfig = resolve unitSets.home { inherit host user; };
+```
+
+At the mixed-tree root, loose `.nix` files and unknown directories are errors. A loose file cannot be classified safely, so move it under `system/` or `home/`. Non-Nix regular files may remain at the root.
+
+______________________________________________________________________
 
 ## Reusable standalone setup
 
-A small project can centralize its roster and resolver doors without introducing Den:
+A project can centralize its roster, resolver doors, and importer helpers without introducing Den:
 
 ```text
 configuration/
 ├── ownerships.nix
 ├── units/
-│   ├── home.nix
-│   └── system.nix
+│   ├── system/
+│   │   ├── shared.nix
+│   │   └── desktop.nix
+│   └── home/
+│       ├── shared.nix
+│       └── editor.nix
 ├── home.nix
 └── configuration.nix
 ```
@@ -242,18 +358,23 @@ in
   resolveSystem = ownerships.mkResolveSystem roster;
   resolveStrict = ownerships.mkResolveStrict roster;
   resolveSystemStrict = ownerships.mkResolveSystemStrict roster;
+
+  inherit (ownerships)
+    importUnits
+    importUnitSets
+    ;
 }
 ```
 
-Import this facade from system and home modules instead of rebuilding the roster independently.
+System and home modules import this facade, discover the same unit tree, and resolve only their own collection.
 
----
+______________________________________________________________________
 
 ## NixOS without Den
 
 Ownerships resolves plain attrsets, so a normal NixOS module can return resolved configuration directly.
 
-### `units/system.nix`
+### `units/system/desktop.nix`
 
 ```nix
 { pkgs }:
@@ -262,7 +383,6 @@ Ownerships resolves plain attrsets, so a normal NixOS module can return resolved
     label = "shared system defaults";
     services.openssh.enable = true;
   }
-
   {
     label = "khion desktop";
     hosts = [ "khion" ];
@@ -270,7 +390,6 @@ Ownerships resolves plain attrsets, so a normal NixOS module can return resolved
     services.xserver.enable = true;
     environment.systemPackages = [ pkgs.helix ];
   }
-
   {
     label = "lumi power settings";
     hosts = [ "lumi" ];
@@ -289,11 +408,12 @@ let
     inherit lib;
   };
 
-  units = import ./units/system.nix {
-    inherit pkgs;
+  unitSets = ownership.importUnitSets {
+    dir = ./units;
+    args = { inherit pkgs; };
   };
 in
-ownership.resolveSystem units {
+ownership.resolveSystem unitSets.system {
   host = {
     name = "khion";
     system = "x86_64-linux";
@@ -313,8 +433,12 @@ let
   ownership = import ./ownerships.nix {
     inherit lib;
   };
+  unitSets = ownership.importUnitSets {
+    dir = ./units;
+    args = { inherit pkgs; };
+  };
 in
-ownership.resolveSystem (import ./units/system.nix { inherit pkgs; }) {
+ownership.resolveSystem unitSets.system {
   host = {
     name = hostName;
     system = hostSystem;
@@ -324,13 +448,13 @@ ownership.resolveSystem (import ./units/system.nix { inherit pkgs; }) {
 
 A flake or `lib.nixosSystem` caller can supply `hostName` and `hostSystem` through `specialArgs`.
 
----
+______________________________________________________________________
 
 ## Home Manager without Den
 
 Home Manager uses user scope because both host and user claims can matter.
 
-### `units/home.nix`
+### `units/home/editor.nix`
 
 ```nix
 { pkgs }:
@@ -339,7 +463,6 @@ Home Manager uses user scope because both host and user claims can matter.
     label = "shared shell";
     programs.fish.enable = true;
   }
-
   {
     label = "feltfomo editor";
     users = [ "feltfomo" ];
@@ -347,14 +470,12 @@ Home Manager uses user scope because both host and user claims can matter.
     programs.helix.enable = true;
     home.packages = [ pkgs.ripgrep ];
   }
-
   {
     label = "khion graphical tools";
     hosts = [ "khion" ];
 
     home.packages = [ pkgs.ghostty ];
   }
-
   {
     label = "feltfomo on khion";
     hosts = [ "khion" ];
@@ -374,11 +495,12 @@ let
     inherit lib;
   };
 
-  units = import ./units/home.nix {
-    inherit pkgs;
+  unitSets = ownership.importUnitSets {
+    dir = ./units;
+    args = { inherit pkgs; };
   };
 in
-ownership.resolve units {
+ownership.resolve unitSets.home {
   host = {
     name = "khion";
     system = "x86_64-linux";
@@ -389,9 +511,9 @@ ownership.resolve units {
 }
 ```
 
-Home Manager sees only the merged configuration for that host/user context.
+Home Manager sees only the merged configuration for that host/user context. The system collection is not passed to the user resolver, and the home collection is not passed to the system resolver.
 
----
+______________________________________________________________________
 
 ## Claim keys
 
@@ -438,7 +560,7 @@ Predicates receive the concrete context and may read extra fields supplied by th
 
 Prefer named claims when names are enough; they provide stronger roster validation and matrix reasoning.
 
----
+______________________________________________________________________
 
 ## Nesting with `children`
 
@@ -468,7 +590,7 @@ A parent may contain configuration and children simultaneously. Its payload beco
 
 Disjoint parent and child claims are impossible declarations rather than inactive selections.
 
----
+______________________________________________________________________
 
 ## Reserved keys and `value`
 
@@ -499,7 +621,7 @@ Claims, metadata, merge profile, and children remain outside `value`. Inline pay
 
 Content inside `value` is opaque configuration and is not scanned again for ownership-looking keys.
 
----
+______________________________________________________________________
 
 ## Identity metadata
 
@@ -517,7 +639,7 @@ Content inside `value` is opaque configuration and is not scanned again for owne
 
 Use them in nontrivial standalone unit collections so failures point back to authored declarations.
 
----
+______________________________________________________________________
 
 ## Merge behavior
 
@@ -557,7 +679,7 @@ value = profiledResolve units context;
 
 Built-in profile names are `strict-ordered` and `last-wins`. Built-in list strategies are `ordered-concat`, `dedup-union`, and `take-right`. Profiles and their strategies are validated lazily when an active merge path requests them—either through a selected contributor’s `mergeProfile` or through `profileForPath`. Unselected units and unused profile definitions remain unforced.
 
----
+______________________________________________________________________
 
 ## Resolver doors
 
@@ -607,7 +729,7 @@ matrix = ownerships.mkResolveMatrix roster {
 
 A matrix runs structural, tree, and survivor validation and reports selection across modeled contexts. It deliberately does not merge payloads or build merge provenance.
 
----
+______________________________________________________________________
 
 ## Impossible, inactive, and indeterminate
 
@@ -624,7 +746,7 @@ A valid claim is **inactive** when it does not match the current concrete contex
 
 A predicate can be **indeterminate** in matrix projection because arbitrary code cannot be reduced to a finite name set. A structurally live unit may also be **never selected** across the projected contexts.
 
----
+______________________________________________________________________
 
 ## Standalone troubleshooting
 
@@ -660,7 +782,19 @@ Ordinary resolution validates only demanded axes to preserve laziness. Use a str
 
 Use `mkResolveTrace` for one context or `mkResolveMatrix` for fleet-wide structural inspection.
 
----
+### Imported file has an invalid result
+
+Each imported `.nix` file must return one unit attrset or a list containing only unit attrsets. The error identifies the relative file path and the invalid value type.
+
+### Mixed unit tree cannot classify a file
+
+Place every `.nix` file below `units/system/` or `units/home/`. Payload keys are not used to guess module-system scope.
+
+### Unknown mixed-tree directory
+
+The root consumed by `importUnitSets` supports only `system` and `home` directories. Place deeper organizational directories inside the appropriate collection.
+
+______________________________________________________________________
 
 ## Program and Den integration
 

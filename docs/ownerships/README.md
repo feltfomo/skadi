@@ -28,7 +28,7 @@ Most skadi aspects should use `program`:
 }
 ```
 
-Use the injected `resolve` or `resolveSystem` only when Program's bounded fields do not fit the configuration.
+Use the injected `resolve` or `resolveSystem` only when Program's bounded fields do not fit the configuration. Standalone callers can build their own roster and load unit files with `importUnits` or `importUnitSets`; see [Usage](USAGE.md).
 
 ## Core model
 
@@ -77,6 +77,7 @@ Inactive is not an error. Impossible declarations fail before selection, even wh
 | `roster.nix` | Descriptor-driven standalone roster construction. |
 | `merge.nix` | Tracked merge, profiles, locks, and provenance. |
 | `matrix.nix` | Read-only projection across modeled contexts. |
+| `import-units.nix` | Deterministic standalone unit-file discovery and scope grouping. |
 | `default.nix` | Export the supported facade. |
 
 ## Supported facade
@@ -86,7 +87,8 @@ Inactive is not an error. Impossible declarations fail before selection, even wh
 - `mkResolve`, `mkResolveSystem`;
 - trace, matrix, strict, and profiled siblings;
 - `translate`, `claimKeys`;
-- `define`, `toRoster`, `mkRoster`.
+- `define`, `toRoster`, `mkRoster`;
+- `importUnits`, `importUnitSets`.
 
 Skadi aspect authors normally receive only `program`, `resolve`, and `resolveSystem` as module arguments. The remaining constructors are library, test, audit, and extension surfaces.
 
