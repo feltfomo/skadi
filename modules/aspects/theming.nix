@@ -1,29 +1,29 @@
 _: {
   den.aspects.theming = {
-    nixos =
-      { pkgs, ... }:
-      {
-        # qt theming is owned by the qt-hm aspect (home-manager), which sets
-        # platformTheme = "qtct". only the qt5ct/qt6ct/kvantum packages stay at
-        # system level; a system-level platformTheme would disagree with it.
-        environment.systemPackages = with pkgs; [
-          libsForQt5.qt5ct
-          qt6Packages.qt6ct
-          libsForQt5.qtstyleplugin-kvantum
-        ];
+    nixos = {
+      # System desktop entries launch outside Home Manager's environment.
+      # qt-hm selects Fusion so qtct can apply Noctalia's generated palette.
+      qt = {
+        enable = true;
+        platformTheme = "qt5ct";
       };
+    };
 
     homeManager =
-      { pkgs, ... }:
+      { pkgs, config, ... }:
       {
         gtk = {
           enable = true;
           colorScheme = "dark";
+          gtk4.theme = config.gtk.theme;
           iconTheme = {
             name = "Papirus-Dark";
             package = pkgs.papirus-icon-theme;
           };
         };
+
+        home.packages = [ pkgs.adw-gtk3 ];
+        dconf.settings."org/gnome/desktop/interface".gtk-theme = "adw-gtk3-dark";
 
         programs.btop = {
           enable = true;
@@ -40,6 +40,7 @@ _: {
         home.pointerCursor =
           let
             getFrom = url: hash: name: {
+              enable = true;
               gtk.enable = true;
               x11.enable = true;
               inherit name;

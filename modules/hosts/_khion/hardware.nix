@@ -1,4 +1,8 @@
-{ lib, modulesPath, ... }:
+{
+  lib,
+  modulesPath,
+  ...
+}:
 {
   # auto-detected hardware modules
   imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
