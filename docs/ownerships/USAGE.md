@@ -1,179 +1,47 @@
-# Using ownerships
+# Using Ownerships
 
-Ownerships lets config say who it belongs to without wrapping an aspect in host/user conditionals. Put a claim on the config unit. Leave claims off when the config belongs everywhere.
+Ownerships lets configuration state who it belongs to without wrapping an entire aspect in host and user conditionals.
 
-In skadi, start with `program`. Use the bound `resolve` or `resolveSystem` module args when the `program` shape doesn't fit.
+In skadi, prefer `program`. Use injected `resolve` and `resolveSystem` for arbitrary configuration units.
 
-## The claim keys
+## Claim keys
 
-| Key | Meaning | Available in |
+| Key | Value | Scope |
 | --- | --- | --- |
-| `hosts = [ ... ]` | only these hosts | user and system scope |
-| `exceptHosts = [ ... ]` | every host except these | user and system scope |
-| `users = [ ... ]` | only these users | user scope |
-| `exceptUsers = [ ... ]` | every user except these | user scope |
-| `when = ctx: ...` | where the predicate returns true | user and system scope |
-
-Host names may be unique bare aliases such as `"workstation"` or canonical IDs such as `"x86_64-linux/workstation"`. Use the canonical form when one bare name exists on more than one system.
+| `hosts` | list of host aliases or canonical IDs | user and system |
+| `exceptHosts` | list of host aliases or canonical IDs | user and system |
+| `users` | list of user IDs or unique aliases | user only |
+| `exceptUsers` | list of user IDs or unique aliases | user only |
+| `when` | context predicate | user and system |
 
 A unit with no claim is global.
 
-## Most aspects: use `program`
+Canonical host identity is `<system>/<name>`, such as `x86_64-linux/khion`. A unique bare alias such as `khion` is accepted. An alias that resolves to multiple canonical members is rejected.
 
-`program` is a module argument already bound to the fleet. It can install one package, add Home Manager imports, link files with hjem, write Noctalia templates/config, and emit an optional NixOS slice.
+Include and exclude are opposite polarities of one axis. Do not set both on the same unit.
 
-### Global package and file
+## Program usage
 
-```nix
-{
-  program,
-  rootPath,
-  ...
-}:
-{
-  den.aspects.example = program {
-    pkg = pkgs: pkgs.example;
-    files = [
-      {
-        dest = ".config/example/config.toml";
-        src = "${rootPath}/configs/example/config.toml";
-      }
-    ];
-  };
-}
-```
-
-There is no ownership key, so the home content is global.
-
-### Limit all home content to some hosts
+Program claims narrow its Home Manager and managed-file content:
 
 ```nix
 den.aspects.example = program {
-  hosts = [ "workstation" "laptop" ];
+  hosts = [ "khion" "lumi" ];
+  users = [ "feltfomo" ];
 
   pkg = pkgs: pkgs.example;
-  files = [
+  directories = [
     {
-      dest = ".config/example/config.toml";
-      src = "${rootPath}/configs/example/config.toml";
+      src = "${rootPath}/configs/example";
+      dest = ".config/example";
     }
   ];
 };
 ```
 
-The spec-level claim narrows `pkg`, `imports`, `files`, `templates`, and `noctaliaConfig` together.
+File, directory, directory-override, and Noctalia template entries may carry narrower claims. See `docs/program.md` for the complete facade.
 
-### Limit one file
-
-`files` and `templates` entries can carry their own claims:
-
-```nix
-den.aspects.example = program {
-  pkg = pkgs: pkgs.example;
-
-  files = [
-    {
-      dest = ".config/example/config.toml";
-      src = "${rootPath}/configs/example/config.toml";
-    }
-    {
-      hosts = [ "workstation" ];
-      dest = ".config/example/hardware.toml";
-      src = "${rootPath}/configs/example/hardware-workstation.toml";
-    }
-  ];
-};
-```
-
-The first file and package are global. Only `hardware.toml` is host-specific.
-
-### Add system config
-
-`nixos` returns system-scope units. Its units own themselves; a claim on the outer `program` spec does not flow into them.
-
-```nix
-{
-  program,
-  rootPath,
-  ...
-}:
-{
-  den.aspects.example = program {
-    hosts = [ "workstation" "laptop" ]; # home content
-
-    pkg = pkgs: pkgs.example;
-    files = [
-      {
-        dest = ".config/example/config.toml";
-        src = "${rootPath}/configs/example/config.toml";
-      }
-    ];
-
-    nixos = { pkgs, config, ... }: [
-      {
-        hosts = [ "workstation" "laptop" ]; # system content
-        programs.example.enable = true;
-        environment.systemPackages = [ pkgs.example-helper ];
-      }
-    ];
-  };
-}
-```
-
-System scope has a host but no user. `users` and `exceptUsers` are rejected there.
-
-When most system config is global and one field is host-specific, split it into separate units:
-
-```nix
-nixos = { ... }: [
-  {
-    services.example.enable = true;
-  }
-  {
-    hosts = [ "workstation" ];
-    services.example.keepWarm = true;
-  }
-];
-```
-
-## User claims
-
-User claims belong to home/user scope:
-
-```nix
-den.aspects.example = program {
-  users = [ "primary" ];
-  pkg = pkgs: pkgs.example;
-};
-```
-
-Negative claims stay open to future roster members:
-
-```nix
-den.aspects.example = program {
-  exceptUsers = [ "guest" ];
-  pkg = pkgs: pkgs.example;
-};
-```
-
-Do not set both `users` and `exceptUsers` on one unit. The same rule applies to `hosts` and `exceptHosts`.
-
-## Predicate claims
-
-Use `when` when a name list cannot express the condition:
-
-```nix
-den.aspects.example = program {
-  when = { host, ... }: host.gpu == "vendor-a";
-  pkg = pkgs: pkgs.example-gpu-tools;
-};
-```
-
-Predicates are checked only against the current context. A predicate that returns false is inactive, not impossible. Reading a missing context field throws normally, so prefer name claims when names are enough.
-
-## Direct user-scope config with `resolve`
-
-Use the bound `resolve` module arg when you need arbitrary Home Manager config instead of the `program` fields.
+## Direct user-scope resolution
 
 ```nix
 {
@@ -189,20 +57,22 @@ Use the bound `resolve` module arg when you need arbitrary Home Manager config i
       ...
     }:
     (resolve [
+      { programs.example.enable = true; }
       {
-        programs.example.enable = true;
+        hosts = [ "khion" ];
+        home.packages = [ pkgs.example-helper ];
       }
       {
-        hosts = [ "workstation" ];
-        home.packages = [ pkgs.example-helper ];
+        exceptUsers = [ "guest" ];
+        home.sessionVariables.EXAMPLE = "1";
       }
     ]) { inherit host user; };
 }
 ```
 
-`resolve` is already bound to the fleet roster. Give it a list of units, then the `{ host; user; }` context supplied to the class module.
+`resolve` is already bound to the fleet roster. It receives a unit list and then the concrete user-scope context.
 
-## Direct system config with `resolveSystem`
+## Direct system-scope resolution
 
 ```nix
 {
@@ -217,30 +87,31 @@ Use the bound `resolve` module arg when you need arbitrary Home Manager config i
       ...
     }:
     (resolveSystem [
+      { services.example.enable = true; }
       {
-        hosts = [ "workstation" ];
+        hosts = [ "khion" ];
         environment.systemPackages = [ pkgs.example ];
       }
     ]) { inherit host; };
 }
 ```
 
-Do not pass a user or use user claims through `resolveSystem`.
+System scope has no user entity. Any nested `users` or `exceptUsers` claim is rejected before resolution.
 
-## Nest related units with `children`
+## Nesting with `children`
 
-A child inherits and may narrow its parent's claim:
+Children inherit and may narrow their parent's effective claim:
 
 ```nix
 (resolve [
   {
-    hosts = [ "workstation" "laptop" ];
+    hosts = [ "khion" "lumi" ];
     children = [
       {
         home.sessionVariables.EXAMPLE = "1";
       }
       {
-        hosts = [ "workstation" ];
+        hosts = [ "khion" ];
         home.packages = [ pkgs.example-desktop-tools ];
       }
     ];
@@ -248,73 +119,116 @@ A child inherits and may narrow its parent's claim:
 ]) { inherit host user; }
 ```
 
-The first child applies to both hosts. The second narrows the parent to `workstation`. A child cannot widen beyond the parent.
+The first child applies to both hosts. The second narrows to `khion`. A child cannot widen beyond its parent.
 
-## Config paths that collide with ownership keys
+A parent may contain configuration and children simultaneously. Its own payload becomes one leaf; each config-bearing descendant becomes another leaf.
 
-Use `value` when real config starts with a reserved key, especially NixOS `users.*`:
+## Predicate claims
+
+Use `when` when roster names cannot express the condition:
 
 ```nix
 {
-  hosts = [ "workstation" ];
+  when = { host, ... }: host.gpu == "nvidia";
+  home.packages = [ pkgs.nvtopPackages.nvidia ];
+}
+```
+
+A predicate returning false is inactive, not impossible. Matrix projection cannot prove an always-false predicate dead because predicates do not have a finite declared domain.
+
+Predicates receive the concrete context. Reading a missing field throws normally, so use name claims when names are sufficient.
+
+## Reserved config keys and `value`
+
+The unit grammar reserves claim keys plus:
+
+- `children`
+- `value`
+- `label`
+- `source`
+- `mergeProfile`
+
+Use `value` when actual configuration begins with a reserved key, especially NixOS `users.*`:
+
+```nix
+{
+  hosts = [ "khion" ];
   value = {
     users.users.example.isNormalUser = true;
   };
 }
 ```
 
-Put the entire payload inside `value`. Mixing `value` with inline config on the same unit is rejected. Claims, `children`, `label`, `source`, and `mergeProfile` may remain outside it.
+Claims, identity metadata, merge profile, and children remain outside `value`. Inline payload keys may not coexist with `value`; route the whole payload through it.
 
-This escape hatch is available on raw units passed to `resolve`/`resolveSystem`, including units returned by `program.nixos`. It is not a `program` home-spec field.
+Content inside `value` is never scanned again for ownership-looking names.
 
-## Labels make errors useful
+## Identity metadata
 
 ```nix
 {
-  label = "workstation service";
-  hosts = [ "workstation" ];
-  services.example.enable = true;
+  label = "khion audio tools";
+  source = "modules/aspects/audio.nix";
+  hosts = [ "khion" ];
+  environment.systemPackages = [ pkgs.pavucontrol ];
 }
 ```
 
-`label` and `source` identify a unit in diagnostics and traces. They never enter merged config and do not inherit into children.
+`label` and `source` improve diagnostics, traces, and provenance. They do not enter merged output and do not inherit into children.
 
-## What merging does
+When neither exists, Ownerships identifies an unlabeled unit by shallow payload shape without forcing values.
 
-After selection:
+## Merge behavior
 
-- attrsets merge recursively;
-- lists append in source order by default;
-- equal scalar values survive;
-- different scalar values at the same path fail as a conflict.
+The ordinary profile:
 
-Ownerships runs before the NixOS/Home Manager module systems. It does not understand option types, priorities, `mkDefault`, or `mkForce`. Resolve units into module config; do not treat ownerships as a replacement for typed module merging.
+- deep-merges attrsets;
+- concatenates lists in source order;
+- keeps equal scalars;
+- rejects different scalar values at one path;
+- treats derivations as terminal and compares their `outPath`;
+- treats functions as unequal.
 
-## What failures mean
+Ownerships merges plain values before the NixOS/Home Manager module systems see them. Resolve to module configuration; do not use Ownerships as a replacement for module option merging.
 
-- **Inactive:** the claim is valid but does not match this build. The unit disappears silently.
-- **Impossible:** a name is unknown, nesting produces an empty set, or two claimed axes have no compatible roster pair. Resolution fails before selection.
-- **Conflict:** selected co-owners set incompatible scalar values.
+## Impossible versus inactive
 
-Bare host aliases that resolve to several canonical hosts are rejected. Qualify them as `system/name`.
+A declaration is impossible when, for example:
 
-## Which API is public to an aspect author
+- `hosts = [ ]`;
+- a named member is unknown;
+- parent and child includes are disjoint;
+- an include is completely removed by an exclusion;
+- a claimed host/user pair has no compatible roster membership;
+- a bare alias is ambiguous.
 
-The skadi flake injects these module args:
+A valid claim is inactive when it simply does not match the current context. Its payload is neither selected nor merged.
 
-- `program`: normal package/file/template/NixOS aspect authoring;
-- `resolve`: arbitrary user-scope units, already roster-bound;
-- `resolveSystem`: arbitrary system-scope units, already roster-bound.
+## Standalone use
 
-Constructors such as `mkResolve`, strict variants, traces, matrices, descriptors, and profiled resolvers are library and audit surfaces. Normal aspects should not rebuild or rebind the roster.
+```nix
+let
+  ownerships = import ./modules/_lib/ownerships { inherit lib; };
 
-## Gate a change
+  roster = ownerships.toRoster [
+    (ownerships.define.host "khion" { system = "x86_64-linux"; })
+    (ownerships.define.user "feltfomo" { hosts = [ "khion" ]; })
+  ];
 
-```bash
-nix fmt
-nix flake check
+  resolve = ownerships.mkResolve roster;
+in
+resolve [
+  { shared = true; }
+  { hosts = [ "khion" ]; desktop = true; }
+] {
+  host = {
+    name = "khion";
+    system = "x86_64-linux";
+  };
+  user.name = "feltfomo";
+}
 ```
 
-Run those from the repository root after changing an ownership claim or consumer.
+One-argument `define.host "khion"` creates canonical ID `standalone/khion` and alias `khion`.
 
-For exact signatures and advanced inspection functions, see [Surface API](reference/surface-api.md). For the unit grammar, see [Claim and unit keys](reference/claim-and-unit-keys.md).
+Use strict resolvers when the supplied context itself must be roster-valid. Ordinary resolvers validate authored claims and read only context entities demanded by narrowed axes.

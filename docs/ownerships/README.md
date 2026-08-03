@@ -1,74 +1,98 @@
 # Ownerships
 
-Ownerships is the targeting layer in front of skadi's config values. A unit says who it belongs to on the unit itself. The resolver composes nested claims, rejects contradictions, selects the leaves for one build context, and structurally merges the survivors.
+Ownerships is the targeting layer in front of plain Nix configuration values. A unit declares who owns it; the resolver composes nested claims, validates the resulting leaves, selects those matching one build context, and structurally merges the survivors.
 
-It is not the NixOS module system. It runs before module evaluation and doesn't know option types, priorities, `mkForce`, or submodule merge rules.
+Ownerships runs before the NixOS or Home Manager module system. It does not know option types, priorities, `mkDefault`, `mkForce`, or submodule merge rules.
 
 ## Start here
 
+Most skadi aspects should use `program`:
+
+```nix
+{
+  program,
+  rootPath,
+  ...
+}:
+{
+  den.aspects.example = program {
+    hosts = [ "khion" ];
+    pkg = pkgs: pkgs.example;
+    files = [
+      {
+        src = "${rootPath}/configs/example/config.toml";
+        dest = ".config/example/config.toml";
+      }
+    ];
+  };
+}
+```
+
+Use the injected `resolve` or `resolveSystem` only when Program's bounded fields do not fit the configuration.
+
+## Core model
+
 ```nix
 [
-  { packages = [ pkgs.git ]; } # global
+  { packages = [ pkgs.git ]; }
   {
     hosts = [ "khion" ];
     packages = [ pkgs.nvtopPackages.nvidia ];
   }
   {
     users = [ "feltfomo" ];
-    files = [ { dest = ".config/example"; src = ./example; } ];
+    programs.helix.enable = true;
   }
 ]
 ```
 
-A config-bearing attrset is a **unit**. `hosts`, `users`, `exceptHosts`, `exceptUsers`, and `when` are claim keys. No claim means global ownership. `children` nests units, and a child can only narrow its parent.
+Each config-bearing attrset is a **unit**. A unit may have ownership claims, children, identity metadata, and an optional merge profile. No claim means global ownership.
 
-Three ordinary outcomes matter:
+The ordinary outcomes are:
 
-- **Selected:** the unit applies to this context and contributes to the merge.
-- **Inactive:** the claim is valid but doesn't match this context. The unit disappears silently.
-- **Impossible:** the claim can't match any modeled context. Resolution fails before selection.
+- **selected**: the leaf applies and contributes to merge;
+- **inactive**: the claim is valid but does not match this context;
+- **impossible**: the effective claim cannot match the modeled roster;
+- **conflict**: selected co-owners provide incompatible values.
 
-A fourth failure happens after selection: surviving co-owners can **conflict** while merging.
+Inactive is not an error. Impossible declarations fail before selection, even when the current context would not have selected them.
 
-## Read by task
+## Documentation
 
-**Authoring**
-
-- [Authoring surface](explanation/authoring-surface.md)
-- [Host-only config](how-to/host-only-aspect.md)
-- [Reserved-key collisions and `value`](how-to/value-escape-hatch.md)
-- [Claim and unit keys](reference/claim-and-unit-keys.md)
-
-**Understand the machinery**
-
-- [Pipeline and stages](explanation/pipeline-and-stages.md)
-- [Merge, provenance, locks, and profiles](explanation/merge-provenance-and-profiles.md)
-- [Roster, descriptors, and relations](explanation/roster-relations-and-federation.md)
-- [Trace and fleet matrix](explanation/trace-and-matrix.md)
-
-**Extend or inspect it**
-
-- [Run without den](how-to/run-standalone.md)
-- [Add an axis or relation](how-to/add-axis-or-relation.md)
-- [Inspect a trace or matrix](how-to/inspect-trace-and-matrix.md)
-- [Surface API](reference/surface-api.md)
-- [Errors and outcomes](reference/errors-and-outcomes.md)
-- [Roster shape](reference/roster-shape.md)
-- [Glossary](reference/glossary.md)
+- [Usage](USAGE.md)
+- [Architecture](architecture.md)
+- [Merge and provenance](merge-and-provenance.md)
+- [Rosters and extension](rosters-and-extension.md)
+- [Trace and matrix inspection](inspection.md)
+- [Reference](reference.md)
 
 ## Source map
 
 | File | Responsibility |
 | --- | --- |
-| `modules/_lib/ownerships/surface.nix` | Author syntax, scope guards, public resolve/trace/matrix/profiled doors |
-| `modules/_lib/ownerships/engine.nix` | Fixed pipeline, stages, diagnostics, selection trace |
-| `modules/_lib/ownerships/axes.nix` | Axis descriptors, polarity sets, aliases, relation registrations |
-| `modules/_lib/ownerships/merge.nix` | Shape merge, provenance, locks, named merge profiles |
-| `modules/_lib/ownerships/matrix.nix` | Read-only fleet projection and host diffs |
-| `modules/_lib/ownerships/roster.nix` | Descriptor-driven standalone roster construction |
-| `modules/_lib/ownerships/resolve.nix` | Roster to registry/stages, strict context validation |
-| `modules/_lib/ownerships/safe-render.nix` | Diagnostics that don't force packages or secret-backed values |
-| `modules/_lib/program.nix` | skadi's packages/files/templates front door |
-| `modules/_lib/den.nix` | The only den-internals boundary and federated roster adapter |
+| `surface.nix` | Author syntax, scope guards, and public resolver constructors. |
+| `resolve.nix` | Bind descriptors, relations, registries, stages, and rosters. |
+| `engine.nix` | Compose, validate, select, trace, and merge pipeline. |
+| `axes.nix` | Claims, descriptors, aliases, scopes, and relation registrations. |
+| `roster.nix` | Descriptor-driven standalone roster construction. |
+| `merge.nix` | Tracked merge, profiles, locks, and provenance. |
+| `matrix.nix` | Read-only projection across modeled contexts. |
+| `default.nix` | Export the supported facade. |
 
-The permanent gate is `nix fmt`, then `nix flake check`.
+## Supported facade
+
+`default.nix` exports:
+
+- `mkResolve`, `mkResolveSystem`;
+- trace, matrix, strict, and profiled siblings;
+- `translate`, `claimKeys`;
+- `define`, `toRoster`, `mkRoster`.
+
+Skadi aspect authors normally receive only `program`, `resolve`, and `resolveSystem` as module arguments. The remaining constructors are library, test, audit, and extension surfaces.
+
+## Verification
+
+```fish
+nix fmt
+nix flake check -L
+```
