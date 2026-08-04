@@ -40,7 +40,7 @@ let
     host = {
       name = "khion";
       # bare stub members ("khion"), so bind the ctx host's canonical id to the
-      # same bare name; the generic memberOf then selects it without deriving a
+      # same bare name; the generic memberof then selects it without deriving a
       # system prefix this stub registry never uses.
       id = "khion";
     };
@@ -60,8 +60,8 @@ let
       // args
     ) unit;
 
-  # did forcing this value throw? deepSeq drives the lazy check/merge throws so
-  # tryEval actually catches the impossible/conflict cases.
+  # did forcing this value throw? deepseq drives the lazy check/merge throws so
+  # tryeval actually catches the impossible/conflict cases.
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
   # frozen pre-registry membership check. this is the migration oracle, the
@@ -142,7 +142,7 @@ let
 
   # laziness and secret guard fixtures use values whose unsafe fields throw if
   # actually forced, standing in for a package or a secret that isn't
-  # available at eval time. safeRender/safeShape must identify these by shape
+  # available at eval time. saferender/safeshape must identify these by shape
   # alone and never touch the throwing fields.
   poisonDerivation = {
     type = "derivation";
@@ -157,12 +157,12 @@ let
   # golden-error test crafts two leaves directly (no compose, no throw), so
   # the assertion pins exactly what an author sees on screen -- header count,
   # per-diagnostic bullet, the unit-identification branch (label vs unlabeled +
-  # safeShape), and the axis/claim detail -- and proves the unlabeled branch
+  # safeshape), and the axis/claim detail -- and proves the unlabeled branch
   # never renders the leaf's real (poison) value, only its safe shape. the
-  # claim fragment below is rendered through the same toPretty call renderDiags
+  # claim fragment below is rendered through the same topretty call renderdiags
   # itself uses -- that's a trusted formatting primitive, not the logic under
-  # test, so pinning it this way still exercises every line renderDiags/
-  # renderDiag/identifyUnit actually own.
+  # test, so pinning it this way still exercises every line renderdiags/
+  # renderdiag/identifyunit actually own.
   goldenLeafUnlabeled = {
     claim = {
       host = include [ ];
@@ -1015,7 +1015,7 @@ let
           ];
           law =
             axis:
-            # a set axis's top is its global identity, so isTop must accept it;
+            # a set axis's top is its global identity, so istop must accept it;
             # the narrow identity law then holds for every sample around it.
             axis.isTop axis.top
             && lib.all (v: axis.narrow axis.top v == v && axis.narrow v axis.top == v) samples;
@@ -1118,6 +1118,25 @@ let
     }
 
     {
+      name = "a throwing selector fails through the generic contextual axis boundary";
+      pass = throws (
+        engine.resolve
+          {
+            registry = registry // {
+              when = predicateAxis;
+            };
+            merge = defaultMerge;
+            inherit ctx;
+          }
+          {
+            label = "evil-predicate";
+            claim.when = _ctx: throw "boom, this predicate is evil";
+            value.enable = true;
+          }
+      );
+    }
+
+    {
       name = "host-narrowed claim resolves with the user entity explicitly null";
       pass =
         engine.resolve
@@ -1125,7 +1144,7 @@ let
             inherit registry;
             merge = defaultMerge;
             # a host-only build has a real host and no user in scope. the user axis
-            # stays global for this claim, so assertCtx never demands it and
+            # stays global for this claim, so assertctx never demands it and
             # select never reads it -- the null-user tolerance the system binding
             # rides on.
             ctx = {

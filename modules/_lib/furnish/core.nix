@@ -9,25 +9,35 @@
 let
   claimAttrs = lib.genAttrs claimKeys (_: null);
 
-  renderArgs = diagnostics: {
-    inherit diagnostics;
+  reporter = krisis.mkReporter {
     formatDiagnostic =
       diagnostic: "furnish: ${diagnostic.code}: ${diagnostic.primary.label}: ${diagnostic.message}";
   };
 
-  renderDiagnostics = diagnostics: krisis.renderDiagnostics (renderArgs diagnostics);
-  renderDiagnostic = diagnostic: renderDiagnostics [ diagnostic ];
-  failAll = diagnostics: krisis.throwDiagnostics (renderArgs diagnostics);
-  fail = diagnostic: failAll [ diagnostic ];
+  renderDiagnostics = reporter.render;
+  renderDiagnostic = reporter.renderOne;
+  failAll = reporter.fail;
+  fail = reporter.failOne;
 
   diagnostic =
-    stage: code: entry: reason:
-    krisis.mkDiagnostic {
-      severity = "error";
-      code = "${stage}/${code}";
+    stage:
+    let
+      make = krisis.mkDiagnosticFactory {
+        severity = "error";
+        codePrefix = stage;
+      };
+    in
+    code: entry: reason:
+    make {
+      inherit code;
       message = reason;
       primary.label = entry;
     };
+
+  collisionDiagnostic = krisis.mkDiagnosticFactory {
+    severity = "error";
+    codePrefix = "collision-detection";
+  };
 
   entryName =
     declaration:
@@ -295,9 +305,8 @@ let
       let
         claimants = builtins.sort claimantLess groups.${key};
       in
-      krisis.mkDiagnostic {
-        severity = "error";
-        code = "collision-detection/duplicate-filesystem-identity";
+      collisionDiagnostic {
+        code = "duplicate-filesystem-identity";
         message = "claimed by ${lib.concatMapStringsSep ", " renderClaimant claimants}";
         primary.label = key;
         context = {
@@ -533,7 +542,11 @@ let
             diagnostic "executor-validation" "materialize-type" selected.identity
               "the selected executor materialize implementation must be a function"
           );
-      artifact = validateArtifact selected declaration (implementation declaration);
+      artifact = validateArtifact selected declaration (
+        krisis.withErrorContext "furnish: while materializing declaration '${entryName declaration}' with executor '${selected.identity}'" (
+          implementation declaration
+        )
+      );
       retainedArtifactTarget = toString artifact.retainedArtifactTarget;
     in
     contract.mkEntry {
@@ -580,7 +593,9 @@ let
       let
         validated = validateShapes declarations;
         checkedExecutors = validateExecutors executors;
-        selected = provider.selectApplicable validated ctx;
+        selected = krisis.withErrorContext "furnish: while selecting applicable declarations" (
+          provider.selectApplicable validated ctx
+        );
         normalized = map deriveDestination selected;
         ordered = builtins.sort identityLess normalized;
         index = buildIndex (map indexProjection ordered);

@@ -1,10 +1,10 @@
 # _lib/ownerships/surface.nix
 #
 # the surface aspects author against. its only job is to erase the ceremony the
-# old scoped path needed -- instead of `{ host, user }: let for = scoped.for ...`
+# old scoped path needed -- instead of `{ host, user } - let for = scoped.for ...`
 # an aspect hands `resolve` a plain list of self-labeling units, and the build
 # context is read in here, not by the author. a unit carries its owners as
-# ordinary keys (hosts / users / exceptHosts / exceptUsers / when); whatever's
+# ordinary keys (hosts / users / excepthosts / exceptusers / when); whatever's
 # left is its config. untagged means globally owned. this is a thin translator
 # onto the engine's claim tree and holds no resolution logic of its own, so every
 # nesting and conflict guarantee still comes from the engine.
@@ -15,6 +15,7 @@
 }:
 let
   engine = import ./engine.nix { inherit lib; };
+  krisis = import ../krisis { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   descriptorSet = axes.compileDescriptors (
     if descriptors == null then axes.descriptors else descriptors
@@ -48,7 +49,7 @@ let
 
   # ownership keys are read by name off a unit's top level, so a config value
   # sitting on a reserved key would be silently swallowed as a claim. the one
-  # realistic collision is a NixOS `users` attrset landing where the `users`
+  # realistic collision is a nixos `users` attrset landing where the `users`
   # name-list belongs, so shape-check the claim keys and fail at author time
   # rather than resolve something the author never meant.
   checkShape =
@@ -107,17 +108,57 @@ let
         else
           checked;
       payload = profileChecked.value or (removeAttrs profileChecked reserved);
+      unitIdentity =
+        if profileChecked ? label then
+          "unit '${profileChecked.label}'"
+        else if profileChecked ? source then
+          "unit at ${profileChecked.source}"
+        else
+          "unlabeled unit";
+      contextualProfile = builtins.foldl' (
+        result: key:
+        if result ? ${key} && builtins.isFunction result.${key} then
+          result
+          // {
+            ${key} =
+              ctx:
+              krisis.withErrorContext "ownerships: while evaluating '${key}' predicate for ${unitIdentity}" (
+                profileChecked.${key} ctx
+              );
+          }
+        else
+          result
+      ) profileChecked claimKeys;
+      claim = claimOf contextualProfile;
+      children = map (translateWith profileNames) (profileChecked.children or [ ]);
+      carriesDeclaration = lib.any (key: profileChecked ? ${key}) (
+        claimKeys
+        ++ [
+          "value"
+          "label"
+          "source"
+          "mergeProfile"
+        ]
+      );
+      valid = builtins.deepSeq claim (
+        if payload == { } && children == [ ] && carriesDeclaration then
+          throw "ownerships: ${
+            if profileChecked ? label then "unit '${profileChecked.label}'" else "a metadata-only unit"
+          } has ownership metadata but no config or children"
+        else
+          true
+      );
     in
-    {
-      claim = claimOf profileChecked;
-    }
-    // lib.optionalAttrs (payload != { }) { value = payload; }
-    // lib.optionalAttrs (profileChecked ? children) {
-      children = map (translateWith profileNames) profileChecked.children;
-    }
-    // lib.optionalAttrs (profileChecked ? label) { inherit (profileChecked) label; }
-    // lib.optionalAttrs (profileChecked ? source) { inherit (profileChecked) source; }
-    // lib.optionalAttrs (profileChecked ? mergeProfile) { inherit (profileChecked) mergeProfile; };
+    builtins.seq valid (
+      {
+        inherit claim;
+      }
+      // lib.optionalAttrs (payload != { }) { value = payload; }
+      // lib.optionalAttrs (profileChecked ? children) { inherit children; }
+      // lib.optionalAttrs (profileChecked ? label) { inherit (profileChecked) label; }
+      // lib.optionalAttrs (profileChecked ? source) { inherit (profileChecked) source; }
+      // lib.optionalAttrs (profileChecked ? mergeProfile) { inherit (profileChecked) mergeProfile; }
+    );
 
   translate = translateWith null;
 
@@ -125,9 +166,9 @@ let
   # the returned resolve takes the authored units and yields a context-consuming
   # function; den fills host/user, so the aspect never destructures them. the
   # engine args -- registry (host, user, and the shared `when` predicate axis)
-  # plus registered relation stages -- all come from resolve.nix's engineArgsFor, so
+  # plus registered relation stages -- all come from resolve.nix's engineargsfor, so
   # nothing here is surface-local anymore. `resolve` is a name at three layers --
-  # this public one an aspect calls, resolve.nix's `resolveWith`, and the
+  # this public one an aspect calls, resolve.nix's `resolvewith`, and the
   # engine's own `resolve` invoked below; only this one is meant for aspects.
   mkResolve =
     roster:
@@ -157,7 +198,7 @@ let
     } { children = map translate units; };
 
   # a system-scope resolve binds a host but no user (ctx.user = null), so a
-  # `users` / `exceptUsers` claim anywhere in the tree can never own anything --
+  # `users` / `exceptusers` claim anywhere in the tree can never own anything --
   # a host-wide slice has no user to narrow to. reject that when the units are
   # handed in, before resolve runs, naming the offending key and its value. the
   # engine's resolve-time missing-ctx throw still backstops a miss here, so this
@@ -179,11 +220,11 @@ let
     else
       lib.all (assertScope scope) (unit.children or [ ]);
 
-  # host-only sibling of mkResolve uses the same roster-bound registry and stages, but the
+  # host-only sibling of mkresolve uses the same roster-bound registry and stages, but the
   # ctx carries only a host (user = null). the retained user axis stays global on
-  # every unit here -- the guard above forbids narrowing it -- so assertCtx never
+  # every unit here -- the guard above forbids narrowing it -- so assertctx never
   # demands a user entity and the membership check (which reads claims and
-  # roster, never ctx) degrades to host-only on its own. mkResolve is left
+  # roster, never ctx) degrades to host-only on its own. mkresolve is left
   # untouched, so every already-migrated user-scope aspect resolves identically.
   mkResolveSystem =
     roster:
@@ -221,8 +262,8 @@ let
     roster:
     {
       units,
-      # hostName is the canonical host id; bind it as host.id so the generic
-      # memberOf reads it directly instead of re-deriving (and double-prefixing)
+      # hostname is the canonical host id; bind it as host.id so the generic
+      # memberof reads it directly instead of re-deriving (and double-prefixing)
       # a system from a bare name.
       contextFor ? (
         { hostName, userName }: {
@@ -303,8 +344,8 @@ let
   # roster-backed context names before delegating to the exact same
   # resolve function, so the permissive path is byte-identical by
   # construction rather than kept in sync by hand. mode is a separate
-  # function, not a flag -- the same precedent mkResolveSystem already set
-  # against mkResolve.
+  # function, not a flag -- the same precedent mkresolvesystem already set
+  # against mkresolve.
   mkResolveStrict =
     roster:
     let

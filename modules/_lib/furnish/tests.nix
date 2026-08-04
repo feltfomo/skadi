@@ -286,7 +286,7 @@ let
     userPrincipal
   ];
 
-  # a second user principal built here rather than taken from principalContexts,
+  # a second user principal built here rather than taken from principalcontexts,
   # which comes from a single-user host and so cannot show per-user counting.
   secondUserPrincipal = userPrincipal // {
     authority = {
@@ -672,6 +672,34 @@ let
         )
         &&
           diagnosticText == "furnish: capability-selection/no-capable-executor: sample: no executor matched";
+    }
+    {
+      name = "throwing provider callbacks fail through the furnish selection context";
+      pass = throws (
+        furnish.core.compile {
+          declarations = [ sample ];
+          inherit executors ctx;
+          provider.selectApplicable = _declarations: _ctx: throw "boom, provider selection failed";
+        }
+      );
+    }
+    {
+      name = "throwing executor callbacks fail through declaration and executor context";
+      pass = throws (
+        furnish.compile {
+          declarations = [ sample ];
+          executors = [
+            (
+              preferredExecutor
+              // {
+                identity = "executor/evil";
+                materialize = _declaration: throw "boom, materialization failed";
+              }
+            )
+          ];
+          inherit ctx;
+        }
+      );
     }
     {
       name = "ownership impossible errors propagate through furnish without a catch or wrapper";

@@ -3,7 +3,7 @@
 # the pure ownerships engine is a fixed pipeline over an axis registry. it never
 # inspects a claim value and never names an axis -- every axis owns its value
 # type entirely and the engine only ever calls registered axis methods (top,
-# narrow, observe, satisfiable, select, isTop) and reads ctxKey to know whether the build
+# narrow, observe, satisfiable, select, istop) and reads ctxkey to know whether the build
 # ctx needs an entity for it. that is what lets a new axis of any value shape
 # (a set axis, a predicate axis, a future role/trait axis) compose with zero
 # edits here. roster access lives behind satisfiable/select only; compose/narrow
@@ -21,12 +21,12 @@ let
   krisis = import ../krisis { inherit lib; };
   inherit (krisis) safeShape;
 
-  # every registered axis at its identity: globally owned on all axes. a claim
+  # every registered axis at its identity - globally owned on all axes. a claim
   # missing an axis key falls back to that axis's top, so untagged == global.
   topClaim = registry: lib.mapAttrs (_: axis: axis.top) registry;
 
   # effective claim = parent's, narrowed per axis by this node's own claim. one
-  # mapAttrs over the registry, so the fold never names an axis; a missing key is
+  # mapattrs over the registry, so the fold never names an axis; a missing key is
   # axis.top (the meet identity), which is why a claim can only narrow -- a
   # disjoint child collapses to an unsatisfiable value, caught by check, never a
   # silent widen.
@@ -63,7 +63,7 @@ let
 
   # stages register against a closed set of pipeline views. rejecting an
   # unknown view keeps a misspelled coverage rule from silently failing open.
-  # A merged-output view can extend this set later with only the merged value
+  # a merged-output view can extend this set later with only the merged value
   # and safe metadata; no such boundary exists until an invariant needs it.
   knownViews = [
     "leaf"
@@ -112,7 +112,7 @@ let
 
   # leaf stages retain one trace entry per leaf, but diagnostics flatten in
   # stage-registration order so one rule reports every leaf it rejects before
-  # the next registered rule reports. The matrix is shared by both projections;
+  # the next registered rule reports. the matrix is shared by both projections;
   # callbacks aren't evaluated twice.
   observeLeafStages =
     stages: registry: leaves:
@@ -135,7 +135,7 @@ let
 
   # tree and survivor callbacks get different records on purpose. a tree rule
   # has no ctx to consult, while a survivor rule is handed the post-selection
-  # set explicitly. Cross-view order comes from the pipeline, never list order.
+  # set explicitly. cross-view order comes from the pipeline, never list order.
   observeViewStages =
     view: stages: args:
     let
@@ -159,9 +159,9 @@ let
       concatMap (entry: entry.diagnostics) (observeViewStages view stages args).trace;
 
   # a diagnostic's unit is the leaf's raw config value -- it can carry a
-  # package or a secret-backed value, so it's never safe to toJSON/toPretty in
+  # package or a secret-backed value, so it's never safe to tojson/topretty in
   # full. identify it by label/source when the unit set one; otherwise fall
-  # back to safeShape, which only ever lists attribute names and never touches
+  # back to safeshape, which only ever lists attribute names and never touches
   # what they point to. axis/claims are always safe (polarity-set data, plain
   # strings), so those render in full.
   identifyUnit =
@@ -173,10 +173,11 @@ let
     else
       "unlabeled unit ${safeShape d.unit}";
 
+  mkOwnershipDiagnostic = krisis.mkDiagnosticFactory { severity = "error"; };
+
   toDiagnostic =
     diagnostic:
-    krisis.mkDiagnostic {
-      severity = "error";
+    mkOwnershipDiagnostic {
       code = diagnostic.kind;
       message = diagnostic.reason;
       primary =
@@ -214,24 +215,23 @@ let
     in
     "  - ${identifyUnit domain}: ${diagnostic.message}" + (if detail == "" then "" else " (${detail})");
 
-  renderArgs = diagnostics: {
-    diagnostics = map toDiagnostic diagnostics;
+  reporter = krisis.mkReporter {
     formatHeader = count: "ownerships: ${toString count} ownership error(s):";
     formatDiagnostic = renderDiag;
   };
 
-  renderDiags = diagnostics: krisis.renderDiagnostics (renderArgs diagnostics);
-  throwDiags = diagnostics: krisis.throwDiagnostics (renderArgs diagnostics);
+  renderDiags = diagnostics: reporter.render (map toDiagnostic diagnostics);
+  throwDiags = diagnostics: reporter.fail (map toDiagnostic diagnostics);
 
   # keep the leaves this build's ctx falls under on every axis; dropped leaves are
-  # inactive -- silent, not an error. runs AFTER check, so an impossible leaf
+  # inactive -- silent, not an error. runs after check, so an impossible leaf
   # errors for everyone regardless of who is building, while a satisfiable leaf
   # that just doesn't match this build falls away quietly. a top (global) claim
-  # owns everyone, so isTop short-circuits it in before select runs -- that's
+  # owns everyone, so istop short-circuits it in before select runs -- that's
   # what keeps an untagged unit safe against a null or absent ctx entity, since
   # only a narrowing claim ever reaches the axis's select and reads the entity.
   # selection returns both the surviving leaves and a lazy account of the same
-  # decisions. Normal resolution projects only `selected`, so unit identity and
+  # decisions. normal resolution projects only `selected`, so unit identity and
   # shape stay unforced unless a caller explicitly asks for the trace.
   observeSelect =
     registry: ctx: leaves:
@@ -251,7 +251,14 @@ let
                     decision = "global";
                   }
                 else
-                  observation.select ctx;
+                  let
+                    selected = krisis.withErrorContext "ownerships: while evaluating axis '${name}' selector for unit ${safeShape leaf.value}" (observation.select ctx)
+                    .selected;
+                  in
+                  {
+                    inherit selected;
+                    decision = if selected then "selected" else "rejected";
+                  };
             in
             {
               inherit claim;
@@ -301,11 +308,11 @@ let
 
   strip = leaves: map (leaf: leaf.value) leaves;
 
-  # identity names the authoring leaf through identifyUnit; it doesn't inherit
-  # from a parent. Owners are that leaf's effective claim after every parent and
-  # child meet, so narrowing flows in while identity does not. An untagged set
-  # axis remains its exclude [] top: global and narrowed leaves are distinct
-  # contributors at one path. Merge preserves these claims as opaque data and
+  # identity names the authoring leaf through identifyunit; it doesn't inherit
+  # from a parent. owners are that leaf's effective claim after every parent and
+  # child meet, so narrowing flows in while identity does not. an untagged set
+  # axis remains its exclude [] top - global and narrowed leaves are distinct
+  # contributors at one path. merge preserves these claims as opaque data and
   # never interprets or materializes them.
   stripForMerge =
     leaves:
@@ -394,7 +401,7 @@ let
   ];
 
   # the build ctx must carry an entity only for an axis that (a) reads one
-  # (ctxKey != null) and (b) is actually narrowed on by some leaf. a fully
+  # (ctxkey != null) and (b) is actually narrowed on by some leaf. a fully
   # untagged (global) axis reads no entity in select, so a null or absent ctx
   # entry for it is fine -- that's what lets a bare, owner-less spec resolve with
   # no build context at all. a claim that does narrow on an axis whose entity is

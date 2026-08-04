@@ -1,9 +1,9 @@
 # _lib/ownerships/surface-tests.nix
 #
-# Proof for the authoring surface: throwaway aspects written the way a real one
+# proof for the authoring surface - throwaway aspects written the way a real one
 # would be, resolved against a small fleet. `results` is the resolved output per
 # claim kind, kept plain so it can be eyeballed with `nix eval`; `ok` asserts
-# each and is what a flake check forces. Nothing den-related is imported, so a
+# each and is what a flake check forces. nothing den-related is imported, so a
 # green run also proves the surface resolves standalone.
 { lib }:
 let
@@ -35,7 +35,7 @@ let
       ];
     })
     (define.user "grandpa" { hosts = [ "lumi" ]; })
-    # hosts = null (the default): unknown host membership, rescued through
+    # hosts = null (the default) - unknown host membership, rescued through
     # the membership check the same way strict validation must rescue it.
     (define.user "nomad" { })
   ];
@@ -81,9 +81,9 @@ let
     };
   };
 
-  # host-only (system-scope) ctx: a real host, no user -- what a nixos slice
+  # host-only (system-scope) ctx - a real host, no user -- what a nixos slice
   # resolves under. "vm" is a host outside the claim, standing in for the
-  # headless installer-test VM the compositor must stay off.
+  # headless installer-test vm the compositor must stay off.
   ctxSystemKhion = {
     host = {
       name = "khion";
@@ -95,7 +95,7 @@ let
     };
   };
 
-  # strict-mode ctx fixtures: a host outside the roster, a user outside the
+  # strict-mode ctx fixtures - a host outside the roster, a user outside the
   # roster, an impossible but individually-valid pair (grandpa lives on
   # lumi, not khion), and an unknown-membership user (nomad, hosts = null)
   # that strict validation must still rescue rather than reject.
@@ -298,7 +298,7 @@ let
       }
     ];
 
-    # host-only system scope: a compositor-shaped unit owned by two hosts,
+    # host-only system scope - a compositor-shaped unit owned by two hosts,
     # resolved with only a host in ctx (no user), plus the off-claim miss.
     systemHostHit = runSystem ctxSystemKhion [
       {
@@ -319,7 +319,7 @@ let
       }
     ];
 
-    # value escape hatch: users.* is both a claim key and a real NixOS option
+    # value escape hatch - users.* is both a claim key and a real nixos option
     # path, so this is the motivating collision -- global (untagged), so it's
     # not run through a host/user claim at all.
     valueEscapeHatch = run ctx [
@@ -397,7 +397,7 @@ let
     ];
   };
 
-  # deepSeq drives the lazy check/merge throws so tryEval catches the impossible
+  # deepseq drives the lazy check/merge throws so tryeval catches the impossible
   # case below.
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
@@ -492,6 +492,18 @@ let
       pass = results.whenMiss == { };
     }
     {
+      name = "a throwing when predicate fails through the contextual selector boundary";
+      pass = throws (
+        resolve [
+          {
+            label = "evil-predicate";
+            when = _ctx: throw "boom, this predicate is evil";
+            pkg = "never";
+          }
+        ] ctx
+      );
+    }
+    {
       name = "nested narrow + merge + option path";
       pass =
         results.nested == {
@@ -536,6 +548,41 @@ let
           };
           label = "my-unit";
           source = "modules/foo.nix";
+        };
+    }
+    {
+      name = "metadata-only terminal units fail instead of silently disappearing";
+      pass =
+        throws (translate {
+          label = "orphan";
+        })
+        && throws (translate {
+          hosts = [ "khion" ];
+        });
+    }
+    {
+      name = "a contradictory metadata-only unit fails before selection";
+      pass = throws (
+        resolve [
+          {
+            label = "impossible-empty-unit";
+            hosts = [ "khion" ];
+            exceptHosts = [ "khion" ];
+          }
+        ] ctxLumi
+      );
+    }
+    {
+      name = "a claim-only parent remains valid when it narrows a real child";
+      pass =
+        resolve [
+          {
+            label = "claim-wrapper";
+            hosts = [ "khion" ];
+            children = [ { pkg = "nested"; } ];
+          }
+        ] ctx == {
+          pkg = "nested";
         };
     }
     {
