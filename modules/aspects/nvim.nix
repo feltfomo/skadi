@@ -32,11 +32,19 @@
         dest = ".config/nvim";
       }
     ];
-    theme.noctalia = {
+    theme = {
       id = "nvim";
-      source = "${rootPath}/configs/nvim/colors/reactive.lua";
-      output = ".config/nvim/colors/reactive.lua";
+      source = "${rootPath}/configs/nvim/colors/reactive-palette.lua";
+      output = ".config/nvim/colors/reactive-palette.lua";
       reload = "find \"$XDG_RUNTIME_DIR\" -maxdepth 1 -type s -name 'nvim.*.0' -exec nvim --server {} --remote-expr 'execute(\"colorscheme reactive\")' \\; >/dev/null";
+      renderers = {
+        noctalia = { };
+        dms = { };
+        caelestia = {
+          source = "${rootPath}/configs/nvim/colors/caelestia-palette.lua";
+          placedAs = "palette.lua";
+        };
+      };
     };
   };
 }

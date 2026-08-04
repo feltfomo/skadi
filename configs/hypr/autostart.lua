@@ -3,14 +3,14 @@ local G = require("globals")
 hl.on("hyprland.start", function()
 	hl.exec_cmd("systemctl --user reset-failed xdg-desktop-portal-hyprland")
 	hl.exec_cmd("systemctl --user start xdg-desktop-portal-hyprland")
-	hl.exec_cmd("noctalia")
+	hl.exec_cmd("caelestia shell -d")
 	hl.exec_cmd("wl-paste --type text --watch cliphist store")
 	hl.exec_cmd("wl-paste --type image --watch cliphist store")
 
-	-- Keep audio-playing windows undimmed while inactive (defined in aspects/hyprland.nix).
+	-- keep audio-playing windows undimmed while inactive (defined in aspects/hyprland.nix).
 	hl.exec_cmd("systemctl --user restart audio-opacity")
 
-	-- Launch my always-open apps onto workspaces 1-4 (khion's left monitor,
+	-- launch my always-open apps onto workspaces 1-4 (khion's left monitor,
 	-- since workspaces 1-10 are locked to DP-1 in helpers/workspace.lua).
 	if G.hostname == "khion" then
 		local startup_apps = {

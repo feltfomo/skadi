@@ -3,12 +3,6 @@
   rootPath,
   ...
 }:
-let
-  skadiTheme = {
-    source = "${rootPath}/configs/ghostty/themes/skadi.conf";
-    output = ".config/ghostty/themes/skadi.conf";
-  };
-in
 {
   den.aspects.ghostty = program {
     pkg = pkgs: pkgs.ghostty;
@@ -19,14 +13,17 @@ in
       }
     ];
     theme = {
-      noctalia = {
-        id = "ghostty";
-      }
-      // skadiTheme;
-      dms = {
-        id = "ghostty";
-      }
-      // skadiTheme;
+      id = "ghostty";
+      source = "${rootPath}/configs/ghostty/themes/skadi.conf";
+      output = ".config/ghostty/themes/skadi.conf";
+      renderers = {
+        noctalia = { };
+        dms = { };
+        caelestia = {
+          source = "${rootPath}/configs/ghostty/themes/caelestia.conf";
+          placedAs = "theme.conf";
+        };
+      };
     };
   };
 }

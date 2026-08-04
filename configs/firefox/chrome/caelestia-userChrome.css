@@ -1,0 +1,87 @@
+:root {
+  --accent: #{{ primary.hex }};
+  --accent-container: #{{ primaryContainer.hex }};
+  --on-accent: #{{ onPrimary.hex }};
+  --bg-primary: #{{ surface.hex }};
+  --bg-secondary: #{{ surfaceContainer.hex }};
+  --bg-tertiary: #{{ surfaceContainerHigh.hex }};
+  --bg-highest: #{{ surfaceContainerHighest.hex }};
+  --bg-low: #{{ surfaceContainerLow.hex }};
+  --bg-lowest: #{{ surfaceContainerLowest.hex }};
+  --text-primary: #{{ onSurface.hex }};
+  --text-secondary: #{{ onSurfaceVariant.hex }};
+  --border: #{{ outlineVariant.hex }};
+  --border-strong: #{{ outline.hex }};
+
+  --lwt-accent-color: var(--bg-low) !important;
+  --lwt-text-color: var(--text-primary) !important;
+  --toolbar-bgcolor: var(--bg-low) !important;
+  --toolbar-color: var(--text-primary) !important;
+  --toolbarbutton-icon-fill: var(--text-secondary) !important;
+  --lwt-toolbarbutton-hover-background: var(--bg-tertiary) !important;
+  --lwt-toolbarbutton-active-background: var(--bg-highest) !important;
+  --toolbar-field-background-color: var(--bg-secondary) !important;
+  --toolbar-field-color: var(--text-primary) !important;
+  --toolbar-field-border-color: var(--border) !important;
+  --toolbar-field-focus-background-color: var(--bg-tertiary) !important;
+  --toolbar-field-focus-color: var(--text-primary) !important;
+  --toolbar-field-focus-border-color: var(--accent) !important;
+  --tab-selected-bgcolor: var(--bg-secondary) !important;
+  --lwt-tab-line-color: var(--accent) !important;
+  --lwt-tabs-border-color: var(--border) !important;
+  --arrowpanel-background: var(--bg-secondary) !important;
+  --arrowpanel-color: var(--text-primary) !important;
+  --arrowpanel-border-color: var(--border) !important;
+  --panel-item-hover-bgcolor: var(--bg-tertiary) !important;
+  --panel-item-active-bgcolor: var(--accent-container) !important;
+  --lwt-sidebar-background-color: var(--bg-low) !important;
+  --lwt-sidebar-text-color: var(--text-primary) !important;
+}
+
+#navigator-toolbox {
+  border-bottom: 1px solid var(--border) !important;
+}
+
+#TabsToolbar {
+  background-color: var(--bg-lowest) !important;
+}
+
+.tabbrowser-tab[selected] .tab-background {
+  background-color: var(--bg-secondary) !important;
+}
+
+.tabbrowser-tab:not([selected]) .tab-background {
+  background-color: transparent !important;
+}
+
+.tabbrowser-tab:not([selected]):hover .tab-background {
+  background-color: var(--bg-low) !important;
+}
+
+#tabbrowser-tabs {
+  --tab-min-height: 36px !important;
+  --lwt-tab-line-color: var(--accent) !important;
+}
+
+#urlbar {
+  border-radius: 8px !important;
+}
+
+#urlbar-background {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border) !important;
+}
+
+#urlbar[focused] #urlbar-background {
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--accent) !important;
+}
+
+* {
+  scrollbar-color: var(--border) transparent !important;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}

@@ -1,108 +1,10 @@
--- reactive is a colorscheme driven by the noctalia palette. the repo copy is a
--- template and noctalia renders it into ~/.config/nvim/colors/reactive.lua on
--- every theme change. edit the template, never the rendered file.
-
 vim.cmd("hi clear")
 if vim.fn.exists("syntax_on") then
 	vim.cmd("syntax reset")
 end
 vim.g.colors_name = "reactive"
 
-local dark = {
-	bg = "{{ colors.background.dark.hex }}",
-	bg_dim = "{{ colors.surface_dim.dark.hex }}",
-	surface = "{{ colors.surface.dark.hex }}",
-	container = "{{ colors.surface_container.dark.hex }}",
-	container_high = "{{ colors.surface_container_high.dark.hex }}",
-	container_highest = "{{ colors.surface_container_highest.dark.hex }}",
-	fg = "{{ colors.on_surface.dark.hex }}",
-	fg_muted = "{{ colors.on_surface_variant.dark.hex }}",
-	primary = "{{ colors.primary.dark.hex }}",
-	on_primary = "{{ colors.on_primary.dark.hex }}",
-	primary_container = "{{ colors.primary_container.dark.hex }}",
-	on_primary_container = "{{ colors.on_primary_container.dark.hex }}",
-	secondary = "{{ colors.secondary.dark.hex }}",
-	secondary_container = "{{ colors.secondary_container.dark.hex }}",
-	on_secondary_container = "{{ colors.on_secondary_container.dark.hex }}",
-	tertiary = "{{ colors.tertiary.dark.hex }}",
-	on_tertiary = "{{ colors.on_tertiary.dark.hex }}",
-	tertiary_container = "{{ colors.tertiary_container.dark.hex }}",
-	on_tertiary_container = "{{ colors.on_tertiary_container.dark.hex }}",
-	error = "{{ colors.error.dark.hex }}",
-	error_container = "{{ colors.error_container.dark.hex }}",
-	on_error_container = "{{ colors.on_error_container.dark.hex }}",
-	outline = "{{ colors.outline.dark.hex }}",
-	outline_variant = "{{ colors.outline_variant.dark.hex }}",
-	green = "{{ colors.terminal_normal_green.dark.hex }}",
-	yellow = "{{ colors.terminal_normal_yellow.dark.hex }}",
-	term = {
-		"{{ colors.terminal_normal_black.dark.hex }}",
-		"{{ colors.terminal_normal_red.dark.hex }}",
-		"{{ colors.terminal_normal_green.dark.hex }}",
-		"{{ colors.terminal_normal_yellow.dark.hex }}",
-		"{{ colors.terminal_normal_blue.dark.hex }}",
-		"{{ colors.terminal_normal_magenta.dark.hex }}",
-		"{{ colors.terminal_normal_cyan.dark.hex }}",
-		"{{ colors.terminal_normal_white.dark.hex }}",
-		"{{ colors.terminal_bright_black.dark.hex }}",
-		"{{ colors.terminal_bright_red.dark.hex }}",
-		"{{ colors.terminal_bright_green.dark.hex }}",
-		"{{ colors.terminal_bright_yellow.dark.hex }}",
-		"{{ colors.terminal_bright_blue.dark.hex }}",
-		"{{ colors.terminal_bright_magenta.dark.hex }}",
-		"{{ colors.terminal_bright_cyan.dark.hex }}",
-		"{{ colors.terminal_bright_white.dark.hex }}",
-	},
-}
-
-local light = {
-	bg = "{{ colors.background.light.hex }}",
-	bg_dim = "{{ colors.surface_dim.light.hex }}",
-	surface = "{{ colors.surface.light.hex }}",
-	container = "{{ colors.surface_container.light.hex }}",
-	container_high = "{{ colors.surface_container_high.light.hex }}",
-	container_highest = "{{ colors.surface_container_highest.light.hex }}",
-	fg = "{{ colors.on_surface.light.hex }}",
-	fg_muted = "{{ colors.on_surface_variant.light.hex }}",
-	primary = "{{ colors.primary.light.hex }}",
-	on_primary = "{{ colors.on_primary.light.hex }}",
-	primary_container = "{{ colors.primary_container.light.hex }}",
-	on_primary_container = "{{ colors.on_primary_container.light.hex }}",
-	secondary = "{{ colors.secondary.light.hex }}",
-	secondary_container = "{{ colors.secondary_container.light.hex }}",
-	on_secondary_container = "{{ colors.on_secondary_container.light.hex }}",
-	tertiary = "{{ colors.tertiary.light.hex }}",
-	on_tertiary = "{{ colors.on_tertiary.light.hex }}",
-	tertiary_container = "{{ colors.tertiary_container.light.hex }}",
-	on_tertiary_container = "{{ colors.on_tertiary_container.light.hex }}",
-	error = "{{ colors.error.light.hex }}",
-	error_container = "{{ colors.error_container.light.hex }}",
-	on_error_container = "{{ colors.on_error_container.light.hex }}",
-	outline = "{{ colors.outline.light.hex }}",
-	outline_variant = "{{ colors.outline_variant.light.hex }}",
-	green = "{{ colors.terminal_normal_green.light.hex }}",
-	yellow = "{{ colors.terminal_normal_yellow.light.hex }}",
-	term = {
-		"{{ colors.terminal_normal_black.light.hex }}",
-		"{{ colors.terminal_normal_red.light.hex }}",
-		"{{ colors.terminal_normal_green.light.hex }}",
-		"{{ colors.terminal_normal_yellow.light.hex }}",
-		"{{ colors.terminal_normal_blue.light.hex }}",
-		"{{ colors.terminal_normal_magenta.light.hex }}",
-		"{{ colors.terminal_normal_cyan.light.hex }}",
-		"{{ colors.terminal_normal_white.light.hex }}",
-		"{{ colors.terminal_bright_black.light.hex }}",
-		"{{ colors.terminal_bright_red.light.hex }}",
-		"{{ colors.terminal_bright_green.light.hex }}",
-		"{{ colors.terminal_bright_yellow.light.hex }}",
-		"{{ colors.terminal_bright_blue.light.hex }}",
-		"{{ colors.terminal_bright_magenta.light.hex }}",
-		"{{ colors.terminal_bright_cyan.light.hex }}",
-		"{{ colors.terminal_bright_white.light.hex }}",
-	},
-}
-
-local p = vim.o.background == "light" and light or dark
+local p = dofile(vim.fn.stdpath("config") .. "/colors/reactive-palette.lua")
 
 local function hl(group, opts)
 	vim.api.nvim_set_hl(0, group, opts)

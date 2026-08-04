@@ -1,4 +1,4 @@
--- Read the hostname without leaking a process handle (the old io.popen never
+-- read the hostname without leaking a process handle (the old io.popen never
 -- closed it). /etc/hostname exists on every NixOS host and holds exactly the
 -- name, so this needs no Nix-generated file and can't drop us into emergency
 -- mode if that file is missing.
@@ -12,7 +12,7 @@ local function read_hostname()
 	return name or "unknown"
 end
 
--- Single config namespace. Every module does `local G = require("globals")`
+-- single config namespace. every module does `local G = require("globals")`
 -- instead of relying on bare globals, so load order is not load-bearing.
 local G = {
 	mod = "SUPER",
@@ -20,8 +20,7 @@ local G = {
 	terminal = "kitty",
 	screenshot = "hyprshot -m region --raw | satty --filename -",
 	hostname = read_hostname(),
-	noctalia_clipper = "noctalia msg panel-toggle clipboard",
-	noctalia_launcher = "noctalia msg panel-toggle launcher",
+	clipboard = "caelestia clipboard",
 	directions = {
 		right = { arrow = "right", vim = "l" },
 		left = { arrow = "left", vim = "h" },

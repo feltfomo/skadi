@@ -18,6 +18,7 @@
       spicetify
       noctalia
       dms
+      caelestia
       firefox
       qt-hm
 

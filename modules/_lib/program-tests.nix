@@ -36,6 +36,18 @@ let
     in
     if !active then { } else lib.foldl' merge own (map (collect ctx) (unit.children or [ ]));
 
+  containsInOrder =
+    fragments: text:
+    if fragments == [ ] then
+      true
+    else
+      let
+        fragment = builtins.head fragments;
+        parts = lib.splitString fragment text;
+      in
+      builtins.length parts > 1
+      && containsInOrder (builtins.tail fragments) (lib.concatStringsSep fragment (builtins.tail parts));
+
   resolve = units: ctx: lib.foldl' merge { } (map (collect ctx) units);
   resolveSystem = resolve;
   program = import ./program.nix {
@@ -60,6 +72,7 @@ let
     host.name = "test";
     user.name = "feltfomo";
   };
+  caelestiaCli = builtins.fromJSON (builtins.readFile ../../configs/caelestia/cli.json);
 
   declarationsOfWith =
     args: spec:
@@ -106,38 +119,86 @@ let
         ];
       }
     ];
-    theme.noctalia = {
+    theme = {
       id = "example";
       source = ./krisis/safe-render.nix;
       output = ".config/example/safe-render.nix";
+      renderers.noctalia = { };
     };
   };
   directoryDeclarations = declarationsOf directoryOnly;
   directoryDestinations = map (declaration: declaration.destination) directoryDeclarations;
 
   dmsOnly = program {
-    theme.dms = {
+    theme = {
       id = "dms-example";
       source = ./program.nix;
       output = ".config/example/dms.conf";
-      native = {
-        compare_to = "dark";
-      };
+      renderers.dms.native.compare_to = "dark";
     };
   };
   dmsDestinations = map (declaration: declaration.destination) (declarationsOf dmsOnly);
 
+  caelestiaOnly = program {
+    theme = {
+      id = "caelestia-example";
+      source = ./program.nix;
+      output = ".config/example/caelestia.conf";
+      reload = "pkill -SIGUSR1 example";
+      renderers.caelestia = { };
+    };
+  };
+  caelestiaDestinations = map (declaration: declaration.destination) (declarationsOf caelestiaOnly);
+
+  caelestiaMulti = program {
+    theme = {
+      id = "caelestia-multi";
+      templates = [
+        {
+          subId = "zeta";
+          source = ./program.nix;
+          output = ".config/example/zeta.conf";
+          reload = "printf zeta";
+          renderers.caelestia = { };
+        }
+        {
+          subId = "alpha";
+          source = ./program.nix;
+          output = ".config/example/alpha.conf";
+          reload = "printf alpha";
+          renderers.caelestia = { };
+        }
+      ];
+    };
+  };
+  caelestiaMultiDeclarations = declarationsOf caelestiaMulti;
+  caelestiaMultiDestinations = lib.sort builtins.lessThan (
+    map (declaration: declaration.destination) caelestiaMultiDeclarations
+  );
+  caelestiaMultiHook = builtins.head (
+    builtins.filter (
+      declaration: declaration.destination == ".config/caelestia/theme-hooks/caelestia-multi"
+    ) caelestiaMultiDeclarations
+  );
+  caelestiaMultiHookScript = builtins.readFile caelestiaMultiHook.source.value;
+  caelestiaPublishFragments = [
+    "$HOME/.local/state/caelestia/theme/caelestia-multi-alpha-program.nix"
+    "$HOME/.config/example/alpha.conf"
+    "$HOME/.local/state/caelestia/theme/caelestia-multi-zeta-program.nix"
+    "$HOME/.config/example/zeta.conf"
+    "printf alpha"
+    "printf zeta"
+  ];
+
   dualTheme = program {
     theme = {
-      noctalia = {
-        id = "shared";
-        source = ./program.nix;
-        output = ".config/example/shared.conf";
-      };
-      dms = {
-        id = "shared";
-        source = ./program.nix;
-        output = ".config/example/shared.conf";
+      id = "shared";
+      source = ./program.nix;
+      output = ".config/example/shared.conf";
+      renderers = {
+        noctalia = { };
+        dms = { };
+        caelestia = { };
       };
     };
   };
@@ -192,11 +253,19 @@ let
     ];
   };
   unknownDmsField = program {
-    theme.dms = {
+    theme = {
       id = "invalid";
       source = ./program.nix;
       output = ".config/invalid";
-      typo = true;
+      renderers.dms.typo = true;
+    };
+  };
+  unsupportedCaelestiaNative = program {
+    theme = {
+      id = "invalid-native";
+      source = ./program.nix;
+      output = ".config/invalid-native";
+      renderers.caelestia.native.format = "unsupported";
     };
   };
   invalidPolicy = program {
@@ -231,10 +300,11 @@ let
         exclude = [ "coordinator" ];
       }
     ];
-    theme.noctalia = {
+    theme = {
       id = "excluded";
       source = ./furnish/coordinator/Cargo.toml;
       output = ".config/excluded.toml";
+      renderers.noctalia = { };
     };
   };
 
@@ -254,6 +324,15 @@ let
         dest = ".config/inactive";
       }
     ];
+  };
+  inactiveTheme = program {
+    theme = {
+      id = "inactive-theme";
+      when = _: false;
+      source = throw "forced inactive theme source";
+      output = ".config/inactive-theme";
+      renderers.caelestia = { };
+    };
   };
   selectedMalformed = program {
     files = [
@@ -283,6 +362,7 @@ let
   inactiveDirectoryResult = builtins.tryEval (
     builtins.deepSeq (inactiveDirectory.nixos moduleArgs) true
   );
+  inactiveThemeResult = builtins.tryEval (builtins.deepSeq (inactiveTheme.nixos moduleArgs) true);
   malformedResult = builtins.tryEval (builtins.deepSeq (selectedMalformed.nixos moduleArgs) true);
   malformedDirectoryResult = builtins.tryEval (
     builtins.deepSeq (selectedMalformedDirectory.nixos moduleArgs) true
@@ -294,6 +374,9 @@ let
     builtins.deepSeq (unknownFileField.nixos moduleArgs) true
   );
   unknownDmsFieldResult = builtins.tryEval (builtins.deepSeq (unknownDmsField.nixos moduleArgs) true);
+  unsupportedCaelestiaNativeResult = builtins.tryEval (
+    builtins.deepSeq (unsupportedCaelestiaNative.nixos moduleArgs) true
+  );
   invalidPolicyResult = builtins.tryEval (builtins.deepSeq (invalidPolicy.nixos moduleArgs) true);
   excludedOverrideResult = builtins.tryEval (
     builtins.deepSeq (excludedOverride.nixos moduleArgs) true
@@ -316,6 +399,7 @@ rec {
     combined-shape = combined ? homeManager && combined ? nixos;
     inactive-payload-stays-lazy = inactiveResult.success;
     inactive-directory-stays-lazy = inactiveDirectoryResult.success;
+    inactive-theme-adapter-stays-lazy = inactiveThemeResult.success;
     selected-payload-is-validated = !malformedResult.success;
     selected-nondirectory-source-is-rejected = !malformedDirectoryResult.success;
     selected-missing-directory-source-is-rejected = !missingDirectoryResult.success;
@@ -328,11 +412,26 @@ rec {
     dms-templates-lower-to-independent-fragments =
       builtins.elem ".config/matugen/dms/templates/dms-example/program.nix" dmsDestinations
       && builtins.elem ".config/matugen/dms/configs/dms-example.toml" dmsDestinations;
-    explicit-dual-registration-emits-both-backends =
+    caelestia-templates-lower-to-state-publishers =
+      builtins.elem ".config/caelestia/templates/caelestia-example-program.nix" caelestiaDestinations
+      && builtins.elem ".config/caelestia/theme-hooks/caelestia-example" caelestiaDestinations;
+    caelestia-multi-output-destinations-are-exact =
+      caelestiaMultiDestinations == [
+        ".config/caelestia/templates/caelestia-multi-alpha-program.nix"
+        ".config/caelestia/templates/caelestia-multi-zeta-program.nix"
+        ".config/caelestia/theme-hooks/caelestia-multi"
+      ];
+    caelestia-publishers-are-strict-and-transactionally-ordered =
+      lib.hasInfix "set -eu" caelestiaMultiHookScript
+      && containsInOrder caelestiaPublishFragments caelestiaMultiHookScript;
+    caelestia-aggregate-post-hook-is-strict = lib.hasPrefix "set -eu;" caelestiaCli.theme.postHook;
+    explicit-multi-registration-emits-all-backends =
       builtins.elem ".config/noctalia/templates/shared/program.nix" dualThemeDestinations
       && builtins.elem ".config/noctalia/shared.toml" dualThemeDestinations
       && builtins.elem ".config/matugen/dms/templates/shared/program.nix" dualThemeDestinations
-      && builtins.elem ".config/matugen/dms/configs/shared.toml" dualThemeDestinations;
+      && builtins.elem ".config/matugen/dms/configs/shared.toml" dualThemeDestinations
+      && builtins.elem ".config/caelestia/templates/shared-program.nix" dualThemeDestinations
+      && builtins.elem ".config/caelestia/theme-hooks/shared" dualThemeDestinations;
     writable-overrides-are-first-class =
       writableDeclaration.representation == "writable"
       && writableDeclaration.onConflict == "runtime-wins";
@@ -348,10 +447,13 @@ rec {
       && builtins.length (declarationsOfWith grandpaArgs exceptFeltfomo) == 1;
     unknown-file-fields-are-rejected = !unknownFileFieldResult.success;
     unknown-dms-fields-are-rejected = !unknownDmsFieldResult.success;
+    caelestia-native-fields-are-rejected = !unsupportedCaelestiaNativeResult.success;
     invalid-conflict-policies-are-rejected = !invalidPolicyResult.success;
     overrides-beneath-excluded-subtrees-are-rejected = !excludedOverrideResult.success;
     theme-sources-beneath-excluded-subtrees-are-rejected = !excludedThemeResult.success;
   };
 
-  ok = lib.all (value: value) (builtins.attrValues tests);
+  failing = builtins.attrNames (lib.filterAttrs (_: value: !value) tests);
+  ok =
+    if failing == [ ] then true else throw "program tests failed: ${lib.concatStringsSep ", " failing}";
 }

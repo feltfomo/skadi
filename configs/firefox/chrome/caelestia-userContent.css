@@ -1,0 +1,53 @@
+:root {
+  --accent: #{{ primary.hex }};
+  --accent-container: #{{ primaryContainer.hex }};
+  --bg-primary: #{{ surface.hex }};
+  --bg-secondary: #{{ surfaceContainer.hex }};
+  --bg-tertiary: #{{ surfaceContainerHigh.hex }};
+  --bg-darker: #{{ surfaceContainerLowest.hex }};
+  --text-primary: #{{ onSurface.hex }};
+  --text-secondary: #{{ onSurfaceVariant.hex }};
+  --border: #{{ outlineVariant.hex }};
+}
+
+* {
+  scrollbar-color: var(--border) transparent !important;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+@-moz-document url("about:home"), url("about:newtab"), url("about:blank"), url("about:privatebrowsing") {
+  body {
+    background-color: var(--bg-darker) !important;
+  }
+
+  .search-handoff-button,
+  .fake-textbox,
+  .fake-editable {
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border) !important;
+  }
+
+  .top-site-outer,
+  .top-site-inner {
+    background-color: var(--bg-secondary) !important;
+  }
+
+  .top-sites-list .top-site-title {
+    color: var(--text-primary) !important;
+  }
+
+  .card-outer,
+  .section-card {
+    background-color: var(--bg-secondary) !important;
+  }
+
+  .section-header,
+  .topic-header {
+    color: var(--text-primary) !important;
+  }
+}

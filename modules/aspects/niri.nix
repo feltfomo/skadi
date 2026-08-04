@@ -32,10 +32,11 @@
         dest = ".config/niri";
       }
     ];
-    theme.dms = {
+    theme = {
       id = "niri";
       source = "${rootPath}/configs/niri/colors.kdl";
       output = ".config/niri/colors.kdl";
+      renderers.dms = { };
     };
   };
 }

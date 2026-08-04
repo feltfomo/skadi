@@ -69,13 +69,12 @@
         src = "${rootPath}/configs/mango/portal.conf";
       }
     ];
-    theme.noctalia = {
+    theme = {
       id = "mango";
       source = "${rootPath}/configs/mango/colors.conf";
       output = ".config/mango/colors.conf";
-      # reload so the new palette applies live (kitty does the same
-      # with pkill -SIGUSR1).
       reload = "mmsg -d reload_config";
+      renderers.noctalia = { };
     };
   };
 }

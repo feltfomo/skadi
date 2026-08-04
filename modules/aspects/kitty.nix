@@ -3,13 +3,6 @@
   rootPath,
   ...
 }:
-let
-  skadiTheme = {
-    source = "${rootPath}/configs/kitty/themes/skadi.conf";
-    output = ".config/kitty/themes/skadi.conf";
-    reload = "pkill -SIGUSR1 kitty";
-  };
-in
 {
   # kitty claims no host or user, so it is globally owned.
   den.aspects.kitty = program {
@@ -21,14 +14,18 @@ in
       }
     ];
     theme = {
-      noctalia = {
-        id = "kitty";
-      }
-      // skadiTheme;
-      dms = {
-        id = "kitty";
-      }
-      // skadiTheme;
+      id = "kitty";
+      source = "${rootPath}/configs/kitty/themes/skadi.conf";
+      output = ".config/kitty/themes/skadi.conf";
+      reload = "pkill -SIGUSR1 kitty";
+      renderers = {
+        noctalia = { };
+        dms = { };
+        caelestia = {
+          source = "${rootPath}/configs/kitty/themes/caelestia.conf";
+          placedAs = "theme.conf";
+        };
+      };
     };
   };
 }

@@ -88,13 +88,18 @@ in
       {
         src = "${rootPath}/configs/hypr";
         dest = ".config/hypr";
-        exclude = [ ".luarc.json" ];
+        exclude = [
+          ".luarc.json"
+          "colors.lua"
+        ];
       }
     ];
-    theme.noctalia = {
+    theme = {
       id = "hyprland";
-      source = "${rootPath}/configs/hypr/colors.lua";
+      source = "${rootPath}/configs/hypr/caelestia-colors.lua";
       output = ".config/hypr/colors.lua";
+      reload = "hyprctl reload";
+      renderers.caelestia.placedAs = "colors.lua";
     };
   };
 }
