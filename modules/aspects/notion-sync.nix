@@ -48,7 +48,7 @@
               {
                 name = "notion-sync";
                 local_root = "/home/feltfomo/Projects/notion-sync";
-                parent_page_id = "39320fa1c54580fbb131d699f23675a5";
+                parent_page_id = "3b15d22894d280ccb599e726af1c95be";
                 ignore = [
                   ".git"
                   "target"
@@ -70,7 +70,7 @@
               {
                 name = "skadi";
                 local_root = "/etc/skadi";
-                parent_page_id = "39320fa1c545803cbf5fd2e299bbe199";
+                parent_page_id = "3b15d22894d280e5b8e5f168aed6320b";
                 ignore = [
                   ".git"
                   "result"
@@ -97,7 +97,7 @@
               {
                 name = "multiloader-template";
                 local_root = "/home/feltfomo/Projects/multiloader-template";
-                parent_page_id = "39320fa1c54580d48175d24cbe21212c";
+                parent_page_id = "3b15d22894d280b0a77cc74bda48d0dd";
                 ignore = [
                   ".git"
                   "build"
@@ -123,7 +123,7 @@
               {
                 name = "den";
                 local_root = "/home/feltfomo/Reference-Projects/den";
-                parent_page_id = "39820fa1c545807390dbe045848a4d47";
+                parent_page_id = "3b15d22894d2804880cbf153ad28c615";
                 ignore = [
                   ".git"
                   "result"
@@ -146,7 +146,7 @@
               {
                 name = "workflow-workbench";
                 local_root = "/home/feltfomo/Projects/workflow-workbench";
-                parent_page_id = "39c20fa1c54580cdb129caa73ccf230a";
+                parent_page_id = "3b15d22894d280278e4bef219178c74c";
                 ignore = [
                   ".git"
                   "result"
