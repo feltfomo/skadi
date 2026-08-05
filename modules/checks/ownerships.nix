@@ -12,23 +12,23 @@
     { pkgs, ... }:
     {
       checks.ownerships-engine = pkgs.runCommandLocal "ownerships-engine-tests" { } (
-        assert (import ./_lib/ownerships/tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/tests.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-roster = pkgs.runCommandLocal "ownerships-roster-tests" { } (
-        assert (import ./_lib/ownerships/roster-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/roster-tests.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-surface = pkgs.runCommandLocal "ownerships-surface-tests" { } (
-        assert (import ./_lib/ownerships/surface-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/surface-tests.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-descriptors = pkgs.runCommandLocal "ownerships-descriptor-tests" { } (
-        assert (import ./_lib/ownerships/descriptor-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/descriptor-tests.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-matrix = pkgs.runCommandLocal "ownerships-matrix-tests" { } (
-        assert (import ./_lib/ownerships/matrix-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/matrix-tests.nix { inherit lib; }).ok;
         "touch $out"
       );
     };

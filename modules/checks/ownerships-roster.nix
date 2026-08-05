@@ -2,12 +2,12 @@
 # same unit identically, and that the cross-axis membership contradiction fires
 # under both backends. This is the only ownerships check that needs den; the den
 # read stays inside _lib/den.nix (reached through its roster wrapper here). The
-# den-free half of the roster proof lives in ownerships-check.nix.
+# den-free half of the roster proof lives in checks/ownerships.nix.
 { den, lib, ... }:
 let
-  resolve = import ./_lib/ownerships/resolve.nix { inherit lib; };
-  axes = import ./_lib/ownerships/axes.nix { inherit lib; };
-  denAdapter = import ./_lib/den.nix { inherit den lib; };
+  resolve = import ../_lib/ownerships/resolve.nix { inherit lib; };
+  axes = import ../_lib/ownerships/axes.nix { inherit lib; };
+  denAdapter = import ../_lib/den.nix { inherit den lib; };
 
   inherit (axes) include;
   inherit (resolve) define toRoster resolveWith;
@@ -82,7 +82,7 @@ let
 
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
-  # A synthetic second system introduces a bare-name collision: "khion" now maps
+  # a synthetic second system introduces a bare-name collision. "khion" now maps
   # to two canonical ids. A bare claim must fail loud (never fan out), while the
   # system-qualified canonical id still resolves to exactly one host.
   federated = toRoster [
