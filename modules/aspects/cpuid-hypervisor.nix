@@ -16,7 +16,7 @@ _: {
 
           # git add this by hand: it's binary, so it won't sync as a page and
           # the flake won't see it untracked.
-          src = ../../pkgs/cpuid_fault_emulation.zip;
+          src = ../../pkgs/cpuid-fault-emulation/source.zip;
 
           # the zip unpacks flat (no top-level dir), so pin the source root.
           sourceRoot = ".";
