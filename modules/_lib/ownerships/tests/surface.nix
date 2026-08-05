@@ -1,4 +1,4 @@
-# _lib/ownerships/surface-tests.nix
+# _lib/ownerships/tests/surface.nix
 #
 # proof for the authoring surface - throwaway aspects written the way a real one
 # would be, resolved against a small fleet. `results` is the resolved output per
@@ -7,9 +7,9 @@
 # green run also proves the surface resolves standalone.
 { lib }:
 let
-  axes = import ./axes.nix { inherit lib; };
-  resolveLib = import ./resolve.nix { inherit lib; };
-  surface = import ./surface.nix { inherit lib; };
+  axes = import ../axes.nix { inherit lib; };
+  resolveLib = import ../resolve.nix { inherit lib; };
+  surface = import ../surface.nix { inherit lib; };
   inherit (surface)
     define
     toRoster

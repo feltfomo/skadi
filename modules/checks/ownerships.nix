@@ -20,7 +20,7 @@
         "touch $out"
       );
       checks.ownerships-surface = pkgs.runCommandLocal "ownerships-surface-tests" { } (
-        assert (import ../_lib/ownerships/surface-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/tests/surface.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-descriptors = pkgs.runCommandLocal "ownerships-descriptor-tests" { } (
