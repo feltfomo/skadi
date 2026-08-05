@@ -50,7 +50,7 @@ These are repository libraries, not requirements for unrelated Nix configuration
 | `docs/` | User and maintainer documentation for the local subsystems. |
 | `scripts/` | Installer, VM, coordinator, and regression entry points. |
 | `tests/` | Checked-in regression manifests and baselines. |
-| `go/` | VM golden-image rebuild tooling and harness code. |
+| `tools/` | Repository tooling, currently the VM golden-image rebuild harness. |
 | `.github/workflows/ci.yml` | Repository CI. |
 
 ## Documentation

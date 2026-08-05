@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/feltfomo/skadi/go/internal/harness"
+	"github.com/feltfomo/skadi/tools/internal/harness"
 )
 
 func main() {

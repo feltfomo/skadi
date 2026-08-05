@@ -6,7 +6,7 @@
       rebuild-vm-golden = pkgs.buildGoModule {
         pname = "rebuild-vm-golden";
         version = "0.1.0";
-        src = rootPath + "/go";
+        src = rootPath + "/tools";
         vendorHash = null;
         subPackages = [ "cmd/rebuild-vm-golden" ];
         nativeBuildInputs = [ pkgs.makeWrapper ];
