@@ -1,12 +1,12 @@
 # thin, stable-pinned reinstall iso for the skadi fleet. pinned to nixos-26.05
 # (inputs.nixpkgs-stable), independent of the unstable channel the fleet tracks.
-# build:
+# build.
 #   nix build .#nixosConfigurations.installer.config.system.build.isoImage
 # then flash result/iso/*.iso in dd/raw mode (rufus dd, etcher, caligula) --
 # iso-mode / ventoy break the by-label device (see frictions log #1).
 { inputs, ... }:
 {
-  # installer pins to stable 26.05 while the fleet tracks unstable: den's per-host
+  # installer pins to stable 26.05 while the fleet tracks unstable. den's per-host
   # instantiate is meant to be overridden for exactly this. output still lands at
   # nixosConfigurations.installer.
   den.hosts.x86_64-linux.installer.instantiate = inputs.nixpkgs-stable.lib.nixosSystem;
@@ -20,7 +20,7 @@
     }:
     let
       # match the disko cli to the fleet's disko module so `disko --flake` agrees
-      # with the host's disko.devices. rebuilt against lix (config.nix.package): the
+      # with the host's disko.devices. rebuilt against lix (config.nix.package). the
       # flake.lock is lix-dialect, but disko otherwise bundles cppnix and dies on
       # "mismatch in field 'url'" evaluating the lock.
       disko = inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko.override {
@@ -48,7 +48,7 @@
           util-linux
           openssh
         ]);
-        text = builtins.readFile ../scripts/skadi-install.sh;
+        text = builtins.readFile ../../scripts/skadi-install.sh;
       };
     in
     {
@@ -56,7 +56,7 @@
         (inputs.nixpkgs-stable + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
         # lix, matching the fleet. flake.lock is written by lix, so the iso's
         # nix/disko/nixos-install must also be lix or getFlake rejects the lock
-        # ("mismatch in field 'url'" on the git.lix.systems inputs). thin otherwise:
+        # ("mismatch in field 'url'" on the git.lix.systems inputs). thin otherwise.
         # just the nix impl, no base/home-manager/desktop.
         inputs.lix-module.nixosModules.default
       ];
@@ -81,7 +81,7 @@
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINKAWZ+4L7E0osgTA8eybrsmUoTUtBSzEaE4ytD+rcPO 241195017+feltfomo@users.noreply.github.com"
         # throwaway keypair the vm harness uses for unattended installs on a
         # disposable localhost vm. private half lives in ~/.cache/skadi-vm (never
-        # committed) and guards nothing real: the vm has no network and keeps the
+        # committed) and guards nothing real. the vm has no network and keeps the
         # placeholder token.
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIElUx+G8NdV6W0NVEh3wpOg33mBnHY0oG9b31eds/LSs skadi-vm-test"
       ];
@@ -92,19 +92,19 @@
           "flakes"
         ];
 
-        # build the fleet closure like khion: daemon + stock nixbld users + sandbox
+        # build the fleet closure like khion. daemon + stock nixbld users + sandbox
         # on, so fods get a real userns (pasta works) and builds stay pure. sandbox
         # defaults on but pin it so a stray --option sandbox false can't flip it.
         sandbox = true;
 
-        # cache the third-party upstreams we don't build: base (cache.nixos.org)
+        # cache the third-party upstreams we don't build. base (cache.nixos.org)
         # and the desktop projects (hyprland/walker/noctalia). opportunistic --
         # each follows our nixpkgs, so when our pin diverges from upstream's cachix
         # the hash misses and they build from source anyway, which is fine (the
         # gitTracked error only bites nixos-install --flake, which the two-step
         # build in skadi-install.sh avoids).
         #
-        # lix is deliberately not cached and wouldn't hit anyway: we pin lix head
+        # lix is deliberately not cached and wouldn't hit anyway. we pin lix head
         # and compile against our nixpkgs, so it builds from source every install.
         # that's wanted -- its doubled-debuginfo cargo/c++ target is the biggest
         # from-source derivation and the disk-pressure canary that enospc'd the vm,

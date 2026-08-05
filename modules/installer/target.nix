@@ -1,4 +1,4 @@
-# install-time host composition: build a host with some top-level aspects removed,
+# install-time host composition. build a host with some top-level aspects removed,
 # for one machine only, without editing the host file. the canonical
 # nixosConfigurations.<host> is never touched. the den-internals work (the
 # filtered standalone resolve + instantiate) lives in _lib/den.nix; this wires the
@@ -10,7 +10,7 @@
 }:
 let
   systems = [ "x86_64-linux" ];
-  denApi = import ./_lib/den.nix { inherit den lib; };
+  denApi = import ../_lib/den.nix { inherit den lib; };
 in
 {
   flake.lib = lib.genAttrs systems (system: {
