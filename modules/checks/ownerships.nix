@@ -12,7 +12,7 @@
     { pkgs, ... }:
     {
       checks.ownerships-engine = pkgs.runCommandLocal "ownerships-engine-tests" { } (
-        assert (import ../_lib/ownerships/tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/tests/engine.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-roster = pkgs.runCommandLocal "ownerships-roster-tests" { } (

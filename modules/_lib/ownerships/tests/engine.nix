@@ -1,17 +1,17 @@
-# _lib/ownerships/tests.nix
+# _lib/ownerships/tests/engine.nix
 #
 # pure test gate for the engine. nothing else consumes the engine yet, so this is
 # what proves it works, the three outcomes, a nested resolve, a throwaway third
 # axis composing with no core edit, an opt-in merge strategy registering with no
-# core edit, and the top identity law per axis. ownerships-check.nix forces `ok`
+# core edit, and the top identity law per axis. checks/ownerships.nix forces `ok`
 # under `nix flake check`.
 { lib }:
 let
-  engine = import ./engine.nix { inherit lib; };
-  axes = import ./axes.nix { inherit lib; };
-  merge = import ./merge.nix { inherit lib; };
-  importUnitTests = import ./tests/import-units.nix { inherit lib; };
-  krisis = import ../krisis { inherit lib; };
+  engine = import ../engine.nix { inherit lib; };
+  axes = import ../axes.nix { inherit lib; };
+  merge = import ../merge.nix { inherit lib; };
+  importUnitTests = import ./import-units.nix { inherit lib; };
+  krisis = import ../../krisis { inherit lib; };
 
   inherit (axes)
     include
