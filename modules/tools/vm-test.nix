@@ -19,7 +19,7 @@ _: {
           OVMF_FD='${pkgs.OVMF.fd}'
           export OVMF_FD
         ''
-        + builtins.readFile ../scripts/vm-test.sh;
+        + builtins.readFile ../../scripts/vm-test.sh;
       };
     in
     {
