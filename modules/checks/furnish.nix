@@ -6,8 +6,8 @@
   ...
 }:
 let
-  denLib = import ./_lib/den.nix { inherit den lib; };
-  tests = import ./_lib/furnish/tests.nix {
+  denLib = import ../_lib/den.nix { inherit den lib; };
+  tests = import ../_lib/furnish/tests.nix {
     inherit
       lib
       resolve
@@ -23,7 +23,7 @@ in
   perSystem =
     { pkgs, system, ... }:
     let
-      mkCoordinator = import ./_lib/furnish/coordinator.nix;
+      mkCoordinator = import ../_lib/furnish/coordinator.nix;
       coordinator = mkCoordinator { inherit pkgs; };
       # the crash points exist only in this build. absence from the shipped one
       # is a compile-time property, which is the only kind worth asserting.
@@ -113,7 +113,7 @@ in
                 executor:{identity:"furnish/native-symlink",protocolVersion:1},
                 cleanupStrategy:"exact-symlink-target",
                 selfHealStrategy:"exact-symlink-target",
-                provenance:{declaration:"runtime-smoke",source:"modules/furnish-check.nix"}
+                provenance:{declaration:"runtime-smoke",source:"modules/checks/furnish.nix"}
               }]
             }' > "$base"
 
