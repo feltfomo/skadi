@@ -19,16 +19,17 @@ let
     noctalia = import ./adapters/noctalia.nix { inherit lib; };
   };
   themeBackends = builtins.attrNames adapters;
-  themeSharedFields = claimKeys ++ [
+  themeSharedFields = claimKeys ++ [ "subId" ];
+  themeRendererFields = claimKeys ++ [
     "source"
     "output"
     "subdir"
     "placedAs"
     "subId"
     "reload"
+    "native"
   ];
-  themeRendererFields = themeSharedFields ++ [ "native" ];
-  themeFields = themeSharedFields ++ [
+  themeFields = claimKeys ++ [
     "id"
     "renderers"
     "templates"
@@ -58,6 +59,9 @@ let
           ++ lib.optionals (builtins.isAttrs override) (
             lib.optional (unknownOverride != [ ]) (
               problem "program/theme-renderer-fields" "${subject}.renderers.${renderer} has unknown fields: ${lib.concatStringsSep ", " unknownOverride}"
+            )
+            ++ lib.optional (!(override ? source) || !(override ? output)) (
+              problem "program/theme-renderer-incomplete" "${subject}.renderers.${renderer} must explicitly define source and output"
             )
           )
         ) rendererNames;

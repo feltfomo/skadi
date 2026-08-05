@@ -15,15 +15,22 @@
     ];
     theme = {
       id = "kitty";
-      source = "${rootPath}/configs/kitty/themes/skadi.conf";
-      output = ".config/kitty/themes/skadi.conf";
-      reload = "pkill -SIGUSR1 kitty";
       renderers = {
-        noctalia = { };
-        dms = { };
+        noctalia = {
+          source = "${rootPath}/configs/kitty/themes/skadi.conf";
+          output = ".config/kitty/themes/skadi.conf";
+          reload = "pkill -SIGUSR1 kitty";
+        };
+        dms = {
+          source = "${rootPath}/configs/kitty/themes/skadi.conf";
+          output = ".config/kitty/themes/skadi.conf";
+          reload = "pkill -SIGUSR1 kitty";
+        };
         caelestia = {
           source = "${rootPath}/configs/kitty/themes/caelestia.conf";
+          output = ".config/kitty/themes/skadi.conf";
           placedAs = "theme.conf";
+          reload = "pkill -SIGUSR1 kitty";
         };
       };
     };

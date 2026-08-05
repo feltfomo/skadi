@@ -33,26 +33,36 @@
       templates = [
         {
           subId = "chrome";
-          source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
           renderers = {
-            noctalia = { };
-            dms = { };
+            noctalia = {
+              source = "${rootPath}/configs/firefox/chrome/userChrome.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+            };
+            dms = {
+              source = "${rootPath}/configs/firefox/chrome/userChrome.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+            };
             caelestia = {
               source = "${rootPath}/configs/firefox/chrome/caelestia-userChrome.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
               placedAs = "userChrome.css";
             };
           };
         }
         {
           subId = "content";
-          source = "${rootPath}/configs/firefox/chrome/userContent.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
           renderers = {
-            noctalia = { };
-            dms = { };
+            noctalia = {
+              source = "${rootPath}/configs/firefox/chrome/userContent.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+            };
+            dms = {
+              source = "${rootPath}/configs/firefox/chrome/userContent.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+            };
             caelestia = {
               source = "${rootPath}/configs/firefox/chrome/caelestia-userContent.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
               placedAs = "userContent.css";
             };
           };

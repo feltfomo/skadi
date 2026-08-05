@@ -28,42 +28,47 @@ A theme declaration describes one application theme. Common intent is written on
 ```nix
 theme = {
   id = "kitty";
-  source = "${rootPath}/configs/kitty/themes/skadi.conf";
-  output = ".config/kitty/themes/skadi.conf";
-  reload = "pkill -SIGUSR1 kitty";
-
   renderers = {
-    noctalia = { };
-    dms = { };
+    noctalia = {
+      source = "${rootPath}/configs/kitty/themes/skadi.conf";
+      output = ".config/kitty/themes/skadi.conf";
+      reload = "pkill -SIGUSR1 kitty";
+    };
+    dms = {
+      source = "${rootPath}/configs/kitty/themes/skadi.conf";
+      output = ".config/kitty/themes/skadi.conf";
+      reload = "pkill -SIGUSR1 kitty";
+    };
     caelestia = {
       source = "${rootPath}/configs/kitty/themes/caelestia.conf";
+      output = ".config/kitty/themes/skadi.conf";
       placedAs = "theme.conf";
+      reload = "pkill -SIGUSR1 kitty";
     };
   };
 };
 ```
 
-This declaration registers Kitty with all three engines:
+This declaration visibly registers Kitty with all three engines. Every renderer block states its effective source, output, and reload behavior; readers do not need to infer inherited values from fields outside `renderers`.
 
-- Noctalia and DMS inherit the shared `source`, `output`, and `reload` fields.
-- Caelestia overrides only the source format and template filename it needs.
-- An omitted renderer is not registered.
-- A renderer-specific field stays beside that renderer instead of being hidden behind a shared abstraction.
+- An omitted renderer is not registered; its configuration remains static unless another declaration manages it.
+- Repetition is intentional at the authoring surface.
+- Renderer blocks do not inherit `source`, `output`, or `reload` from the theme or template.
+- An empty renderer such as `dms = { };` is invalid because it does not state what DMS should render or where the result should go.
 
-### Shared fields
+### Renderer fields
 
-The single-template form accepts:
+Each renderer entry accepts:
 
-- `id`: normalized application registration name.
 - `source`: template source path.
 - `output`: stable path below the user's home directory.
 - `reload`: optional command run after publishing the rendered output.
 - `subdir`: optional renderer template subdirectory.
 - `placedAs`: optional template filename override.
 - `subId`: optional suffix for the registration identity.
-- `renderers`: explicit renderer adapter set.
+- `native`: optional backend-specific registration fields.
 
-Shared fields are defaults. A renderer adapter may override `source`, `output`, `reload`, `subdir`, `placedAs`, or `subId`.
+The theme-level `id` remains application-wide. In multi-output declarations, `subId` may remain beside `renderers` when it identifies the same logical output across every backend. Every selected renderer must explicitly define both `source` and `output`.
 
 ### Renderer-specific fields
 
@@ -72,11 +77,10 @@ Noctalia and DMS adapters may also set `native` fields supported by their regist
 ```nix
 theme = {
   id = "example";
-  source = ./colors.conf;
-  output = ".config/example/colors.conf";
-
-  renderers.dms.native = {
-    compare_to = "dark";
+  renderers.dms = {
+    source = ./colors.conf;
+    output = ".config/example/colors.conf";
+    native.compare_to = "dark";
   };
 };
 ```
@@ -99,26 +103,36 @@ theme = {
   templates = [
     {
       subId = "chrome";
-      source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-      output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
       renderers = {
-        noctalia = { };
-        dms = { };
+        noctalia = {
+          source = "${rootPath}/configs/firefox/chrome/userChrome.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+        };
+        dms = {
+          source = "${rootPath}/configs/firefox/chrome/userChrome.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+        };
         caelestia = {
           source = "${rootPath}/configs/firefox/chrome/caelestia-userChrome.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
           placedAs = "userChrome.css";
         };
       };
     }
     {
       subId = "content";
-      source = "${rootPath}/configs/firefox/chrome/userContent.css";
-      output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
       renderers = {
-        noctalia = { };
-        dms = { };
+        noctalia = {
+          source = "${rootPath}/configs/firefox/chrome/userContent.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+        };
+        dms = {
+          source = "${rootPath}/configs/firefox/chrome/userContent.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+        };
         caelestia = {
           source = "${rootPath}/configs/firefox/chrome/caelestia-userContent.css";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
           placedAs = "userContent.css";
         };
       };
@@ -136,10 +150,12 @@ Compositors register only with the shell engine used in that session.
 ```nix
 theme = {
   id = "hyprland";
-  source = "${rootPath}/configs/hypr/caelestia-colors.lua";
-  output = ".config/hypr/colors.lua";
-  reload = "hyprctl reload";
-  renderers.caelestia.placedAs = "colors.lua";
+  renderers.caelestia = {
+    source = "${rootPath}/configs/hypr/caelestia-colors.lua";
+    output = ".config/hypr/colors.lua";
+    placedAs = "colors.lua";
+    reload = "hyprctl reload";
+  };
 };
 ```
 
@@ -187,6 +203,6 @@ Prefer the highest declaration level that accurately expresses ownership. Use ne
 
 ## Validation
 
-Program uses a closed declaration schema. It rejects unknown fields, malformed destinations, unsupported renderer fields, duplicate registration identities, invalid conflict policies, and theme sources hidden under excluded directory subtrees.
+Program uses a closed declaration schema. It rejects unknown fields, malformed destinations, empty or incomplete renderer entries, renderer fields placed outside their renderer, unsupported native fields, duplicate registration identities, invalid conflict policies, and theme sources hidden under excluded directory subtrees.
 
 Payloads selected by Ownerships are validated before Program emits Furnish declarations.

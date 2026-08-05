@@ -121,9 +121,10 @@ let
     ];
     theme = {
       id = "example";
-      source = ./krisis/safe-render.nix;
-      output = ".config/example/safe-render.nix";
-      renderers.noctalia = { };
+      renderers.noctalia = {
+        source = ./krisis/safe-render.nix;
+        output = ".config/example/safe-render.nix";
+      };
     };
   };
   directoryDeclarations = declarationsOf directoryOnly;
@@ -132,9 +133,11 @@ let
   dmsOnly = program {
     theme = {
       id = "dms-example";
-      source = ./program.nix;
-      output = ".config/example/dms.conf";
-      renderers.dms.native.compare_to = "dark";
+      renderers.dms = {
+        source = ./program.nix;
+        output = ".config/example/dms.conf";
+        native.compare_to = "dark";
+      };
     };
   };
   dmsDestinations = map (declaration: declaration.destination) (declarationsOf dmsOnly);
@@ -142,10 +145,11 @@ let
   caelestiaOnly = program {
     theme = {
       id = "caelestia-example";
-      source = ./program.nix;
-      output = ".config/example/caelestia.conf";
-      reload = "pkill -SIGUSR1 example";
-      renderers.caelestia = { };
+      renderers.caelestia = {
+        source = ./program.nix;
+        output = ".config/example/caelestia.conf";
+        reload = "pkill -SIGUSR1 example";
+      };
     };
   };
   caelestiaDestinations = map (declaration: declaration.destination) (declarationsOf caelestiaOnly);
@@ -156,17 +160,19 @@ let
       templates = [
         {
           subId = "zeta";
-          source = ./program.nix;
-          output = ".config/example/zeta.conf";
-          reload = "printf zeta";
-          renderers.caelestia = { };
+          renderers.caelestia = {
+            source = ./program.nix;
+            output = ".config/example/zeta.conf";
+            reload = "printf zeta";
+          };
         }
         {
           subId = "alpha";
-          source = ./program.nix;
-          output = ".config/example/alpha.conf";
-          reload = "printf alpha";
-          renderers.caelestia = { };
+          renderers.caelestia = {
+            source = ./program.nix;
+            output = ".config/example/alpha.conf";
+            reload = "printf alpha";
+          };
         }
       ];
     };
@@ -193,12 +199,19 @@ let
   dualTheme = program {
     theme = {
       id = "shared";
-      source = ./program.nix;
-      output = ".config/example/shared.conf";
       renderers = {
-        noctalia = { };
-        dms = { };
-        caelestia = { };
+        noctalia = {
+          source = ./program.nix;
+          output = ".config/example/shared.conf";
+        };
+        dms = {
+          source = ./program.nix;
+          output = ".config/example/shared.conf";
+        };
+        caelestia = {
+          source = ./program.nix;
+          output = ".config/example/shared.conf";
+        };
       };
     };
   };
@@ -255,17 +268,35 @@ let
   unknownDmsField = program {
     theme = {
       id = "invalid";
-      source = ./program.nix;
-      output = ".config/invalid";
-      renderers.dms.typo = true;
+      renderers.dms = {
+        source = ./program.nix;
+        output = ".config/invalid";
+        typo = true;
+      };
     };
   };
   unsupportedCaelestiaNative = program {
     theme = {
       id = "invalid-native";
+      renderers.caelestia = {
+        source = ./program.nix;
+        output = ".config/invalid-native";
+        native.format = "unsupported";
+      };
+    };
+  };
+  emptyRenderer = program {
+    theme = {
+      id = "empty-renderer";
+      renderers.dms = { };
+    };
+  };
+  inheritedRendererFields = program {
+    theme = {
+      id = "inherited-renderer";
       source = ./program.nix;
-      output = ".config/invalid-native";
-      renderers.caelestia.native.format = "unsupported";
+      output = ".config/inherited-renderer";
+      renderers.dms = { };
     };
   };
   invalidPolicy = program {
@@ -302,9 +333,10 @@ let
     ];
     theme = {
       id = "excluded";
-      source = ./furnish/coordinator/Cargo.toml;
-      output = ".config/excluded.toml";
-      renderers.noctalia = { };
+      renderers.noctalia = {
+        source = ./furnish/coordinator/Cargo.toml;
+        output = ".config/excluded.toml";
+      };
     };
   };
 
@@ -329,9 +361,10 @@ let
     theme = {
       id = "inactive-theme";
       when = _: false;
-      source = throw "forced inactive theme source";
-      output = ".config/inactive-theme";
-      renderers.caelestia = { };
+      renderers.caelestia = {
+        source = throw "forced inactive theme source";
+        output = ".config/inactive-theme";
+      };
     };
   };
   selectedMalformed = program {
@@ -376,6 +409,10 @@ let
   unknownDmsFieldResult = builtins.tryEval (builtins.deepSeq (unknownDmsField.nixos moduleArgs) true);
   unsupportedCaelestiaNativeResult = builtins.tryEval (
     builtins.deepSeq (unsupportedCaelestiaNative.nixos moduleArgs) true
+  );
+  emptyRendererResult = builtins.tryEval (builtins.deepSeq (emptyRenderer.nixos moduleArgs) true);
+  inheritedRendererFieldsResult = builtins.tryEval (
+    builtins.deepSeq (inheritedRendererFields.nixos moduleArgs) true
   );
   invalidPolicyResult = builtins.tryEval (builtins.deepSeq (invalidPolicy.nixos moduleArgs) true);
   excludedOverrideResult = builtins.tryEval (
@@ -448,6 +485,8 @@ rec {
     unknown-file-fields-are-rejected = !unknownFileFieldResult.success;
     unknown-dms-fields-are-rejected = !unknownDmsFieldResult.success;
     caelestia-native-fields-are-rejected = !unsupportedCaelestiaNativeResult.success;
+    empty-renderers-are-rejected = !emptyRendererResult.success;
+    inherited-renderer-fields-are-rejected = !inheritedRendererFieldsResult.success;
     invalid-conflict-policies-are-rejected = !invalidPolicyResult.success;
     overrides-beneath-excluded-subtrees-are-rejected = !excludedOverrideResult.success;
     theme-sources-beneath-excluded-subtrees-are-rejected = !excludedThemeResult.success;

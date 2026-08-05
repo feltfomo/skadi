@@ -71,10 +71,11 @@
     ];
     theme = {
       id = "mango";
-      source = "${rootPath}/configs/mango/colors.conf";
-      output = ".config/mango/colors.conf";
-      reload = "mmsg -d reload_config";
-      renderers.noctalia = { };
+      renderers.noctalia = {
+        source = "${rootPath}/configs/mango/colors.conf";
+        output = ".config/mango/colors.conf";
+        reload = "mmsg -d reload_config";
+      };
     };
   };
 }

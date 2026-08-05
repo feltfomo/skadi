@@ -34,9 +34,10 @@
     ];
     theme = {
       id = "niri";
-      source = "${rootPath}/configs/niri/colors.kdl";
-      output = ".config/niri/colors.kdl";
-      renderers.dms = { };
+      renderers.dms = {
+        source = "${rootPath}/configs/niri/colors.kdl";
+        output = ".config/niri/colors.kdl";
+      };
     };
   };
 }
