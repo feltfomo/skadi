@@ -1,4 +1,4 @@
-# _lib/ownerships/roster-tests.nix
+# _lib/ownerships/tests/roster.nix
 #
 # pure gate for the roster interface and the den-free define.* backend. it
 # imports nothing den-related, so a green run here is the proof the standalone
@@ -7,8 +7,8 @@
 # and a host-only config on a user-less host staying clear of the check.
 { lib }:
 let
-  axes = import ./axes.nix { inherit lib; };
-  resolve = import ./resolve.nix { inherit lib; };
+  axes = import ../axes.nix { inherit lib; };
+  resolve = import ../resolve.nix { inherit lib; };
 
   inherit (axes) include;
   inherit (resolve) define toRoster resolveWith;

@@ -16,7 +16,7 @@
         "touch $out"
       );
       checks.ownerships-roster = pkgs.runCommandLocal "ownerships-roster-tests" { } (
-        assert (import ../_lib/ownerships/roster-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/tests/roster.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-surface = pkgs.runCommandLocal "ownerships-surface-tests" { } (
