@@ -24,7 +24,7 @@
         "touch $out"
       );
       checks.ownerships-descriptors = pkgs.runCommandLocal "ownerships-descriptor-tests" { } (
-        assert (import ../_lib/ownerships/descriptor-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/tests/descriptors.nix { inherit lib; }).ok;
         "touch $out"
       );
       checks.ownerships-matrix = pkgs.runCommandLocal "ownerships-matrix-tests" { } (

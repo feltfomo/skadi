@@ -1,12 +1,12 @@
-# _lib/ownerships/descriptor-tests.nix
+# _lib/ownerships/tests/descriptors.nix
 #
 # a throwaway axis proving that one descriptor carries author syntax, scope,
 # registry construction, and standalone roster projection end to end. production
 # defaults remain host, user, and when; this descriptor exists only in this test.
 { lib }:
 let
-  axes = import ./axes.nix { inherit lib; };
-  engine = import ./engine.nix { inherit lib; };
+  axes = import ../axes.nix { inherit lib; };
+  engine = import ../engine.nix { inherit lib; };
 
   roleDescriptor = axes.mkSetDescriptor {
     name = "role";
@@ -50,8 +50,8 @@ let
       "no role in { ${builtins.concatStringsSep ", " roles} } belongs to any host in { ${builtins.concatStringsSep ", " hosts} }";
   };
   relations = axes.relations ++ [ hostRoleRelation ];
-  surface = import ./surface.nix { inherit lib descriptors relations; };
-  resolveLib = import ./resolve.nix { inherit lib descriptors relations; };
+  surface = import ../surface.nix { inherit lib descriptors relations; };
+  resolveLib = import ../resolve.nix { inherit lib descriptors relations; };
 
   inherit (surface)
     define
