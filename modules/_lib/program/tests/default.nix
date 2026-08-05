@@ -1,6 +1,6 @@
 { lib, pkgs }:
 let
-  ownerships = import ./ownerships { inherit lib; };
+  ownerships = import ../../ownerships { inherit lib; };
   inherit (ownerships) claimKeys;
 
   merge =
@@ -50,7 +50,7 @@ let
 
   resolve = units: ctx: lib.foldl' merge { } (map (collect ctx) units);
   resolveSystem = resolve;
-  program = import ./program.nix {
+  program = import ../../program.nix {
     inherit lib resolve resolveSystem;
     filePrincipals = args: [
       {
@@ -72,7 +72,7 @@ let
     host.name = "test";
     user.name = "feltfomo";
   };
-  caelestiaCli = builtins.fromJSON (builtins.readFile ../../configs/caelestia/cli.json);
+  caelestiaCli = builtins.fromJSON (builtins.readFile ../../../../configs/caelestia/cli.json);
 
   declarationsOfWith =
     args: spec:
@@ -88,7 +88,7 @@ let
     files = [
       {
         dest = ".config/example";
-        src = ./program.nix;
+        src = ../../program.nix;
       }
     ];
   };
@@ -97,14 +97,14 @@ let
     files = [
       {
         dest = ".config/example";
-        src = ./program.nix;
+        src = ../../program.nix;
       }
     ];
   };
   directoryOnly = program {
     directories = [
       {
-        src = ./krisis;
+        src = ../../krisis;
         dest = ".config/example";
         files = [
           {
@@ -122,7 +122,7 @@ let
     theme = {
       id = "example";
       renderers.noctalia = {
-        source = ./krisis/safe-render.nix;
+        source = ../../krisis/safe-render.nix;
         output = ".config/example/safe-render.nix";
       };
     };
@@ -134,7 +134,7 @@ let
     theme = {
       id = "dms-example";
       renderers.dms = {
-        source = ./program.nix;
+        source = ../../program.nix;
         output = ".config/example/dms.conf";
         native.compare_to = "dark";
       };
@@ -146,7 +146,7 @@ let
     theme = {
       id = "caelestia-example";
       renderers.caelestia = {
-        source = ./program.nix;
+        source = ../../program.nix;
         output = ".config/example/caelestia.conf";
         reload = "pkill -SIGUSR1 example";
       };
@@ -161,7 +161,7 @@ let
         {
           subId = "zeta";
           renderers.caelestia = {
-            source = ./program.nix;
+            source = ../../program.nix;
             output = ".config/example/zeta.conf";
             reload = "printf zeta";
           };
@@ -169,7 +169,7 @@ let
         {
           subId = "alpha";
           renderers.caelestia = {
-            source = ./program.nix;
+            source = ../../program.nix;
             output = ".config/example/alpha.conf";
             reload = "printf alpha";
           };
@@ -201,15 +201,15 @@ let
       id = "shared";
       renderers = {
         noctalia = {
-          source = ./program.nix;
+          source = ../../program.nix;
           output = ".config/example/shared.conf";
         };
         dms = {
-          source = ./program.nix;
+          source = ../../program.nix;
           output = ".config/example/shared.conf";
         };
         caelestia = {
-          source = ./program.nix;
+          source = ../../program.nix;
           output = ".config/example/shared.conf";
         };
       };
@@ -225,7 +225,7 @@ let
   subtreeDirectory = program {
     directories = [
       {
-        src = ./furnish;
+        src = ../../furnish;
         dest = ".config/furnish-source";
         exclude = [ "coordinator" ];
       }
@@ -239,7 +239,7 @@ let
       {
         users = [ "feltfomo" ];
         dest = ".config/user-only";
-        src = ./program.nix;
+        src = ../../program.nix;
       }
     ];
   };
@@ -248,7 +248,7 @@ let
       {
         exceptUsers = [ "feltfomo" ];
         dest = ".config/except-user";
-        src = ./program.nix;
+        src = ../../program.nix;
       }
     ];
   };
@@ -260,7 +260,7 @@ let
     files = [
       {
         dest = ".config/unknown";
-        src = ./program.nix;
+        src = ../../program.nix;
         typo = true;
       }
     ];
@@ -269,7 +269,7 @@ let
     theme = {
       id = "invalid";
       renderers.dms = {
-        source = ./program.nix;
+        source = ../../program.nix;
         output = ".config/invalid";
         typo = true;
       };
@@ -279,7 +279,7 @@ let
     theme = {
       id = "invalid-native";
       renderers.caelestia = {
-        source = ./program.nix;
+        source = ../../program.nix;
         output = ".config/invalid-native";
         native.format = "unsupported";
       };
@@ -294,7 +294,7 @@ let
   inheritedRendererFields = program {
     theme = {
       id = "inherited-renderer";
-      source = ./program.nix;
+      source = ../../program.nix;
       output = ".config/inherited-renderer";
       renderers.dms = { };
     };
@@ -303,7 +303,7 @@ let
     files = [
       {
         dest = ".config/policy";
-        src = ./program.nix;
+        src = ../../program.nix;
         onConflict = "merge";
       }
     ];
@@ -311,7 +311,7 @@ let
   excludedOverride = program {
     directories = [
       {
-        src = ./furnish;
+        src = ../../furnish;
         dest = ".config/furnish-source";
         exclude = [ "coordinator" ];
         files = [
@@ -326,7 +326,7 @@ let
   excludedTheme = program {
     directories = [
       {
-        src = ./furnish;
+        src = ../../furnish;
         dest = ".config/furnish-source";
         exclude = [ "coordinator" ];
       }
@@ -334,7 +334,7 @@ let
     theme = {
       id = "excluded";
       renderers.noctalia = {
-        source = ./furnish/coordinator/Cargo.toml;
+        source = ../../furnish/coordinator/Cargo.toml;
         output = ".config/excluded.toml";
       };
     };
@@ -377,7 +377,7 @@ let
   selectedMalformedDirectory = program {
     directories = [
       {
-        src = ./program.nix;
+        src = ../../program.nix;
         dest = ".config/not-a-directory";
       }
     ];
