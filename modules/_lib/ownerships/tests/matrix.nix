@@ -1,12 +1,12 @@
-# _lib/ownerships/matrix-tests.nix
+# _lib/ownerships/tests/matrix.nix
 #
 # fleet audit proofs cover parity with real resolution, engine-defined dead claims,
 # open-roster uncertainty, separate user/system contexts, and report laziness.
 { lib }:
 let
-  surface = import ./surface.nix { inherit lib; };
-  resolveLib = import ./resolve.nix { inherit lib; };
-  matrixLib = import ./matrix.nix { inherit lib; };
+  surface = import ../surface.nix { inherit lib; };
+  resolveLib = import ../resolve.nix { inherit lib; };
+  matrixLib = import ../matrix.nix { inherit lib; };
   inherit (surface)
     define
     toRoster

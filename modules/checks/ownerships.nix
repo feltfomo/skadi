@@ -28,7 +28,7 @@
         "touch $out"
       );
       checks.ownerships-matrix = pkgs.runCommandLocal "ownerships-matrix-tests" { } (
-        assert (import ../_lib/ownerships/matrix-tests.nix { inherit lib; }).ok;
+        assert (import ../_lib/ownerships/tests/matrix.nix { inherit lib; }).ok;
         "touch $out"
       );
     };
