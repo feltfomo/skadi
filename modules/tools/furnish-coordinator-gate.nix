@@ -20,7 +20,7 @@ _: {
           systemd
           util-linux
         ];
-        text = builtins.readFile ../../scripts/furnish-coordinator-gate.sh;
+        text = builtins.readFile ../../tests/furnish-coordinator-gate.sh;
       };
     in
     {
