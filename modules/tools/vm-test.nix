@@ -1,4 +1,4 @@
-# packages scripts/vm-test.sh as `nix run .#vm-test`. the bash lives in its own
+# packages tests/vm-test.sh as `nix run .#vm-test`. the bash lives in its own
 # file so it stays readable and syncs cleanly. nix resolves the ovmf firmware path
 # at build time and passes it in as OVMF_FD. runtimeInputs omits nix so the iso
 # build uses the caller's lix and the lix-dialect flake.lock evaluates.
@@ -19,7 +19,7 @@ _: {
           OVMF_FD='${pkgs.OVMF.fd}'
           export OVMF_FD
         ''
-        + builtins.readFile ../../scripts/vm-test.sh;
+        + builtins.readFile ../../tests/vm-test.sh;
       };
     in
     {

@@ -29,7 +29,7 @@
 
   # vm-test boots this disk headless with serial -> a file, so nobody can type
   # the LUKS passphrase disko sets at install time. the harness formats under
-  # IN_DISKO_TEST=1 (scripts/vm-test.sh), which keys the cryptroot slot with the
+  # IN_DISKO_TEST=1 (tests/vm-test.sh), which keys the cryptroot slot with the
   # deterministic passphrase `disko`; we embed a byte-identical keyfile in the
   # initrd and point cryptroot at it so the disk auto-unlocks and boot reaches a
   # login prompt unattended. writeText adds no trailing newline, matching disko's
