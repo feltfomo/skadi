@@ -39,18 +39,24 @@ These are repository libraries, not requirements for unrelated Nix configuration
 | Path | Purpose |
 | --- | --- |
 | `flake.nix` | Inputs, caches, Den wiring, and shared module arguments. |
+| `modules/den.nix` | Den schema defaults and fleet module entry point. |
 | `modules/aspects/` | Reusable system and user features. |
 | `modules/hosts/` | Host declarations plus hardware, disk, boot, and networking facts. |
 | `modules/users/` | User declarations, account policy, Home Manager features, and persistence. |
+| `modules/checks/` | Focused flake checks for the local subsystems. |
+| `modules/flake/` | Per-system checks, development shells, and formatting wiring. |
+| `modules/installer/` | Installer ISO and installation-target composition. |
+| `modules/tools/` | Runnable flake applications and their Nix wrappers. |
 | `modules/_lib/program.nix` | High-level package and managed-file declaration surface. |
-| `modules/_lib/ownerships/` | Claim, selection, merge, trace, matrix, and standalone unit discovery. |
-| `modules/_lib/furnish/` | Managed-file declaration engine and Rust reconciliation coordinator. |
-| `modules/_lib/krisis/` | Structured diagnostics and safe rendering. |
+| `modules/_lib/ownerships/` | Claim, selection, merge, trace, matrix, standalone unit discovery, and implementation-local tests. |
+| `modules/_lib/furnish/` | Managed-file declaration engine, Rust coordinator, and implementation-local tests. |
+| `modules/_lib/krisis/` | Structured diagnostics, safe rendering, and implementation-local tests. |
 | `configs/` | Source configuration trees consumed by aspects and Program. |
 | `docs/` | User and maintainer documentation for the local subsystems. |
-| `scripts/` | Installer, VM, coordinator, and regression entry points. |
-| `tests/` | Checked-in regression manifests and baselines. |
-| `tools/` | Repository tooling, currently the VM golden-image rebuild harness. |
+| `pkgs/` | Local package definitions and checked-in binary source inputs. |
+| `scripts/` | Production installer and runtime command bodies. |
+| `tests/` | Repository shell gates, regression manifests, and checked-in baselines. |
+| `tools/` | Go repository tooling, including the VM golden-image rebuild implementation. |
 | `.github/workflows/ci.yml` | Repository CI. |
 
 ## Documentation
