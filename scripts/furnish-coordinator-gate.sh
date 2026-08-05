@@ -100,7 +100,7 @@ scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
 # the gate certifies a host, so it must evaluate with that host's evaluator.
-# bundling nix silently certified lumi under a Nix the host did not run.
+# bundling nix silently certified lumi under a nix the host did not run.
 step 'host nix evaluator'
 host_nix="$(command -v nix || true)"
 [ -n "$host_nix" ] || die 'gate requires the host nix on PATH'
@@ -181,7 +181,7 @@ assert_suppression_symbols "$crate/tests/lifecycle.rs" 1 record_json
 
 if grep -RInE '\bSP[0-9]+\b|\bsub-phase\b|\bruling\b|\broadmap\b' \
   "$crate/src" "$repo/scripts/furnish-coordinator-gate.sh" \
-  "$repo/scripts/program-files-regression.sh" "$repo/modules/furnish-coordinator-gate.nix"; then
+  "$repo/scripts/program-files-regression.sh" "$repo/modules/tools/furnish-coordinator-gate.nix"; then
   die 'process vocabulary found in touched production sources or gate files'
 fi
 printf '[coordinator-gate] observed  suppressions=%s too_many_arguments=%s vocabulary_matches=0\n' \

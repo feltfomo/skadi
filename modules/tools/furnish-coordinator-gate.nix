@@ -4,9 +4,9 @@ _: {
     let
       furnish-coordinator-gate = pkgs.writeShellApplication {
         name = "furnish-coordinator-gate";
-        # The gate certifies the host, so nix is deliberately absent from these
-        # runtime inputs and must not be re-added: the gate must use the host's
-        # evaluator rather than silently certify it under a different Nix.
+        # the gate certifies the host, so nix is deliberately absent from these
+        # runtime inputs and must not be re-added. the gate must use the host's
+        # evaluator rather than silently certify it under a different nix.
         runtimeInputs = with pkgs; [
           bash
           bc
@@ -20,7 +20,7 @@ _: {
           systemd
           util-linux
         ];
-        text = builtins.readFile ../scripts/furnish-coordinator-gate.sh;
+        text = builtins.readFile ../../scripts/furnish-coordinator-gate.sh;
       };
     in
     {
