@@ -181,7 +181,7 @@ assert_suppression_symbols "$crate/tests/lifecycle.rs" 1 record_json
 
 if grep -RInE '\bSP[0-9]+\b|\bsub-phase\b|\bruling\b|\broadmap\b' \
   "$crate/src" "$repo/scripts/furnish-coordinator-gate.sh" \
-  "$repo/scripts/program-files-regression.sh" "$repo/modules/tools/furnish-coordinator-gate.nix"; then
+  "$repo/tests/program-files-regression.sh" "$repo/modules/tools/furnish-coordinator-gate.nix"; then
   die 'process vocabulary found in touched production sources or gate files'
 fi
 printf '[coordinator-gate] observed  suppressions=%s too_many_arguments=%s vocabulary_matches=0\n' \

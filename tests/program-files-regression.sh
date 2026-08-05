@@ -350,7 +350,7 @@ fault_manifest_json() {
       executor:{identity:$executor,protocolVersion:1},
       cleanupStrategy:$strategy,
       selfHealStrategy:$strategy,
-      provenance:{declaration:"fault-injection",source:"scripts/program-files-regression.sh"}
+      provenance:{declaration:"fault-injection",source:"tests/program-files-regression.sh"}
     }]
   }'
 }

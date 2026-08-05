@@ -26,7 +26,7 @@ _: {
           PROGRAM_FILES_BASELINE='${../../tests/program-files-baseline.json}'
           export OVMF_FD PROGRAM_FILES_MANIFEST PROGRAM_FILES_BASELINE
         ''
-        + builtins.readFile ../../scripts/program-files-regression.sh;
+        + builtins.readFile ../../tests/program-files-regression.sh;
       };
     in
     {
