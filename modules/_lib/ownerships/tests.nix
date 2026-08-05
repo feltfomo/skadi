@@ -10,7 +10,7 @@ let
   engine = import ./engine.nix { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
   merge = import ./merge.nix { inherit lib; };
-  importUnitTests = import ./import-units-tests.nix { inherit lib; };
+  importUnitTests = import ./tests/import-units.nix { inherit lib; };
   krisis = import ../krisis { inherit lib; };
 
   inherit (axes)

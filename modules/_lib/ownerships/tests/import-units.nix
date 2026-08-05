@@ -1,12 +1,12 @@
-# _lib/ownerships/import-units-tests.nix
+# _lib/ownerships/tests/import-units.nix
 { lib }:
 let
-  ownerships = import ./default.nix { inherit lib; };
+  ownerships = import ../default.nix { inherit lib; };
 
   throws = value: !(builtins.tryEval (builtins.deepSeq value value)).success;
 
   flat = ownerships.importUnits {
-    dir = ./test-fixtures/import-units/flat;
+    dir = ./fixtures/import-units/flat;
     args = {
       marker = "passed-through";
       poison = throw "forced imported unit payload";
@@ -14,7 +14,7 @@ let
   };
 
   unitSets = ownerships.importUnitSets {
-    dir = ./test-fixtures/import-units/sets;
+    dir = ./fixtures/import-units/sets;
     args.marker = "set-marker";
   };
 
@@ -84,7 +84,7 @@ let
       name = "mixed trees reject loose root nix files instead of guessing their scope";
       pass = throws (
         ownerships.importUnitSets {
-          dir = ./test-fixtures/import-units/ambiguous;
+          dir = ./fixtures/import-units/ambiguous;
         }
       );
     }
@@ -92,7 +92,7 @@ let
       name = "mixed trees reject unknown top-level collections";
       pass = throws (
         ownerships.importUnitSets {
-          dir = ./test-fixtures/import-units;
+          dir = ./fixtures/import-units;
         }
       );
     }
@@ -100,7 +100,7 @@ let
       name = "invalid imported values fail closed";
       pass = throws (
         ownerships.importUnits {
-          dir = ./test-fixtures/import-units/invalid;
+          dir = ./fixtures/import-units/invalid;
         }
       );
     }
@@ -109,13 +109,13 @@ let
       pass =
         throws (
           ownerships.importUnits {
-            dir = ./test-fixtures/import-units/flat;
+            dir = ./fixtures/import-units/flat;
             args = [ ];
           }
         )
         && throws (
           ownerships.importUnitSets {
-            dir = ./test-fixtures/import-units/sets;
+            dir = ./fixtures/import-units/sets;
             args = [ ];
           }
         );
