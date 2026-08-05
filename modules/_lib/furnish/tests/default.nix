@@ -5,9 +5,9 @@
   principalContexts,
 }:
 let
-  ownerships = import ../ownerships { inherit lib; };
-  krisis = import ../krisis { inherit lib; };
-  furnish = import ./default.nix {
+  ownerships = import ../../ownerships { inherit lib; };
+  krisis = import ../../krisis { inherit lib; };
+  furnish = import ../default.nix {
     inherit
       lib
       resolve
@@ -37,9 +37,9 @@ let
     representation = contract.capabilities.symlink;
     source = {
       kind = "path";
-      value = ./default.nix;
+      value = ../default.nix;
     };
-    provenance.source = "modules/_lib/furnish/tests.nix";
+    provenance.source = "modules/_lib/furnish/tests/default.nix";
   };
 
   mkExecutor =
@@ -233,7 +233,7 @@ let
 
   throws = value: !(builtins.tryEval (builtins.deepSeq value value)).success;
 
-  inertCore = import ./core.nix {
+  inertCore = import ../core.nix {
     inherit lib contract krisis;
     inherit (ownerships) claimKeys;
     resolve = throw "no-op forced the user ownership door";
@@ -250,7 +250,7 @@ let
   };
   noOp = inertCore.compile { inherit raw; };
 
-  systemCore = import ./core.nix {
+  systemCore = import ../core.nix {
     inherit lib contract krisis;
     inherit (ownerships) claimKeys;
     resolve = throw "a system declaration used the user ownership door";
@@ -404,14 +404,14 @@ let
     representation = "symlink";
     source = {
       kind = "path";
-      value = ../../../configs/kitty/kitty.conf;
+      value = ../../../../configs/kitty/kitty.conf;
     };
     provenance.source = "modules/aspects/kitty.nix";
   };
 
   kittyEntry = {
     dest = ".config/kitty/kitty.conf";
-    src = ../../../configs/kitty/kitty.conf;
+    src = ../../../../configs/kitty/kitty.conf;
     label = "kitty.files[0]";
     provenance = "modules/aspects/kitty.nix";
   };
@@ -457,7 +457,7 @@ let
   # the emission site's argument shape is what decides which scopes it runs
   # under, so it is pinned here next to the counting it produces.
   programSlice =
-    (import ../program.nix {
+    (import ../../program.nix {
       inherit lib resolve resolveSystem;
       filePrincipals = _: [ ];
       hostUserNames = _: [ ];
@@ -633,7 +633,7 @@ let
       name = "manifest context pins a dedicated artifact object";
       pass =
         lib.hasPrefix "/nix/store/" artifactTarget
-        && artifactTarget != toString ./default.nix
+        && artifactTarget != toString ../default.nix
         && builtins.elem (builtins.unsafeDiscardStringContext artifactTarget) (
           builtins.attrNames manifestContext
         );

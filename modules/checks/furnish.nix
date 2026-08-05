@@ -7,7 +7,7 @@
 }:
 let
   denLib = import ../_lib/den.nix { inherit den lib; };
-  tests = import ../_lib/furnish/tests.nix {
+  tests = import ../_lib/furnish/tests/default.nix {
     inherit
       lib
       resolve
