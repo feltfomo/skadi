@@ -195,6 +195,7 @@
           appimage-run
           ayugram-desktop
           translate-shell
+          opencode-desktop
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           (prismlauncher.override {

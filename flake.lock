@@ -1051,11 +1051,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785808150,
-        "narHash": "sha256-hHNjjZDg2eiUlphO1xlGeum4qso+jkX2c43470wT+Ko=",
+        "lastModified": 1785981718,
+        "narHash": "sha256-7vfGGgG7Kd1q+c3y3YoEZRp4Z9sf+5hlRFugRq3uqfo=",
         "owner": "feltfomo",
         "repo": "notion-sync",
-        "rev": "2bf0fe513750d50bf49ba847a9025bcba52a89ab",
+        "rev": "efbcbff3a64ac79abb870a721217675d2b051114",
         "type": "github"
       },
       "original": {

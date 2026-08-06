@@ -7,11 +7,11 @@ layout {
         urgent-color   "{{colors.error.default.hex}}"
     }
 
-    border {
-        active-color   "{{colors.primary.default.hex}}"
-        inactive-color "{{colors.outline.default.hex}}"
-        urgent-color   "{{colors.error.default.hex}}"
-    }
+    // border {
+    //     active-color   "{{colors.primary.default.hex}}"
+    //     inactive-color "{{colors.outline.default.hex}}"
+    //     urgent-color   "{{colors.error.default.hex}}"
+    // }
 
     shadow {
         color "{{colors.shadow.default.hex}}70"

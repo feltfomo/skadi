@@ -3,7 +3,6 @@ local G = require("globals")
 hl.on("hyprland.start", function()
 	hl.exec_cmd("systemctl --user reset-failed xdg-desktop-portal-hyprland")
 	hl.exec_cmd("systemctl --user start xdg-desktop-portal-hyprland")
-	hl.exec_cmd("caelestia shell -d")
 	hl.exec_cmd("wl-paste --type text --watch cliphist store")
 	hl.exec_cmd("wl-paste --type image --watch cliphist store")
 

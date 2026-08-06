@@ -25,6 +25,18 @@ layout {
     default-column-width { proportion 0.5; }
 }
 
+blur {
+    passes 3
+}
+
+window-rule {
+    opacity 0.85
+    draw-border-with-background false
+    background-effect {
+        blur true
+    }
+}
+
 prefer-no-csd
 spawn-at-startup "xwayland-satellite"
 screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"

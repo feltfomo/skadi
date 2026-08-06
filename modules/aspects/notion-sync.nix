@@ -140,6 +140,86 @@
                   "*.fd"
                 ];
               }
+              {
+                name = "dots-hyprland";
+                local_root = "/home/feltfomo/Reference-Projects/dots-hyprland";
+                parent_page_id = "3b35d22894d280e5a5f6d48da308eac4";
+                ignore = [
+                  ".git"
+                  "result"
+                  "result-*"
+                  "node_modules"
+                  ".direnv"
+                  ".venv"
+                  "__pycache__"
+                  ".notion-sync"
+                  # Reference tree: keep source and small assets, but never mirror
+                  # build products or large binary images into Notion.
+                  "build"
+                  "dist"
+                  "*.qcow2"
+                  "*.iso"
+                  "*.img"
+                  "*.raw"
+                  "*.fd"
+                  "*.ova"
+                  "*.vdi"
+                ];
+              }
+              {
+                name = "end4-pC";
+                local_root = "/home/feltfomo/Reference-Projects/end4-pC";
+                parent_page_id = "3b35d22894d280c2b5e5cf538644ef33";
+                ignore = [
+                  ".git"
+                  "result"
+                  "result-*"
+                  "node_modules"
+                  ".direnv"
+                  ".venv"
+                  "__pycache__"
+                  ".notion-sync"
+                  "material_symbols_rounded.json"
+                  # Reference tree: keep source and small assets, but never mirror
+                  # build products or large binary images into Notion.
+                  "build"
+                  "dist"
+                  "*.qcow2"
+                  "*.iso"
+                  "*.img"
+                  "*.raw"
+                  "*.fd"
+                  "*.ova"
+                  "*.vdi"
+                ];
+              }
+              {
+                name = "illogical-impulse-shell-nix";
+                local_root = "/home/feltfomo/Projects/illogical-impulse-shell-nix";
+                parent_page_id = "3b35d22894d28067a006d21891556f1a";
+                ignore = [
+                  ".git"
+                  "result"
+                  "result-*"
+                  ".direnv"
+                  ".venv"
+                  "__pycache__"
+                  ".pytest_cache"
+                  ".ruff_cache"
+                  ".mypy_cache"
+                  "build"
+                  "dist"
+                  ".notion-sync"
+                  # Keep source assets and flake.lock, but never mirror large images.
+                  "*.qcow2"
+                  "*.iso"
+                  "*.img"
+                  "*.raw"
+                  "*.fd"
+                  "*.ova"
+                  "*.vdi"
+                ];
+              }
               # workflow-workbench -- the spw build/publish tool. process
               # docs (roadmap, maintainer guide) stay Notion-only; this mirrors the repo
               # source. keep flake.lock synced -- do NOT ignore it.
