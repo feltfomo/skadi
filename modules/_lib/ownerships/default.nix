@@ -15,6 +15,7 @@ in
     mkResolveSystem
     mkResolveTrace
     mkResolveSystemTrace
+    mkResolvePrepared
     mkResolveMatrix
     mkResolveSystemMatrix
     mkResolveStrict

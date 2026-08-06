@@ -50,8 +50,11 @@ let
 
   resolve = units: ctx: lib.foldl' merge { } (map (collect ctx) units);
   resolveSystem = resolve;
+  # the fake resolver is already ctx-pure, so the prepared door is the same
+  # function; only program.nix's wiring of the split is under test here.
+  resolvePrepared = resolve;
   program = import ../../program.nix {
-    inherit lib resolve resolveSystem;
+    inherit lib resolve resolveSystem resolvePrepared;
     filePrincipals = args: [
       {
         authority = {
@@ -78,8 +81,11 @@ let
     args: spec:
     let
       result = spec.nixos args;
+      declarationsModule = builtins.head (
+        builtins.filter (module: builtins.isAttrs module && module ? lexicon) result.imports
+      );
     in
-    (builtins.elemAt result.imports 1).lexicon.furnish.declarations;
+    declarationsModule.lexicon.furnish.declarations;
 
   declarationsOf = declarationsOfWith moduleArgs;
 
@@ -448,7 +454,7 @@ rec {
       && builtins.elem ".config/noctalia/templates/example/safe-render.nix" directoryDestinations;
     dms-templates-lower-to-independent-fragments =
       builtins.elem ".config/matugen/dms/templates/dms-example/program.nix" dmsDestinations
-      && builtins.elem ".config/matugen/dms/configs/dms-example.toml" dmsDestinations;
+      && !(builtins.any (destination: lib.hasPrefix ".config/matugen/dms/configs/" destination) dmsDestinations);
     caelestia-templates-lower-to-state-publishers =
       builtins.elem ".config/caelestia/templates/caelestia-example-program.nix" caelestiaDestinations
       && builtins.elem ".config/caelestia/theme-hooks/caelestia-example" caelestiaDestinations;
@@ -466,9 +472,9 @@ rec {
       builtins.elem ".config/noctalia/templates/shared/program.nix" dualThemeDestinations
       && builtins.elem ".config/noctalia/shared.toml" dualThemeDestinations
       && builtins.elem ".config/matugen/dms/templates/shared/program.nix" dualThemeDestinations
-      && builtins.elem ".config/matugen/dms/configs/shared.toml" dualThemeDestinations
       && builtins.elem ".config/caelestia/templates/shared-program.nix" dualThemeDestinations
-      && builtins.elem ".config/caelestia/theme-hooks/shared" dualThemeDestinations;
+      && builtins.elem ".config/caelestia/theme-hooks/shared" dualThemeDestinations
+      && !(builtins.any (destination: lib.hasPrefix ".config/matugen/dms/configs/" destination) dualThemeDestinations);
     writable-overrides-are-first-class =
       writableDeclaration.representation == "writable"
       && writableDeclaration.onConflict == "runtime-wins";

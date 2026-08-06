@@ -160,10 +160,12 @@ let
   # ownership vocabulary and never ride into a manifest entry.
   applyEntry = declaration: removeAttrs declaration claimKeys;
 
-  # enabled selection runs one unit at a time through the ownerships public
-  # surface, where an active unit resolves to its own value and an inactive one
-  # resolves to empty. reading present-vs-empty keeps selection from being a
-  # shared merge boundary and never forces a dropped unit's payload.
+  # enabled selection runs its scope's declarations through the ownerships
+  # public surface in one batched resolve per scope, with each declaration split
+  # onto its own index key so an active declaration contributes its own value
+  # and an inactive one simply leaves that key out. reading present-vs-empty
+  # keeps selection from being a shared merge boundary and never forces a
+  # dropped declaration's payload.
   mkEnabledProvider =
     {
       resolve,
@@ -174,19 +176,35 @@ let
       selectApplicable =
         declarations: ctx:
         let
-          applies =
-            declaration:
+          selectScope =
+            fn: rawCtx: scoped:
             let
-              unit = ownershipUnit declaration;
+              indexed = lib.imap0 (index: declaration: { inherit index declaration; }) scoped;
               resolved =
-                if declaration.authority.scope == "system" then
-                  resolveSystem [ unit ] { host = ctx.host or null; }
+                if indexed == [ ] then
+                  { }
                 else
-                  resolve [ unit ] ctx;
+                  fn [
+                    {
+                      children = map (
+                        { index, declaration }:
+                        let
+                          unit = ownershipUnit declaration;
+                        in
+                        unit // { value = { ${"applied${toString index}"} = unit.value.entries; }; }
+                      ) indexed;
+                    }
+                  ] rawCtx;
             in
-            (resolved.entries or [ ]) != [ ];
+            builtins.concatMap (
+              { index, declaration }:
+              lib.optional ((resolved.${"applied${toString index}"} or [ ]) != [ ]) (applyEntry declaration)
+            ) indexed;
         in
-        map applyEntry (builtins.filter applies declarations);
+        selectScope resolveSystem {
+          host = ctx.host or null;
+        } (builtins.filter (declaration: declaration.authority.scope == "system") declarations)
+        ++ selectScope resolve ctx (builtins.filter (declaration: declaration.authority.scope != "system") declarations);
     };
 
   # off mode has no roster to select against, so an untagged (globally owned)

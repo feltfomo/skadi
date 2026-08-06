@@ -142,6 +142,9 @@
         # user in scope (hyprland's compositor). a distinct door from mkResolve
         # so the user-scope contract stays byte-identical.
         resolveSystem = ownershipsSurface.mkResolveSystem roster;
+        # prepared form used by program aspects to hoist the ctx-independent
+        # half of the pipeline out of the per-user slices.
+        resolvePrepared = ownershipsSurface.mkResolvePrepared roster;
       in
       {
         imports = [ (inputs.import-tree ./modules) ];
@@ -151,9 +154,9 @@
         # den plumbing on this path.
         _module.args = {
           rootPath = ./.;
-          inherit resolve resolveSystem;
+          inherit resolve resolveSystem resolvePrepared;
           program = import ./modules/_lib/program.nix {
-            inherit lib resolve resolveSystem;
+            inherit lib resolve resolveSystem resolvePrepared;
             inherit (denApi) filePrincipals hostUserNames;
           };
         };

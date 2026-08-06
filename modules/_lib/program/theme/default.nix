@@ -255,11 +255,48 @@ let
           ;
       };
 
+  # Some backends (currently: dms/matugen) can't have their template
+  # registrations split across multiple files - matugen only reads one
+  # config.toml, with no include/merge support. For those, every block's
+  # entries are combined and handed to the adapter's aggregateFilesFor once,
+  # instead of being written out per-block.
+  aggregatedThemeFiles =
+    entries: pkgs:
+    builtins.concatMap (
+      renderer:
+      let
+        adapter = adapters.${renderer};
+      in
+      if !(adapter ? aggregateFilesFor) then
+        [ ]
+      else
+        let
+          rendererEntries = builtins.filter (entry: entry.renderer == renderer) entries;
+          ids = map (entry: entry.registrationId) rendererEntries;
+          dupIds = duplicateValues ids;
+        in
+        if rendererEntries == [ ] then
+          [ ]
+        else if dupIds != [ ] then
+          checked
+            [
+              (problem "program/theme-registration-duplicate" "theme.${renderer} has duplicate registration ids across blocks: ${lib.concatStringsSep ", " dupIds}")
+            ]
+            [ ]
+        else
+          adapter.aggregateFilesFor {
+            inherit pkgs;
+            entries = rendererEntries;
+            registrationOf = adapter.registrationOf or (entry: entry.native);
+          }
+    ) themeBackends;
+
   themeFiles =
     entries: pkgs:
     builtins.concatMap (themeGroupFiles pkgs) (
       builtins.attrValues (builtins.groupBy (entry: "${entry.renderer}:${entry.blockId}") entries)
-    );
+    )
+    ++ aggregatedThemeFiles entries pkgs;
 in
 {
   inherit

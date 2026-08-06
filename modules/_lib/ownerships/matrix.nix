@@ -126,19 +126,27 @@ let
             inherit registry stages;
             inherit (context) ctx;
           } liveLeaves;
+          # survivor stages are part of this projection's contract: a failing
+          # survivor rule must surface for every modeled context. the engine's
+          # per-ctx handle keeps survivor diagnostics lazy behind `.survivors`,
+          # so the matrix -- which reads the selection trace, not the merged
+          # value -- forces them itself.
+          survivors = selected.survivors;
         in
-        builtins.genList (
-          index:
-          let
-            entry = builtins.elemAt liveEntries index;
-            selection = builtins.elemAt selected.selectionTrace index;
-          in
-          {
-            inherit (entry) key;
-            inherit (selection) selected rejectedBy;
-            offeredPaths = if selection.selected then selection.preMergeContribution.offeredPaths else [ ];
-          }
-        ) (builtins.length liveEntries);
+        builtins.seq survivors (
+          builtins.genList (
+            index:
+            let
+              entry = builtins.elemAt liveEntries index;
+              selection = builtins.elemAt selected.selectionTrace index;
+            in
+            {
+              inherit (entry) key;
+              inherit (selection) selected rejectedBy;
+              offeredPaths = if selection.selected then selection.preMergeContribution.offeredPaths else [ ];
+            }
+          ) (builtins.length liveEntries)
+        );
 
       selectionsByContext = map (context: {
         inherit context;

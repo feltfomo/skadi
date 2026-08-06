@@ -254,9 +254,20 @@ let
     inherit lib contract krisis;
     inherit (ownerships) claimKeys;
     resolve = throw "a system declaration used the user ownership door";
-    resolveSystem = units: _ctx: {
-      entries = builtins.concatMap (unit: unit.value.entries or [ ]) units;
-    };
+    # the stub mirrors the roster-bound door's merged-value contract: the
+    # batched provider hands the resolver one unit tree whose leaves carry
+    # per-declaration `value.entries` chunks under unique keys, and the merged
+    # value unions every leaf's chunk.
+    resolveSystem = units: _ctx:
+      builtins.foldl' (merged: node: merged // node.value or { }) { } (
+        builtins.concatMap (
+          unit:
+          let
+            collect = node: [ node ] ++ builtins.concatMap collect (node.children or [ ]);
+          in
+          collect unit
+        ) units
+      );
   };
   systemDeclaration = (removeAttrs sample [ "users" ]) // {
     label = "system-config";
@@ -459,6 +470,9 @@ let
   programSlice =
     (import ../../program.nix {
       inherit lib resolve resolveSystem;
+      # program's prepared door is not exercised here; the test resolver is
+      # ctx-pure, so the prepared form is the same function.
+      resolvePrepared = resolve;
       filePrincipals = _: [ ];
       hostUserNames = _: [ ];
     })

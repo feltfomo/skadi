@@ -2,6 +2,7 @@
   lib,
   resolve,
   resolveSystem,
+  resolvePrepared,
   filePrincipals,
   hostUserNames,
 }:
@@ -476,14 +477,15 @@ let
     in
     if lib.hasPrefix prefix sourceString then lib.removePrefix prefix sourceString else null;
 
-  expandDirectory =
-    wrapped: rules: themeEntries:
+  # the read-only directory walk (readDir recursion, membership inventory) plus
+  # the shape/source checks that gate it. all of it is ctx-independent, so the
+  # aspect closure computes it once per directory and the per-user slices thread
+  # the result through instead of re-walking the source for every user.
+  prewalkDirectory =
+    wrapped:
     let
-      shapeErrors = directoryShapeErrors wrapped;
       entry = if builtins.isAttrs wrapped.entry then wrapped.entry else { };
-      selectedRules = builtins.filter (rule: rule.index == wrapped.index) rules;
-      selectedRuleErrors = builtins.concatMap directoryRuleErrors selectedRules;
-      exclude = if entry ? exclude && builtins.isList entry.exclude then entry.exclude else [ ];
+      shapeErrors = directoryShapeErrors wrapped;
       sourceKind =
         if shapeErrors != [ ] then
           null
@@ -500,13 +502,26 @@ let
         );
       walked =
         if sourceErrors == [ ] && shapeErrors == [ ] then
-          walkDirectory entry.src exclude
+          walkDirectory entry.src (entry.exclude or [ ])
         else
           {
             diagnostics = [ ];
             files = [ ];
             members = [ ];
           };
+    in
+    {
+      inherit shapeErrors sourceErrors walked;
+    };
+
+  expandDirectory =
+    wrapped: rules: themeEntries: pw:
+    let
+      inherit (pw) shapeErrors sourceErrors walked;
+      entry = if builtins.isAttrs wrapped.entry then wrapped.entry else { };
+      selectedRules = builtins.filter (rule: rule.index == wrapped.index) rules;
+      selectedRuleErrors = builtins.concatMap directoryRuleErrors selectedRules;
+      exclude = if entry ? exclude && builtins.isList entry.exclude then entry.exclude else [ ];
       inventory = walked.files;
       reserved = wrapped.reservedNames;
       uniqueReserved = lib.unique reserved;
@@ -568,9 +583,23 @@ let
     };
 
   expandDirectories =
-    directories: rules: themeEntries:
+    directories: rules: themeEntries: prewalked:
     let
-      expanded = map (directory: expandDirectory directory rules themeEntries) directories;
+      emptyPrewalk = {
+        shapeErrors = [ ];
+        sourceErrors = [ ];
+        walked = {
+          diagnostics = [ ];
+          files = [ ];
+          members = [ ];
+        };
+      };
+      expanded = map (
+        directory:
+        expandDirectory directory rules themeEntries (
+          prewalked.${builtins.toString directory.index} or emptyPrewalk
+        )
+      ) directories;
     in
     {
       errors = builtins.concatMap (result: result.errors) expanded;
@@ -578,11 +607,11 @@ let
     };
 
   validateSelected =
-    files: directories: directoryFileRules: themeEntries:
+    files: directories: directoryFileRules: themeEntries: prewalked:
     let
       themeErrors = themeEntryErrors themeEntries;
       normalizedThemeEntries = if themeErrors == [ ] then map normalizeThemeEntry themeEntries else [ ];
-      expanded = expandDirectories directories directoryFileRules normalizedThemeEntries;
+      expanded = expandDirectories directories directoryFileRules normalizedThemeEntries prewalked;
       errors = fileErrors files ++ themeErrors ++ expanded.errors;
     in
     checked errors {
@@ -610,6 +639,22 @@ let
     || builtins.any (backend: (spec.theme.${backend} or null) != null) themeBackends;
   needsHomeManager = (spec.pkg or null) != null || (spec.imports or [ ]) != [ ];
   homeUnits = [ (specUnit spec) ];
+  # the prepared resolves translate and compose the unit set once per aspect,
+  # then only re-run ctx demand/select/survivors/merge per (host, user) slice.
+  homeResolve = resolvePrepared homeUnits;
+  furnishUnits = [ (furnishUnit spec) ];
+  furnishResolve = resolvePrepared furnishUnits;
+  # one read-only directory walk per declared directory, shared by every user
+  # slice; shape/source errors stay once-per-aspect too.
+  prewalkByIndex = builtins.listToAttrs (
+    lib.imap0 (
+      index: entry:
+      {
+        name = builtins.toString index;
+        value = prewalkDirectory { inherit index entry; };
+      }
+    ) (spec.directories or [ ])
+  );
 in
 lib.optionalAttrs needsHomeManager {
   homeManager =
@@ -621,7 +666,7 @@ lib.optionalAttrs needsHomeManager {
       ...
     }:
     let
-      resolved = (resolve homeUnits) { inherit host user; };
+      resolved = homeResolve { inherit host user; };
     in
     {
       imports = resolved.imports or [ ];
@@ -650,14 +695,35 @@ lib.optionalAttrs needsHomeManager {
       let
         hostName = config.networking.hostName;
         inherit (pkgs.stdenv.hostPlatform) system;
-        resolved = (resolve [ (furnishUnit spec) ]) { inherit host user; };
+        resolved = furnishResolve { inherit host user; };
         selected = validateSelected (resolved.files or [ ]) (resolved.directoryEntries or [ ]
-        ) (resolved.directoryFileRules or [ ]) (resolved.themeEntries or [ ]);
+        ) (resolved.directoryFileRules or [ ]) (resolved.themeEntries or [ ]) prewalkByIndex;
         hostFiles = selected.files ++ selected.directoryFiles ++ themeFiles selected.themeEntries pkgs;
+        principals = filePrincipals {
+          inherit system user;
+          host = hostName;
+        };
+        # theme.dms entries don't become files here: matugen only reads one
+        # config.toml, so every aspect's entries are tagged with the context
+        # this instantiation already has, then merged and written once by
+        # program/theme/dms-runtime.nix.
+        dmsThemeEntries = builtins.filter (entry: entry.renderer == "dms") selected.themeEntries;
+        taggedDmsEntries = builtins.concatMap (
+          principal:
+          map (
+            entry:
+            entry
+            // {
+              inherit principal;
+              filesystemNamespace = "${system}/${hostName}";
+            }
+          ) dmsThemeEntries
+        ) principals;
       in
       {
         imports = [
           ./furnish/runtime.nix
+          ./program/theme/dms-runtime.nix
           {
             assertions = lib.optional (hostFiles != [ ]) {
               assertion = config.lexicon.furnish.declarations != [ ];
@@ -671,12 +737,10 @@ lib.optionalAttrs needsHomeManager {
             # den reaches this slice once per selected user.
             lexicon.furnish.declarations = furnishFiles.mkDeclarations {
               filesystemNamespace = "${system}/${hostName}";
-              principals = filePrincipals {
-                inherit system user;
-                host = hostName;
-              };
+              inherit principals;
               files = hostFiles;
             };
+            lexicon.theme.dms.entries = taggedDmsEntries;
           }
         ]
         ++ lib.optional (spec ? nixos) rawSlice;

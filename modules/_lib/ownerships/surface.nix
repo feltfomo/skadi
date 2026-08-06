@@ -254,6 +254,27 @@ let
       } { children = map translate units; }
     );
 
+  # prepared resolve splits the pipeline at its context boundary: the units are
+  # translated and composed once when they are handed in, and the returned
+  # function runs only the per-ctx tail (ctx demand, select, survivors, merge)
+  # for each context given to it. callers that resolve the same unit set for
+  # many contexts -- program aspects instantiated once per user -- hoist every
+  # ctx-independent phase.
+  mkResolvePrepared =
+    roster:
+    let
+      base = resolveLib.engineArgsFor roster;
+    in
+    units:
+    let
+      prepared = engine.prepare {
+        inherit (base) registry stages;
+        merge = defaultMerge;
+      } { children = map translate units; };
+    in
+    rawCtx:
+    (engine.applyPrepared prepared (axes.contextFor base.registry rawCtx)).value;
+
   # matrix siblings keep config values inside the engine and return only stable
   # snapshot keys, human identity, shallow shape, and selection metadata. a
   # caller can enrich each roster context for predicates that read more than
@@ -378,6 +399,7 @@ in
     mkResolveSystem
     mkResolveTrace
     mkResolveSystemTrace
+    mkResolvePrepared
     mkResolveMatrix
     mkResolveSystemMatrix
     mkResolveStrict

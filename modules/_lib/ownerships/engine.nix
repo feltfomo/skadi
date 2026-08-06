@@ -478,7 +478,7 @@ let
     {
       ctx = ctx';
       inherit survivors;
-      selectionTrace = builtins.seq survivors selection.trace;
+      selectionTrace = selection.trace;
       ctxTrace = ctxObservation.trace;
       survivorTrace = survivorObservation.trace;
     };
@@ -486,11 +486,14 @@ let
   # the fixed order is leaf -> tree -> ctx -> select -> survivors -> strip ->
   # merge. each diagnostic phase aggregates fully before throwing, while a
   # failed earlier phase prevents every later phase from being evaluated.
-  pipeline =
+  # `prepare` covers the ctx-independent half (compose, leaf and tree checks)
+  # and `applyPrepared` the per-ctx tail (ctx demand, select, survivors, strip,
+  # merge). callers resolving one unit set for many contexts -- the program
+  # surface's per-user slices -- build the prepared half once and reuse it.
+  prepare =
     {
       registry,
       merge,
-      ctx,
       stages ? defaultStages,
     }:
     unit:
@@ -503,9 +506,28 @@ let
         leaves = leafChecked;
       };
       treeChecked = treeObservation.value;
+    in
+    {
+      inherit registry merge stages;
+      leaves = treeChecked;
+      leafObservation = removeAttrs leafObservation [ "value" ];
+      treeTrace = treeObservation.trace;
+    };
+
+  applyPrepared =
+    {
+      registry,
+      merge,
+      stages,
+      leaves,
+      leafObservation,
+      treeTrace,
+    }:
+    ctx:
+    let
       selected = selectPrepared {
         inherit registry stages ctx;
-      } treeChecked;
+      } leaves;
       merged = merge (stripForMerge selected.survivors);
     in
     {
@@ -521,7 +543,7 @@ let
       ) (length selected.selectionTrace);
       stageReports = {
         leaf = leafObservation.reports;
-        tree = treeObservation.trace;
+        tree = treeTrace;
         survivors = selected.survivorTrace;
       };
       # kept lazy so a failing trace can expose the exact text its leaf phase
@@ -533,6 +555,7 @@ let
         if diagnostics == [ ] then null else renderDiags diagnostics;
     };
 
+  pipeline = args: unit: applyPrepared (prepare (removeAttrs args [ "ctx" ]) unit) args.ctx;
   resolve = args: unit: (pipeline args unit).value;
   trace = pipeline;
 in
@@ -549,6 +572,8 @@ in
     knownViews
     stageDiagnostics
     selectPrepared
+    prepare
+    applyPrepared
     topClaim
     identifyUnit
     # exported so a golden-error test can assert its exact output against
