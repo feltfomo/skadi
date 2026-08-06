@@ -131,7 +131,7 @@ let
           # per-ctx handle keeps survivor diagnostics lazy behind `.survivors`,
           # so the matrix -- which reads the selection trace, not the merged
           # value -- forces them itself.
-          survivors = selected.survivors;
+          inherit (selected) survivors;
         in
         builtins.seq survivors (
           builtins.genList (

@@ -272,8 +272,7 @@ let
         merge = defaultMerge;
       } { children = map translate units; };
     in
-    rawCtx:
-    (engine.applyPrepared prepared (axes.contextFor base.registry rawCtx)).value;
+    rawCtx: (engine.applyPrepared prepared (axes.contextFor base.registry rawCtx)).value;
 
   # matrix siblings keep config values inside the engine and return only stable
   # snapshot keys, human identity, shallow shape, and selection metadata. a

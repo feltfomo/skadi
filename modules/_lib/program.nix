@@ -647,13 +647,10 @@ let
   # one read-only directory walk per declared directory, shared by every user
   # slice; shape/source errors stay once-per-aspect too.
   prewalkByIndex = builtins.listToAttrs (
-    lib.imap0 (
-      index: entry:
-      {
-        name = builtins.toString index;
-        value = prewalkDirectory { inherit index entry; };
-      }
-    ) (spec.directories or [ ])
+    lib.imap0 (index: entry: {
+      name = builtins.toString index;
+      value = prewalkDirectory { inherit index entry; };
+    }) (spec.directories or [ ])
   );
 in
 lib.optionalAttrs needsHomeManager {

@@ -23,7 +23,9 @@
       # component and silently fails to read/write the template. The
       # DankLinux docs require absolute paths. Each entry already carries
       # its principal, whose managedRoot resolves to the user's home.
-      home = lib.removeSuffix "/" (entry.principal.managedRoot or "/home/${entry.principal.authority.identity}");
+      home = lib.removeSuffix "/" (
+        entry.principal.managedRoot or "/home/${entry.principal.authority.identity}"
+      );
     in
     entry.native
     // {

@@ -258,7 +258,8 @@ let
     # batched provider hands the resolver one unit tree whose leaves carry
     # per-declaration `value.entries` chunks under unique keys, and the merged
     # value unions every leaf's chunk.
-    resolveSystem = units: _ctx:
+    resolveSystem =
+      units: _ctx:
       builtins.foldl' (merged: node: merged // node.value or { }) { } (
         builtins.concatMap (
           unit:

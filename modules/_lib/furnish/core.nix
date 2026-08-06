@@ -191,7 +191,12 @@ let
                         let
                           unit = ownershipUnit declaration;
                         in
-                        unit // { value = { ${"applied${toString index}"} = unit.value.entries; }; }
+                        unit
+                        // {
+                          value = {
+                            ${"applied${toString index}"} = unit.value.entries;
+                          };
+                        }
                       ) indexed;
                     }
                   ] rawCtx;
@@ -204,7 +209,9 @@ let
         selectScope resolveSystem {
           host = ctx.host or null;
         } (builtins.filter (declaration: declaration.authority.scope == "system") declarations)
-        ++ selectScope resolve ctx (builtins.filter (declaration: declaration.authority.scope != "system") declarations);
+        ++ selectScope resolve ctx (
+          builtins.filter (declaration: declaration.authority.scope != "system") declarations
+        );
     };
 
   # off mode has no roster to select against, so an untagged (globally owned)

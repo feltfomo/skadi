@@ -100,8 +100,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     lix = {
-      # the lix head revision is pinned in flake.lock
-      url = "https://git.lix.systems/lix-project/lix/archive/main.tar.gz";
+      # 2026-08-01's da4a2da evaluator corrupted multi-output string contexts.
+      url = "https://git.lix.systems/lix-project/lix/archive/64c99ac9af9c83b66643f46e9c8e50ab9f5e6e58.tar.gz";
       flake = false;
     };
     lix-module = {
@@ -156,7 +156,12 @@
           rootPath = ./.;
           inherit resolve resolveSystem resolvePrepared;
           program = import ./modules/_lib/program.nix {
-            inherit lib resolve resolveSystem resolvePrepared;
+            inherit
+              lib
+              resolve
+              resolveSystem
+              resolvePrepared
+              ;
             inherit (denApi) filePrincipals hostUserNames;
           };
         };
