@@ -700,12 +700,11 @@ lib.optionalAttrs needsHomeManager {
           inherit system user;
           host = hostName;
         };
-        # theme.dms entries don't become files here: matugen only reads one
-        # config.toml, so every aspect's entries are tagged with the context
-        # this instantiation already has, then merged and written once by
-        # program/theme/dms-runtime.nix.
-        dmsThemeEntries = builtins.filter (entry: entry.renderer == "dms") selected.themeEntries;
-        taggedDmsEntries = builtins.concatMap (
+        # Matugen renderers only read one config.toml each, so every aspect's
+        # entries are tagged with this user context and merged once by the
+        # shared runtime before furnish publishes the renderer config.
+        matugenThemeEntries = builtins.filter (entry: entry.runtime == "matugen") selected.themeEntries;
+        taggedMatugenEntries = builtins.concatMap (
           principal:
           map (
             entry:
@@ -714,13 +713,13 @@ lib.optionalAttrs needsHomeManager {
               inherit principal;
               filesystemNamespace = "${system}/${hostName}";
             }
-          ) dmsThemeEntries
+          ) matugenThemeEntries
         ) principals;
       in
       {
         imports = [
           ./furnish/runtime.nix
-          ./program/theme/dms-runtime.nix
+          ./program/theme/matugen-runtime.nix
           {
             assertions = lib.optional (hostFiles != [ ]) {
               assertion = config.lexicon.furnish.declarations != [ ];
@@ -737,7 +736,7 @@ lib.optionalAttrs needsHomeManager {
               inherit principals;
               files = hostFiles;
             };
-            lexicon.theme.dms.entries = taggedDmsEntries;
+            lexicon.theme.matugen.entries = taggedMatugenEntries;
           }
         ]
         ++ lib.optional (spec ? nixos) rawSlice;

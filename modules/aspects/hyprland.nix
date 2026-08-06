@@ -60,6 +60,7 @@ in
           portalPackage =
             inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
         };
+        programs.ydotool.enable = true;
         services.flatpak.enable = true;
 
         # gnome and hyprland each ship a ScreenCast portal
@@ -88,19 +89,23 @@ in
       {
         src = "${rootPath}/configs/hypr";
         dest = ".config/hypr";
-        exclude = [
-          ".luarc.json"
-          "colors.lua"
-        ];
+        exclude = [ ".luarc.json" ];
       }
     ];
     theme = {
       id = "hyprland";
-      renderers.caelestia = {
-        source = "${rootPath}/configs/hypr/caelestia-colors.lua";
-        output = ".config/hypr/colors.lua";
-        placedAs = "colors.lua";
-        reload = "hyprctl reload";
+      renderers = {
+        caelestia = {
+          source = "${rootPath}/configs/hypr/caelestia-colors.lua";
+          output = ".config/hypr/colors.lua";
+          placedAs = "colors.lua";
+          reload = "hyprctl reload";
+        };
+        illogical-impulse = {
+          source = "${rootPath}/configs/hypr/colors.lua";
+          output = ".config/hypr/colors.lua";
+          reload = "hyprctl reload";
+        };
       };
     };
   };

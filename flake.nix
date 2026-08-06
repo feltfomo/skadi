@@ -48,6 +48,10 @@
       url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    illogical-impulse-shell = {
+      url = "git+ssh://git@github.com/feltfomo/illogical-impulse-shell-nix.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     elephant = {
       url = "github:abenz1267/elephant";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -42,6 +42,10 @@
               source = "${rootPath}/configs/firefox/chrome/userChrome.css";
               output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
             };
+            illogical-impulse = {
+              source = "${rootPath}/configs/firefox/chrome/userChrome.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+            };
             caelestia = {
               source = "${rootPath}/configs/firefox/chrome/caelestia-userChrome.css";
               output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
@@ -57,6 +61,10 @@
               output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
             };
             dms = {
+              source = "${rootPath}/configs/firefox/chrome/userContent.css";
+              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+            };
+            illogical-impulse = {
               source = "${rootPath}/configs/firefox/chrome/userContent.css";
               output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
             };

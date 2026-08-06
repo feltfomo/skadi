@@ -45,6 +45,11 @@
           output = ".config/nvim/colors/reactive-palette.lua";
           reload = "find \"$XDG_RUNTIME_DIR\" -maxdepth 1 -type s -name 'nvim.*.0' -exec nvim --server {} --remote-expr 'execute(\"colorscheme reactive\")' \\; >/dev/null";
         };
+        illogical-impulse = {
+          source = "${rootPath}/configs/nvim/colors/illogical-impulse-palette.lua";
+          output = ".config/nvim/colors/reactive-palette.lua";
+          reload = "find \"$XDG_RUNTIME_DIR\" -maxdepth 1 -type s -name 'nvim.*.0' -exec nvim --server {} --remote-expr 'execute(\"colorscheme reactive\")' \\; >/dev/null";
+        };
         caelestia = {
           source = "${rootPath}/configs/nvim/colors/caelestia-palette.lua";
           output = ".config/nvim/colors/reactive-palette.lua";

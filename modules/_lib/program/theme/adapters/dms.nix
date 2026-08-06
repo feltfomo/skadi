@@ -1,6 +1,8 @@
 { lib }:
 {
   acceptsNative = true;
+  runtime = "matugen";
+  configDestination = ".config/matugen/config.toml";
   templateRoot = ".config/matugen/dms/templates";
   templateNameOf = entry: "${entry.subdir}${entry.placedAs}";
   # matugen only ever reads templates registered in the single

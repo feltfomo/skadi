@@ -16,6 +16,7 @@ let
   adapters = {
     caelestia = import ./adapters/caelestia.nix { inherit lib; };
     dms = import ./adapters/dms.nix { inherit lib; };
+    illogical-impulse = import ./adapters/illogical-impulse.nix { inherit lib; };
     noctalia = import ./adapters/noctalia.nix { inherit lib; };
   };
   themeBackends = builtins.attrNames adapters;
@@ -211,6 +212,7 @@ let
       reload = entry.reload or null;
       native = entry.native or { };
       registrationId = if subId == null then blockId else "${blockId}-${subId}";
+      runtime = adapters.${renderer}.runtime or null;
     };
 
   themeGroupFiles =
@@ -255,11 +257,8 @@ let
           ;
       };
 
-  # Some backends (currently: dms/matugen) can't have their template
-  # registrations split across multiple files - matugen only reads one
-  # config.toml, with no include/merge support. For those, every block's
-  # entries are combined and handed to the adapter's aggregateFilesFor once,
-  # instead of being written out per-block.
+  # Backends with their own aggregateFilesFor can lower every selected block
+  # together instead of emitting one registration file per block.
   aggregatedThemeFiles =
     entries: pkgs:
     builtins.concatMap (

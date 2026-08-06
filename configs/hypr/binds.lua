@@ -1,6 +1,6 @@
 local G = require("globals")
 
-local ii_ipc_call = "$HOME/Projects/illogical-impulse-shell-nix/result/bin/illogical-impulse-shell-ipc"
+local ii_ipc_call = "illogical-impulse-shell-ipc"
 
 local function ii_ipc(target, action)
 	return hl.dsp.exec_cmd(ii_ipc_call .. " " .. target .. " " .. action)

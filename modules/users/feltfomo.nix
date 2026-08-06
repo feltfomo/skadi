@@ -5,8 +5,8 @@
       den.batteries.define-user
       den.batteries.primary-user
 
-      # home aspects go on the user: den dropped host->user homeManager
-      # forwarding in v0.13. aspects that also define nixos still reach the host.
+      # den v0.13 dropped host-to-user homeManager forwarding
+      # aspects that also define nixos still reach the host
       shell
       theming
       hyprland
@@ -22,7 +22,7 @@
       firefox
       qt-hm
 
-      # first-boot: clone wallpaper + notion-sync mapping repos if missing
+      # clone wallpaper and notion-sync mapping repos on first boot
       bootstrap-repos
     ];
 
@@ -61,14 +61,14 @@
         users.users.feltfomo = {
           group = "feltfomo";
           # decrypted by sops-nix from secrets/lumi.yaml (khion + lumi).
-          # provision it BEFORE rebuilding or the account has no password --
-          # use `nixos-rebuild test` and confirm login on a fresh tty before
-          # `switch` (see README).
+          # provision it before rebuilding or the account has no password
+          # use `nixos-rebuild test` and confirm login on a fresh tty before switch
           hashedPasswordFile = config.sops.secrets."feltfomo-password".path;
           shell = pkgs.fish;
           extraGroups = [
             "video"
             "docker"
+            "ydotool"
           ];
           # lingering lets the notion-sync user service start at boot, no login needed
           linger = true;
@@ -143,9 +143,8 @@
           };
         };
 
-        # ssh client: a user-service agent auto-loads the key so git pushes work
-        # after a fresh boot with no manual ssh-add. the key lives in ~/.ssh
-        # (persisted above); this only wires the agent and points github at it.
+        # the user agent reloads the persisted key after boot
+        # github uses that agent for git pushes
         services.ssh-agent.enable = true;
         programs.ssh = {
           enable = true;
@@ -196,6 +195,7 @@
           ayugram-desktop
           translate-shell
           opencode-desktop
+          inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.runtime
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           (prismlauncher.override {
