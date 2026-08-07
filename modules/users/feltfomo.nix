@@ -183,6 +183,7 @@
           superfile
           librewolf
           tesseract
+          alejandra
           proton-vpn
           winetricks
           hyprpicker
