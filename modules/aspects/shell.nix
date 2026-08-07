@@ -1,33 +1,24 @@
+{ den, ... }:
 {
-  den.aspects.shell.homeManager =
-    { pkgs, ... }:
-    {
-      programs.fish = {
-        enable = true;
+  den.aspects.shell = {
+    includes = with den.aspects; [
+      fish
+    ];
 
-        interactiveShellInit = ''
-          set -g fish_greeting
-          fastfetch
-        '';
-
-        shellAliases = {
-          ls = "eza --icons=always";
-          ln = "eza --icons=always --long";
-          lt = "eza --icons=always --tree";
-          ltn = "eza --icons=always --tree -long";
+    homeManager =
+      { pkgs, ... }:
+      {
+        programs.nix-your-shell = {
+          enable = true;
+          enableFishIntegration = true;
+          nix-output-monitor.enable = true;
         };
-      };
 
-      programs.nix-your-shell = {
-        enable = true;
-        enableFishIntegration = true;
-        nix-output-monitor.enable = true;
+        home.packages = with pkgs; [
+          fd
+          eza
+          ripgrep
+        ];
       };
-
-      home.packages = with pkgs; [
-        fd
-        eza
-        ripgrep
-      ];
-    };
+  };
 }
