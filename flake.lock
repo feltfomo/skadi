@@ -755,15 +755,15 @@
       "locked": {
         "lastModified": 1786046749,
         "narHash": "sha256-TToDELLdFsr2N7DPOm8g0A822LnWVe3fOipDsuF3d2Y=",
-        "ref": "refs/heads/main",
+        "owner": "feltfomo",
+        "repo": "illogical-impulse-shell-nix",
         "rev": "ed6488c5c9e00fb3fc69f9cb2fd2b0df0e90cf7f",
-        "revCount": 5,
-        "type": "git",
-        "url": "ssh://git@github.com/feltfomo/illogical-impulse-shell-nix.git"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/feltfomo/illogical-impulse-shell-nix.git"
+        "owner": "feltfomo",
+        "repo": "illogical-impulse-shell-nix",
+        "type": "github"
       }
     },
     "impermanence": {

@@ -49,7 +49,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     illogical-impulse-shell = {
-      url = "git+ssh://git@github.com/feltfomo/illogical-impulse-shell-nix.git";
+      url = "github:feltfomo/illogical-impulse-shell-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     elephant = {
