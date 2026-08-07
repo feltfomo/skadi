@@ -4,7 +4,7 @@ if vim.fn.exists("syntax_on") then
 end
 vim.g.colors_name = "reactive"
 
-local p = dofile(vim.fn.stdpath("config") .. "/colors/reactive-palette.lua")
+local p = dofile(vim.fn.stdpath("config") .. "/lua/reactive/palette.lua")
 
 local function hl(group, opts)
 	vim.api.nvim_set_hl(0, group, opts)
