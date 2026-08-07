@@ -196,6 +196,7 @@
           translate-shell
           opencode-desktop
           inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.runtime
+          inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.end4-pc-runtime
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           (prismlauncher.override {

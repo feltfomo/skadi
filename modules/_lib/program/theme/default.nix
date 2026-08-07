@@ -16,6 +16,7 @@ let
   adapters = {
     caelestia = import ./adapters/caelestia.nix { inherit lib; };
     dms = import ./adapters/dms.nix { inherit lib; };
+    end4-pc = import ./adapters/end4-pc.nix { inherit lib; };
     illogical-impulse = import ./adapters/illogical-impulse.nix { inherit lib; };
     noctalia = import ./adapters/noctalia.nix { inherit lib; };
   };

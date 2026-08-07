@@ -20,6 +20,11 @@
           output = ".config/zed/themes/skadi.json";
           reload = "zed --unstable-features theme-reload";
         };
+        end4-pc = {
+          source = "${rootPath}/configs/zed/themes/skadi.json";
+          output = ".config/zed/themes/skadi.json";
+          reload = "zed --unstable-features theme-reload";
+        };
         caelestia = {
           source = "${rootPath}/configs/zed/themes/caelestia.json";
           output = ".config/zed/themes/skadi.json";

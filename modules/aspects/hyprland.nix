@@ -106,6 +106,11 @@ in
           output = ".config/hypr/colors.lua";
           reload = "hyprctl reload";
         };
+        end4-pc = {
+          source = "${rootPath}/configs/hypr/colors.lua";
+          output = ".config/hypr/colors.lua";
+          reload = "hyprctl reload";
+        };
       };
     };
   };

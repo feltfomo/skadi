@@ -175,6 +175,22 @@
         "type": "github"
       }
     },
+    "end4Pc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1786083179,
+        "narHash": "sha256-k7OEnSJF2jgf+RqayiGCUGWO/eUFED1yupq22DlhFkw=",
+        "owner": "pctrade",
+        "repo": "end4-pC",
+        "rev": "f334b97c3d2dc6409d2131b63473dc58f8f2a229",
+        "type": "github"
+      },
+      "original": {
+        "owner": "pctrade",
+        "repo": "end4-pC",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -743,6 +759,7 @@
     },
     "illogical-impulse-shell": {
       "inputs": {
+        "end4Pc": "end4Pc",
         "googleSansFlex": "googleSansFlex",
         "nixpkgs": [
           "nixpkgs"
@@ -753,11 +770,11 @@
         "upstream": "upstream"
       },
       "locked": {
-        "lastModified": 1786046749,
-        "narHash": "sha256-TToDELLdFsr2N7DPOm8g0A822LnWVe3fOipDsuF3d2Y=",
+        "lastModified": 1786129339,
+        "narHash": "sha256-6Ke3GSxl4SMoWYifhxb9Fff7vWR0Um/yyUS33ndpcnQ=",
         "owner": "feltfomo",
         "repo": "illogical-impulse-shell-nix",
-        "rev": "ed6488c5c9e00fb3fc69f9cb2fd2b0df0e90cf7f",
+        "rev": "bf73bc0a3b1bf08c013daccaeba10bcccd7ebfb6",
         "type": "github"
       },
       "original": {

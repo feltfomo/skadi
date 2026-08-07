@@ -14,6 +14,7 @@ let
   inherit (import ../report.nix { inherit lib; }) problem reporter duplicateValues;
   adapters = {
     dms = import ./adapters/dms.nix { inherit lib; };
+    end4-pc = import ./adapters/end4-pc.nix { inherit lib; };
     illogical-impulse = import ./adapters/illogical-impulse.nix { inherit lib; };
   };
   cfg = config.lexicon.theme.matugen;

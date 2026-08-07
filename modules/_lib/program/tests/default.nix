@@ -167,6 +167,18 @@ let
     declarationsOf illogicalImpulseOnly
   );
 
+  end4PcOnly = program {
+    theme = {
+      id = "end4-pc-example";
+      renderers.end4-pc = {
+        source = ../../program.nix;
+        output = ".config/example/end4-pc.conf";
+        native.compare_to = "dark";
+      };
+    };
+  };
+  end4PcDestinations = map (declaration: declaration.destination) (declarationsOf end4PcOnly);
+
   caelestiaOnly = program {
     theme = {
       id = "caelestia-example";
@@ -234,6 +246,10 @@ let
           output = ".config/example/shared.conf";
         };
         illogical-impulse = {
+          source = ../../program.nix;
+          output = ".config/example/shared.conf";
+        };
+        end4-pc = {
           source = ../../program.nix;
           output = ".config/example/shared.conf";
         };
@@ -481,6 +497,7 @@ rec {
         destination: lib.hasPrefix ".config/matugen/dms/configs/" destination
       ) dmsDestinations);
     illogical-impulse-templates-lower-to-independent-fragments = builtins.elem ".config/illogical-impulse/matugen/templates/illogical-impulse-example/program.nix" illogicalImpulseDestinations;
+    end4-pc-templates-lower-to-independent-fragments = builtins.elem ".config/end4-pc/matugen/templates/end4-pc-example/program.nix" end4PcDestinations;
     caelestia-templates-lower-to-state-publishers =
       builtins.elem ".config/caelestia/templates/caelestia-example-program.nix" caelestiaDestinations
       && builtins.elem ".config/caelestia/theme-hooks/caelestia-example" caelestiaDestinations;
@@ -499,6 +516,7 @@ rec {
       && builtins.elem ".config/noctalia/shared.toml" dualThemeDestinations
       && builtins.elem ".config/matugen/dms/templates/shared/program.nix" dualThemeDestinations
       && builtins.elem ".config/illogical-impulse/matugen/templates/shared/program.nix" dualThemeDestinations
+      && builtins.elem ".config/end4-pc/matugen/templates/shared/program.nix" dualThemeDestinations
       && builtins.elem ".config/caelestia/templates/shared-program.nix" dualThemeDestinations
       && builtins.elem ".config/caelestia/theme-hooks/shared" dualThemeDestinations
       && !(builtins.any (
