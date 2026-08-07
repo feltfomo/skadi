@@ -64,14 +64,14 @@ _: {
           liberation_ttf
           inter
           fira-code
-          maple-mono.variable
+          maple-mono.NF
           nerd-fonts.jetbrains-mono
           nerd-fonts.symbols-only
         ];
         fontconfig.defaultFonts = {
           serif = [ "Maple Mono" ];
           sansSerif = [ "Maple Mono" ];
-          monospace = [ "Maple Mono" ];
+          monospace = [ "Maple Mono NF" ];
         };
       };
 

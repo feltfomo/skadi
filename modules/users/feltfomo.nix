@@ -22,6 +22,7 @@
       firefox
       qt-hm
       zed
+      fastfetch
 
       # clone wallpaper and notion-sync mapping repos on first boot
       bootstrap-repos
@@ -181,7 +182,6 @@
           grimblast
           superfile
           librewolf
-          fastfetch
           tesseract
           proton-vpn
           winetricks
