@@ -17,6 +17,26 @@ let
   engine = import ./engine.nix { inherit lib; };
   krisis = import ../krisis { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
+
+  unitProblem = krisis.mkDiagnosticFactory {
+    severity = "error";
+    codePrefix = "ownerships";
+  };
+
+  failUnit =
+    diagnostic:
+    krisis.throwDiagnostics {
+      diagnostics = [ diagnostic ];
+      formatDiagnostic = krisis.renderPlain;
+    };
+
+  # a missing or non-string label is usually what the error is about, so it
+  # can't name the unit.
+  labelOf =
+    unit:
+    lib.optionalAttrs (builtins.isAttrs unit && unit ? label && builtins.isString unit.label) {
+      primary.label = unit.label;
+    };
   descriptorSet = axes.compileDescriptors (
     if descriptors == null then axes.descriptors else descriptors
   );
@@ -55,7 +75,10 @@ let
   checkShape =
     unit:
     if !builtins.isAttrs unit then
-      throw "ownerships: a unit must be an attribute set; got ${builtins.typeOf unit}"
+      failUnit (unitProblem {
+        code = "unit-shape";
+        message = "a unit must be an attribute set; got ${builtins.typeOf unit}";
+      })
     else
       let
         checkedClaims = axes.validateUnitWith descriptorSet.authorKeys unit;
@@ -73,15 +96,50 @@ let
       in
       builtins.seq checkedClaims (
         if badChildren then
-          throw "ownerships: 'children' must be a list of unit attribute sets"
+          failUnit (
+            unitProblem (
+              {
+                code = "unit-children";
+                message = "'children' must be a list of unit attribute sets";
+              }
+              // labelOf unit
+            )
+          )
         else if badValue then
-          throw "ownerships: 'value' must be an attribute set; got ${builtins.typeOf unit.value}"
+          failUnit (
+            unitProblem (
+              {
+                code = "unit-value";
+                message = "'value' must be an attribute set; got ${builtins.typeOf unit.value}";
+              }
+              // labelOf unit
+            )
+          )
         else if badLabel then
-          throw "ownerships: 'label' must be a plain string; got ${builtins.typeOf unit.label}"
+          failUnit (unitProblem {
+            code = "unit-label";
+            message = "'label' must be a plain string; got ${builtins.typeOf unit.label}";
+          })
         else if badSource then
-          throw "ownerships: 'source' must be a plain string; got ${builtins.typeOf unit.source}"
+          failUnit (
+            unitProblem (
+              {
+                code = "unit-source";
+                message = "'source' must be a plain string; got ${builtins.typeOf unit.source}";
+              }
+              // labelOf unit
+            )
+          )
         else if badMixed then
-          throw "ownerships: a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it"
+          failUnit (
+            unitProblem (
+              {
+                code = "unit-mixed-value";
+                message = "a unit cannot mix a 'value' block with inline config keys (${lib.concatStringsSep ", " (builtins.attrNames leftover)}) -- route everything through 'value' or drop it";
+              }
+              // labelOf unit
+            )
+          )
         else
           unit
       );
@@ -102,19 +160,28 @@ let
         if profileNames == null || !(checked ? mergeProfile) then
           checked
         else if !builtins.isString checked.mergeProfile then
-          throw "ownerships: 'mergeProfile' must be a plain string; got ${builtins.typeOf checked.mergeProfile}"
+          failUnit (unitProblem {
+            code = "unit-merge-profile";
+            message = "'mergeProfile' must be a plain string; got ${builtins.typeOf checked.mergeProfile}";
+          })
         else if !(builtins.elem checked.mergeProfile profileNames) then
-          throw "ownerships: unknown merge profile '${checked.mergeProfile}'"
+          failUnit (
+            unitProblem (
+              {
+                code = "unit-merge-profile-unknown";
+                message = "unknown merge profile '${checked.mergeProfile}'";
+              }
+              // labelOf checked
+            )
+          )
         else
           checked;
       payload = profileChecked.value or (removeAttrs profileChecked reserved);
-      unitIdentity =
-        if profileChecked ? label then
-          "unit '${profileChecked.label}'"
-        else if profileChecked ? source then
-          "unit at ${profileChecked.source}"
-        else
-          "unlabeled unit";
+      unitIdentity = engine.identifyUnit {
+        unit = profileChecked;
+        label = profileChecked.label or null;
+        source = profileChecked.source or null;
+      };
       contextualProfile = builtins.foldl' (
         result: key:
         if result ? ${key} && builtins.isFunction result.${key} then
@@ -142,9 +209,10 @@ let
       );
       valid = builtins.deepSeq claim (
         if payload == { } && children == [ ] && carriesDeclaration then
-          throw "ownerships: ${
-            if profileChecked ? label then "unit '${profileChecked.label}'" else "a metadata-only unit"
-          } has ownership metadata but no config or children"
+          failUnit (unitProblem {
+            code = "unit-metadata-only";
+            message = "${unitIdentity} has ownership metadata but no config or children";
+          })
         else
           true
       );

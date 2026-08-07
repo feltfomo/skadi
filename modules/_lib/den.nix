@@ -8,6 +8,8 @@
   lib,
 }:
 let
+  krisis = import ./krisis { inherit lib; };
+
   ownershipAxes = import ./ownerships/axes.nix { inherit lib; };
   ownershipRoster = import ./ownerships/roster.nix {
     inherit lib;
@@ -44,9 +46,17 @@ let
         if unmatched == [ ] then
           names
         else
-          throw "den: --drop ${
-            lib.concatMapStringsSep ", " quote unmatched
-          } matched no top-level aspect (have: ${lib.concatStringsSep ", " have})";
+          krisis.throwDiagnostics {
+            diagnostics = [
+              (krisis.mkDiagnostic {
+                severity = "error";
+                code = "den/drop-no-match";
+                message = "--drop ${lib.concatMapStringsSep ", " quote unmatched} matched no top-level aspect";
+                help = "available top-level aspects: ${lib.concatStringsSep ", " have}";
+              })
+            ];
+            formatDiagnostic = krisis.renderPlain;
+          };
       dropSet = lib.genAttrs checked (_: true);
       keep =
         a:
@@ -82,7 +92,7 @@ let
         # throw). wrapping the transform -- not instantiate -- makes it fire: the
         # throw is forced when this list is forced to WHNF, while instantiate's
         # result is a lazy attrset the throw would escape.
-        includes = builtins.addErrorContext "while building install target for host ${host}" (
+        includes = krisis.withErrorContext "while building install target for host ${host}" (
           transformIncludes includes
         );
       };

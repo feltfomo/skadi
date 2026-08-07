@@ -13,7 +13,20 @@ let
     foldl'
     ;
 
-  inherit (import ../krisis { inherit lib; }) safeRender;
+  krisis = import ../krisis { inherit lib; };
+  inherit (krisis) safeRender;
+
+  mergeProblem = krisis.mkDiagnosticFactory {
+    severity = "error";
+    codePrefix = "ownerships/merge";
+  };
+
+  failMerge =
+    diagnostic:
+    krisis.throwDiagnostics {
+      diagnostics = [ diagnostic ];
+      formatDiagnostic = krisis.renderPlain;
+    };
 
   shownPath = path: if path == "" then "<root>" else path;
   contributorIdentities =
@@ -21,11 +34,11 @@ let
 
   renderConflict =
     path: contributors:
-    "ownerships: conflict at ${shownPath path}: co-owners ${lib.concatStringsSep ", " (contributorIdentities contributors)} set differing values";
+    "conflict at ${shownPath path}: co-owners ${lib.concatStringsSep ", " (contributorIdentities contributors)} set differing values";
 
   renderLockViolation =
     path: contributor:
-    "ownerships: single-writer lock violation at ${shownPath path}: foreign contributor ${safeRender contributor.identity}";
+    "single-writer lock violation at ${shownPath path}: foreign contributor ${safeRender contributor.identity}";
 
   isDerivation = value: isAttrs value && (value.type or null) == "derivation";
   mergeAttrs = value: isAttrs value && !isDerivation value;
@@ -45,7 +58,10 @@ let
     if terminalEqual a.value b.value then
       a.value
     else
-      throw (renderConflict path (a.contributors ++ b.contributors));
+      failMerge (mergeProblem {
+        code = "conflict";
+        message = renderConflict path (a.contributors ++ b.contributors);
+      });
 
   takeRightScalar =
     _path: _a: b:
@@ -87,23 +103,43 @@ let
       profileNamed =
         path: name:
         if !builtins.isString name then
-          throw "ownerships: merge profile name at ${shownPath path} must be a string; got ${builtins.typeOf name}"
+          failMerge (mergeProblem {
+            code = "profile-name-type";
+            message = "merge profile name at ${shownPath path} must be a string; got ${builtins.typeOf name}";
+          })
         else
           let
             profile =
-              profiles.${name}
-                or (throw "ownerships: unknown merge profile ${safeRender name} at ${shownPath path}");
+              profiles.${name} or (failMerge (mergeProblem {
+                code = "profile-unknown";
+                message = "unknown merge profile ${safeRender name} at ${shownPath path}";
+              }));
           in
           if !builtins.isAttrs profile then
-            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} must be an attribute set"
+            failMerge (mergeProblem {
+              code = "profile-shape";
+              message = "merge profile ${safeRender name} at ${shownPath path} must be an attribute set";
+            })
           else if !(profile ? listStrategy) || !builtins.isString profile.listStrategy then
-            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} must name a list strategy"
+            failMerge (mergeProblem {
+              code = "profile-list-strategy";
+              message = "merge profile ${safeRender name} at ${shownPath path} must name a list strategy";
+            })
           else if !(strategies ? ${profile.listStrategy}) then
-            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} names unknown list strategy ${safeRender profile.listStrategy}"
+            failMerge (mergeProblem {
+              code = "profile-list-strategy-unknown";
+              message = "merge profile ${safeRender name} at ${shownPath path} names unknown list strategy ${safeRender profile.listStrategy}";
+            })
           else if !builtins.isFunction strategies.${profile.listStrategy} then
-            throw "ownerships: list strategy ${safeRender profile.listStrategy} must be a function"
+            failMerge (mergeProblem {
+              code = "list-strategy-type";
+              message = "list strategy ${safeRender profile.listStrategy} must be a function";
+            })
           else if !(profile ? scalarPolicy) || !builtins.isFunction profile.scalarPolicy then
-            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} must provide a scalar policy function"
+            failMerge (mergeProblem {
+              code = "profile-scalar-policy";
+              message = "merge profile ${safeRender name} at ${shownPath path} must provide a scalar policy function";
+            })
           else if
             !(profile ? attrsetTreatment)
             || !builtins.isString profile.attrsetTreatment
@@ -112,7 +148,10 @@ let
               "take-right"
             ])
           then
-            throw "ownerships: merge profile ${safeRender name} at ${shownPath path} has an unknown attrset treatment"
+            failMerge (mergeProblem {
+              code = "profile-attrset-treatment";
+              message = "merge profile ${safeRender name} at ${shownPath path} has an unknown attrset treatment";
+            })
           else
             profile;
 
@@ -150,7 +189,7 @@ let
 
       renderProfileDisagreement =
         path: decision: contributors:
-        "ownerships: merge profile disagreement at ${shownPath path}: contributors ${lib.concatStringsSep ", " (contributorIdentities contributors)} selected incompatible unit profiles ${safeRender decision.unitProfiles}";
+        "merge profile disagreement at ${shownPath path}: contributors ${lib.concatStringsSep ", " (contributorIdentities contributors)} selected incompatible unit profiles ${safeRender decision.unitProfiles}";
 
       authorize =
         path: contributors:
@@ -162,7 +201,13 @@ let
             else
               builtins.filter (contributor: !(predicate contributor)) contributors;
         in
-        if foreign == [ ] then true else throw (renderLockViolation path (head foreign));
+        if foreign == [ ] then
+          true
+        else
+          failMerge (mergeProblem {
+            code = "lock-violation";
+            message = renderLockViolation path (head foreign);
+          });
 
       # a branch written by only one input still needs a lazy provenance subtree.
       # with no lockFor argument its value is returned untouched and the subtree
@@ -216,12 +261,18 @@ let
           decision = if profilingEnabled then profileDecision path contributors else null;
           listProfile =
             if decision.unitDisagreement then
-              throw (renderProfileDisagreement path decision contributors)
+              failMerge (mergeProblem {
+                code = "profile-disagreement";
+                message = renderProfileDisagreement path decision contributors;
+              })
             else
               decision.profile;
           scalarProfile =
             if decision.unitExplicitDisagreement then
-              throw (renderProfileDisagreement path decision contributors)
+              failMerge (mergeProblem {
+                code = "profile-disagreement";
+                message = renderProfileDisagreement path decision contributors;
+              })
             else
               decision.profile;
           attrKeysOverlap = builtins.any (key: b.value ? ${key}) (builtins.attrNames a.value);
@@ -289,18 +340,28 @@ let
                   "take-right"
                 ]
               then
-                throw "ownerships: unknown attrset treatment ${safeRender decision.profile.attrsetTreatment} in merge profile ${safeRender decision.name}"
+                failMerge (mergeProblem {
+                  code = "attrset-treatment-unknown";
+                  message = "unknown attrset treatment ${safeRender decision.profile.attrsetTreatment} in merge profile ${safeRender decision.name}";
+                })
               else
                 deepMerge
             else if isList a.value && isList b.value then
               let
                 name = if profilingEnabled then listProfile.listStrategy else listStrategyFor path;
-                strategy = strategies.${name} or (throw "ownerships: no merge strategy '${name}' (at ${path})");
+                strategy =
+                  strategies.${name} or (failMerge (mergeProblem {
+                    code = "strategy-unknown";
+                    message = "no merge strategy '${name}' (at ${path})";
+                  }));
                 checkedStrategy =
                   if builtins.isFunction strategy then
                     strategy
                   else
-                    throw "ownerships: merge strategy '${name}' at ${shownPath path} must be a function";
+                    failMerge (mergeProblem {
+                      code = "strategy-type";
+                      message = "merge strategy '${name}' at ${shownPath path} must be a function";
+                    });
               in
               {
                 value = checkedStrategy a.value b.value;

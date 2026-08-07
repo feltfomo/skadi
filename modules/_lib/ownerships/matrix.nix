@@ -60,7 +60,7 @@ let
       ) (indexedLeaves leaves);
       otherDiagnostics = builtins.concatMap (entry: entry.other) entries;
     in
-    if otherDiagnostics == [ ] then entries else throw (engine.renderDiags otherDiagnostics);
+    if otherDiagnostics == [ ] then entries else engine.throwDiags otherDiagnostics;
 
   mkUserContexts =
     {
@@ -117,7 +117,7 @@ let
         if treeDiagnostics == [ ] then
           map (entry: entry.leaf) liveEntries
         else
-          throw (engine.renderDiags treeDiagnostics);
+          engine.throwDiags treeDiagnostics;
 
       selectionFor =
         context:

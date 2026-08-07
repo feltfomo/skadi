@@ -4,24 +4,19 @@
   pkgs,
   ...
 }:
-# Aggregates every Matugen-backed aspect's template entries into one config
-# per renderer and principal. Matugen has no include or merge mechanism, so a
+# aggregates every matugen-backed aspect's template entries into one config
+# per renderer and principal. matugen has no include or merge mechanism, so a
 # renderer's independent program declarations must converge before furnish
 # publishes its config.toml.
 let
   contract = import ../../furnish/contract.nix { inherit lib; };
   furnishFiles = import ../../furnish/files.nix { inherit lib contract; };
+  inherit (import ../report.nix { inherit lib; }) problem reporter duplicateValues;
   adapters = {
     dms = import ./adapters/dms.nix { inherit lib; };
     illogical-impulse = import ./adapters/illogical-impulse.nix { inherit lib; };
   };
   cfg = config.lexicon.theme.matugen;
-
-  duplicateValues =
-    values:
-    builtins.attrNames (
-      lib.filterAttrs (_: group: builtins.length group > 1) (builtins.groupBy (value: value) values)
-    );
 
   groupKey =
     entry:
@@ -37,7 +32,13 @@ let
       dupIds = duplicateValues ids;
     in
     if dupIds != [ ] then
-      throw "theme.${first.renderer} has duplicate registration ids for ${first.filesystemNamespace} (${first.principal.authority.identity}): ${lib.concatStringsSep ", " dupIds}"
+      reporter.fail [
+        (problem {
+          code = "theme-registration-duplicate";
+          message = "has duplicate registration ids for ${first.filesystemNamespace} (${first.principal.authority.identity}): ${lib.concatStringsSep ", " dupIds}";
+          primary.label = "theme.${first.renderer}";
+        })
+      ]
     else
       furnishFiles.mkDeclarations {
         inherit (first) filesystemNamespace;

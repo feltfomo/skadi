@@ -579,6 +579,7 @@ in
     # exported so a golden-error test can assert its exact output against
     # crafted diagnostics while trace identity uses the same helper.
     renderDiags
+    throwDiags
     ;
   check = runLeafStages;
   select = runSelect;

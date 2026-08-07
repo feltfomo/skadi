@@ -269,13 +269,13 @@ let
       name = "role system-scope message is pinned";
       pass =
         roleDescriptor.scopeError "system" "roles" [ "desktop" ]
-        == "ownerships: a system-scope unit sets 'roles' = [ \"desktop\" ] -- this ownership axis is unavailable in system scope";
+        == "ownerships: a system-scope unit sets 'roles' = [\"desktop\"] -- this ownership axis is unavailable in system scope";
     }
     {
       name = "user system-scope message remains byte-identical";
       pass =
         userDescriptor.scopeError "system" "users" [ "feltfomo" ]
-        == "ownerships: a system-scope (host-only) unit sets 'users' = [ \"feltfomo\" ] -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope.";
+        == "ownerships: a system-scope (host-only) unit sets 'users' = [\"feltfomo\"] -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope.";
     }
     {
       name = "descriptor registration rejects malformed, duplicate-name, duplicate-key, and duplicate-order entries";

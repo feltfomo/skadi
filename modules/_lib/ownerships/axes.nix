@@ -6,6 +6,20 @@
 # relations extend data here instead of branching the translator or resolver.
 { lib }:
 let
+  krisis = import ../krisis { inherit lib; };
+
+  axisProblem = krisis.mkDiagnosticFactory {
+    severity = "error";
+    codePrefix = "ownerships";
+  };
+
+  failAxis =
+    diagnostic:
+    krisis.throwDiagnostics {
+      diagnostics = [ diagnostic ];
+      formatDiagnostic = krisis.renderPlain;
+    };
+
   inherit (builtins) elem filter;
 
   mk = tag: set: { inherit tag set; };
@@ -131,7 +145,10 @@ let
   polarityFor =
     unit: positive: negative:
     if unit ? ${positive} && unit ? ${negative} then
-      throw "ownerships: a unit cannot set both '${positive}' and '${negative}' -- pick the set or its complement"
+      failAxis (axisProblem {
+        code = "claim-polarity";
+        message = "a unit cannot set both '${positive}' and '${negative}' -- pick the set or its complement";
+      })
     else if unit ? ${positive} then
       include unit.${positive}
     else if unit ? ${negative} then
@@ -141,9 +158,7 @@ let
 
   defaultScopeError =
     scope: key: value:
-    "ownerships: a ${scope}-scope unit sets '${key}' = ${
-      lib.generators.toPretty { multiline = false; } value
-    } -- this ownership axis is unavailable in ${scope} scope";
+    "ownerships: a ${scope}-scope unit sets '${key}' = ${krisis.safeRender value} -- this ownership axis is unavailable in ${scope} scope";
 
   mkSetDescriptor =
     {
@@ -354,9 +369,15 @@ let
               matches = roster.aliases.host.${name} or [ ];
             in
             if matches == [ ] then
-              throw "ownerships: user roster references unknown host '${name}'"
+              failAxis (axisProblem {
+                code = "roster-unknown-host";
+                message = "user roster references unknown host '${name}'";
+              })
             else if builtins.length matches > 1 then
-              throw "ownerships: user roster host alias '${name}' is ambiguous; use a canonical system/name"
+              failAxis (axisProblem {
+                code = "roster-ambiguous-host";
+                message = "user roster host alias '${name}' is ambiguous; use a canonical system/name";
+              })
             else
               matches;
         canonHosts = u: if u.hosts == null then null else builtins.concatMap resolveHost u.hosts;
@@ -397,9 +418,7 @@ let
   userScopeError =
     scope: key: value:
     if scope == "system" then
-      "ownerships: a system-scope (host-only) unit sets '${key}' = ${
-        lib.generators.toPretty { multiline = false; } value
-      } -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope."
+      "ownerships: a system-scope (host-only) unit sets '${key}' = ${krisis.safeRender value} -- a host-only slice binds no user, so it cannot narrow on users. drop the user claim or resolve this unit at user scope."
     else
       defaultScopeError scope key value;
 
@@ -494,13 +513,25 @@ let
       duplicateOrders = duplicates (map (key: key.order) keys);
     in
     if malformed != [ ] then
-      throw "ownerships: malformed axis descriptor registration"
+      failAxis (axisProblem {
+        code = "descriptor-malformed";
+        message = "malformed axis descriptor registration";
+      })
     else if duplicateNames != [ ] then
-      throw "ownerships: duplicate axis descriptor names ${lib.concatStringsSep ", " duplicateNames}"
+      failAxis (axisProblem {
+        code = "descriptor-duplicate-name";
+        message = "duplicate axis descriptor names ${lib.concatStringsSep ", " duplicateNames}";
+      })
     else if duplicateKeys != [ ] then
-      throw "ownerships: duplicate ownership author keys ${lib.concatStringsSep ", " duplicateKeys}"
+      failAxis (axisProblem {
+        code = "descriptor-duplicate-key";
+        message = "duplicate ownership author keys ${lib.concatStringsSep ", " duplicateKeys}";
+      })
     else if duplicateOrders != [ ] then
-      throw "ownerships: duplicate ownership author-key orders ${lib.concatStringsSep ", " (map toString duplicateOrders)}"
+      failAxis (axisProblem {
+        code = "descriptor-duplicate-order";
+        message = "duplicate ownership author-key orders ${lib.concatStringsSep ", " (map toString duplicateOrders)}";
+      })
     else
       axisDescriptors;
 
@@ -540,11 +571,20 @@ let
       );
     in
     if malformed != [ ] then
-      throw "ownerships: malformed relation registration"
+      failAxis (axisProblem {
+        code = "relation-malformed";
+        message = "malformed relation registration";
+      })
     else if duplicateNames != [ ] then
-      throw "ownerships: duplicate relation names ${lib.concatStringsSep ", " duplicateNames}"
+      failAxis (axisProblem {
+        code = "relation-duplicate-name";
+        message = "duplicate relation names ${lib.concatStringsSep ", " duplicateNames}";
+      })
     else if unknownAxes != [ ] then
-      throw "ownerships: relation registrations reference unknown axes ${lib.concatStringsSep ", " unknownAxes}"
+      failAxis (axisProblem {
+        code = "relation-unknown-axis";
+        message = "relation registrations reference unknown axes ${lib.concatStringsSep ", " unknownAxes}";
+      })
     else
       relationRegistrations;
 

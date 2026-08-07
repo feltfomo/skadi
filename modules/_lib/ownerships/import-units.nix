@@ -1,9 +1,23 @@
 # _lib/ownerships/import-units.nix
 #
-# deterministic standalone unit discovery. Files remain ordinary ownership
+# deterministic standalone unit discovery. files remain ordinary ownership
 # units; this module only finds, imports, normalizes, and groups them.
 { lib }:
 let
+  krisis = import ../krisis { inherit lib; };
+
+  importProblem = krisis.mkDiagnosticFactory {
+    severity = "error";
+    codePrefix = "ownerships/import";
+  };
+
+  failImport =
+    diagnostic:
+    krisis.throwDiagnostics {
+      diagnostics = [ diagnostic ];
+      formatDiagnostic = krisis.renderPlain;
+    };
+
   joinRelative = prefix: name: if prefix == "" then name else "${prefix}/${name}";
   childPath = directory: name: directory + "/${name}";
   shown = path: "'${path}'";
@@ -28,14 +42,17 @@ let
           relative = nextRelative;
         }
       else
-        throw "ownerships: cannot import ${shown nextRelative}: filesystem entry type ${shown kind} is not a regular file or directory"
+        failImport (importProblem {
+          code = "entry-kind";
+          message = "cannot import ${shown nextRelative}: filesystem entry type ${shown kind} is not a regular file or directory";
+        })
     ) (builtins.attrNames entries);
 
   orderedFiles = directory: builtins.sort (a: b: a.relative < b.relative) (discover "" directory);
 
   normalizeFile =
     args: file:
-    builtins.addErrorContext "while importing ownership units from ${shown file.relative}" (
+    krisis.withErrorContext "while importing ownership units from ${shown file.relative}" (
       let
         imported = import file.path;
         result = if builtins.isFunction imported then imported args else imported;
@@ -45,7 +62,10 @@ let
       if invalid == [ ] then
         units
       else
-        throw "ownerships: imported unit file ${shown file.relative} must return an attribute set or a list of attribute sets; found ${builtins.typeOf (builtins.head invalid)}"
+        failImport (importProblem {
+          code = "unit-shape";
+          message = "imported unit file ${shown file.relative} must return an attribute set or a list of attribute sets; found ${builtins.typeOf (builtins.head invalid)}";
+        })
     );
 
   importUnits =
@@ -54,7 +74,10 @@ let
       args ? { },
     }:
     if !builtins.isAttrs args then
-      throw "ownerships: importUnits args must be an attribute set; got ${builtins.typeOf args}"
+      failImport (importProblem {
+        code = "args-shape";
+        message = "importUnits args must be an attribute set; got ${builtins.typeOf args}";
+      })
     else
       builtins.concatLists (map (normalizeFile args) (orderedFiles dir));
 
@@ -97,29 +120,47 @@ let
         };
     in
     if !builtins.isAttrs args then
-      throw "ownerships: importUnitSets args must be an attribute set; got ${builtins.typeOf args}"
+      failImport (importProblem {
+        code = "args-shape";
+        message = "importUnitSets args must be an attribute set; got ${builtins.typeOf args}";
+      })
     else if wrongCollectionKinds != [ ] then
       let
         name = builtins.head wrongCollectionKinds;
       in
-      throw "ownerships: unit collection ${shown name} must be a directory; found ${shown entries.${name}}"
+      failImport (importProblem {
+        code = "collection-kind";
+        message = "unit collection ${shown name} must be a directory; found ${shown entries.${name}}";
+      })
     else if looseUnits != [ ] then
       let
         name = builtins.head looseUnits;
       in
-      throw "ownerships: cannot classify unit file ${shown name} in a mixed unit tree; move it under the 'system' or 'home' directory"
+      failImport (importProblem {
+        code = "loose-unit";
+        message = "cannot classify unit file ${shown name} in a mixed unit tree; move it under the 'system' or 'home' directory";
+      })
     else if unknownDirectories != [ ] then
       let
         name = builtins.head unknownDirectories;
       in
-      throw "ownerships: unknown unit collection ${shown name}; mixed unit trees support only 'system' and 'home' directories"
+      failImport (importProblem {
+        code = "unknown-collection";
+        message = "unknown unit collection ${shown name}; mixed unit trees support only 'system' and 'home' directories";
+      })
     else if unsafeEntries != [ ] then
       let
         name = builtins.head unsafeEntries;
       in
-      throw "ownerships: cannot inspect unit-tree entry ${shown name}: filesystem entry type ${shown entries.${name}} is unsupported"
+      failImport (importProblem {
+        code = "entry-kind";
+        message = "cannot inspect unit-tree entry ${shown name}: filesystem entry type ${shown entries.${name}} is unsupported";
+      })
     else if !hasHome && !hasSystem then
-      throw "ownerships: mixed unit tree must contain a 'system' or 'home' directory"
+      failImport (importProblem {
+        code = "tree-empty";
+        message = "mixed unit tree must contain a 'system' or 'home' directory";
+      })
     else
       {
         home = if hasHome then load "home" else [ ];

@@ -842,10 +842,10 @@ let
         merge.renderConflict "port" [
           a
           b
-        ] == "ownerships: conflict at port: co-owners \"unit 'a'\", \"unit 'b'\" set differing values"
+        ] == "conflict at port: co-owners \"unit 'a'\", \"unit 'b'\" set differing values"
         &&
           merge.renderLockViolation "port" b
-          == "ownerships: single-writer lock violation at port: foreign contributor \"unit 'b'\""
+          == "single-writer lock violation at port: foreign contributor \"unit 'b'\""
         && throws (
           resolve { } {
             children = [

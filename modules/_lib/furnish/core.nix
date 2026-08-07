@@ -11,7 +11,8 @@ let
 
   reporter = krisis.mkReporter {
     formatDiagnostic =
-      diagnostic: "furnish: ${diagnostic.code}: ${diagnostic.primary.label}: ${diagnostic.message}";
+      diagnostic:
+      "furnish: ${diagnostic.code}: ${diagnostic.primary.label or "unlabeled"}: ${diagnostic.message}";
   };
 
   renderDiagnostics = reporter.render;
@@ -34,6 +35,15 @@ let
       primary.label = entry;
     };
 
+  # per-stage factories bound once. the curried `diagnostic` stays the exported
+  # door; hot paths inside this file call these.
+  shapeDiagnostic = diagnostic "shape-validation";
+  selectionDiagnostic = diagnostic "ownership-selection";
+  destinationDiagnostic = diagnostic "destination-validation";
+  artifactDiagnostic = diagnostic "artifact-validation";
+  executorDiagnostic = diagnostic "executor-validation";
+  capabilityDiagnostic = diagnostic "capability-selection";
+
   collisionDiagnostic = krisis.mkDiagnosticFactory {
     severity = "error";
     codePrefix = "collision-detection";
@@ -50,7 +60,7 @@ let
     declaration:
     if !builtins.isAttrs declaration then
       [
-        (diagnostic "shape-validation" "declaration-type" "unlabeled declaration"
+        (shapeDiagnostic "declaration-type" "unlabeled declaration"
           "a declaration must be an attribute set"
         )
       ]
@@ -72,7 +82,7 @@ let
           );
         issue =
           condition: code: reason:
-          lib.optional condition (diagnostic "shape-validation" code name reason);
+          lib.optional condition (shapeDiagnostic code name reason);
       in
       issue (
         !(declaration ? label) || !builtins.isString declaration.label
@@ -225,7 +235,7 @@ let
         declaration:
         if isOwnerTagged declaration then
           fail (
-            diagnostic "ownership-selection" "ownerships-disabled" (entryName declaration)
+            selectionDiagnostic "ownerships-disabled" (entryName declaration)
               "ownership claim requires the ownerships subsystem; enable ownerships or remove the claim"
           )
         else
@@ -255,8 +265,7 @@ let
     in
     if value == "" || !lib.hasPrefix "/" value then
       fail (
-        diagnostic "destination-validation" "invalid-${field}" (entryName declaration)
-          "${field} must be an absolute path"
+        destinationDiagnostic "invalid-${field}" (entryName declaration) "${field} must be an absolute path"
       )
     else
       normalized // { inherit path; };
@@ -283,7 +292,7 @@ let
     in
     if !beneathRoot then
       fail (
-        diagnostic "destination-validation" "outside-managed-root" (entryName declaration)
+        destinationDiagnostic "outside-managed-root" (entryName declaration)
           "destination must remain beneath its managed root after lexical normalization"
       )
     else
@@ -412,16 +421,14 @@ let
     executor:
     if !builtins.isAttrs executor then
       [
-        (diagnostic "executor-validation" "executor-type" "unlabeled executor"
-          "an executor must be an attribute set"
-        )
+        (executorDiagnostic "executor-type" "unlabeled executor" "an executor must be an attribute set")
       ]
     else
       let
         name = executorName executor;
         issue =
           condition: code: reason:
-          lib.optional condition (diagnostic "executor-validation" code name reason);
+          lib.optional condition (executorDiagnostic code name reason);
       in
       issue (
         !(executor ? identity) || !builtins.isString executor.identity
@@ -477,7 +484,7 @@ let
     in
     if ordered == [ ] then
       fail (
-        diagnostic "capability-selection" "no-capable-executor" (entryName declaration)
+        capabilityDiagnostic "no-capable-executor" (entryName declaration)
           "no enabled executor provides ${lib.concatStringsSep ", " required}; available: ${
             if available == "" then "none" else available
           }"
@@ -496,13 +503,11 @@ let
       diagnostics =
         if !builtins.isAttrs artifact then
           [
-            (diagnostic "artifact-validation" "artifact-type" name
-              "${selected.identity} must return an attribute set"
-            )
+            (artifactDiagnostic "artifact-type" name "${selected.identity} must return an attribute set")
           ]
         else
           lib.optional (!(artifact ? retainedArtifactTarget)) (
-            diagnostic "artifact-validation" "retained-target-missing" name
+            artifactDiagnostic "retained-target-missing" name
               "${selected.identity} must return retainedArtifactTarget"
           )
           ++
@@ -516,7 +521,7 @@ let
                 )
               )
               (
-                diagnostic "artifact-validation" "retained-target-type" name
+                artifactDiagnostic "retained-target-type" name
                   "${selected.identity} must return a path-like retainedArtifactTarget"
               )
           ++
@@ -528,11 +533,11 @@ let
                 )
               )
               (
-                diagnostic "artifact-validation" "cleanup-strategy" name
+                artifactDiagnostic "cleanup-strategy" name
                   "${selected.identity} returned an unknown cleanup strategy"
               )
           ++ lib.optional (!(artifact ? cleanupStrategy)) (
-            diagnostic "artifact-validation" "cleanup-strategy-missing" name
+            artifactDiagnostic "cleanup-strategy-missing" name
               "${selected.identity} must return cleanupStrategy"
           )
           ++
@@ -545,11 +550,11 @@ let
                 )
               )
               (
-                diagnostic "artifact-validation" "self-heal-strategy" name
+                artifactDiagnostic "self-heal-strategy" name
                   "${selected.identity} returned an unknown self-heal strategy"
               )
           ++ lib.optional (!(artifact ? selfHealStrategy)) (
-            diagnostic "artifact-validation" "self-heal-strategy-missing" name
+            artifactDiagnostic "self-heal-strategy-missing" name
               "${selected.identity} must return selfHealStrategy"
           );
     in
@@ -564,7 +569,7 @@ let
           selected.materialize
         else
           fail (
-            diagnostic "executor-validation" "materialize-type" selected.identity
+            executorDiagnostic "materialize-type" selected.identity
               "the selected executor materialize implementation must be a function"
           );
       artifact = validateArtifact selected declaration (

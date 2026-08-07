@@ -8,10 +8,12 @@
 }:
 let
   furnish = import ./furnish { inherit lib resolve resolveSystem; };
-  krisis = import ./krisis { inherit lib; };
   ownerships = import ./ownerships { inherit lib; };
   inherit (furnish) contract;
   inherit (ownerships) claimKeys;
+  programReport = import ./program/report.nix { inherit lib; };
+  inherit (programReport) problem reporter duplicateValues;
+  inherit (reporter) checked;
   furnishFiles = furnish.files;
   themeCompiler = import ./program/theme {
     inherit
@@ -26,7 +28,7 @@ let
       validSubdir
       duplicateValues
       problem
-      checked
+      reporter
       ;
   };
   inherit (themeCompiler)
@@ -105,12 +107,6 @@ let
     else
       builtins.filter (name: !(builtins.elem name allowed)) (builtins.attrNames value);
 
-  duplicateValues =
-    values:
-    builtins.attrNames (
-      lib.filterAttrs (_: group: builtins.length group > 1) (builtins.groupBy (value: value) values)
-    );
-
   joinSource =
     root: relative:
     if relative == "" then
@@ -120,28 +116,15 @@ let
     else
       "${lib.removeSuffix "/" root}/${relative}";
 
-  problem =
-    code: message:
-    krisis.mkDiagnostic {
-      severity = "error";
-      inherit code message;
-    };
-
-  checked =
-    diagnostics: value:
-    if diagnostics == [ ] then
-      value
-    else
-      krisis.throwDiagnostics {
-        inherit diagnostics;
-        formatHeader = count: "program: ${toString count} declaration error(s)";
-        formatDiagnostic = diagnostic: "  - [${diagnostic.code}] ${diagnostic.message}";
-      };
-
   validateSpec =
     spec:
     if !builtins.isAttrs spec then
-      checked [ (problem "program/spec-shape" "declaration must be an attribute set") ] spec
+      checked [
+        (problem {
+          code = "spec-shape";
+          message = "declaration must be an attribute set";
+        })
+      ] spec
     else
       let
         unknownSpec = unknownFields specFields spec;
@@ -162,43 +145,56 @@ let
           name: builtins.elem name (themeSharedFields ++ [ "renderers" ])
         ) (builtins.attrNames theme);
         themeErrors =
-          lib.optional (!themeIsAttrs) (problem "program/theme-shape" "theme must be an attribute set")
-          ++ lib.optional (unknownTheme != [ ]) (
-            problem "program/theme-fields" "theme has unknown fields: ${lib.concatStringsSep ", " unknownTheme}"
-          )
+          lib.optional (!themeIsAttrs) (problem {
+            code = "theme-shape";
+            message = "theme must be an attribute set";
+          })
+          ++ lib.optional (unknownTheme != [ ]) (problem {
+            code = "theme-fields";
+            message = "theme has unknown fields: ${lib.concatStringsSep ", " unknownTheme}";
+          })
           ++ lib.optionals (themeIsAttrs && spec ? theme) (
-            lib.optional (!(theme ? id) || !validBaseName theme.id) (
-              problem "program/theme-id" "theme.id must be a normalized non-empty name"
-            )
-            ++ lib.optional (hasTemplates && !builtins.isList theme.templates) (
-              problem "program/theme-templates-shape" "theme.templates must be a list"
-            )
-            ++ lib.optional (hasTemplates && mixedThemeFields != [ ]) (
-              problem "program/theme-mixed-syntax" "theme cannot mix templates with single-template fields: ${lib.concatStringsSep ", " mixedThemeFields}"
-            )
+            lib.optional (!(theme ? id) || !validBaseName theme.id) (problem {
+              code = "theme-id";
+              message = "theme.id must be a normalized non-empty name";
+            })
+            ++ lib.optional (hasTemplates && !builtins.isList theme.templates) (problem {
+              code = "theme-templates-shape";
+              message = "theme.templates must be a list";
+            })
+            ++ lib.optional (hasTemplates && mixedThemeFields != [ ]) (problem {
+              code = "theme-mixed-syntax";
+              message = "theme cannot mix templates with single-template fields: ${lib.concatStringsSep ", " mixedThemeFields}";
+            })
             ++ builtins.concatMap (
               indexed: themeTemplateErrors "theme.templates[${toString indexed.index}]" indexed.template
             ) (lib.imap0 (index: template: { inherit index template; }) rawTemplates)
           );
         errors =
-          lib.optional (unknownSpec != [ ]) (
-            problem "program/spec-fields" "declaration has unknown fields: ${lib.concatStringsSep ", " unknownSpec}"
-          )
-          ++ lib.optional (spec ? pkg && !builtins.isFunction spec.pkg) (
-            problem "program/pkg-shape" "pkg must be a function"
-          )
-          ++ lib.optional (spec ? nixos && !builtins.isFunction spec.nixos) (
-            problem "program/nixos-shape" "nixos must be a function"
-          )
-          ++ lib.optional (spec ? imports && !builtins.isList spec.imports) (
-            problem "program/imports-shape" "imports must be a list"
-          )
-          ++ lib.optional (spec ? files && !builtins.isList spec.files) (
-            problem "program/files-shape" "files must be a list"
-          )
-          ++ lib.optional (spec ? directories && !builtins.isList spec.directories) (
-            problem "program/directories-shape" "directories must be a list"
-          )
+          lib.optional (unknownSpec != [ ]) (problem {
+            code = "spec-fields";
+            message = "declaration has unknown fields: ${lib.concatStringsSep ", " unknownSpec}";
+          })
+          ++ lib.optional (spec ? pkg && !builtins.isFunction spec.pkg) (problem {
+            code = "pkg-shape";
+            message = "pkg must be a function";
+          })
+          ++ lib.optional (spec ? nixos && !builtins.isFunction spec.nixos) (problem {
+            code = "nixos-shape";
+            message = "nixos must be a function";
+          })
+          ++ lib.optional (spec ? imports && !builtins.isList spec.imports) (problem {
+            code = "imports-shape";
+            message = "imports must be a list";
+          })
+          ++ lib.optional (spec ? files && !builtins.isList spec.files) (problem {
+            code = "files-shape";
+            message = "files must be a list";
+          })
+          ++ lib.optional (spec ? directories && !builtins.isList spec.directories) (problem {
+            code = "directories-shape";
+            message = "directories must be a list";
+          })
           ++ themeErrors;
         elaborated =
           if spec ? theme && themeIsAttrs then spec // { theme = elaborateTheme theme; } else spec;
@@ -289,31 +285,58 @@ let
         unknown = unknownFields fileFields entry;
       in
       if !builtins.isAttrs entry then
-        [ (problem "program/file-entry-shape" "${subject} must be an attribute set") ]
+        [
+          (problem {
+            code = "file-entry-shape";
+            message = "must be an attribute set";
+            primary.label = subject;
+          })
+        ]
       else
-        lib.optional (unknown != [ ]) (
-          problem "program/file-fields" "${subject} has unknown fields: ${lib.concatStringsSep ", " unknown}"
-        )
-        ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (
-          problem "program/file-destination" "${subject}.dest must be a non-empty string"
-        )
-        ++ lib.optional (!(entry ? src)) (problem "program/file-source" "${subject}.src is required")
-        ++ lib.optional (entry ? label && !builtins.isString entry.label) (
-          problem "program/file-label" "${subject}.label must be a string"
-        )
-        ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (
-          problem "program/file-provenance" "${subject}.provenance must be a string"
-        )
-        ++ lib.optional (
-          entry ? representation && (!builtins.isString entry.representation || entry.representation == "")
-        ) (problem "program/file-representation" "${subject}.representation must be a non-empty string")
+        lib.optional (unknown != [ ]) (problem {
+          code = "file-fields";
+          message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
+          primary.label = subject;
+        })
+        ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (problem {
+          code = "file-destination";
+          message = "dest must be a non-empty string";
+          primary.label = subject;
+        })
+        ++ lib.optional (!(entry ? src)) (problem {
+          code = "file-source";
+          message = "src is required";
+          primary.label = subject;
+        })
+        ++ lib.optional (entry ? label && !builtins.isString entry.label) (problem {
+          code = "file-label";
+          message = "label must be a string";
+          primary.label = subject;
+        })
+        ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (problem {
+          code = "file-provenance";
+          message = "provenance must be a string";
+          primary.label = subject;
+        })
+        ++
+          lib.optional
+            (entry ? representation && (!builtins.isString entry.representation || entry.representation == ""))
+            (problem {
+              code = "file-representation";
+              message = "representation must be a non-empty string";
+              primary.label = subject;
+            })
         ++
           lib.optional
             (
               entry ? onConflict
               && (!builtins.isString entry.onConflict || !(builtins.elem entry.onConflict conflictPolicies))
             )
-            (problem "program/file-conflict-policy" "${subject}.onConflict must be a declared conflict policy")
+            (problem {
+              code = "file-conflict-policy";
+              message = "onConflict must be a declared conflict policy";
+              primary.label = subject;
+            })
     ) (lib.imap0 (index: entry: { inherit index entry; }) files);
 
   directoryShapeErrors =
@@ -324,45 +347,77 @@ let
       unknown = unknownFields directoryFields entry;
     in
     if !builtins.isAttrs entry then
-      [ (problem "program/directory-entry-shape" "${subject} must be an attribute set") ]
+      [
+        (problem {
+          code = "directory-entry-shape";
+          message = "must be an attribute set";
+          primary.label = subject;
+        })
+      ]
     else
-      lib.optional (unknown != [ ]) (
-        problem "program/directory-fields" "${subject} has unknown fields: ${lib.concatStringsSep ", " unknown}"
-      )
-      ++ lib.optional (!(entry ? src)) (problem "program/directory-source" "${subject}.src is required")
-      ++ lib.optional (entry ? src && !(builtins.isPath entry.src || builtins.isString entry.src)) (
-        problem "program/directory-source-shape" "${subject}.src must be a path or string"
-      )
-      ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (
-        problem "program/directory-destination" "${subject}.dest must be a non-empty string"
-      )
-      ++ lib.optional (entry ? exclude && !builtins.isList entry.exclude) (
-        problem "program/directory-exclude-shape" "${subject}.exclude must be a list"
-      )
+      lib.optional (unknown != [ ]) (problem {
+        code = "directory-fields";
+        message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
+        primary.label = subject;
+      })
+      ++ lib.optional (!(entry ? src)) (problem {
+        code = "directory-source";
+        message = "src is required";
+        primary.label = subject;
+      })
+      ++
+        lib.optional (entry ? src && !(builtins.isPath entry.src || builtins.isString entry.src))
+          (problem {
+            code = "directory-source-shape";
+            message = "src must be a path or string";
+            primary.label = subject;
+          })
+      ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (problem {
+        code = "directory-destination";
+        message = "dest must be a non-empty string";
+        primary.label = subject;
+      })
+      ++ lib.optional (entry ? exclude && !builtins.isList entry.exclude) (problem {
+        code = "directory-exclude-shape";
+        message = "exclude must be a list";
+        primary.label = subject;
+      })
       ++ lib.optionals (entry ? exclude && builtins.isList entry.exclude) (
-        lib.optional (!(builtins.all validRelativePath entry.exclude)) (
-          problem "program/directory-exclude-name" "${subject}.exclude must contain normalized relative paths"
-        )
+        lib.optional (!(builtins.all validRelativePath entry.exclude)) (problem {
+          code = "directory-exclude-name";
+          message = "exclude must contain normalized relative paths";
+          primary.label = subject;
+        })
       )
-      ++ lib.optional (entry ? files && !builtins.isList entry.files) (
-        problem "program/directory-files-shape" "${subject}.files must be a list"
-      )
+      ++ lib.optional (entry ? files && !builtins.isList entry.files) (problem {
+        code = "directory-files-shape";
+        message = "files must be a list";
+        primary.label = subject;
+      })
       ++
         lib.optional
           (entry ? representation && (!builtins.isString entry.representation || entry.representation == ""))
-          (problem "program/directory-representation" "${subject}.representation must be a non-empty string")
+          (problem {
+            code = "directory-representation";
+            message = "representation must be a non-empty string";
+            primary.label = subject;
+          })
       ++
         lib.optional
           (
             entry ? onConflict
             && (!builtins.isString entry.onConflict || !(builtins.elem entry.onConflict conflictPolicies))
           )
-          (
-            problem "program/directory-conflict-policy" "${subject}.onConflict must be a declared conflict policy"
-          )
-      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (
-        problem "program/directory-provenance" "${subject}.provenance must be a string"
-      );
+          (problem {
+            code = "directory-conflict-policy";
+            message = "onConflict must be a declared conflict policy";
+            primary.label = subject;
+          })
+      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (problem {
+        code = "directory-provenance";
+        message = "provenance must be a string";
+        primary.label = subject;
+      });
 
   directoryRuleErrors =
     wrapped:
@@ -372,37 +427,55 @@ let
       unknown = unknownFields directoryRuleFields entry;
     in
     if !builtins.isAttrs entry then
-      [ (problem "program/directory-file-shape" "${subject} entries must be attribute sets") ]
+      [
+        (problem {
+          code = "directory-file-shape";
+          message = "entries must be attribute sets";
+          primary.label = subject;
+        })
+      ]
     else
-      lib.optional (unknown != [ ]) (
-        problem "program/directory-file-fields" "${subject} has unknown fields: ${lib.concatStringsSep ", " unknown}"
-      )
-      ++ lib.optional (!(entry ? names) || !builtins.isList entry.names || entry.names == [ ]) (
-        problem "program/directory-file-names" "${subject}.names must be a non-empty list"
-      )
+      lib.optional (unknown != [ ]) (problem {
+        code = "directory-file-fields";
+        message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
+        primary.label = subject;
+      })
+      ++ lib.optional (!(entry ? names) || !builtins.isList entry.names || entry.names == [ ]) (problem {
+        code = "directory-file-names";
+        message = "names must be a non-empty list";
+        primary.label = subject;
+      })
       ++ lib.optionals (entry ? names && builtins.isList entry.names) (
-        lib.optional (!(builtins.all validRelativePath entry.names)) (
-          problem "program/directory-file-name" "${subject}.names must contain normalized relative paths"
-        )
+        lib.optional (!(builtins.all validRelativePath entry.names)) (problem {
+          code = "directory-file-name";
+          message = "names must contain normalized relative paths";
+          primary.label = subject;
+        })
       )
       ++
         lib.optional
           (entry ? representation && (!builtins.isString entry.representation || entry.representation == ""))
-          (
-            problem "program/directory-file-representation" "${subject}.representation must be a non-empty string"
-          )
+          (problem {
+            code = "directory-file-representation";
+            message = "representation must be a non-empty string";
+            primary.label = subject;
+          })
       ++
         lib.optional
           (
             entry ? onConflict
             && (!builtins.isString entry.onConflict || !(builtins.elem entry.onConflict conflictPolicies))
           )
-          (
-            problem "program/directory-file-conflict-policy" "${subject}.onConflict must be a declared conflict policy"
-          )
-      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (
-        problem "program/directory-file-provenance" "${subject}.provenance must be a string"
-      );
+          (problem {
+            code = "directory-file-conflict-policy";
+            message = "onConflict must be a declared conflict policy";
+            primary.label = subject;
+          })
+      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (problem {
+        code = "directory-file-provenance";
+        message = "provenance must be a string";
+        primary.label = subject;
+      });
 
   excludedBy =
     exclusions: name:
@@ -420,7 +493,10 @@ let
         if !scanned.success then
           {
             diagnostics = [
-              (problem "program/directory-source-kind" "directory source ${toString current} is not readable as a directory")
+              (problem {
+                code = "directory-source-kind";
+                message = "directory source ${toString current} is not readable as a directory";
+              })
             ];
             files = [ ];
             members = [ ];
@@ -455,7 +531,10 @@ let
                 base
                 // {
                   diagnostics = [
-                    (problem "program/directory-member-kind" "directory source member ${child} must be a regular file or directory, not ${kind}")
+                    (problem {
+                      code = "directory-member-kind";
+                      message = "directory source member ${child} must be a regular file or directory, not ${kind}";
+                    })
                   ];
                 };
             results = map resultFor (builtins.attrNames scanned.value);
@@ -494,12 +573,20 @@ let
         else
           builtins.readFileType entry.src;
       sourceErrors =
-        lib.optional (shapeErrors == [ ] && sourceKind == "missing") (
-          problem "program/directory-source-missing" "directories[${toString wrapped.index}].src does not exist in the flake source: ${toString entry.src}. git-backed flakes omit empty and untracked directories; add a tracked file beneath the directory or remove the declaration"
-        )
-        ++ lib.optional (shapeErrors == [ ] && sourceKind != "missing" && sourceKind != "directory") (
-          problem "program/directory-source-kind" "directories[${toString wrapped.index}].src must be a directory: ${toString entry.src} is ${sourceKind}"
-        );
+        lib.optional (shapeErrors == [ ] && sourceKind == "missing") (problem {
+          code = "directory-source-missing";
+          message = "src does not exist in the flake source: ${toString entry.src}";
+          primary.label = "directories[${toString wrapped.index}]";
+          notes = [ "git-backed flakes omit empty and untracked directories" ];
+          help = "add a tracked file beneath the directory or remove the declaration";
+        })
+        ++
+          lib.optional (shapeErrors == [ ] && sourceKind != "missing" && sourceKind != "directory")
+            (problem {
+              code = "directory-source-kind";
+              message = "src must be a directory: ${toString entry.src} is ${sourceKind}";
+              primary.label = "directories[${toString wrapped.index}]";
+            });
       walked =
         if sourceErrors == [ ] && shapeErrors == [ ] then
           walkDirectory entry.src (entry.exclude or [ ])
@@ -537,24 +624,36 @@ let
       excludedThemes = builtins.filter (excludedBy exclude) themeNames;
       themeOverrides = builtins.filter (name: builtins.elem name themeNames) uniqueReserved;
       semanticErrors =
-        lib.optional (duplicateReserved != [ ]) (
-          problem "program/directory-file-duplicate" "directories[${toString wrapped.index}] repeats override names: ${lib.concatStringsSep ", " duplicateReserved}"
-        )
-        ++ lib.optional (unknownExcluded != [ ]) (
-          problem "program/directory-exclude-unknown" "directories[${toString wrapped.index}] excludes unknown names: ${lib.concatStringsSep ", " unknownExcluded}"
-        )
-        ++ lib.optional (unknownReserved != [ ]) (
-          problem "program/directory-file-unknown" "directories[${toString wrapped.index}] overrides unknown names: ${lib.concatStringsSep ", " unknownReserved}"
-        )
-        ++ lib.optional (excludedOverrides != [ ]) (
-          problem "program/directory-file-excluded" "directories[${toString wrapped.index}] overrides excluded names: ${lib.concatStringsSep ", " excludedOverrides}"
-        )
-        ++ lib.optional (excludedThemes != [ ]) (
-          problem "program/directory-theme-excluded" "directories[${toString wrapped.index}] excludes theme sources: ${lib.concatStringsSep ", " excludedThemes}"
-        )
-        ++ lib.optional (themeOverrides != [ ]) (
-          problem "program/directory-file-themed" "directories[${toString wrapped.index}] overrides theme sources: ${lib.concatStringsSep ", " themeOverrides}"
-        );
+        lib.optional (duplicateReserved != [ ]) (problem {
+          code = "directory-file-duplicate";
+          message = "repeats override names: ${lib.concatStringsSep ", " duplicateReserved}";
+          primary.label = "directories[${toString wrapped.index}]";
+        })
+        ++ lib.optional (unknownExcluded != [ ]) (problem {
+          code = "directory-exclude-unknown";
+          message = "excludes unknown names: ${lib.concatStringsSep ", " unknownExcluded}";
+          primary.label = "directories[${toString wrapped.index}]";
+        })
+        ++ lib.optional (unknownReserved != [ ]) (problem {
+          code = "directory-file-unknown";
+          message = "overrides unknown names: ${lib.concatStringsSep ", " unknownReserved}";
+          primary.label = "directories[${toString wrapped.index}]";
+        })
+        ++ lib.optional (excludedOverrides != [ ]) (problem {
+          code = "directory-file-excluded";
+          message = "overrides excluded names: ${lib.concatStringsSep ", " excludedOverrides}";
+          primary.label = "directories[${toString wrapped.index}]";
+        })
+        ++ lib.optional (excludedThemes != [ ]) (problem {
+          code = "directory-theme-excluded";
+          message = "excludes theme sources: ${lib.concatStringsSep ", " excludedThemes}";
+          primary.label = "directories[${toString wrapped.index}]";
+        })
+        ++ lib.optional (themeOverrides != [ ]) (problem {
+          code = "directory-file-themed";
+          message = "overrides theme sources: ${lib.concatStringsSep ", " themeOverrides}";
+          primary.label = "directories[${toString wrapped.index}]";
+        });
       defaults = builtins.intersectAttrs lifecycleKeysAttrs entry;
       destinationRoot = lib.removeSuffix "/" (entry.dest or "");
       fileFor =
@@ -700,7 +799,7 @@ lib.optionalAttrs needsHomeManager {
           inherit system user;
           host = hostName;
         };
-        # Matugen renderers only read one config.toml each, so every aspect's
+        # matugen renderers only read one config.toml each, so every aspect's
         # entries are tagged with this user context and merged once by the
         # shared runtime before furnish publishes the renderer config.
         matugenThemeEntries = builtins.filter (entry: entry.runtime == "matugen") selected.themeEntries;

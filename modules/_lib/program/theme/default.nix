@@ -10,7 +10,7 @@
   validSubdir,
   duplicateValues,
   problem,
-  checked,
+  reporter,
 }:
 let
   adapters = {
@@ -39,7 +39,13 @@ let
   themeTemplateErrors =
     subject: template:
     if !builtins.isAttrs template then
-      [ (problem "program/theme-template-shape" "${subject} must be an attribute set") ]
+      [
+        (problem {
+          code = "theme-template-shape";
+          message = "must be an attribute set";
+          primary.label = subject;
+        })
+      ]
     else
       let
         unknownTemplate = unknownFields (themeSharedFields ++ [ "renderers" ]) template;
@@ -54,31 +60,47 @@ let
             unknownOverride =
               if builtins.isAttrs override then unknownFields themeRendererFields override else [ ];
           in
-          lib.optional (!builtins.isAttrs override) (
-            problem "program/theme-renderer-shape" "${subject}.renderers.${renderer} must be an attribute set"
-          )
+          lib.optional (!builtins.isAttrs override) (problem {
+            code = "theme-renderer-shape";
+            message = "renderers.${renderer} must be an attribute set";
+            primary.label = subject;
+          })
           ++ lib.optionals (builtins.isAttrs override) (
-            lib.optional (unknownOverride != [ ]) (
-              problem "program/theme-renderer-fields" "${subject}.renderers.${renderer} has unknown fields: ${lib.concatStringsSep ", " unknownOverride}"
-            )
-            ++ lib.optional (!(override ? source) || !(override ? output)) (
-              problem "program/theme-renderer-incomplete" "${subject}.renderers.${renderer} must explicitly define source and output"
-            )
+            lib.optional (unknownOverride != [ ]) (problem {
+              code = "theme-renderer-fields";
+              message = "renderers.${renderer} has unknown fields: ${lib.concatStringsSep ", " unknownOverride}";
+              primary.label = subject;
+            })
+            ++ lib.optional (!(override ? source) || !(override ? output)) (problem {
+              code = "theme-renderer-incomplete";
+              message = "renderers.${renderer} must explicitly define source and output";
+              primary.label = subject;
+            })
           )
         ) rendererNames;
       in
-      lib.optional (unknownTemplate != [ ]) (
-        problem "program/theme-template-fields" "${subject} has unknown fields: ${lib.concatStringsSep ", " unknownTemplate}"
-      )
-      ++ lib.optional (!(template ? renderers) || !builtins.isAttrs template.renderers) (
-        problem "program/theme-renderers-shape" "${subject}.renderers must be an attribute set"
-      )
-      ++ lib.optional (
-        template ? renderers && builtins.isAttrs template.renderers && rendererNames == [ ]
-      ) (problem "program/theme-renderers-empty" "${subject}.renderers must select at least one renderer")
-      ++ lib.optional (unknownRenderers != [ ]) (
-        problem "program/theme-renderers-unknown" "${subject}.renderers has unknown renderers: ${lib.concatStringsSep ", " unknownRenderers}"
-      )
+      lib.optional (unknownTemplate != [ ]) (problem {
+        code = "theme-template-fields";
+        message = "has unknown fields: ${lib.concatStringsSep ", " unknownTemplate}";
+        primary.label = subject;
+      })
+      ++ lib.optional (!(template ? renderers) || !builtins.isAttrs template.renderers) (problem {
+        code = "theme-renderers-shape";
+        message = "renderers must be an attribute set";
+        primary.label = subject;
+      })
+      ++
+        lib.optional (template ? renderers && builtins.isAttrs template.renderers && rendererNames == [ ])
+          (problem {
+            code = "theme-renderers-empty";
+            message = "renderers must select at least one renderer";
+            primary.label = subject;
+          })
+      ++ lib.optional (unknownRenderers != [ ]) (problem {
+        code = "theme-renderers-unknown";
+        message = "unknown renderers: ${lib.concatStringsSep ", " unknownRenderers}";
+        primary.label = subject;
+      })
       ++ rendererErrors;
 
   elaborateTheme =
@@ -153,32 +175,59 @@ let
         unknown = unknownFields themeEntryFields entry;
       in
       if !builtins.isAttrs entry then
-        [ (problem "program/theme-entry-shape" "${subject} must be an attribute set") ]
+        [
+          (problem {
+            code = "theme-entry-shape";
+            message = "must be an attribute set";
+            primary.label = subject;
+          })
+        ]
       else
-        lib.optional (unknown != [ ]) (
-          problem "program/theme-entry-fields" "${subject} has unknown fields: ${lib.concatStringsSep ", " unknown}"
-        )
-        ++ lib.optional (
-          !(entry ? source) || !(builtins.isPath entry.source || builtins.isString entry.source)
-        ) (problem "program/theme-source" "${subject}.source must be a path or string")
-        ++ lib.optional (!(entry ? output) || !validRelativePath entry.output) (
-          problem "program/theme-output" "${subject}.output must be a normalized relative path"
-        )
-        ++ lib.optional (entry ? subdir && entry.subdir != null && !validSubdir entry.subdir) (
-          problem "program/theme-subdir" "${subject}.subdir must be null, empty, or a normalized relative directory"
-        )
-        ++ lib.optional (entry ? placedAs && !validBaseName entry.placedAs) (
-          problem "program/theme-placed-name" "${subject}.placedAs must be a normalized basename"
-        )
-        ++ lib.optional (entry ? subId && entry.subId != null && !validBaseName entry.subId) (
-          problem "program/theme-sub-id" "${subject}.subId must be null or a normalized non-empty name"
-        )
-        ++ lib.optional (entry ? reload && entry.reload != null && !builtins.isString entry.reload) (
-          problem "program/theme-reload" "${subject}.reload must be null or a string"
-        )
-        ++ lib.optional (entry ? native && !builtins.isAttrs entry.native) (
-          problem "program/theme-native" "${subject}.native must be an attribute set"
-        )
+        lib.optional (unknown != [ ]) (problem {
+          code = "theme-entry-fields";
+          message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
+          primary.label = subject;
+        })
+        ++
+          lib.optional
+            (!(entry ? source) || !(builtins.isPath entry.source || builtins.isString entry.source))
+            (problem {
+              code = "theme-source";
+              message = "source must be a path or string";
+              primary.label = subject;
+            })
+        ++ lib.optional (!(entry ? output) || !validRelativePath entry.output) (problem {
+          code = "theme-output";
+          message = "output must be a normalized relative path";
+          primary.label = subject;
+        })
+        ++ lib.optional (entry ? subdir && entry.subdir != null && !validSubdir entry.subdir) (problem {
+          code = "theme-subdir";
+          message = "subdir must be null, empty, or a normalized relative directory";
+          primary.label = subject;
+        })
+        ++ lib.optional (entry ? placedAs && !validBaseName entry.placedAs) (problem {
+          code = "theme-placed-name";
+          message = "placedAs must be a normalized basename";
+          primary.label = subject;
+        })
+        ++ lib.optional (entry ? subId && entry.subId != null && !validBaseName entry.subId) (problem {
+          code = "theme-sub-id";
+          message = "subId must be null or a normalized non-empty name";
+          primary.label = subject;
+        })
+        ++
+          lib.optional (entry ? reload && entry.reload != null && !builtins.isString entry.reload)
+            (problem {
+              code = "theme-reload";
+              message = "reload must be null or a string";
+              primary.label = subject;
+            })
+        ++ lib.optional (entry ? native && !builtins.isAttrs entry.native) (problem {
+          code = "theme-native";
+          message = "native must be an attribute set";
+          primary.label = subject;
+        })
     ) (lib.imap0 (index: wrapped: { inherit index wrapped; }) themeEntries);
 
   normalizeThemeEntry =
@@ -235,15 +284,23 @@ let
       };
     in
     if dupIds != [ ] then
-      checked
+      reporter.checked
         [
-          (problem "program/theme-registration-duplicate" "theme.${renderer}.${blockId} has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}")
+          (problem {
+            code = "theme-registration-duplicate";
+            message = "has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}";
+            primary.label = "theme.${renderer}.${blockId}";
+          })
         ]
         [ ]
     else if unsupportedNativeIds != [ ] then
-      checked
+      reporter.checked
         [
-          (problem "program/theme-native-unsupported" "theme.${renderer}.${blockId} cannot use native registration fields: ${lib.concatStringsSep ", " unsupportedNativeIds}")
+          (problem {
+            code = "theme-native-unsupported";
+            message = "cannot use native registration fields: ${lib.concatStringsSep ", " unsupportedNativeIds}";
+            primary.label = "theme.${renderer}.${blockId}";
+          })
         ]
         [ ]
     else
@@ -257,7 +314,7 @@ let
           ;
       };
 
-  # Backends with their own aggregateFilesFor can lower every selected block
+  # backends with their own aggregateFilesFor can lower every selected block
   # together instead of emitting one registration file per block.
   aggregatedThemeFiles =
     entries: pkgs:
@@ -277,9 +334,13 @@ let
         if rendererEntries == [ ] then
           [ ]
         else if dupIds != [ ] then
-          checked
+          reporter.checked
             [
-              (problem "program/theme-registration-duplicate" "theme.${renderer} has duplicate registration ids across blocks: ${lib.concatStringsSep ", " dupIds}")
+              (problem {
+                code = "theme-registration-duplicate";
+                message = "has duplicate registration ids across blocks: ${lib.concatStringsSep ", " dupIds}";
+                primary.label = "theme.${renderer}";
+              })
             ]
             [ ]
         else
