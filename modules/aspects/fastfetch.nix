@@ -6,8 +6,22 @@ let
   rainbowGlyph = u2 "db83" "de95";
   rainbowLine = builtins.concatStringsSep "" (
     map (color: "${esc}[${color}m${rainbowGlyph}  ") [
-      "31" "32" "33" "34" "35" "36" "37" "30"
-      "91" "92" "93" "94" "95" "96" "97" "90"
+      "31"
+      "32"
+      "33"
+      "34"
+      "35"
+      "36"
+      "37"
+      "30"
+      "91"
+      "92"
+      "93"
+      "94"
+      "95"
+      "96"
+      "97"
+      "90"
     ]
   );
 in
