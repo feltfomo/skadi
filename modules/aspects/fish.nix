@@ -1,5 +1,5 @@
 {
-  den.aspects.fish.homeManager = {...}: {
+  den.aspects.fish.homeManager = _: {
     programs.fish = {
       enable = true;
 

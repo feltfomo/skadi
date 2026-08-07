@@ -1,5 +1,5 @@
-{inputs, ...}: {
-  imports = [inputs.treefmt-nix.flakeModule];
+{ inputs, ... }: {
+  imports = [ inputs.treefmt-nix.flakeModule ];
 
   perSystem = {
     # nix fmt and the formatting check both run treefmt
@@ -19,9 +19,9 @@
       # nixfmt runs last so it reflows what deadnix and statix rewrite
       settings.formatter.nixfmt.priority = 1;
       # secrets/ is sops-managed. formatters stay out of it.
-      settings.global.excludes = ["secrets/**"];
+      settings.global.excludes = [ "secrets/**" ];
       # readme has a hand-maintained layout table mdformat mangles.
-      settings.formatter.mdformat.excludes = ["README.md"];
+      settings.formatter.mdformat.excludes = [ "README.md" ];
     };
   };
 }
