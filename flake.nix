@@ -1,7 +1,6 @@
 {
   description = "skadi";
 
-  # binary caches
   nixConfig = {
     extra-substituters = [
       "https://hyprland.cachix.org"
@@ -17,7 +16,6 @@
     ];
   };
 
-  # flake inputs
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     # temporary logseq's buildPhase hangs on nixos-unstable until the yauzl fix
