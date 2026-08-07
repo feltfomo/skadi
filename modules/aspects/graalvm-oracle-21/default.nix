@@ -1,4 +1,4 @@
-_: {
+{
   den.aspects.graalvm-oracle-21.nixos = _: {
     nixpkgs.overlays = [
       (final: prev: {

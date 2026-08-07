@@ -1,4 +1,4 @@
-_: {
+{
   den.aspects.gpu-nvidia.nixos =
     { config, pkgs, ... }:
     {

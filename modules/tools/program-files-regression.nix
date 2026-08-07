@@ -1,4 +1,4 @@
-_: {
+{
   # keep the harness at perSystem scope so adding it cannot alter a host closure.
   perSystem =
     { pkgs, ... }:

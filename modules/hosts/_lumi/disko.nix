@@ -1,4 +1,4 @@
-_: {
+{
   # disk layout: gpt -> esp + luks -> btrfs subvolumes
   disko.devices = {
     disk = {

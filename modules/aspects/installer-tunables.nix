@@ -1,4 +1,4 @@
-_: {
+{
   den.aspects.installer-tunables.nixos =
     { lib, ... }:
     {

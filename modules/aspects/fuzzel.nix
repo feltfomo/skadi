@@ -1,4 +1,4 @@
-_: {
+{
   den.aspects.fuzzel.homeManager = {
     programs.fuzzel = {
       enable = true;

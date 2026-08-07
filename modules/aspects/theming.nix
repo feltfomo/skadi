@@ -1,4 +1,4 @@
-_: {
+{
   den.aspects.theming = {
     nixos = {
       # System desktop entries launch outside Home Manager's environment.
