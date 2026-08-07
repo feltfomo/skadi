@@ -3,14 +3,14 @@ return {
 	branch = "main",
 	build = ":TSUpdate",
 	config = function()
-		local parsers = { "lua", "vim", "vimdoc", "query", "bash", "markdown", "nix" }
-		require("nvim-treesitter").install(parsers)
+		require("nvim-treesitter").install("all")
 
 		vim.api.nvim_create_autocmd("FileType", {
-			pattern = { "lua", "vim", "help", "query", "bash", "markdown", "nix" },
+			pattern = "*",
 			callback = function()
-				vim.treesitter.start()
-				vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+				if pcall(vim.treesitter.start) then
+					vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+				end
 			end,
 		})
 	end,
