@@ -6,6 +6,7 @@ _: {
         enable = true;
 
         interactiveShellInit = ''
+          set -g fish_greeting
           fastfetch
         '';
 
@@ -24,9 +25,8 @@ _: {
       };
 
       home.packages = with pkgs; [
-        eza
-        # fd + ripgrep: general shell tools that also power nvim's telescope
         fd
+        eza
         ripgrep
       ];
     };
