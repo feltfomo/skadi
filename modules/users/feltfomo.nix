@@ -21,6 +21,7 @@
       caelestia
       firefox
       qt-hm
+      zed
 
       # clone wallpaper and notion-sync mapping repos on first boot
       bootstrap-repos
@@ -185,7 +186,6 @@
           proton-vpn
           winetricks
           hyprpicker
-          zed-editor
           motrix-next
           evil-helix
           qbittorrent
