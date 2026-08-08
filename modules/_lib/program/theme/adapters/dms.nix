@@ -1,6 +1,13 @@
 { lib }:
+let
+  capability = import ../capabilities.nix;
+in
 {
   acceptsNative = true;
+  capabilities = [
+    capability.nativeBlocks
+    capability.matugenRuntime
+  ];
   runtime = "matugen";
   configDestination = ".config/matugen/config.toml";
   templateRoot = ".config/matugen/dms/templates";

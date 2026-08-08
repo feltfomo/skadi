@@ -1,6 +1,13 @@
 { lib }:
+let
+  capability = import ../capabilities.nix;
+in
 {
   acceptsNative = true;
+  capabilities = [
+    capability.nativeBlocks
+    capability.blockFiles
+  ];
   templateRoot = ".config/noctalia/templates";
   templateNameOf = entry: "${entry.subdir}${entry.placedAs}";
   filesFor =

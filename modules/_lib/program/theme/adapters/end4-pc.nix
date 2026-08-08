@@ -1,6 +1,13 @@
 { lib }:
+let
+  capability = import ../capabilities.nix;
+in
 {
   acceptsNative = true;
+  capabilities = [
+    capability.nativeBlocks
+    capability.matugenRuntime
+  ];
   runtime = "matugen";
   configDestination = ".config/end4-pc/matugen/config.toml";
   templateRoot = ".config/end4-pc/matugen/templates";

@@ -1,5 +1,8 @@
-_:
+{ lib }:
 let
+  axiom = import ../axiom { inherit lib; };
+  inherit (axiom) canonical;
+
   schemaVersion = 2;
   diagnosticSchemaVersion = 1;
 
@@ -35,14 +38,21 @@ let
     rollbackFileName = "applied-state.v1.json";
   };
 
+  executorIdentity =
+    name:
+    canonical.qualified {
+      namespace = "furnish";
+      inherit name;
+    };
+
   executors.nativeSymlink = {
-    identity = "furnish/native-symlink";
+    identity = executorIdentity "native-symlink";
     protocolVersion = 1;
     representation = capabilities.symlink;
   };
 
   executors.nativeWritable = {
-    identity = "furnish/native-writable";
+    identity = executorIdentity "native-writable";
     protocolVersion = 1;
     representation = capabilities.writable;
   };
@@ -78,7 +88,10 @@ let
     }:
     {
       inherit namespace destination;
-      canonical = "${namespace}:${destination}";
+      canonical = canonical.join ":" [
+        namespace
+        destination
+      ];
     };
 
   mkEntry =

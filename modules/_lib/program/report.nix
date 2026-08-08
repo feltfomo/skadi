@@ -4,18 +4,25 @@
 # shape from all three.
 { lib }:
 let
+  axiom = import ../axiom { inherit lib; };
   krisis = import ../krisis { inherit lib; };
-in
-{
-  problem = krisis.mkDiagnosticFactory {
-    severity = "error";
-    codePrefix = "program";
-  };
 
   reporter = krisis.mkReporter {
     formatHeader = count: "program: ${toString count} declaration error(s)";
     formatDiagnostic = diagnostic: "  - " + krisis.renderPlain diagnostic;
   };
+in
+{
+  inherit reporter;
+
+  problem = krisis.mkDiagnosticFactory {
+    severity = "error";
+    codePrefix = "program";
+  };
+
+  # the one place accumulated program diagnostics turn into a failure, so
+  # callers stop each deciding how to end a validation
+  finish = axiom.validation.finish reporter.fail;
 
   # every duplicate-registration check groups by id and names the repeats.
   duplicateValues =
