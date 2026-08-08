@@ -27,6 +27,9 @@ let
           value = descriptor.roster.define;
         }) projected
       );
+      # a user or host may be declared once per host it lives on -- den's
+      # federated stream relies on the projectors unioning those declarations,
+      # so repeated canonical ids are the contract here, not a duplicate
       toRoster =
         declarations:
         lib.foldl' (

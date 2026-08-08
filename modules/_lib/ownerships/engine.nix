@@ -396,26 +396,27 @@ let
   observeCtx =
     registry: ctx: leaves:
     let
+      # more than one axis may read the same ctx key, so demand is gathered per
+      # key and then reported back onto every axis that asked for it
+      axesByKey = builtins.groupBy (name: registry.${name}.ctxKey) (
+        filter (name: registry.${name}.ctxKey != null) (attrNames registry)
+      );
+      available = filter (key: ctx ? ${key} && ctx.${key} != null) (attrNames axesByKey);
       entries = map (
         leaf:
         let
-          requirements = lib.mapAttrs (
-            name: axis:
-            let
-              key = axis.ctxKey;
-            in
-            {
-              inherit key;
-              required = key != null && !(axis.isTop leaf.claim.${name});
-              available = if key == null then null else ctx ? ${key} && ctx.${key} != null;
-            }
-          ) registry;
+          narrowedOn = name: registry.${name}.ctxKey != null && !(registry.${name}.isTop leaf.claim.${name});
+          observation = axiom.requirements.evaluate (concatMap (
+            name: lib.optional (narrowedOn name) registry.${name}.ctxKey
+          ) (attrNames registry)) available;
+          requirements = lib.mapAttrs (name: axis: {
+            key = axis.ctxKey;
+            required = narrowedOn name;
+            available = if axis.ctxKey == null then null else builtins.elem axis.ctxKey observation.provided;
+          }) registry;
           diagnostics = concatMap (
-            name:
-            let
-              requirement = requirements.${name};
-            in
-            lib.optional (requirement.required && !requirement.available) {
+            key:
+            map (name: {
               kind = "missing-ctx";
               unit = leaf.value;
               label = leaf.label or null;
@@ -424,9 +425,9 @@ let
               claims = leaf.claim;
               reason = "axis '${name}' is narrowed on by claim ${
                 lib.generators.toPretty { multiline = false; } leaf.claim.${name}
-              } but the build ctx provides no entity for key '${requirement.key}' -- only untagged (global) claims resolve without a build context";
-            }
-          ) (attrNames registry);
+              } but the build ctx provides no entity for key '${key}' -- only untagged (global) claims resolve without a build context";
+            }) axesByKey.${key}
+          ) observation.missing;
         in
         {
           inherit diagnostics requirements;

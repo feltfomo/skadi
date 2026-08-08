@@ -6,9 +6,16 @@
 { lib }:
 let
   engine = import ./engine.nix { inherit lib; };
+  axiom = import ../axiom { inherit lib; };
+  inherit (axiom) canonical;
   inherit (import ../krisis { inherit lib; }) safeShape;
 
-  leafKey = index: "leaf-${toString index}";
+  leafKey =
+    index:
+    canonical.join "-" [
+      "leaf"
+      (toString index)
+    ];
 
   projectLeaf = entry: {
     inherit (entry) key;
@@ -77,7 +84,10 @@ let
     builtins.concatMap (
       hostName:
       map (userName: {
-        key = "${hostName}/${userName}";
+        key = canonical.path [
+          hostName
+          userName
+        ];
         inherit hostName userName;
         ctx = contextFor { inherit hostName userName; };
       }) (roster.membership.${hostName} or [ ])
@@ -241,7 +251,10 @@ let
         };
       hostDiffs = builtins.listToAttrs (
         map (pair: {
-          name = "${pair.left} -> ${pair.right}";
+          name = canonical.join " -> " [
+            pair.left
+            pair.right
+          ];
           value = {
             units = diffFor "survivors" pair;
             preMergePaths = diffFor "preMergePaths" pair;

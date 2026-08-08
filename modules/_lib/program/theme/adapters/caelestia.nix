@@ -3,7 +3,6 @@ let
   capability = import ../capabilities.nix;
 in
 {
-  acceptsNative = false;
   capabilities = [ capability.blockFiles ];
   templateRoot = ".config/caelestia/templates";
   templateNameOf = entry: "${entry.registrationId}-${entry.placedAs}";

@@ -3,7 +3,6 @@ let
   capability = import ../capabilities.nix;
 in
 {
-  acceptsNative = true;
   capabilities = [
     capability.nativeBlocks
     capability.blockFiles

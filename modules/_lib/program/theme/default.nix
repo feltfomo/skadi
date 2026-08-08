@@ -469,8 +469,9 @@ let
           ;
       };
 
-  # backends with their own aggregateFilesFor can lower every selected block
-  # together instead of emitting one registration file per block.
+  # an adapter that declares aggregate-files lowers every selected block
+  # together instead of emitting one registration file per block, and owes an
+  # aggregateFilesFor alongside the capability
   aggregatedThemeFiles =
     entries: pkgs:
     builtins.concatMap (
@@ -478,7 +479,7 @@ let
       let
         adapter = adapters.${renderer};
       in
-      if !(adapter ? aggregateFilesFor) then
+      if !(declares capability.aggregateFiles adapter) then
         [ ]
       else
         let
