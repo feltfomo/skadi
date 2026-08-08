@@ -17,18 +17,19 @@ let
   engine = import ./engine.nix { inherit lib; };
   krisis = import ../krisis { inherit lib; };
   axes = import ./axes.nix { inherit lib; };
+  axiom = import ../axiom { inherit lib; };
+  inherit (axiom) schema validation;
 
   unitProblem = krisis.mkDiagnosticFactory {
     severity = "error";
     codePrefix = "ownerships";
   };
 
-  failUnit =
-    diagnostic:
-    krisis.throwDiagnostics {
-      diagnostics = [ diagnostic ];
-      formatDiagnostic = krisis.renderPlain;
-    };
+  reporter = krisis.mkReporter { formatDiagnostic = krisis.renderPlain; };
+
+  finish = validation.finish reporter.fail;
+
+  failUnit = reporter.failOne;
 
   # a missing or non-string label is usually what the error is about, so it
   # can't name the unit.
@@ -72,6 +73,73 @@ let
   # realistic collision is a nixos `users` attrset landing where the `users`
   # name-list belongs, so shape-check the claim keys and fail at author time
   # rather than resolve something the author never meant.
+  # open, because everything that isn't a reserved key is the unit's config and
+  # this schema has no business ruling on its shape
+  unitSchema = schema.compile {
+    allowUnknown = true;
+    onRecord =
+      value:
+      unitProblem {
+        code = "unit-shape";
+        message = "a unit must be an attribute set; got ${builtins.typeOf value}";
+      };
+    order = [
+      "children"
+      "value"
+      "label"
+      "source"
+    ];
+    fields = {
+      children = {
+        validate = value: builtins.isList value && lib.all builtins.isAttrs value;
+        onInvalid =
+          record: _value:
+          unitProblem (
+            {
+              code = "unit-children";
+              message = "'children' must be a list of unit attribute sets";
+            }
+            // labelOf record
+          );
+      };
+      value = {
+        validate = builtins.isAttrs;
+        onInvalid =
+          record: value:
+          unitProblem (
+            {
+              code = "unit-value";
+              message = "'value' must be an attribute set; got ${builtins.typeOf value}";
+            }
+            // labelOf record
+          );
+      };
+      label = {
+        validate = builtins.isString;
+        onInvalid =
+          _record: value:
+          unitProblem {
+            code = "unit-label";
+            message = "'label' must be a plain string; got ${builtins.typeOf value}";
+          };
+      };
+      source = {
+        validate = builtins.isString;
+        onInvalid =
+          record: value:
+          unitProblem (
+            {
+              code = "unit-source";
+              message = "'source' must be a plain string; got ${builtins.typeOf value}";
+            }
+            // labelOf record
+          );
+      };
+    };
+  };
+
+  # claim keys stay a separate earlier stage because their errors are the
+  # descriptor author's own strings, not krisis records
   checkShape =
     unit:
     if !builtins.isAttrs unit then
@@ -82,56 +150,14 @@ let
     else
       let
         checkedClaims = axes.validateUnitWith descriptorSet.authorKeys unit;
-        badChildren =
-          unit ? children && (!builtins.isList unit.children || !lib.all builtins.isAttrs unit.children);
-        badValue = unit ? value && !builtins.isAttrs unit.value;
-        badLabel = unit ? label && !builtins.isString unit.label;
-        badSource = unit ? source && !builtins.isString unit.source;
         # a value block routes unambiguously only when it's the sole non-reserved
         # content on the unit -- claims and children still narrow around it
         # exactly as they do around inline config, so only a genuine leftover
         # inline key next to `value` is the ambiguous case.
         leftover = removeAttrs unit reserved;
-        badMixed = unit ? value && leftover != { };
-      in
-      builtins.seq checkedClaims (
-        if badChildren then
-          failUnit (
-            unitProblem (
-              {
-                code = "unit-children";
-                message = "'children' must be a list of unit attribute sets";
-              }
-              // labelOf unit
-            )
-          )
-        else if badValue then
-          failUnit (
-            unitProblem (
-              {
-                code = "unit-value";
-                message = "'value' must be an attribute set; got ${builtins.typeOf unit.value}";
-              }
-              // labelOf unit
-            )
-          )
-        else if badLabel then
-          failUnit (unitProblem {
-            code = "unit-label";
-            message = "'label' must be a plain string; got ${builtins.typeOf unit.label}";
-          })
-        else if badSource then
-          failUnit (
-            unitProblem (
-              {
-                code = "unit-source";
-                message = "'source' must be a plain string; got ${builtins.typeOf unit.source}";
-              }
-              // labelOf unit
-            )
-          )
-        else if badMixed then
-          failUnit (
+        diagnostics = validation.collect [
+          (unitSchema unit).diagnostics
+          (validation.optional (unit ? value && leftover != { }) (
             unitProblem (
               {
                 code = "unit-mixed-value";
@@ -139,10 +165,10 @@ let
               }
               // labelOf unit
             )
-          )
-        else
-          unit
-      );
+          ))
+        ];
+      in
+      builtins.seq checkedClaims (finish (validation.fromDiagnostics diagnostics unit));
 
   claimOf = axes.claimOf axisDescriptors;
 

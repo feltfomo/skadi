@@ -57,6 +57,128 @@ let
     else
       "unlabeled declaration";
 
+  # missing and wrong-typed are the same author mistake at this boundary, so a
+  # field reports one diagnostic either way
+  shapeField = code: reason: predicate: {
+    required = true;
+    validate = predicate;
+    onMissing = declaration: shapeDiagnostic code (entryName declaration) reason;
+    onInvalid = declaration: _value: shapeDiagnostic code (entryName declaration) reason;
+  };
+
+  presentShapeField = code: reason: predicate: {
+    validate = predicate;
+    onInvalid = declaration: _value: shapeDiagnostic code (entryName declaration) reason;
+  };
+
+  # open, because a declaration also carries its claim keys and whatever
+  # provenance the caller attached
+  declarationSchema = axiom.schema.compile {
+    allowUnknown = true;
+    onRecord =
+      _value:
+      shapeDiagnostic "declaration-type" "unlabeled declaration" "a declaration must be an attribute set";
+    order = [
+      "label"
+      "filesystemNamespace"
+      "authority"
+      "managedRoot"
+      "destination"
+      "representation"
+      "source"
+      "provenance"
+      "onConflict"
+    ];
+    fields = {
+      label = shapeField "label-type" "label must be a string" builtins.isString;
+      filesystemNamespace =
+        shapeField "namespace-type" "filesystemNamespace must be a string"
+          builtins.isString;
+      authority = shapeField "authority-type" "authority must be an attribute set" builtins.isAttrs;
+      managedRoot = shapeField "managed-root-type" "managedRoot must be a string" builtins.isString;
+      destination = shapeField "destination-type" "destination must be a string" builtins.isString;
+      representation = shapeField "representation-type" "representation must be a non-empty string" (
+        value: builtins.isString value && value != ""
+      );
+      source = shapeField "source-type" "source must be an attribute set" builtins.isAttrs;
+      provenance = presentShapeField "provenance-shape" "provenance values must be strings" (
+        value: builtins.isAttrs value && lib.all builtins.isString (builtins.attrValues value)
+      );
+      onConflict =
+        presentShapeField "on-conflict-value" "onConflict must be one of the declared conflict policies"
+          (
+            value:
+            builtins.isString value && builtins.elem value (builtins.attrValues contract.conflictPolicies)
+          );
+    };
+  };
+
+  # the sub-record schemas run against `{ }` when their parent is missing or
+  # wrong-typed, which is how a bad authority still reports its own fields
+  authoritySchema =
+    name:
+    axiom.schema.compile {
+      allowUnknown = true;
+      onRecord = _value: shapeDiagnostic "authority-type" name "authority must be an attribute set";
+      order = [
+        "scope"
+        "identity"
+      ];
+      fields = {
+        scope = {
+          required = true;
+          validate =
+            value:
+            builtins.isString value
+            && builtins.elem value [
+              "user"
+              "system"
+            ];
+          onMissing =
+            _authority: shapeDiagnostic "authority-scope" name "authority.scope must be 'user' or 'system'";
+          onInvalid =
+            _authority: _value:
+            shapeDiagnostic "authority-scope" name "authority.scope must be 'user' or 'system'";
+        };
+        identity = {
+          required = true;
+          validate = builtins.isString;
+          onMissing =
+            _authority:
+            shapeDiagnostic "authority-identity" name "authority.identity must be a canonical string id";
+          onInvalid =
+            _authority: _value:
+            shapeDiagnostic "authority-identity" name "authority.identity must be a canonical string id";
+        };
+      };
+    };
+
+  sourceSchema =
+    name:
+    axiom.schema.compile {
+      allowUnknown = true;
+      onRecord = _value: shapeDiagnostic "source-type" name "source must be an attribute set";
+      order = [
+        "kind"
+        "value"
+      ];
+      fields = {
+        kind = {
+          required = true;
+          validate = builtins.isString;
+          onMissing = _source: shapeDiagnostic "source-kind" name "source.kind must be a string";
+          onInvalid = _source: _value: shapeDiagnostic "source-kind" name "source.kind must be a string";
+        };
+        # no validator, so the payload stays unforced through validation
+        value = {
+          required = true;
+          onMissing =
+            _source:
+            shapeDiagnostic "source-value" name "source.value is required and remains lazy during validation";
+        };
+      };
+    };
+
   shapeDiagnostics =
     declaration:
     if !builtins.isAttrs declaration then
@@ -75,38 +197,11 @@ let
             { };
         source =
           if declaration ? source && builtins.isAttrs declaration.source then declaration.source else { };
-        provenanceValid =
-          !(declaration ? provenance)
-          || (
-            builtins.isAttrs declaration.provenance
-            && lib.all builtins.isString (builtins.attrValues declaration.provenance)
-          );
-        issue =
-          condition: code: reason:
-          lib.optional condition (shapeDiagnostic code name reason);
       in
-      issue (
-        !(declaration ? label) || !builtins.isString declaration.label
-      ) "label-type" "label must be a string"
-      ++ issue (
-        !(declaration ? filesystemNamespace) || !builtins.isString declaration.filesystemNamespace
-      ) "namespace-type" "filesystemNamespace must be a string"
-      ++ issue (
-        !(declaration ? authority) || !builtins.isAttrs declaration.authority
-      ) "authority-type" "authority must be an attribute set"
-      ++ issue (
-        !(authority ? scope)
-        || !builtins.isString authority.scope
-        || !(builtins.elem authority.scope [
-          "user"
-          "system"
-        ])
-      ) "authority-scope" "authority.scope must be 'user' or 'system'"
-      ++ issue (
-        !(authority ? identity) || !builtins.isString authority.identity
-      ) "authority-identity" "authority.identity must be a canonical string id"
-      ++
-        issue
+      axiom.validation.collect [
+        (declarationSchema declaration).diagnostics
+        (authoritySchema name authority).diagnostics
+        (axiom.validation.optional
           (
             authority ? scope
             && builtins.isString authority.scope
@@ -115,43 +210,19 @@ let
             && builtins.isString authority.identity
             && !lib.hasInfix "/" authority.identity
           )
-          "system-authority-identity"
-          "a system authority identity must be the canonical '<system>/<name>' id"
-      ++ issue (
-        !(declaration ? managedRoot) || !builtins.isString declaration.managedRoot
-      ) "managed-root-type" "managedRoot must be a string"
-      ++ issue (
-        !(declaration ? destination) || !builtins.isString declaration.destination
-      ) "destination-type" "destination must be a string"
-      ++ issue (
-        !(declaration ? representation)
-        || !builtins.isString declaration.representation
-        || declaration.representation == ""
-      ) "representation-type" "representation must be a non-empty string"
-      ++ issue (
-        !(declaration ? source) || !builtins.isAttrs declaration.source
-      ) "source-type" "source must be an attribute set"
-      ++ issue (
-        !(source ? kind) || !builtins.isString source.kind
-      ) "source-kind" "source.kind must be a string"
-      ++ issue (
-        !(source ? value)
-      ) "source-value" "source.value is required and remains lazy during validation"
-      ++ issue (!provenanceValid) "provenance-shape" "provenance values must be strings"
-      ++ issue (
-        declaration ? onConflict
-        && (
-          !builtins.isString declaration.onConflict
-          || !(builtins.elem declaration.onConflict (builtins.attrValues contract.conflictPolicies))
+          (
+            shapeDiagnostic "system-authority-identity" name
+              "a system authority identity must be the canonical '<system>/<name>' id"
+          )
         )
-      ) "on-conflict-value" "onConflict must be one of the declared conflict policies";
+        (sourceSchema name source).diagnostics
+      ];
 
   validateShapes =
     declarations:
-    let
-      diagnostics = builtins.concatMap shapeDiagnostics declarations;
-    in
-    if diagnostics == [ ] then declarations else failAll diagnostics;
+    axiom.validation.finish failAll (
+      axiom.validation.fromDiagnostics (builtins.concatMap shapeDiagnostics declarations) declarations
+    );
 
   validateShape = declaration: builtins.head (validateShapes [ declaration ]);
 
@@ -327,40 +398,33 @@ let
     claimant:
     "${claimant.authority.scope}/${claimant.authority.identity} (${claimant.provenance.declaration} at ${claimant.provenance.source})";
 
-  groupProjections =
-    projections: builtins.groupBy (projection: projection.filesystemIdentity.canonical) projections;
-
-  collisionDiagnostics =
+  # the filesystem identity is the index key, so collision detection is just
+  # duplicate keying over the projections
+  collisionIndex =
     projections:
-    let
-      groups = groupProjections projections;
-    in
-    map (
-      key:
-      let
-        claimants = builtins.sort claimantLess groups.${key};
-      in
-      collisionDiagnostic {
-        code = "duplicate-filesystem-identity";
-        message = "claimed by ${lib.concatMapStringsSep ", " renderClaimant claimants}";
-        primary.label = key;
-        context = {
-          inherit ((builtins.head claimants)) filesystemIdentity;
-          inherit claimants;
+    axiom.registry.compile {
+      registrations = projections;
+      keyOf = projection: projection.filesystemIdentity.canonical;
+      less = claimantLess;
+      onDuplicate =
+        key: claimants:
+        let
+          sorted = builtins.sort claimantLess claimants;
+        in
+        collisionDiagnostic {
+          code = "duplicate-filesystem-identity";
+          message = "claimed by ${lib.concatMapStringsSep ", " renderClaimant sorted}";
+          primary.label = key;
+          context = {
+            inherit ((builtins.head sorted)) filesystemIdentity;
+            claimants = sorted;
+          };
         };
-      }
-    ) (builtins.filter (key: builtins.length groups.${key} > 1) (builtins.attrNames groups));
+    };
 
-  buildIndex =
-    projections:
-    let
-      groups = groupProjections projections;
-      diagnostics = collisionDiagnostics projections;
-    in
-    if diagnostics != [ ] then
-      failAll diagnostics
-    else
-      lib.mapAttrs (_: claimants: builtins.head claimants) groups;
+  collisionDiagnostics = projections: (collisionIndex projections).diagnostics;
+
+  buildIndex = projections: (axiom.validation.finish failAll (collisionIndex projections)).byKey;
 
   projectValidatedPrincipal =
     {
@@ -546,70 +610,52 @@ let
   selectExecutor =
     executors: declaration: selectValidatedExecutor (compileExecutorRegistry executors) declaration;
 
+  strategyField = selected: name: code: field: noun: {
+    required = true;
+    validate =
+      value: builtins.isString value && builtins.elem value (builtins.attrValues contract.strategies);
+    onMissing =
+      _artifact: artifactDiagnostic "${code}-missing" name "${selected.identity} must return ${field}";
+    onInvalid =
+      _artifact: _value: artifactDiagnostic code name "${selected.identity} returned an unknown ${noun}";
+  };
+
+  artifactSchema =
+    selected: name:
+    axiom.schema.compile {
+      allowUnknown = true;
+      onRecord =
+        _value: artifactDiagnostic "artifact-type" name "${selected.identity} must return an attribute set";
+      order = [
+        "retainedArtifactTarget"
+        "cleanupStrategy"
+        "selfHealStrategy"
+      ];
+      fields = {
+        retainedArtifactTarget = {
+          required = true;
+          validate = value: builtins.isString value || builtins.isPath value || lib.isDerivation value;
+          onMissing =
+            _artifact:
+            artifactDiagnostic "retained-target-missing" name
+              "${selected.identity} must return retainedArtifactTarget";
+          onInvalid =
+            _artifact: _value:
+            artifactDiagnostic "retained-target-type" name
+              "${selected.identity} must return a path-like retainedArtifactTarget";
+        };
+        cleanupStrategy =
+          strategyField selected name "cleanup-strategy" "cleanupStrategy"
+            "cleanup strategy";
+        selfHealStrategy =
+          strategyField selected name "self-heal-strategy" "selfHealStrategy"
+            "self-heal strategy";
+      };
+    };
+
   validateArtifact =
     selected: declaration: artifact:
-    let
-      name = entryName declaration;
-      strategies = builtins.attrValues contract.strategies;
-      diagnostics =
-        if !builtins.isAttrs artifact then
-          [
-            (artifactDiagnostic "artifact-type" name "${selected.identity} must return an attribute set")
-          ]
-        else
-          lib.optional (!(artifact ? retainedArtifactTarget)) (
-            artifactDiagnostic "retained-target-missing" name
-              "${selected.identity} must return retainedArtifactTarget"
-          )
-          ++
-            lib.optional
-              (
-                artifact ? retainedArtifactTarget
-                && !(
-                  builtins.isString artifact.retainedArtifactTarget
-                  || builtins.isPath artifact.retainedArtifactTarget
-                  || lib.isDerivation artifact.retainedArtifactTarget
-                )
-              )
-              (
-                artifactDiagnostic "retained-target-type" name
-                  "${selected.identity} must return a path-like retainedArtifactTarget"
-              )
-          ++
-            lib.optional
-              (
-                artifact ? cleanupStrategy
-                && (
-                  !builtins.isString artifact.cleanupStrategy || !(builtins.elem artifact.cleanupStrategy strategies)
-                )
-              )
-              (
-                artifactDiagnostic "cleanup-strategy" name
-                  "${selected.identity} returned an unknown cleanup strategy"
-              )
-          ++ lib.optional (!(artifact ? cleanupStrategy)) (
-            artifactDiagnostic "cleanup-strategy-missing" name
-              "${selected.identity} must return cleanupStrategy"
-          )
-          ++
-            lib.optional
-              (
-                artifact ? selfHealStrategy
-                && (
-                  !builtins.isString artifact.selfHealStrategy
-                  || !(builtins.elem artifact.selfHealStrategy strategies)
-                )
-              )
-              (
-                artifactDiagnostic "self-heal-strategy" name
-                  "${selected.identity} returned an unknown self-heal strategy"
-              )
-          ++ lib.optional (!(artifact ? selfHealStrategy)) (
-            artifactDiagnostic "self-heal-strategy-missing" name
-              "${selected.identity} must return selfHealStrategy"
-          );
-    in
-    if diagnostics == [ ] then artifact else failAll diagnostics;
+    axiom.validation.finish failAll (artifactSchema selected (entryName declaration) artifact);
 
   materialize =
     executorSet: declaration:

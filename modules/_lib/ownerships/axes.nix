@@ -7,18 +7,29 @@
 { lib }:
 let
   krisis = import ../krisis { inherit lib; };
+  axiom = import ../axiom { inherit lib; };
+  inherit (axiom)
+    canonical
+    registry
+    schema
+    validation
+    ;
 
   axisProblem = krisis.mkDiagnosticFactory {
     severity = "error";
     codePrefix = "ownerships";
   };
 
-  failAxis =
-    diagnostic:
-    krisis.throwDiagnostics {
-      diagnostics = [ diagnostic ];
-      formatDiagnostic = krisis.renderPlain;
-    };
+  reporter = krisis.mkReporter { formatDiagnostic = krisis.renderPlain; };
+
+  finish = validation.finish reporter.fail;
+
+  failAxis = reporter.failOne;
+
+  # author-key shape errors are the plain strings the descriptor author wrote,
+  # not krisis records, so they join on their own rather than going through the
+  # diagnostic renderer
+  finishShape = validation.finish (diagnostics: throw (lib.concatStringsSep "\n" diagnostics));
 
   inherit (builtins) elem filter;
 
@@ -255,7 +266,12 @@ let
   # "standalone", bare-name alias) so existing callers keep byte-identical
   # resolve/config output; the optional attrs form federates a host onto a real
   # system and can carry extra aliases and dimension data.
-  canonicalHostId = system: name: "${system}/${name}";
+  canonicalHostId =
+    system: name:
+    canonical.qualified {
+      namespace = system;
+      inherit name;
+    };
 
   aliasesFor =
     entries:
@@ -458,135 +474,259 @@ let
 
   relations = [ hostUserRelation ];
 
-  duplicates =
-    values:
-    builtins.filter (
-      value: builtins.length (builtins.filter (candidate: candidate == value) values) > 1
-    ) (lib.unique values);
+  requiredField = code: subject: field: expected: predicate: {
+    required = true;
+    validate = predicate;
+    onMissing =
+      _record:
+      axisProblem {
+        inherit code;
+        message = "${subject} is missing required field '${field}'";
+      };
+    onInvalid =
+      _record: value:
+      axisProblem {
+        inherit code;
+        message = "${subject} field '${field}' must be ${expected}; got ${builtins.typeOf value}";
+      };
+  };
 
+  stringField =
+    code: subject: field:
+    requiredField code subject field "a string" builtins.isString;
+
+  functionField =
+    code: subject: field:
+    requiredField code subject field "a function" builtins.isFunction;
+
+  # a registration that got its own name wrong can't be named in its own
+  # diagnostic, so it falls back to where it sits in the list
+  subjectFor =
+    noun: index: registration:
+    if builtins.isAttrs registration && registration ? name && builtins.isString registration.name then
+      "${noun} '${registration.name}'"
+    else
+      "${noun} at index ${toString index}";
+
+  descriptorCode = "descriptor-malformed";
+
+  # open, because a descriptor is free to carry data these axes don't read
+  authorKeySchema =
+    subject: index:
+    let
+      keySubject = "${subject} author key ${toString index}";
+    in
+    schema.compile {
+      allowUnknown = true;
+      onRecord =
+        value:
+        axisProblem {
+          code = descriptorCode;
+          message = "${keySubject} must be an attribute set; got ${builtins.typeOf value}";
+        };
+      order = [
+        "name"
+        "order"
+        "valid"
+        "shapeError"
+      ];
+      fields = {
+        name = stringField descriptorCode keySubject "name";
+        order = requiredField descriptorCode keySubject "order" "an integer" builtins.isInt;
+        valid = functionField descriptorCode keySubject "valid";
+        shapeError = functionField descriptorCode keySubject "shapeError";
+      };
+    };
+
+  descriptorSchema =
+    subject:
+    schema.compile {
+      allowUnknown = true;
+      onRecord =
+        value:
+        axisProblem {
+          code = descriptorCode;
+          message = "${subject} must be an attribute set; got ${builtins.typeOf value}";
+        };
+      order = [
+        "name"
+        "authorKeys"
+        "roster"
+        "allowedScopes"
+        "parse"
+        "axisFor"
+        "ctxClaim"
+        "ctxLabel"
+        "leafStages"
+        "scopeError"
+      ];
+      fields = {
+        name = stringField descriptorCode subject "name";
+        authorKeys = requiredField descriptorCode subject "authorKeys" "a list" builtins.isList;
+        roster = requiredField descriptorCode subject "roster" "an attribute set or null" (
+          value: value == null || builtins.isAttrs value
+        );
+        allowedScopes = requiredField descriptorCode subject "allowedScopes" "a list of strings" (
+          value: builtins.isList value && lib.all builtins.isString value
+        );
+        parse = functionField descriptorCode subject "parse";
+        axisFor = functionField descriptorCode subject "axisFor";
+        ctxClaim = functionField descriptorCode subject "ctxClaim";
+        ctxLabel = functionField descriptorCode subject "ctxLabel";
+        leafStages = functionField descriptorCode subject "leafStages";
+        scopeError = functionField descriptorCode subject "scopeError";
+      };
+    };
+
+  descriptorResult =
+    index: descriptor:
+    let
+      subject = subjectFor "axis descriptor" index descriptor;
+      shape = descriptorSchema subject descriptor;
+      keyResults = lib.optionals (
+        builtins.isAttrs descriptor && descriptor ? authorKeys && builtins.isList descriptor.authorKeys
+      ) (lib.imap0 (keyIndex: key: authorKeySchema subject keyIndex key) descriptor.authorKeys);
+    in
+    validation.fromDiagnostics (validation.collect (
+      [ shape.diagnostics ] ++ map (result: result.diagnostics) keyResults
+    )) descriptor;
+
+  duplicateDescriptorDiagnostics =
+    axisDescriptors:
+    (registry.compile {
+      registrations = axisDescriptors;
+      keyOf = descriptor: descriptor.name;
+      onDuplicate =
+        key: _registrations:
+        axisProblem {
+          code = "descriptor-duplicate-name";
+          message = "duplicate axis descriptor name '${key}'";
+        };
+    }).diagnostics;
+
+  duplicateAuthorKeyDiagnostics =
+    authorKeys:
+    validation.collect [
+      (registry.compile {
+        registrations = authorKeys;
+        keyOf = key: key.name;
+        onDuplicate =
+          key: _registrations:
+          axisProblem {
+            code = "descriptor-duplicate-key";
+            message = "duplicate ownership author key '${key}'";
+          };
+      }).diagnostics
+      (registry.compile {
+        registrations = authorKeys;
+        keyOf = key: toString key.order;
+        onDuplicate =
+          key: _registrations:
+          axisProblem {
+            code = "descriptor-duplicate-order";
+            message = "duplicate ownership author-key order ${key}";
+          };
+      }).diagnostics
+    ];
+
+  # shape runs to completion before the duplicate registries, which read the
+  # very fields the shape stage is still deciding are there
   validateDescriptors =
     axisDescriptors:
     let
-      malformed = builtins.filter (
-        descriptor:
-        !(
-          builtins.isAttrs descriptor
-          && descriptor ? name
-          && builtins.isString descriptor.name
-          && descriptor ? authorKeys
-          && builtins.isList descriptor.authorKeys
-          && lib.all (
-            key:
-            builtins.isAttrs key
-            && key ? name
-            && builtins.isString key.name
-            && key ? order
-            && builtins.isInt key.order
-            && key ? valid
-            && builtins.isFunction key.valid
-            && key ? shapeError
-            && builtins.isFunction key.shapeError
-          ) descriptor.authorKeys
-          && descriptor ? roster
-          && (descriptor.roster == null || builtins.isAttrs descriptor.roster)
-          && descriptor ? allowedScopes
-          && builtins.isList descriptor.allowedScopes
-          && lib.all builtins.isString descriptor.allowedScopes
-          && descriptor ? parse
-          && builtins.isFunction descriptor.parse
-          && descriptor ? axisFor
-          && builtins.isFunction descriptor.axisFor
-          && descriptor ? ctxClaim
-          && builtins.isFunction descriptor.ctxClaim
-          && descriptor ? ctxLabel
-          && builtins.isFunction descriptor.ctxLabel
-          && descriptor ? leafStages
-          && builtins.isFunction descriptor.leafStages
-          && descriptor ? scopeError
-          && builtins.isFunction descriptor.scopeError
-        )
-      ) axisDescriptors;
-      names = map (descriptor: descriptor.name) axisDescriptors;
-      keys = builtins.concatMap (descriptor: descriptor.authorKeys) axisDescriptors;
-      duplicateNames = duplicates names;
-      duplicateKeys = duplicates (map (key: key.name) keys);
-      duplicateOrders = duplicates (map (key: key.order) keys);
+      shaped = validation.sequence (lib.imap0 descriptorResult axisDescriptors);
     in
-    if malformed != [ ] then
-      failAxis (axisProblem {
-        code = "descriptor-malformed";
-        message = "malformed axis descriptor registration";
-      })
-    else if duplicateNames != [ ] then
-      failAxis (axisProblem {
-        code = "descriptor-duplicate-name";
-        message = "duplicate axis descriptor names ${lib.concatStringsSep ", " duplicateNames}";
-      })
-    else if duplicateKeys != [ ] then
-      failAxis (axisProblem {
-        code = "descriptor-duplicate-key";
-        message = "duplicate ownership author keys ${lib.concatStringsSep ", " duplicateKeys}";
-      })
-    else if duplicateOrders != [ ] then
-      failAxis (axisProblem {
-        code = "descriptor-duplicate-order";
-        message = "duplicate ownership author-key orders ${lib.concatStringsSep ", " (map toString duplicateOrders)}";
-      })
-    else
-      axisDescriptors;
+    finish (
+      if shaped.diagnostics != [ ] then
+        shaped
+      else
+        validation.fromDiagnostics (validation.collect [
+          (duplicateDescriptorDiagnostics axisDescriptors)
+          (duplicateAuthorKeyDiagnostics (
+            builtins.concatMap (descriptor: descriptor.authorKeys) axisDescriptors
+          ))
+        ]) axisDescriptors
+    );
 
   validateRelations =
     axisDescriptors: relationRegistrations:
     let
+      relationCode = "relation-malformed";
+      relationSchema =
+        subject:
+        schema.compile {
+          allowUnknown = true;
+          onRecord =
+            value:
+            axisProblem {
+              code = relationCode;
+              message = "${subject} must be an attribute set; got ${builtins.typeOf value}";
+            };
+          order = [
+            "name"
+            "leftAxis"
+            "rightAxis"
+            "unknownFor"
+            "compatibleFor"
+            "reason"
+          ];
+          fields = {
+            name = stringField relationCode subject "name";
+            leftAxis = stringField relationCode subject "leftAxis";
+            rightAxis = stringField relationCode subject "rightAxis";
+            unknownFor = functionField relationCode subject "unknownFor";
+            compatibleFor = functionField relationCode subject "compatibleFor";
+            reason = functionField relationCode subject "reason";
+          };
+        };
+
       checkedDescriptors = validateDescriptors axisDescriptors;
       axisNames = map (descriptor: descriptor.name) checkedDescriptors;
-      malformed = builtins.filter (
-        relation:
-        !(
-          builtins.isAttrs relation
-          && relation ? name
-          && builtins.isString relation.name
-          && relation ? leftAxis
-          && builtins.isString relation.leftAxis
-          && relation ? rightAxis
-          && builtins.isString relation.rightAxis
-          && relation ? unknownFor
-          && builtins.isFunction relation.unknownFor
-          && relation ? compatibleFor
-          && builtins.isFunction relation.compatibleFor
-          && relation ? reason
-          && builtins.isFunction relation.reason
-        )
-      ) relationRegistrations;
-      names = map (relation: relation.name) relationRegistrations;
-      duplicateNames = duplicates names;
-      unknownAxes = lib.unique (
-        builtins.concatMap (
-          relation:
-          builtins.filter (name: !(builtins.elem name axisNames)) [
-            relation.leftAxis
-            relation.rightAxis
-          ]
+
+      subjectAt = index: relation: subjectFor "relation" index relation;
+
+      shaped = validation.sequence (
+        lib.imap0 (
+          index: relation:
+          validation.fromDiagnostics (relationSchema (subjectAt index relation) relation).diagnostics relation
         ) relationRegistrations
       );
+
+      unknownAxisDiagnostics =
+        index: relation:
+        builtins.concatMap
+          (
+            side:
+            validation.optional (!(builtins.elem relation.${side} axisNames)) (axisProblem {
+              code = "relation-unknown-axis";
+              message = "${subjectAt index relation} references unknown axis '${relation.${side}}' as ${side}";
+            })
+          )
+          [
+            "leftAxis"
+            "rightAxis"
+          ];
     in
-    if malformed != [ ] then
-      failAxis (axisProblem {
-        code = "relation-malformed";
-        message = "malformed relation registration";
-      })
-    else if duplicateNames != [ ] then
-      failAxis (axisProblem {
-        code = "relation-duplicate-name";
-        message = "duplicate relation names ${lib.concatStringsSep ", " duplicateNames}";
-      })
-    else if unknownAxes != [ ] then
-      failAxis (axisProblem {
-        code = "relation-unknown-axis";
-        message = "relation registrations reference unknown axes ${lib.concatStringsSep ", " unknownAxes}";
-      })
-    else
-      relationRegistrations;
+    finish (
+      if shaped.diagnostics != [ ] then
+        shaped
+      else
+        validation.fromDiagnostics (validation.collect (
+          [
+            (registry.compile {
+              registrations = relationRegistrations;
+              keyOf = relation: relation.name;
+              onDuplicate =
+                key: _registrations:
+                axisProblem {
+                  code = "relation-duplicate-name";
+                  message = "duplicate relation name '${key}'";
+                };
+            }).diagnostics
+          ]
+          ++ lib.imap0 unknownAxisDiagnostics relationRegistrations
+        )) relationRegistrations
+    );
 
   compileDescriptors =
     axisDescriptors:
@@ -606,13 +746,18 @@ let
 
   claimKeysFor = axisDescriptors: (compileDescriptors axisDescriptors).claimKeys;
 
+  # every misplaced claim key on the unit, not just the first -- a nixos `users`
+  # attrset landing on the ownership key used to hide a second bad key behind it
   validateUnitWith =
     authorKeys: unit:
-    let
-      invalid = builtins.filter (key: unit ? ${key.name} && !key.valid unit.${key.name}) authorKeys;
-      bad = if invalid == [ ] then null else builtins.head invalid;
-    in
-    if bad == null then unit else throw (bad.shapeError unit.${bad.name});
+    finishShape (
+      validation.fromDiagnostics (builtins.concatMap (
+        key:
+        validation.optional (unit ? ${key.name} && !key.valid unit.${key.name}) (
+          key.shapeError unit.${key.name}
+        )
+      ) authorKeys) unit
+    );
 
   validateUnit = axisDescriptors: validateUnitWith (compileDescriptors axisDescriptors).authorKeys;
 

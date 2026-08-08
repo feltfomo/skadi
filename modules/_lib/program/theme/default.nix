@@ -13,6 +13,20 @@
   reporter,
 }:
 let
+  axiom = import ../../axiom { inherit lib; };
+  capability = import ./capabilities.nix;
+
+  # a capability the adapter declares, rather than a per-feature boolean every
+  # adapter has to remember to set
+  declares = name: adapter: (axiom.requirements.evaluate [ name ] adapter.capabilities).satisfied;
+
+  entryProblem =
+    subject: code: message:
+    problem {
+      inherit code message;
+      primary.label = subject;
+    };
+
   adapters = {
     caelestia = import ./adapters/caelestia.nix { inherit lib; };
     dms = import ./adapters/dms.nix { inherit lib; };
@@ -189,27 +203,31 @@ let
           renderer:
           map (shell: { inherit renderer shell; }) (targetsForRenderer renderer renderers.${renderer})
         ) rendererNames;
-        assignmentGroups = builtins.groupBy (assignment: assignment.shell) assignments;
-        overlappingAssignments = lib.filterAttrs (
-          shell: owners: builtins.elem shell themeBackends && builtins.length owners > 1
-        ) assignmentGroups;
-        overlapErrors = lib.mapAttrsToList (
-          shell: owners:
-          let
-            ownerNames = map (owner: owner.renderer) owners;
-            firstOwner = builtins.head ownerNames;
-          in
-          problem {
-            code = "theme-renderer-overlap";
-            message = "shell ${shell} is assigned by multiple renderer declarations";
-            primary.label = "${subject}.renderers.${firstOwner}";
-            secondaryLabels = map (owner: {
-              label = "${subject}.renderers.${owner}";
-              message = "also assigns ${shell}";
-            }) (builtins.tail ownerNames);
-            help = "keep ${shell} in exactly one renderer declaration";
-          }
-        ) overlappingAssignments;
+        # a shell may be assigned by exactly one renderer declaration, which is
+        # duplicate keying on the shell name
+        overlapErrors =
+          (axiom.registry.compile {
+            registrations = builtins.filter (
+              assignment: builtins.elem assignment.shell themeBackends
+            ) assignments;
+            keyOf = assignment: assignment.shell;
+            onDuplicate =
+              shell: owners:
+              let
+                ownerNames = map (owner: owner.renderer) owners;
+                firstOwner = builtins.head ownerNames;
+              in
+              problem {
+                code = "theme-renderer-overlap";
+                message = "shell ${shell} is assigned by multiple renderer declarations";
+                primary.label = "${subject}.renderers.${firstOwner}";
+                secondaryLabels = map (owner: {
+                  label = "${subject}.renderers.${owner}";
+                  message = "also assigns ${shell}";
+                }) (builtins.tail ownerNames);
+                help = "keep ${shell} in exactly one renderer declaration";
+              };
+          }).diagnostics;
       in
       lib.optional (unknownTemplate != [ ]) (problem {
         code = "theme-template-fields";
@@ -296,6 +314,57 @@ let
       ) rawEntries;
 
   themeUnits = spec: builtins.concatMap (themeUnitsFor spec) themeBackends;
+  # closed, because a theme entry's vocabulary is the claim keys plus the value
+  # fields and nothing else -- an unknown key here is a typo
+  themeEntrySchema =
+    subject:
+    axiom.schema.compile {
+      onRecord = _value: entryProblem subject "theme-entry-shape" "must be an attribute set";
+      onUnknown = name: _value: entryProblem subject "theme-entry-fields" "has unknown field ${name}";
+      order = themeEntryFields;
+      fields = lib.genAttrs claimKeys (_: { }) // {
+        source = {
+          required = true;
+          validate = value: builtins.isPath value || builtins.isString value;
+          onMissing = _entry: entryProblem subject "theme-source" "source must be a path or string";
+          onInvalid = _entry: _value: entryProblem subject "theme-source" "source must be a path or string";
+        };
+        output = {
+          required = true;
+          validate = validRelativePath;
+          onMissing = _entry: entryProblem subject "theme-output" "output must be a normalized relative path";
+          onInvalid =
+            _entry: _value: entryProblem subject "theme-output" "output must be a normalized relative path";
+        };
+        subdir = {
+          validate = value: value == null || validSubdir value;
+          onInvalid =
+            _entry: _value:
+            entryProblem subject "theme-subdir"
+              "subdir must be null, empty, or a normalized relative directory";
+        };
+        placedAs = {
+          validate = validBaseName;
+          onInvalid =
+            _entry: _value: entryProblem subject "theme-placed-name" "placedAs must be a normalized basename";
+        };
+        subId = {
+          validate = value: value == null || validBaseName value;
+          onInvalid =
+            _entry: _value:
+            entryProblem subject "theme-sub-id" "subId must be null or a normalized non-empty name";
+        };
+        reload = {
+          validate = value: value == null || builtins.isString value;
+          onInvalid = _entry: _value: entryProblem subject "theme-reload" "reload must be null or a string";
+        };
+        native = {
+          validate = builtins.isAttrs;
+          onInvalid = _entry: _value: entryProblem subject "theme-native" "native must be an attribute set";
+        };
+      };
+    };
+
   themeEntryErrors =
     themeEntries:
     builtins.concatMap (
@@ -303,63 +372,8 @@ let
       let
         inherit (indexed) index wrapped;
         subject = "theme.${wrapped.renderer}.${wrapped.blockId}.templates[${toString index}]";
-        inherit (wrapped) entry;
-        unknown = unknownFields themeEntryFields entry;
       in
-      if !builtins.isAttrs entry then
-        [
-          (problem {
-            code = "theme-entry-shape";
-            message = "must be an attribute set";
-            primary.label = subject;
-          })
-        ]
-      else
-        lib.optional (unknown != [ ]) (problem {
-          code = "theme-entry-fields";
-          message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
-          primary.label = subject;
-        })
-        ++
-          lib.optional
-            (!(entry ? source) || !(builtins.isPath entry.source || builtins.isString entry.source))
-            (problem {
-              code = "theme-source";
-              message = "source must be a path or string";
-              primary.label = subject;
-            })
-        ++ lib.optional (!(entry ? output) || !validRelativePath entry.output) (problem {
-          code = "theme-output";
-          message = "output must be a normalized relative path";
-          primary.label = subject;
-        })
-        ++ lib.optional (entry ? subdir && entry.subdir != null && !validSubdir entry.subdir) (problem {
-          code = "theme-subdir";
-          message = "subdir must be null, empty, or a normalized relative directory";
-          primary.label = subject;
-        })
-        ++ lib.optional (entry ? placedAs && !validBaseName entry.placedAs) (problem {
-          code = "theme-placed-name";
-          message = "placedAs must be a normalized basename";
-          primary.label = subject;
-        })
-        ++ lib.optional (entry ? subId && entry.subId != null && !validBaseName entry.subId) (problem {
-          code = "theme-sub-id";
-          message = "subId must be null or a normalized non-empty name";
-          primary.label = subject;
-        })
-        ++
-          lib.optional (entry ? reload && entry.reload != null && !builtins.isString entry.reload)
-            (problem {
-              code = "theme-reload";
-              message = "reload must be null or a string";
-              primary.label = subject;
-            })
-        ++ lib.optional (entry ? native && !builtins.isAttrs entry.native) (problem {
-          code = "theme-native";
-          message = "native must be an attribute set";
-          primary.label = subject;
-        })
+      (themeEntrySchema subject wrapped.entry).diagnostics
     ) (lib.imap0 (index: wrapped: { inherit index wrapped; }) themeEntries);
 
   normalizeThemeEntry =
@@ -392,7 +406,14 @@ let
         ;
       reload = entry.reload or null;
       native = entry.native or { };
-      registrationId = if subId == null then blockId else "${blockId}-${subId}";
+      registrationId =
+        if subId == null then
+          blockId
+        else
+          axiom.canonical.join "-" [
+            blockId
+            subId
+          ];
       runtime = adapters.${renderer}.runtime or null;
     };
 
@@ -401,10 +422,20 @@ let
     let
       inherit ((builtins.head entries)) blockId renderer;
       adapter = adapters.${renderer};
-      ids = map (entry: entry.registrationId) entries;
-      dupIds = duplicateValues ids;
+      duplicateIds =
+        (axiom.registry.compile {
+          registrations = entries;
+          keyOf = entry: entry.registrationId;
+          onDuplicate =
+            id: _duplicates:
+            problem {
+              code = "theme-registration-duplicate";
+              message = "has duplicate registration id ${id}";
+              primary.label = "theme.${renderer}.${blockId}";
+            };
+        }).diagnostics;
       unsupportedNativeIds = map (entry: entry.registrationId) (
-        builtins.filter (entry: !adapter.acceptsNative && entry.native != { }) entries
+        builtins.filter (entry: !(declares capability.nativeBlocks adapter) && entry.native != { }) entries
       );
       inherit (adapter) templateNameOf;
       seedFileOf = entry: {
@@ -415,16 +446,8 @@ let
         provenance = "modules/_lib/program.nix";
       };
     in
-    if dupIds != [ ] then
-      reporter.checked
-        [
-          (problem {
-            code = "theme-registration-duplicate";
-            message = "has duplicate registration ids: ${lib.concatStringsSep ", " dupIds}";
-            primary.label = "theme.${renderer}.${blockId}";
-          })
-        ]
-        [ ]
+    if duplicateIds != [ ] then
+      reporter.checked duplicateIds [ ]
     else if unsupportedNativeIds != [ ] then
       reporter.checked
         [
@@ -460,21 +483,23 @@ let
       else
         let
           rendererEntries = builtins.filter (entry: entry.renderer == renderer) entries;
-          ids = map (entry: entry.registrationId) rendererEntries;
-          dupIds = duplicateValues ids;
+          duplicateIds =
+            (axiom.registry.compile {
+              registrations = rendererEntries;
+              keyOf = entry: entry.registrationId;
+              onDuplicate =
+                id: _duplicates:
+                problem {
+                  code = "theme-registration-duplicate";
+                  message = "has duplicate registration id ${id} across blocks";
+                  primary.label = "theme.${renderer}";
+                };
+            }).diagnostics;
         in
         if rendererEntries == [ ] then
           [ ]
-        else if dupIds != [ ] then
-          reporter.checked
-            [
-              (problem {
-                code = "theme-registration-duplicate";
-                message = "has duplicate registration ids across blocks: ${lib.concatStringsSep ", " dupIds}";
-                primary.label = "theme.${renderer}";
-              })
-            ]
-            [ ]
+        else if duplicateIds != [ ] then
+          reporter.checked duplicateIds [ ]
         else
           adapter.aggregateFilesFor {
             inherit pkgs;
@@ -486,7 +511,15 @@ let
   themeFiles =
     entries: pkgs:
     builtins.concatMap (themeGroupFiles pkgs) (
-      builtins.attrValues (builtins.groupBy (entry: "${entry.renderer}:${entry.blockId}") entries)
+      builtins.attrValues (
+        builtins.groupBy (
+          entry:
+          axiom.canonical.join ":" [
+            entry.renderer
+            entry.blockId
+          ]
+        ) entries
+      )
     )
     ++ aggregatedThemeFiles entries pkgs;
 in

@@ -5,20 +5,29 @@
 { lib }:
 let
   krisis = import ../krisis { inherit lib; };
+  axiom = import ../axiom { inherit lib; };
+  inherit (axiom) validation canonical;
 
   importProblem = krisis.mkDiagnosticFactory {
     severity = "error";
     codePrefix = "ownerships/import";
   };
 
-  failImport =
-    diagnostic:
-    krisis.throwDiagnostics {
-      diagnostics = [ diagnostic ];
-      formatDiagnostic = krisis.renderPlain;
-    };
+  reporter = krisis.mkReporter { formatDiagnostic = krisis.renderPlain; };
 
-  joinRelative = prefix: name: if prefix == "" then name else "${prefix}/${name}";
+  finish = validation.finish reporter.fail;
+
+  failImport = reporter.failOne;
+
+  joinRelative =
+    prefix: name:
+    if prefix == "" then
+      name
+    else
+      canonical.path [
+        prefix
+        name
+      ];
   childPath = directory: name: directory + "/${name}";
   shown = path: "'${path}'";
 
@@ -50,6 +59,15 @@ let
 
   orderedFiles = directory: builtins.sort (a: b: a.relative < b.relative) (discover "" directory);
 
+  argsDiagnostics =
+    subject: args:
+    validation.optional (!builtins.isAttrs args) (importProblem {
+      code = "args-shape";
+      message = "${subject} args must be an attribute set; got ${builtins.typeOf args}";
+    });
+
+  # a returned result rather than a throw, so one bad unit file no longer hides
+  # every other bad unit file in the same tree
   normalizeFile =
     args: file:
     krisis.withErrorContext "while importing ownership units from ${shown file.relative}" (
@@ -59,13 +77,10 @@ let
         units = if builtins.isList result then result else [ result ];
         invalid = builtins.filter (unit: !builtins.isAttrs unit) units;
       in
-      if invalid == [ ] then
-        units
-      else
-        failImport (importProblem {
-          code = "unit-shape";
-          message = "imported unit file ${shown file.relative} must return an attribute set or a list of attribute sets; found ${builtins.typeOf (builtins.head invalid)}";
-        })
+      validation.fromDiagnostics (validation.optional (invalid != [ ]) (importProblem {
+        code = "unit-shape";
+        message = "imported unit file ${shown file.relative} must return an attribute set or a list of attribute sets; found ${builtins.typeOf (builtins.head invalid)}";
+      })) units
     );
 
   importUnits =
@@ -73,13 +88,17 @@ let
       dir,
       args ? { },
     }:
-    if !builtins.isAttrs args then
-      failImport (importProblem {
-        code = "args-shape";
-        message = "importUnits args must be an attribute set; got ${builtins.typeOf args}";
-      })
+    let
+      badArgs = argsDiagnostics "importUnits" args;
+    in
+    # the args shape gates the imports themselves, so it stays a separate,
+    # earlier failure than the per-file accumulation
+    if badArgs != [ ] then
+      reporter.fail badArgs
     else
-      builtins.concatLists (map (normalizeFile args) (orderedFiles dir));
+      finish (
+        validation.map builtins.concatLists (validation.traverse (normalizeFile args) (orderedFiles dir))
+      );
 
   collectionNames = [
     "home"
@@ -118,54 +137,51 @@ let
           dir = childPath dir name;
           inherit args;
         };
+
+      # the five tree checks are independent of each other, so an author sees
+      # every misplaced entry at once instead of one per rebuild
+      diagnostics = validation.collect [
+        (argsDiagnostics "importUnitSets" args)
+        (map (
+          name:
+          importProblem {
+            code = "collection-kind";
+            message = "unit collection ${shown name} must be a directory; found ${shown entries.${name}}";
+          }
+        ) wrongCollectionKinds)
+        (map (
+          name:
+          importProblem {
+            code = "loose-unit";
+            message = "cannot classify unit file ${shown name} in a mixed unit tree; move it under the 'system' or 'home' directory";
+          }
+        ) looseUnits)
+        (map (
+          name:
+          importProblem {
+            code = "unknown-collection";
+            message = "unknown unit collection ${shown name}; mixed unit trees support only 'system' and 'home' directories";
+          }
+        ) unknownDirectories)
+        (map (
+          name:
+          importProblem {
+            code = "entry-kind";
+            message = "cannot inspect unit-tree entry ${shown name}: filesystem entry type ${shown entries.${name}} is unsupported";
+          }
+        ) unsafeEntries)
+        (validation.optional (!hasHome && !hasSystem) (importProblem {
+          code = "tree-empty";
+          message = "mixed unit tree must contain a 'system' or 'home' directory";
+        }))
+      ];
     in
-    if !builtins.isAttrs args then
-      failImport (importProblem {
-        code = "args-shape";
-        message = "importUnitSets args must be an attribute set; got ${builtins.typeOf args}";
-      })
-    else if wrongCollectionKinds != [ ] then
-      let
-        name = builtins.head wrongCollectionKinds;
-      in
-      failImport (importProblem {
-        code = "collection-kind";
-        message = "unit collection ${shown name} must be a directory; found ${shown entries.${name}}";
-      })
-    else if looseUnits != [ ] then
-      let
-        name = builtins.head looseUnits;
-      in
-      failImport (importProblem {
-        code = "loose-unit";
-        message = "cannot classify unit file ${shown name} in a mixed unit tree; move it under the 'system' or 'home' directory";
-      })
-    else if unknownDirectories != [ ] then
-      let
-        name = builtins.head unknownDirectories;
-      in
-      failImport (importProblem {
-        code = "unknown-collection";
-        message = "unknown unit collection ${shown name}; mixed unit trees support only 'system' and 'home' directories";
-      })
-    else if unsafeEntries != [ ] then
-      let
-        name = builtins.head unsafeEntries;
-      in
-      failImport (importProblem {
-        code = "entry-kind";
-        message = "cannot inspect unit-tree entry ${shown name}: filesystem entry type ${shown entries.${name}} is unsupported";
-      })
-    else if !hasHome && !hasSystem then
-      failImport (importProblem {
-        code = "tree-empty";
-        message = "mixed unit tree must contain a 'system' or 'home' directory";
-      })
-    else
-      {
+    finish (
+      validation.fromDiagnostics diagnostics {
         home = if hasHome then load "home" else [ ];
         system = if hasSystem then load "system" else [ ];
-      };
+      }
+    );
 in
 {
   inherit

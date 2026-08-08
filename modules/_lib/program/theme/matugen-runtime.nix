@@ -11,17 +11,49 @@
 let
   contract = import ../../furnish/contract.nix { inherit lib; };
   furnishFiles = import ../../furnish/files.nix { inherit lib contract; };
-  inherit (import ../report.nix { inherit lib; }) problem reporter duplicateValues;
-  adapters = {
-    dms = import ./adapters/dms.nix { inherit lib; };
-    end4-pc = import ./adapters/end4-pc.nix { inherit lib; };
-    illogical-impulse = import ./adapters/illogical-impulse.nix { inherit lib; };
+  axiom = import ../../axiom { inherit lib; };
+  capability = import ./capabilities.nix;
+  inherit (import ../report.nix { inherit lib; }) problem finish;
+
+  candidates =
+    lib.mapAttrsToList
+      (name: path: {
+        inherit name;
+        adapter = import path { inherit lib; };
+      })
+      {
+        caelestia = ./adapters/caelestia.nix;
+        dms = ./adapters/dms.nix;
+        end4-pc = ./adapters/end4-pc.nix;
+        illogical-impulse = ./adapters/illogical-impulse.nix;
+        noctalia = ./adapters/noctalia.nix;
+      };
+
+  # the matugen-backed renderers are the ones whose adapter says it needs the
+  # runtime, not a second hand-kept list that drifts from the adapters
+  observation = axiom.requirements.observe {
+    required = [ capability.matugenRuntime ];
+    inherit candidates;
+    providedBy = entry: entry.adapter.capabilities;
   };
+
+  adapters = builtins.listToAttrs (
+    map (entry: {
+      inherit (entry.candidate) name;
+      value = entry.candidate.adapter;
+    }) observation.qualified
+  );
+
   cfg = config.lexicon.theme.matugen;
 
   groupKey =
     entry:
-    "${entry.renderer}:${entry.filesystemNamespace}:${entry.principal.authority.scope}:${entry.principal.authority.identity}";
+    axiom.canonical.join ":" [
+      entry.renderer
+      entry.filesystemNamespace
+      entry.principal.authority.scope
+      entry.principal.authority.identity
+    ];
   groups = builtins.attrValues (builtins.groupBy groupKey cfg.entries);
 
   declarationsFor =
@@ -29,18 +61,21 @@ let
     let
       first = builtins.head entries;
       adapter = adapters.${first.renderer};
-      ids = map (entry: entry.registrationId) entries;
-      dupIds = duplicateValues ids;
+      keyed = finish (
+        axiom.registry.compile {
+          registrations = entries;
+          keyOf = entry: entry.registrationId;
+          onDuplicate =
+            id: _duplicates:
+            problem {
+              code = "theme-registration-duplicate";
+              message = "has duplicate registration id ${id} for ${first.filesystemNamespace} (${first.principal.authority.identity})";
+              primary.label = "theme.${first.renderer}";
+            };
+        }
+      );
     in
-    if dupIds != [ ] then
-      reporter.fail [
-        (problem {
-          code = "theme-registration-duplicate";
-          message = "has duplicate registration ids for ${first.filesystemNamespace} (${first.principal.authority.identity}): ${lib.concatStringsSep ", " dupIds}";
-          primary.label = "theme.${first.renderer}";
-        })
-      ]
-    else
+    builtins.seq keyed (
       furnishFiles.mkDeclarations {
         inherit (first) filesystemNamespace;
         principals = [ first.principal ];
@@ -59,7 +94,8 @@ let
             provenance = "modules/_lib/program.nix";
           }
         ];
-      };
+      }
+    );
 in
 {
   options.lexicon.theme.matugen.entries = lib.mkOption {

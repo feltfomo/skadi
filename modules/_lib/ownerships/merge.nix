@@ -15,18 +15,19 @@ let
 
   krisis = import ../krisis { inherit lib; };
   inherit (krisis) safeRender;
+  axiom = import ../axiom { inherit lib; };
+  inherit (axiom) canonical schema validation;
 
   mergeProblem = krisis.mkDiagnosticFactory {
     severity = "error";
     codePrefix = "ownerships/merge";
   };
 
-  failMerge =
-    diagnostic:
-    krisis.throwDiagnostics {
-      diagnostics = [ diagnostic ];
-      formatDiagnostic = krisis.renderPlain;
-    };
+  reporter = krisis.mkReporter { formatDiagnostic = krisis.renderPlain; };
+
+  finish = validation.finish reporter.fail;
+
+  failMerge = reporter.failOne;
 
   shownPath = path: if path == "" then "<root>" else path;
   contributorIdentities =
@@ -98,8 +99,106 @@ let
     let
       lockingEnabled = args ? lockFor;
       profilingEnabled = args ? profiles;
-      subPath = path: key: if path == "" then key else "${path}.${key}";
+      subPath =
+        path: key:
+        if path == "" then
+          key
+        else
+          canonical.join "." [
+            path
+            key
+          ];
 
+      profileSchema =
+        path: name:
+        let
+          at = "merge profile ${safeRender name} at ${shownPath path}";
+        in
+        schema.compile {
+          allowUnknown = true;
+          onRecord =
+            _value:
+            mergeProblem {
+              code = "profile-shape";
+              message = "${at} must be an attribute set";
+            };
+          order = [
+            "listStrategy"
+            "scalarPolicy"
+            "attrsetTreatment"
+          ];
+          fields = {
+            listStrategy = {
+              required = true;
+              validate =
+                value: builtins.isString value && strategies ? ${value} && builtins.isFunction strategies.${value};
+              onMissing =
+                _profile:
+                mergeProblem {
+                  code = "profile-list-strategy";
+                  message = "${at} must name a list strategy";
+                };
+              onInvalid =
+                _profile: value:
+                if !builtins.isString value then
+                  mergeProblem {
+                    code = "profile-list-strategy";
+                    message = "${at} must name a list strategy";
+                  }
+                else if !(strategies ? ${value}) then
+                  mergeProblem {
+                    code = "profile-list-strategy-unknown";
+                    message = "${at} names unknown list strategy ${safeRender value}";
+                  }
+                else
+                  mergeProblem {
+                    code = "list-strategy-type";
+                    message = "list strategy ${safeRender value} must be a function";
+                  };
+            };
+            scalarPolicy = {
+              required = true;
+              validate = builtins.isFunction;
+              onMissing =
+                _profile:
+                mergeProblem {
+                  code = "profile-scalar-policy";
+                  message = "${at} must provide a scalar policy function";
+                };
+              onInvalid =
+                _profile: _value:
+                mergeProblem {
+                  code = "profile-scalar-policy";
+                  message = "${at} must provide a scalar policy function";
+                };
+            };
+            attrsetTreatment = {
+              required = true;
+              validate =
+                value:
+                builtins.isString value
+                && builtins.elem value [
+                  "deep"
+                  "take-right"
+                ];
+              onMissing =
+                _profile:
+                mergeProblem {
+                  code = "profile-attrset-treatment";
+                  message = "${at} has an unknown attrset treatment";
+                };
+              onInvalid =
+                _profile: _value:
+                mergeProblem {
+                  code = "profile-attrset-treatment";
+                  message = "${at} has an unknown attrset treatment";
+                };
+            };
+          };
+        };
+
+      # every bad field on a profile at once, where the old ladder stopped at the
+      # first one
       profileNamed =
         path: name:
         if !builtins.isString name then
@@ -107,53 +206,13 @@ let
             code = "profile-name-type";
             message = "merge profile name at ${shownPath path} must be a string; got ${builtins.typeOf name}";
           })
+        else if !(profiles ? ${name}) then
+          failMerge (mergeProblem {
+            code = "profile-unknown";
+            message = "unknown merge profile ${safeRender name} at ${shownPath path}";
+          })
         else
-          let
-            profile =
-              profiles.${name} or (failMerge (mergeProblem {
-                code = "profile-unknown";
-                message = "unknown merge profile ${safeRender name} at ${shownPath path}";
-              }));
-          in
-          if !builtins.isAttrs profile then
-            failMerge (mergeProblem {
-              code = "profile-shape";
-              message = "merge profile ${safeRender name} at ${shownPath path} must be an attribute set";
-            })
-          else if !(profile ? listStrategy) || !builtins.isString profile.listStrategy then
-            failMerge (mergeProblem {
-              code = "profile-list-strategy";
-              message = "merge profile ${safeRender name} at ${shownPath path} must name a list strategy";
-            })
-          else if !(strategies ? ${profile.listStrategy}) then
-            failMerge (mergeProblem {
-              code = "profile-list-strategy-unknown";
-              message = "merge profile ${safeRender name} at ${shownPath path} names unknown list strategy ${safeRender profile.listStrategy}";
-            })
-          else if !builtins.isFunction strategies.${profile.listStrategy} then
-            failMerge (mergeProblem {
-              code = "list-strategy-type";
-              message = "list strategy ${safeRender profile.listStrategy} must be a function";
-            })
-          else if !(profile ? scalarPolicy) || !builtins.isFunction profile.scalarPolicy then
-            failMerge (mergeProblem {
-              code = "profile-scalar-policy";
-              message = "merge profile ${safeRender name} at ${shownPath path} must provide a scalar policy function";
-            })
-          else if
-            !(profile ? attrsetTreatment)
-            || !builtins.isString profile.attrsetTreatment
-            || !(builtins.elem profile.attrsetTreatment [
-              "deep"
-              "take-right"
-            ])
-          then
-            failMerge (mergeProblem {
-              code = "profile-attrset-treatment";
-              message = "merge profile ${safeRender name} at ${shownPath path} has an unknown attrset treatment";
-            })
-          else
-            profile;
+          finish (profileSchema path name profiles.${name});
 
       validateContributorProfile =
         contributor:

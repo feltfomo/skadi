@@ -11,6 +11,7 @@ let
   ownerships = import ./ownerships { inherit lib; };
   inherit (furnish) contract;
   inherit (ownerships) claimKeys;
+  axiom = import ./axiom { inherit lib; };
   programReport = import ./program/report.nix { inherit lib; };
   inherit (programReport) problem reporter duplicateValues;
   inherit (reporter) checked;
@@ -114,7 +115,200 @@ let
     else if builtins.isPath root then
       root + "/${relative}"
     else
-      "${lib.removeSuffix "/" root}/${relative}";
+      axiom.canonical.path [
+        (lib.removeSuffix "/" root)
+        relative
+      ];
+
+  labeled =
+    subject: code: message:
+    problem {
+      inherit code message;
+      primary.label = subject;
+    };
+
+  requiredLabeled = subject: code: message: predicate: {
+    required = true;
+    validate = predicate;
+    onMissing = _entry: labeled subject code message;
+    onInvalid = _entry: _value: labeled subject code message;
+  };
+
+  optionalLabeled = subject: code: message: predicate: {
+    validate = predicate;
+    onInvalid = _entry: _value: labeled subject code message;
+  };
+
+  nonEmptyString = value: builtins.isString value && value != "";
+  declaredPolicy = value: builtins.isString value && builtins.elem value conflictPolicies;
+
+  # the entry vocabularies are closed, so an unknown key is a typo and each one
+  # gets named on its own instead of collapsing into a single joined message
+  specSchema = axiom.schema.compile {
+    onRecord =
+      _value:
+      problem {
+        code = "spec-shape";
+        message = "declaration must be an attribute set";
+      };
+    onUnknown =
+      name: _value:
+      problem {
+        code = "spec-fields";
+        message = "declaration has unknown field ${name}";
+      };
+    order = specFields;
+    fields = lib.genAttrs claimKeys (_: { }) // {
+      pkg = {
+        validate = builtins.isFunction;
+        onInvalid =
+          _spec: _value:
+          problem {
+            code = "pkg-shape";
+            message = "pkg must be a function";
+          };
+      };
+      nixos = {
+        validate = builtins.isFunction;
+        onInvalid =
+          _spec: _value:
+          problem {
+            code = "nixos-shape";
+            message = "nixos must be a function";
+          };
+      };
+      imports = {
+        validate = builtins.isList;
+        onInvalid =
+          _spec: _value:
+          problem {
+            code = "imports-shape";
+            message = "imports must be a list";
+          };
+      };
+      files = {
+        validate = builtins.isList;
+        onInvalid =
+          _spec: _value:
+          problem {
+            code = "files-shape";
+            message = "files must be a list";
+          };
+      };
+      directories = {
+        validate = builtins.isList;
+        onInvalid =
+          _spec: _value:
+          problem {
+            code = "directories-shape";
+            message = "directories must be a list";
+          };
+      };
+      theme = {
+        validate = builtins.isAttrs;
+        onInvalid =
+          _spec: _value:
+          problem {
+            code = "theme-shape";
+            message = "theme must be an attribute set";
+          };
+      };
+    };
+  };
+
+  fileSchema =
+    subject:
+    axiom.schema.compile {
+      onRecord = _value: labeled subject "file-entry-shape" "must be an attribute set";
+      onUnknown = name: _value: labeled subject "file-fields" "has unknown field ${name}";
+      order = fileFields;
+      fields = lib.genAttrs claimKeys (_: { }) // {
+        dest = requiredLabeled subject "file-destination" "dest must be a non-empty string" nonEmptyString;
+        src = {
+          required = true;
+          onMissing = _entry: labeled subject "file-source" "src is required";
+        };
+        label = optionalLabeled subject "file-label" "label must be a string" builtins.isString;
+        representation =
+          optionalLabeled subject "file-representation" "representation must be a non-empty string"
+            nonEmptyString;
+        onConflict =
+          optionalLabeled subject "file-conflict-policy" "onConflict must be a declared conflict policy"
+            declaredPolicy;
+        provenance =
+          optionalLabeled subject "file-provenance" "provenance must be a string"
+            builtins.isString;
+      };
+    };
+
+  directorySchema =
+    subject:
+    axiom.schema.compile {
+      onRecord = _value: labeled subject "directory-entry-shape" "must be an attribute set";
+      onUnknown = name: _value: labeled subject "directory-fields" "has unknown field ${name}";
+      order = directoryFields;
+      fields = lib.genAttrs claimKeys (_: { }) // {
+        src = {
+          required = true;
+          validate = value: builtins.isPath value || builtins.isString value;
+          onMissing = _entry: labeled subject "directory-source" "src is required";
+          onInvalid = _entry: _value: labeled subject "directory-source-shape" "src must be a path or string";
+        };
+        dest =
+          requiredLabeled subject "directory-destination" "dest must be a non-empty string"
+            nonEmptyString;
+        exclude = {
+          validate = value: builtins.isList value && builtins.all validRelativePath value;
+          onInvalid =
+            _entry: value:
+            if !builtins.isList value then
+              labeled subject "directory-exclude-shape" "exclude must be a list"
+            else
+              labeled subject "directory-exclude-name" "exclude must contain normalized relative paths";
+        };
+        files = optionalLabeled subject "directory-files-shape" "files must be a list" builtins.isList;
+        representation =
+          optionalLabeled subject "directory-representation" "representation must be a non-empty string"
+            nonEmptyString;
+        onConflict =
+          optionalLabeled subject "directory-conflict-policy" "onConflict must be a declared conflict policy"
+            declaredPolicy;
+        provenance =
+          optionalLabeled subject "directory-provenance" "provenance must be a string"
+            builtins.isString;
+      };
+    };
+
+  directoryRuleSchema =
+    subject:
+    axiom.schema.compile {
+      onRecord = _value: labeled subject "directory-file-shape" "entries must be attribute sets";
+      onUnknown = name: _value: labeled subject "directory-file-fields" "has unknown field ${name}";
+      order = directoryRuleFields;
+      fields = lib.genAttrs claimKeys (_: { }) // {
+        names = {
+          required = true;
+          validate = value: builtins.isList value && value != [ ] && builtins.all validRelativePath value;
+          onMissing = _entry: labeled subject "directory-file-names" "names must be a non-empty list";
+          onInvalid =
+            _entry: value:
+            if !builtins.isList value || value == [ ] then
+              labeled subject "directory-file-names" "names must be a non-empty list"
+            else
+              labeled subject "directory-file-name" "names must contain normalized relative paths";
+        };
+        representation =
+          optionalLabeled subject "directory-file-representation" "representation must be a non-empty string"
+            nonEmptyString;
+        onConflict =
+          optionalLabeled subject "directory-file-conflict-policy"
+            "onConflict must be a declared conflict policy"
+            declaredPolicy;
+        provenance =
+          optionalLabeled subject "directory-file-provenance" "provenance must be a string"
+            builtins.isString;
+      };
+    };
 
   validateSpec =
     spec:
@@ -127,7 +321,6 @@ let
       ] spec
     else
       let
-        unknownSpec = unknownFields specFields spec;
         themeIsAttrs = !(spec ? theme) || builtins.isAttrs spec.theme;
         theme = if themeIsAttrs && spec ? theme then spec.theme else { };
         unknownTheme = if themeIsAttrs && spec ? theme then unknownFields themeFields theme else [ ];
@@ -145,11 +338,7 @@ let
           name: builtins.elem name (themeSharedFields ++ [ "renderers" ])
         ) (builtins.attrNames theme);
         themeErrors =
-          lib.optional (!themeIsAttrs) (problem {
-            code = "theme-shape";
-            message = "theme must be an attribute set";
-          })
-          ++ lib.optional (unknownTheme != [ ]) (problem {
+          lib.optional (unknownTheme != [ ]) (problem {
             code = "theme-fields";
             message = "theme has unknown fields: ${lib.concatStringsSep ", " unknownTheme}";
           })
@@ -170,32 +359,7 @@ let
               indexed: themeTemplateErrors "theme.templates[${toString indexed.index}]" indexed.template
             ) (lib.imap0 (index: template: { inherit index template; }) rawTemplates)
           );
-        errors =
-          lib.optional (unknownSpec != [ ]) (problem {
-            code = "spec-fields";
-            message = "declaration has unknown fields: ${lib.concatStringsSep ", " unknownSpec}";
-          })
-          ++ lib.optional (spec ? pkg && !builtins.isFunction spec.pkg) (problem {
-            code = "pkg-shape";
-            message = "pkg must be a function";
-          })
-          ++ lib.optional (spec ? nixos && !builtins.isFunction spec.nixos) (problem {
-            code = "nixos-shape";
-            message = "nixos must be a function";
-          })
-          ++ lib.optional (spec ? imports && !builtins.isList spec.imports) (problem {
-            code = "imports-shape";
-            message = "imports must be a list";
-          })
-          ++ lib.optional (spec ? files && !builtins.isList spec.files) (problem {
-            code = "files-shape";
-            message = "files must be a list";
-          })
-          ++ lib.optional (spec ? directories && !builtins.isList spec.directories) (problem {
-            code = "directories-shape";
-            message = "directories must be a list";
-          })
-          ++ themeErrors;
+        errors = (specSchema spec).diagnostics ++ themeErrors;
         elaborated =
           if spec ? theme && themeIsAttrs then spec // { theme = elaborateTheme theme; } else spec;
       in
@@ -278,204 +442,15 @@ let
   fileErrors =
     files:
     builtins.concatMap (
-      indexed:
-      let
-        inherit (indexed) index entry;
-        subject = "files[${toString index}]";
-        unknown = unknownFields fileFields entry;
-      in
-      if !builtins.isAttrs entry then
-        [
-          (problem {
-            code = "file-entry-shape";
-            message = "must be an attribute set";
-            primary.label = subject;
-          })
-        ]
-      else
-        lib.optional (unknown != [ ]) (problem {
-          code = "file-fields";
-          message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
-          primary.label = subject;
-        })
-        ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (problem {
-          code = "file-destination";
-          message = "dest must be a non-empty string";
-          primary.label = subject;
-        })
-        ++ lib.optional (!(entry ? src)) (problem {
-          code = "file-source";
-          message = "src is required";
-          primary.label = subject;
-        })
-        ++ lib.optional (entry ? label && !builtins.isString entry.label) (problem {
-          code = "file-label";
-          message = "label must be a string";
-          primary.label = subject;
-        })
-        ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (problem {
-          code = "file-provenance";
-          message = "provenance must be a string";
-          primary.label = subject;
-        })
-        ++
-          lib.optional
-            (entry ? representation && (!builtins.isString entry.representation || entry.representation == ""))
-            (problem {
-              code = "file-representation";
-              message = "representation must be a non-empty string";
-              primary.label = subject;
-            })
-        ++
-          lib.optional
-            (
-              entry ? onConflict
-              && (!builtins.isString entry.onConflict || !(builtins.elem entry.onConflict conflictPolicies))
-            )
-            (problem {
-              code = "file-conflict-policy";
-              message = "onConflict must be a declared conflict policy";
-              primary.label = subject;
-            })
+      indexed: (fileSchema "files[${toString indexed.index}]" indexed.entry).diagnostics
     ) (lib.imap0 (index: entry: { inherit index entry; }) files);
 
   directoryShapeErrors =
-    wrapped:
-    let
-      subject = "directories[${toString wrapped.index}]";
-      inherit (wrapped) entry;
-      unknown = unknownFields directoryFields entry;
-    in
-    if !builtins.isAttrs entry then
-      [
-        (problem {
-          code = "directory-entry-shape";
-          message = "must be an attribute set";
-          primary.label = subject;
-        })
-      ]
-    else
-      lib.optional (unknown != [ ]) (problem {
-        code = "directory-fields";
-        message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
-        primary.label = subject;
-      })
-      ++ lib.optional (!(entry ? src)) (problem {
-        code = "directory-source";
-        message = "src is required";
-        primary.label = subject;
-      })
-      ++
-        lib.optional (entry ? src && !(builtins.isPath entry.src || builtins.isString entry.src))
-          (problem {
-            code = "directory-source-shape";
-            message = "src must be a path or string";
-            primary.label = subject;
-          })
-      ++ lib.optional (!(entry ? dest) || !builtins.isString entry.dest || entry.dest == "") (problem {
-        code = "directory-destination";
-        message = "dest must be a non-empty string";
-        primary.label = subject;
-      })
-      ++ lib.optional (entry ? exclude && !builtins.isList entry.exclude) (problem {
-        code = "directory-exclude-shape";
-        message = "exclude must be a list";
-        primary.label = subject;
-      })
-      ++ lib.optionals (entry ? exclude && builtins.isList entry.exclude) (
-        lib.optional (!(builtins.all validRelativePath entry.exclude)) (problem {
-          code = "directory-exclude-name";
-          message = "exclude must contain normalized relative paths";
-          primary.label = subject;
-        })
-      )
-      ++ lib.optional (entry ? files && !builtins.isList entry.files) (problem {
-        code = "directory-files-shape";
-        message = "files must be a list";
-        primary.label = subject;
-      })
-      ++
-        lib.optional
-          (entry ? representation && (!builtins.isString entry.representation || entry.representation == ""))
-          (problem {
-            code = "directory-representation";
-            message = "representation must be a non-empty string";
-            primary.label = subject;
-          })
-      ++
-        lib.optional
-          (
-            entry ? onConflict
-            && (!builtins.isString entry.onConflict || !(builtins.elem entry.onConflict conflictPolicies))
-          )
-          (problem {
-            code = "directory-conflict-policy";
-            message = "onConflict must be a declared conflict policy";
-            primary.label = subject;
-          })
-      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (problem {
-        code = "directory-provenance";
-        message = "provenance must be a string";
-        primary.label = subject;
-      });
+    wrapped: (directorySchema "directories[${toString wrapped.index}]" wrapped.entry).diagnostics;
 
   directoryRuleErrors =
     wrapped:
-    let
-      subject = "directories[${toString wrapped.index}].files";
-      inherit (wrapped) entry;
-      unknown = unknownFields directoryRuleFields entry;
-    in
-    if !builtins.isAttrs entry then
-      [
-        (problem {
-          code = "directory-file-shape";
-          message = "entries must be attribute sets";
-          primary.label = subject;
-        })
-      ]
-    else
-      lib.optional (unknown != [ ]) (problem {
-        code = "directory-file-fields";
-        message = "has unknown fields: ${lib.concatStringsSep ", " unknown}";
-        primary.label = subject;
-      })
-      ++ lib.optional (!(entry ? names) || !builtins.isList entry.names || entry.names == [ ]) (problem {
-        code = "directory-file-names";
-        message = "names must be a non-empty list";
-        primary.label = subject;
-      })
-      ++ lib.optionals (entry ? names && builtins.isList entry.names) (
-        lib.optional (!(builtins.all validRelativePath entry.names)) (problem {
-          code = "directory-file-name";
-          message = "names must contain normalized relative paths";
-          primary.label = subject;
-        })
-      )
-      ++
-        lib.optional
-          (entry ? representation && (!builtins.isString entry.representation || entry.representation == ""))
-          (problem {
-            code = "directory-file-representation";
-            message = "representation must be a non-empty string";
-            primary.label = subject;
-          })
-      ++
-        lib.optional
-          (
-            entry ? onConflict
-            && (!builtins.isString entry.onConflict || !(builtins.elem entry.onConflict conflictPolicies))
-          )
-          (problem {
-            code = "directory-file-conflict-policy";
-            message = "onConflict must be a declared conflict policy";
-            primary.label = subject;
-          })
-      ++ lib.optional (entry ? provenance && !builtins.isString entry.provenance) (problem {
-        code = "directory-file-provenance";
-        message = "provenance must be a string";
-        primary.label = subject;
-      });
+    (directoryRuleSchema "directories[${toString wrapped.index}].files" wrapped.entry).diagnostics;
 
   excludedBy =
     exclusions: name:
@@ -612,7 +587,18 @@ let
       inventory = walked.files;
       reserved = wrapped.reservedNames;
       uniqueReserved = lib.unique reserved;
-      duplicateReserved = duplicateValues reserved;
+      duplicateReserved =
+        (axiom.registry.compile {
+          registrations = reserved;
+          keyOf = name: name;
+          onDuplicate =
+            name: _duplicates:
+            problem {
+              code = "directory-file-duplicate";
+              message = "repeats override name ${name}";
+              primary.label = "directories[${toString wrapped.index}]";
+            };
+        }).diagnostics;
       unknownExcluded = builtins.filter (name: !(builtins.elem name walked.members)) exclude;
       excludedOverrides = builtins.filter (excludedBy exclude) uniqueReserved;
       unknownReserved = builtins.filter (
@@ -624,11 +610,7 @@ let
       excludedThemes = builtins.filter (excludedBy exclude) themeNames;
       themeOverrides = builtins.filter (name: builtins.elem name themeNames) uniqueReserved;
       semanticErrors =
-        lib.optional (duplicateReserved != [ ]) (problem {
-          code = "directory-file-duplicate";
-          message = "repeats override names: ${lib.concatStringsSep ", " duplicateReserved}";
-          primary.label = "directories[${toString wrapped.index}]";
-        })
+        duplicateReserved
         ++ lib.optional (unknownExcluded != [ ]) (problem {
           code = "directory-exclude-unknown";
           message = "excludes unknown names: ${lib.concatStringsSep ", " unknownExcluded}";
