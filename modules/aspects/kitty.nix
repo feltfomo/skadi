@@ -15,33 +15,18 @@
     ];
     theme = {
       id = "kitty";
+      output = ".config/kitty/themes/reactive.conf";
+      reload = "pkill -SIGUSR1 kitty";
       renderers = {
         noctalia = {
-          source = "${rootPath}/configs/kitty/themes/skadi.conf";
-          output = ".config/kitty/themes/skadi.conf";
-          reload = "pkill -SIGUSR1 kitty";
+          source = "${rootPath}/configs/kitty/themes/reactive.conf";
+          sharedWith = [
+            "dms"
+            "illogical-impulse"
+            "end4-pc"
+          ];
         };
-        dms = {
-          source = "${rootPath}/configs/kitty/themes/skadi.conf";
-          output = ".config/kitty/themes/skadi.conf";
-          reload = "pkill -SIGUSR1 kitty";
-        };
-        illogical-impulse = {
-          source = "${rootPath}/configs/kitty/themes/skadi.conf";
-          output = ".config/kitty/themes/skadi.conf";
-          reload = "pkill -SIGUSR1 kitty";
-        };
-        end4-pc = {
-          source = "${rootPath}/configs/kitty/themes/skadi.conf";
-          output = ".config/kitty/themes/skadi.conf";
-          reload = "pkill -SIGUSR1 kitty";
-        };
-        caelestia = {
-          source = "${rootPath}/configs/kitty/themes/caelestia.conf";
-          output = ".config/kitty/themes/skadi.conf";
-          placedAs = "theme.conf";
-          reload = "pkill -SIGUSR1 kitty";
-        };
+        caelestia.source = "${rootPath}/configs/kitty/themes/caelestia.conf";
       };
     };
   };

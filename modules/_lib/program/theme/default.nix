@@ -21,8 +21,7 @@ let
     noctalia = import ./adapters/noctalia.nix { inherit lib; };
   };
   themeBackends = builtins.attrNames adapters;
-  themeSharedFields = claimKeys ++ [ "subId" ];
-  themeRendererFields = claimKeys ++ [
+  themeValueFields = [
     "source"
     "output"
     "subdir"
@@ -31,12 +30,85 @@ let
     "reload"
     "native"
   ];
-  themeFields = claimKeys ++ [
-    "id"
-    "renderers"
-    "templates"
-  ];
-  themeEntryFields = themeRendererFields;
+  themeSharedFields = claimKeys ++ themeValueFields;
+  themeRendererFields = themeSharedFields ++ [ "sharedWith" ];
+  themeFields =
+    claimKeys
+    ++ [
+      "id"
+      "renderers"
+      "templates"
+    ]
+    ++ themeValueFields;
+  themeEntryFields = themeSharedFields;
+
+  knownShellsNote = "known shells: ${lib.concatStringsSep ", " themeBackends}";
+
+  editDistance =
+    left: right:
+    let
+      leftChars = lib.stringToCharacters left;
+      rightChars = lib.stringToCharacters right;
+      rightLength = builtins.length rightChars;
+      initialRow = lib.range 0 rightLength;
+      nextRow =
+        previous: indexed:
+        if rightLength == 0 then
+          [ (indexed.index + 1) ]
+        else
+          lib.foldl' (
+            row: rightIndex:
+            let
+              insertion = lib.last row + 1;
+              deletion = builtins.elemAt previous (rightIndex + 1) + 1;
+              substitution =
+                builtins.elemAt previous rightIndex
+                + (if indexed.char == builtins.elemAt rightChars rightIndex then 0 else 1);
+            in
+            row ++ [ (lib.min insertion (lib.min deletion substitution)) ]
+          ) [ (indexed.index + 1) ] (lib.range 0 (rightLength - 1));
+      finalRow = lib.foldl' nextRow initialRow (
+        lib.imap0 (index: char: { inherit index char; }) leftChars
+      );
+    in
+    lib.last finalRow;
+
+  nearestShell =
+    value:
+    let
+      scored = map (name: {
+        inherit name;
+        distance = editDistance value name;
+      }) themeBackends;
+      nearest = lib.foldl' (
+        best: candidate: if candidate.distance < best.distance then candidate else best
+      ) (builtins.head scored) (builtins.tail scored);
+    in
+    if nearest.distance <= 2 then nearest.name else null;
+
+  unknownShellProblem =
+    subject: shell:
+    let
+      suggestion = nearestShell shell;
+    in
+    problem (
+      {
+        code = "theme-renderer-unknown";
+        message = "unknown shell \"${shell}\"";
+        primary.label = subject;
+        notes = [ knownShellsNote ];
+      }
+      // lib.optionalAttrs (suggestion != null) { help = "did you mean \"${suggestion}\"?"; }
+    );
+
+  sharedShellsOf =
+    override:
+    if builtins.isAttrs override && override ? sharedWith && builtins.isList override.sharedWith then
+      builtins.filter builtins.isString override.sharedWith
+    else
+      [ ];
+
+  targetsForRenderer = renderer: override: lib.unique ([ renderer ] ++ sharedShellsOf override);
   themeTemplateErrors =
     subject: template:
     if !builtins.isAttrs template then
@@ -53,32 +125,91 @@ let
         renderers =
           if template ? renderers && builtins.isAttrs template.renderers then template.renderers else { };
         rendererNames = builtins.attrNames renderers;
-        unknownRenderers = builtins.filter (name: !(builtins.elem name themeBackends)) rendererNames;
+        unknownRendererErrors = map (
+          renderer: unknownShellProblem "${subject}.renderers.${renderer}" renderer
+        ) (builtins.filter (name: !(builtins.elem name themeBackends)) rendererNames);
         rendererErrors = builtins.concatMap (
           renderer:
           let
             override = renderers.${renderer};
+            rendererSubject = "${subject}.renderers.${renderer}";
             unknownOverride =
               if builtins.isAttrs override then unknownFields themeRendererFields override else [ ];
+            sharedWith = if builtins.isAttrs override then override.sharedWith or [ ] else [ ];
+            sharedIsList = builtins.isList sharedWith;
+            sharedStrings = if sharedIsList then builtins.filter builtins.isString sharedWith else [ ];
+            duplicateShared = duplicateValues sharedStrings;
+            unknownShared = builtins.filter (name: !(builtins.elem name themeBackends)) sharedStrings;
+            effective =
+              (removeAttrs template [ "renderers" ])
+              // (if builtins.isAttrs override then removeAttrs override [ "sharedWith" ] else { });
           in
           lib.optional (!builtins.isAttrs override) (problem {
             code = "theme-renderer-shape";
-            message = "renderers.${renderer} must be an attribute set";
-            primary.label = subject;
+            message = "must be an attribute set";
+            primary.label = rendererSubject;
           })
           ++ lib.optionals (builtins.isAttrs override) (
             lib.optional (unknownOverride != [ ]) (problem {
               code = "theme-renderer-fields";
-              message = "renderers.${renderer} has unknown fields: ${lib.concatStringsSep ", " unknownOverride}";
-              primary.label = subject;
+              message = "has unknown fields: ${lib.concatStringsSep ", " unknownOverride}";
+              primary.label = rendererSubject;
             })
-            ++ lib.optional (!(override ? source) || !(override ? output)) (problem {
+            ++ lib.optional (!sharedIsList) (problem {
+              code = "theme-renderer-shared-shape";
+              message = "sharedWith must be a list of shell names";
+              primary.label = "${rendererSubject}.sharedWith";
+            })
+            ++
+              lib.optional (sharedIsList && builtins.length sharedStrings != builtins.length sharedWith)
+                (problem {
+                  code = "theme-renderer-shared-name";
+                  message = "sharedWith must contain only shell-name strings";
+                  primary.label = "${rendererSubject}.sharedWith";
+                })
+            ++ lib.optional (duplicateShared != [ ]) (problem {
+              code = "theme-renderer-shared-duplicate";
+              message = "sharedWith repeats shells: ${lib.concatStringsSep ", " duplicateShared}";
+              primary.label = "${rendererSubject}.sharedWith";
+            })
+            ++ lib.optional (builtins.elem renderer sharedStrings) (problem {
+              code = "theme-renderer-shared-self";
+              message = "a renderer cannot share with itself";
+              primary.label = "${rendererSubject}.sharedWith";
+            })
+            ++ map (shell: unknownShellProblem "${rendererSubject}.sharedWith" shell) unknownShared
+            ++ lib.optional (!(effective ? source) || !(effective ? output)) (problem {
               code = "theme-renderer-incomplete";
-              message = "renderers.${renderer} must explicitly define source and output";
-              primary.label = subject;
+              message = "effective renderer settings must define source and output";
+              primary.label = rendererSubject;
             })
           )
         ) rendererNames;
+        assignments = builtins.concatMap (
+          renderer:
+          map (shell: { inherit renderer shell; }) (targetsForRenderer renderer renderers.${renderer})
+        ) rendererNames;
+        assignmentGroups = builtins.groupBy (assignment: assignment.shell) assignments;
+        overlappingAssignments = lib.filterAttrs (
+          shell: owners: builtins.elem shell themeBackends && builtins.length owners > 1
+        ) assignmentGroups;
+        overlapErrors = lib.mapAttrsToList (
+          shell: owners:
+          let
+            ownerNames = map (owner: owner.renderer) owners;
+            firstOwner = builtins.head ownerNames;
+          in
+          problem {
+            code = "theme-renderer-overlap";
+            message = "shell ${shell} is assigned by multiple renderer declarations";
+            primary.label = "${subject}.renderers.${firstOwner}";
+            secondaryLabels = map (owner: {
+              label = "${subject}.renderers.${owner}";
+              message = "also assigns ${shell}";
+            }) (builtins.tail ownerNames);
+            help = "keep ${shell} in exactly one renderer declaration";
+          }
+        ) overlappingAssignments;
       in
       lib.optional (unknownTemplate != [ ]) (problem {
         code = "theme-template-fields";
@@ -97,12 +228,9 @@ let
             message = "renderers must select at least one renderer";
             primary.label = subject;
           })
-      ++ lib.optional (unknownRenderers != [ ]) (problem {
-        code = "theme-renderers-unknown";
-        message = "unknown renderers: ${lib.concatStringsSep ", " unknownRenderers}";
-        primary.label = subject;
-      })
-      ++ rendererErrors;
+      ++ unknownRendererErrors
+      ++ rendererErrors
+      ++ overlapErrors;
 
   elaborateTheme =
     theme:
@@ -118,14 +246,17 @@ let
         renderer:
         builtins.concatMap (
           template:
-          if
-            builtins.isAttrs template
-            && builtins.isAttrs (template.renderers or null)
-            && builtins.hasAttr renderer template.renderers
-          then
-            [
-              ((removeAttrs template [ "renderers" ]) // template.renderers.${renderer})
-            ]
+          if builtins.isAttrs template && builtins.isAttrs (template.renderers or null) then
+            builtins.concatMap (
+              declaredRenderer:
+              let
+                override = template.renderers.${declaredRenderer};
+                matches = builtins.elem renderer (targetsForRenderer declaredRenderer override);
+              in
+              lib.optional matches (
+                (removeAttrs template [ "renderers" ]) // (removeAttrs override [ "sharedWith" ])
+              )
+            ) (builtins.attrNames template.renderers)
           else
             [ ]
         ) rawTemplates;

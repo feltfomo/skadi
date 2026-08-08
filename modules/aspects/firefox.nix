@@ -33,52 +33,36 @@
       templates = [
         {
           subId = "chrome";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
           renderers = {
             noctalia = {
               source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
-            };
-            dms = {
-              source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
-            };
-            illogical-impulse = {
-              source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
-            };
-            end4-pc = {
-              source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+              sharedWith = [
+                "dms"
+                "illogical-impulse"
+                "end4-pc"
+              ];
             };
             caelestia = {
               source = "${rootPath}/configs/firefox/chrome/caelestia-userChrome.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
               placedAs = "userChrome.css";
             };
           };
         }
         {
           subId = "content";
+          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
           renderers = {
             noctalia = {
               source = "${rootPath}/configs/firefox/chrome/userContent.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
-            };
-            dms = {
-              source = "${rootPath}/configs/firefox/chrome/userContent.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
-            };
-            illogical-impulse = {
-              source = "${rootPath}/configs/firefox/chrome/userContent.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
-            };
-            end4-pc = {
-              source = "${rootPath}/configs/firefox/chrome/userContent.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+              sharedWith = [
+                "dms"
+                "illogical-impulse"
+                "end4-pc"
+              ];
             };
             caelestia = {
               source = "${rootPath}/configs/firefox/chrome/caelestia-userContent.css";
-              output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
               placedAs = "userContent.css";
             };
           };

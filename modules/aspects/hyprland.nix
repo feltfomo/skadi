@@ -94,22 +94,16 @@ in
     ];
     theme = {
       id = "hyprland";
+      output = ".config/hypr/colors.lua";
+      reload = "hyprctl reload";
       renderers = {
         caelestia = {
           source = "${rootPath}/configs/hypr/caelestia-colors.lua";
-          output = ".config/hypr/colors.lua";
           placedAs = "colors.lua";
-          reload = "hyprctl reload";
         };
         illogical-impulse = {
           source = "${rootPath}/configs/hypr/colors.lua";
-          output = ".config/hypr/colors.lua";
-          reload = "hyprctl reload";
-        };
-        end4-pc = {
-          source = "${rootPath}/configs/hypr/colors.lua";
-          output = ".config/hypr/colors.lua";
-          reload = "hyprctl reload";
+          sharedWith = [ "end4-pc" ];
         };
       };
     };

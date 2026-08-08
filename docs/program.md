@@ -23,52 +23,55 @@ A declaration has no effect unless it contains a capability such as `pkg`, `impo
 
 ## Theme registration
 
-A theme declaration describes one application theme. Common intent is written once. `renderers` explicitly selects the engines that may render it.
+A theme declaration describes one application theme. Common renderer settings live beside `renderers`; a renderer may override any of them locally. `renderers` explicitly selects the shells that may render the theme.
 
 ```nix
 theme = {
   id = "kitty";
+  output = ".config/kitty/themes/reactive.conf";
+  reload = "pkill -SIGUSR1 kitty";
+
   renderers = {
     noctalia = {
-      source = "${rootPath}/configs/kitty/themes/skadi.conf";
-      output = ".config/kitty/themes/skadi.conf";
-      reload = "pkill -SIGUSR1 kitty";
+      source = "${rootPath}/configs/kitty/themes/reactive.conf";
+      sharedWith = [
+        "dms"
+        "illogical-impulse"
+        "end4-pc"
+      ];
     };
-    dms = {
-      source = "${rootPath}/configs/kitty/themes/skadi.conf";
-      output = ".config/kitty/themes/skadi.conf";
-      reload = "pkill -SIGUSR1 kitty";
-    };
-    caelestia = {
-      source = "${rootPath}/configs/kitty/themes/caelestia.conf";
-      output = ".config/kitty/themes/skadi.conf";
-      placedAs = "theme.conf";
-      reload = "pkill -SIGUSR1 kitty";
-    };
+
+    caelestia.source = "${rootPath}/configs/kitty/themes/caelestia.conf";
   };
 };
 ```
 
-This declaration visibly registers Kitty with all three engines. Every renderer block states its effective source, output, and reload behavior; readers do not need to infer inherited values from fields outside `renderers`.
+The declaration visibly says that Kitty has one renderer shared by Noctalia, DMS, Illogical Impulse, and end4-pC, plus a distinct Caelestia template. `output` and `reload` are written once because they describe the application result rather than a shell-specific input.
 
-- An omitted renderer is not registered; its configuration remains static unless another declaration manages it.
-- Repetition is intentional at the authoring surface.
-- Renderer blocks do not inherit `source`, `output`, or `reload` from the theme or template.
-- An empty renderer such as `dms = { };` is invalid because it does not state what DMS should render or where the result should go.
+- An omitted shell is not registered; its configuration remains static unless another declaration manages it.
+- Shared fields are applied first, then renderer-local fields override them.
+- `sharedWith` directly copies the complete effective renderer settings to the named shells. It is not transitive and does not chase another renderer declaration.
+- The primary renderer key carries no priority. Noctalia shared with DMS has the same meaning as DMS shared with Noctalia.
+- A shell may be assigned by exactly one renderer declaration within a template.
+- An empty renderer is valid only when inherited fields make its effective settings complete.
 
 ### Renderer fields
 
-Each renderer entry accepts:
+The following fields may be written beside `renderers` as shared settings or inside a renderer as an override:
 
 - `source`: template source path.
 - `output`: stable path below the user's home directory.
 - `reload`: optional command run after publishing the rendered output.
 - `subdir`: optional renderer template subdirectory.
-- `placedAs`: optional template filename override.
+- `placedAs`: optional basename for the shell's managed template copy. It defaults to the basename of `source`. Current adapters use explicit input paths, so changing this name does not change rendering behavior or `output`.
 - `subId`: optional suffix for the registration identity.
 - `native`: optional backend-specific registration fields.
 
-The theme-level `id` remains application-wide. In multi-output declarations, `subId` may remain beside `renderers` when it identifies the same logical output across every backend. Every selected renderer must explicitly define both `source` and `output`.
+`placedAs` is organizational with the current adapters. Use it when a cleaner shell-side name makes template directories easier to inspect. The Firefox templates below stage `caelestia-userChrome.css` and `caelestia-userContent.css` as `userChrome.css` and `userContent.css`. Theme IDs and `subId` values already namespace templates, so ordinary cross-application filename reuse does not need it.
+
+Renderer entries additionally accept `sharedWith`, a list of registered shell names that use the same effective settings. Program validates these names against the adapter registry, reports every known shell, and suggests a nearby name for likely typos.
+
+Every effective renderer must define `source` and `output` after shared fields and local overrides are combined.
 
 ### Renderer-specific fields
 
@@ -95,7 +98,7 @@ A publisher installs every output for that application before running any reload
 
 ## Multiple outputs
 
-Use `templates` when one application publishes multiple files. `id` remains application-wide; each template declares its own `subId`, output, and renderer adapters.
+Use `templates` when one application publishes multiple files. `id` remains application-wide; shared fields belong inside each template because each one describes a different output.
 
 ```nix
 theme = {
@@ -103,36 +106,36 @@ theme = {
   templates = [
     {
       subId = "chrome";
+      output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
       renderers = {
         noctalia = {
           source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
-        };
-        dms = {
-          source = "${rootPath}/configs/firefox/chrome/userChrome.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
+          sharedWith = [
+            "dms"
+            "illogical-impulse"
+            "end4-pc"
+          ];
         };
         caelestia = {
           source = "${rootPath}/configs/firefox/chrome/caelestia-userChrome.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
           placedAs = "userChrome.css";
         };
       };
     }
     {
       subId = "content";
+      output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
       renderers = {
         noctalia = {
           source = "${rootPath}/configs/firefox/chrome/userContent.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
-        };
-        dms = {
-          source = "${rootPath}/configs/firefox/chrome/userContent.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
+          sharedWith = [
+            "dms"
+            "illogical-impulse"
+            "end4-pc"
+          ];
         };
         caelestia = {
           source = "${rootPath}/configs/firefox/chrome/caelestia-userContent.css";
-          output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
           placedAs = "userContent.css";
         };
       };
@@ -141,7 +144,7 @@ theme = {
 };
 ```
 
-The multi-template form does not mix shared single-template fields beside `templates`. Put template fields inside each list entry.
+The multi-template form does not mix single-template fields beside `templates`. Put shared fields inside each list entry.
 
 ## Compositor themes
 
@@ -203,6 +206,6 @@ Prefer the highest declaration level that accurately expresses ownership. Use ne
 
 ## Validation
 
-Program uses a closed declaration schema. It rejects unknown fields, malformed destinations, empty or incomplete renderer entries, renderer fields placed outside their renderer, unsupported native fields, duplicate registration identities, invalid conflict policies, and theme sources hidden under excluded directory subtrees.
+Program uses a closed declaration schema. It rejects unknown fields, malformed destinations, incomplete effective renderer settings, malformed or unknown `sharedWith` names, repeated or self-shared shells, overlapping renderer groups, unsupported native fields, duplicate registration identities, invalid conflict policies, and theme sources hidden under excluded directory subtrees. Independent declaration problems are accumulated before Program stops; dependent elaboration does not run after an invalid renderer shape.
 
 Payloads selected by Ownerships are validated before Program emits Furnish declarations.

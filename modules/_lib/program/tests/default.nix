@@ -236,31 +236,29 @@ let
   dualTheme = program {
     theme = {
       id = "shared";
-      renderers = {
-        noctalia = {
-          source = ../../program.nix;
-          output = ".config/example/shared.conf";
-        };
-        dms = {
-          source = ../../program.nix;
-          output = ".config/example/shared.conf";
-        };
-        illogical-impulse = {
-          source = ../../program.nix;
-          output = ".config/example/shared.conf";
-        };
-        end4-pc = {
-          source = ../../program.nix;
-          output = ".config/example/shared.conf";
-        };
-        caelestia = {
-          source = ../../program.nix;
-          output = ".config/example/shared.conf";
-        };
-      };
+      source = ../../program.nix;
+      output = ".config/example/shared.conf";
+      renderers.noctalia.sharedWith = [
+        "dms"
+        "illogical-impulse"
+        "end4-pc"
+        "caelestia"
+      ];
     };
   };
   dualThemeDestinations = map (declaration: declaration.destination) (declarationsOf dualTheme);
+
+  reverseSharedTheme = program {
+    theme = {
+      id = "reverse-shared";
+      source = ../../program.nix;
+      output = ".config/example/reverse-shared.conf";
+      renderers.dms.sharedWith = [ "noctalia" ];
+    };
+  };
+  reverseSharedDestinations = map (declaration: declaration.destination) (
+    declarationsOf reverseSharedTheme
+  );
   writableDeclaration = builtins.head (
     builtins.filter (
       declaration: declaration.destination == ".config/example/default.nix"
@@ -341,7 +339,53 @@ let
       id = "inherited-renderer";
       source = ../../program.nix;
       output = ".config/inherited-renderer";
-      renderers.dms = { };
+      placedAs = "shared.nix";
+      renderers = {
+        dms = { };
+        noctalia.placedAs = "override.nix";
+      };
+    };
+  };
+  inheritedRendererDeclarations = declarationsOf inheritedRendererFields;
+  inheritedRendererDestinations = map (
+    declaration: declaration.destination
+  ) inheritedRendererDeclarations;
+  unknownSharedShell = program {
+    theme = {
+      id = "unknown-shared-shell";
+      source = ../../program.nix;
+      output = ".config/unknown-shared-shell";
+      renderers.noctalia.sharedWith = [ "ds" ];
+    };
+  };
+  duplicateSharedShell = program {
+    theme = {
+      id = "duplicate-shared-shell";
+      source = ../../program.nix;
+      output = ".config/duplicate-shared-shell";
+      renderers.noctalia.sharedWith = [
+        "dms"
+        "dms"
+      ];
+    };
+  };
+  selfSharedShell = program {
+    theme = {
+      id = "self-shared-shell";
+      source = ../../program.nix;
+      output = ".config/self-shared-shell";
+      renderers.noctalia.sharedWith = [ "noctalia" ];
+    };
+  };
+  overlappingSharedShell = program {
+    theme = {
+      id = "overlapping-shared-shell";
+      source = ../../program.nix;
+      output = ".config/overlapping-shared-shell";
+      renderers = {
+        noctalia.sharedWith = [ "dms" ];
+        dms = { };
+      };
     };
   };
   invalidPolicy = program {
@@ -456,8 +500,15 @@ let
     builtins.deepSeq (unsupportedCaelestiaNative.nixos moduleArgs) true
   );
   emptyRendererResult = builtins.tryEval (builtins.deepSeq (emptyRenderer.nixos moduleArgs) true);
-  inheritedRendererFieldsResult = builtins.tryEval (
-    builtins.deepSeq (inheritedRendererFields.nixos moduleArgs) true
+  unknownSharedShellResult = builtins.tryEval (
+    builtins.deepSeq (unknownSharedShell.nixos moduleArgs) true
+  );
+  duplicateSharedShellResult = builtins.tryEval (
+    builtins.deepSeq (duplicateSharedShell.nixos moduleArgs) true
+  );
+  selfSharedShellResult = builtins.tryEval (builtins.deepSeq (selfSharedShell.nixos moduleArgs) true);
+  overlappingSharedShellResult = builtins.tryEval (
+    builtins.deepSeq (overlappingSharedShell.nixos moduleArgs) true
   );
   invalidPolicyResult = builtins.tryEval (builtins.deepSeq (invalidPolicy.nixos moduleArgs) true);
   excludedOverrideResult = builtins.tryEval (
@@ -511,7 +562,7 @@ rec {
       lib.hasInfix "set -eu" caelestiaMultiHookScript
       && containsInOrder caelestiaPublishFragments caelestiaMultiHookScript;
     caelestia-aggregate-post-hook-is-strict = lib.hasPrefix "set -eu;" caelestiaCli.theme.postHook;
-    explicit-multi-registration-emits-all-backends =
+    shared-registration-emits-all-backends =
       builtins.elem ".config/noctalia/templates/shared/program.nix" dualThemeDestinations
       && builtins.elem ".config/noctalia/shared.toml" dualThemeDestinations
       && builtins.elem ".config/matugen/dms/templates/shared/program.nix" dualThemeDestinations
@@ -522,6 +573,10 @@ rec {
       && !(builtins.any (
         destination: lib.hasPrefix ".config/matugen/dms/configs/" destination
       ) dualThemeDestinations);
+    shared-registration-is-direction-independent =
+      builtins.elem ".config/noctalia/templates/reverse-shared/program.nix" reverseSharedDestinations
+      && builtins.elem ".config/noctalia/reverse-shared.toml" reverseSharedDestinations
+      && builtins.elem ".config/matugen/dms/templates/reverse-shared/program.nix" reverseSharedDestinations;
     writable-overrides-are-first-class =
       writableDeclaration.representation == "writable"
       && writableDeclaration.onConflict == "runtime-wins";
@@ -539,7 +594,13 @@ rec {
     unknown-dms-fields-are-rejected = !unknownDmsFieldResult.success;
     caelestia-native-fields-are-rejected = !unsupportedCaelestiaNativeResult.success;
     empty-renderers-are-rejected = !emptyRendererResult.success;
-    inherited-renderer-fields-are-rejected = !inheritedRendererFieldsResult.success;
+    inherited-renderer-fields-are-supported =
+      builtins.elem ".config/matugen/dms/templates/inherited-renderer/shared.nix" inheritedRendererDestinations
+      && builtins.elem ".config/noctalia/templates/inherited-renderer/override.nix" inheritedRendererDestinations;
+    unknown-shared-shells-are-rejected = !unknownSharedShellResult.success;
+    duplicate-shared-shells-are-rejected = !duplicateSharedShellResult.success;
+    self-shared-shells-are-rejected = !selfSharedShellResult.success;
+    overlapping-shared-shells-are-rejected = !overlappingSharedShellResult.success;
     invalid-conflict-policies-are-rejected = !invalidPolicyResult.success;
     overrides-beneath-excluded-subtrees-are-rejected = !excludedOverrideResult.success;
     theme-sources-beneath-excluded-subtrees-are-rejected = !excludedThemeResult.success;
