@@ -19,6 +19,7 @@ let
     ;
 
   krisis = import ../krisis { inherit lib; };
+  axiom = import ../axiom { inherit lib; };
   inherit (krisis) safeShape;
 
   # every registered axis at its identity - globally owned on all axes. a claim
@@ -71,44 +72,28 @@ let
     "survivors"
   ];
 
-  validateStages =
+  compileStages =
     stages:
-    let
-      badView = builtins.filter (
-        stage:
-        !(
-          builtins.isAttrs stage
-          && stage ? view
-          && builtins.isString stage.view
-          && builtins.elem stage.view knownViews
-        )
-      ) stages;
-      badRun = builtins.filter (
-        stage:
-        builtins.isAttrs stage
-        && stage ? view
-        && builtins.isString stage.view
-        && builtins.elem stage.view knownViews
-        && (!(stage ? run) || !builtins.isFunction stage.run)
-      ) stages;
-      invalidView = if badView == [ ] then null else builtins.head badView;
-      shownView =
-        if invalidView == null then
-          null
-        else if builtins.isAttrs invalidView && invalidView ? view then
-          builtins.toJSON invalidView.view
-        else
-          "<missing>";
-      invalidRun = if badRun == [ ] then null else builtins.head badRun;
-    in
-    if invalidView != null then
-      throw "ownerships: unknown stage view ${shownView}"
-    else if invalidRun != null then
-      throw "ownerships: stage for view '${invalidRun.view}' must provide a 'run' function"
-    else
-      stages;
+    axiom.validation.finish (diagnostics: throw (builtins.head diagnostics)) (
+      axiom.phases.compile {
+        names = knownViews;
+        registrations = stages;
+        phaseOf =
+          stage:
+          if builtins.isAttrs stage && stage ? view && builtins.isString stage.view then stage.view else null;
+        runnable = stage: builtins.isAttrs stage && stage ? run && builtins.isFunction stage.run;
+        onUnknown =
+          stage: _view:
+          let
+            shownView =
+              if builtins.isAttrs stage && stage ? view then builtins.toJSON stage.view else "<missing>";
+          in
+          "ownerships: unknown stage view ${shownView}";
+        onInvalid = _stage: view: "ownerships: stage for view '${view}' must provide a 'run' function";
+      }
+    );
 
-  stagesFor = view: stages: filter (stage: stage.view == view) (validateStages stages);
+  stagesFor = view: stages: (compileStages stages).for view;
 
   # leaf stages retain one trace entry per leaf, but diagnostics flatten in
   # stage-registration order so one rule reports every leaf it rejects before

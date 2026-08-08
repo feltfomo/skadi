@@ -7,6 +7,7 @@
 let
   ownerships = import ../../ownerships { inherit lib; };
   krisis = import ../../krisis { inherit lib; };
+  axiom = import ../../axiom { inherit lib; };
   furnish = import ../default.nix {
     inherit
       lib
@@ -234,7 +235,12 @@ let
   throws = value: !(builtins.tryEval (builtins.deepSeq value value)).success;
 
   inertCore = import ../core.nix {
-    inherit lib contract krisis;
+    inherit
+      lib
+      contract
+      krisis
+      axiom
+      ;
     inherit (ownerships) claimKeys;
     resolve = throw "no-op forced the user ownership door";
     resolveSystem = throw "no-op forced the system ownership door";
@@ -251,7 +257,12 @@ let
   noOp = inertCore.compile { inherit raw; };
 
   systemCore = import ../core.nix {
-    inherit lib contract krisis;
+    inherit
+      lib
+      contract
+      krisis
+      axiom
+      ;
     inherit (ownerships) claimKeys;
     resolve = throw "a system declaration used the user ownership door";
     # the stub mirrors the roster-bound door's merged-value contract: the
@@ -687,6 +698,21 @@ let
         )
         &&
           diagnosticText == "furnish: capability-selection/no-capable-executor: sample: no executor matched";
+    }
+    {
+      name = "duplicate executor identities fail before capability selection";
+      pass = throws (
+        furnish.core.selectExecutor [
+          preferredExecutor
+          (
+            preferredExecutor
+            // {
+              priority = 20;
+              materialize = throw "forced duplicate executor implementation";
+            }
+          )
+        ] sample
+      );
     }
     {
       name = "throwing provider callbacks fail through the furnish selection context";

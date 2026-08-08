@@ -2,6 +2,7 @@
   lib,
   contract,
   krisis,
+  axiom,
   claimKeys,
   resolve,
   resolveSystem,
@@ -417,46 +418,79 @@ let
     else
       "unlabeled executor";
 
-  executorDiagnostics =
-    executor:
-    if !builtins.isAttrs executor then
-      [
-        (executorDiagnostic "executor-type" "unlabeled executor" "an executor must be an attribute set")
-      ]
-    else
-      let
-        name = executorName executor;
-        issue =
-          condition: code: reason:
-          lib.optional condition (executorDiagnostic code name reason);
-      in
-      issue (
-        !(executor ? identity) || !builtins.isString executor.identity
-      ) "identity-type" "identity must be a string"
-      ++ issue (
-        !(executor ? priority) || !builtins.isInt executor.priority
-      ) "priority-type" "priority must be an integer"
-      ++ issue (
-        executor ? enabled && !builtins.isBool executor.enabled
-      ) "enabled-type" "enabled must be a boolean when present"
-      ++ issue (
-        !(executor ? protocolVersion) || !builtins.isInt executor.protocolVersion
-      ) "protocol-version-type" "protocolVersion must be an integer"
-      ++ issue (
-        !(executor ? capabilities)
-        || !builtins.isList executor.capabilities
-        || !(lib.all builtins.isString executor.capabilities)
-      ) "capabilities-shape" "capabilities must be a list of strings"
-      ++ issue (
-        !(executor ? materialize)
-      ) "materialize-missing" "materialize is required and remains lazy until selection";
+  executorSchema = axiom.schema.compile {
+    allowUnknown = true;
+    order = [
+      "identity"
+      "priority"
+      "enabled"
+      "protocolVersion"
+      "capabilities"
+      "materialize"
+    ];
+    onRecord =
+      _executor:
+      executorDiagnostic "executor-type" "unlabeled executor" "an executor must be an attribute set";
+    fields = {
+      identity = {
+        required = true;
+        validate = builtins.isString;
+        onMissing =
+          executor: executorDiagnostic "identity-type" (executorName executor) "identity must be a string";
+        onInvalid =
+          executor: _value:
+          executorDiagnostic "identity-type" (executorName executor) "identity must be a string";
+      };
+      priority = {
+        required = true;
+        validate = builtins.isInt;
+        onMissing =
+          executor: executorDiagnostic "priority-type" (executorName executor) "priority must be an integer";
+        onInvalid =
+          executor: _value:
+          executorDiagnostic "priority-type" (executorName executor) "priority must be an integer";
+      };
+      enabled = {
+        validate = builtins.isBool;
+        onInvalid =
+          executor: _value:
+          executorDiagnostic "enabled-type" (executorName executor) "enabled must be a boolean when present";
+      };
+      protocolVersion = {
+        required = true;
+        validate = builtins.isInt;
+        onMissing =
+          executor:
+          executorDiagnostic "protocol-version-type" (executorName executor)
+            "protocolVersion must be an integer";
+        onInvalid =
+          executor: _value:
+          executorDiagnostic "protocol-version-type" (executorName executor)
+            "protocolVersion must be an integer";
+      };
+      capabilities = {
+        required = true;
+        validate = value: builtins.isList value && lib.all builtins.isString value;
+        onMissing =
+          executor:
+          executorDiagnostic "capabilities-shape" (executorName executor)
+            "capabilities must be a list of strings";
+        onInvalid =
+          executor: _value:
+          executorDiagnostic "capabilities-shape" (executorName executor)
+            "capabilities must be a list of strings";
+      };
+      materialize = {
+        required = true;
+        onMissing =
+          executor:
+          executorDiagnostic "materialize-missing" (executorName executor)
+            "materialize is required and remains lazy until selection";
+      };
+    };
+  };
 
-  validateExecutors =
-    executors:
-    let
-      diagnostics = builtins.concatMap executorDiagnostics executors;
-    in
-    if diagnostics == [ ] then executors else failAll diagnostics;
+  executorDiagnostics = executor: (executorSchema executor).diagnostics;
 
   executorLess =
     a: b:
@@ -465,18 +499,35 @@ let
     else
       builtins.lessThan a.priority b.priority;
 
+  compileExecutorRegistry =
+    executors:
+    axiom.validation.finish failAll (
+      axiom.registry.compile {
+        registrations = executors;
+        keyOf = executor: executor.identity;
+        diagnosticsFor = executorDiagnostics;
+        less = executorLess;
+        onDuplicate =
+          identity: _executors:
+          executorDiagnostic "identity-duplicate" identity "executor identity must be unique";
+      }
+    );
+
+  validateExecutors = executors: (compileExecutorRegistry executors).registrations;
+
   selectValidatedExecutor =
-    executors: declaration:
+    executorSet: declaration:
     let
       required = requiredCapabilities declaration;
-      capable = builtins.filter (
-        executor:
-        executor.enabled or false
-        && lib.all (capability: builtins.elem capability executor.capabilities) required
-      ) executors;
-      ordered = builtins.sort executorLess capable;
+      observation = axiom.requirements.observe {
+        inherit required;
+        candidates = executorSet.ordered;
+        enabled = executor: executor.enabled or false;
+        providedBy = executor: executor.capabilities;
+      };
+      ordered = map (entry: entry.candidate) observation.qualified;
       enabledExecutors = builtins.sort (a: b: builtins.lessThan a.identity b.identity) (
-        builtins.filter (executor: executor.enabled or false) executors
+        builtins.filter (executor: executor.enabled or false) executorSet.registrations
       );
       available = lib.concatMapStringsSep "; " (
         executor: "${executor.identity} [${lib.concatStringsSep ", " executor.capabilities}]"
@@ -493,7 +544,7 @@ let
       builtins.head ordered;
 
   selectExecutor =
-    executors: declaration: selectValidatedExecutor (validateExecutors executors) declaration;
+    executors: declaration: selectValidatedExecutor (compileExecutorRegistry executors) declaration;
 
   validateArtifact =
     selected: declaration: artifact:
@@ -561,9 +612,9 @@ let
     if diagnostics == [ ] then artifact else failAll diagnostics;
 
   materialize =
-    executors: declaration:
+    executorSet: declaration:
     let
-      selected = selectValidatedExecutor executors declaration;
+      selected = selectValidatedExecutor executorSet declaration;
       implementation =
         if builtins.isFunction selected.materialize then
           selected.materialize
@@ -622,14 +673,14 @@ let
     else
       let
         validated = validateShapes declarations;
-        checkedExecutors = validateExecutors executors;
+        executorSet = compileExecutorRegistry executors;
         selected = krisis.withErrorContext "furnish: while selecting applicable declarations" (
           provider.selectApplicable validated ctx
         );
         normalized = map deriveDestination selected;
         ordered = builtins.sort identityLess normalized;
         index = buildIndex (map indexProjection ordered);
-        manifestEntries = builtins.seq index (map (materialize checkedExecutors) ordered);
+        manifestEntries = builtins.seq index (map (materialize executorSet) ordered);
       in
       (contract.emit manifestEntries)
       // {

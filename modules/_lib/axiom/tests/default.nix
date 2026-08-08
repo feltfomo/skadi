@@ -3,9 +3,13 @@ let
   axiom = import ../default.nix { inherit lib; };
   inherit (axiom)
     validation
+    schema
     identity
-    tagged
+    requirements
+    registry
     canonical
+    phases
+    tagged
     ;
 
   throws = value: !(builtins.tryEval value).success;
@@ -37,6 +41,137 @@ let
     };
 
   selected = tagged.mk "selected" 4;
+
+  sampleSchema = schema.compile {
+    fields = {
+      count = {
+        default = 1;
+        validate = builtins.isInt;
+        normalize = value: value + 1;
+        onInvalid = _record: _value: "invalid-count";
+      };
+      name = {
+        required = true;
+        validate = builtins.isString;
+        normalize = value: "normalized-${value}";
+        onMissing = _record: "missing-name";
+        onInvalid = _record: _value: "invalid-name";
+      };
+      payload = { };
+    };
+    onRecord = _value: "invalid-record";
+    onUnknown = name: _value: "unknown-${name}";
+  };
+
+  validSchemaResult = sampleSchema {
+    name = "sample";
+    payload = poison;
+  };
+  invalidSchemaResult = sampleSchema {
+    count = "many";
+    extra = poison;
+  };
+
+  registrySpec =
+    registrations:
+    registry.compile {
+      inherit registrations;
+      keyOf = registration: registration.name;
+      diagnosticsFor =
+        registration:
+        if builtins.isAttrs registration && registration ? name && builtins.isString registration.name then
+          [ ]
+        else
+          [ "malformed-registration" ];
+      less =
+        left: right:
+        if left.priority == right.priority then
+          builtins.lessThan left.name right.name
+        else
+          left.priority < right.priority;
+      onDuplicate = name: _registrations: "duplicate-${name}";
+    };
+  compiledRegistry = registrySpec [
+    {
+      name = "second";
+      priority = 20;
+      implementation = poison;
+    }
+    {
+      name = "first";
+      priority = 10;
+      implementation = poison;
+    }
+  ];
+
+  requirementObservation = requirements.observe {
+    required = [
+      "base"
+      "render"
+    ];
+    candidates = [
+      {
+        name = "disabled";
+        enabled = false;
+        provides = poison;
+      }
+      {
+        name = "partial";
+        enabled = true;
+        provides = [ "base" ];
+      }
+      {
+        name = "complete";
+        enabled = true;
+        provides = [
+          "render"
+          "base"
+        ];
+      }
+    ];
+    enabled = candidate: candidate.enabled;
+    providedBy = candidate: candidate.provides;
+  };
+
+  phaseSpec =
+    registrations:
+    phases.compile {
+      names = [
+        "prepare"
+        "apply"
+      ];
+      inherit registrations;
+      phaseOf =
+        registration:
+        if
+          builtins.isAttrs registration && registration ? phase && builtins.isString registration.phase
+        then
+          registration.phase
+        else
+          null;
+      runnable =
+        registration:
+        builtins.isAttrs registration && registration ? run && builtins.isFunction registration.run;
+      onUnknown = _registration: phase: if phase == null then "unknown-missing" else "unknown-${phase}";
+      onInvalid = _registration: phase: "invalid-${phase}";
+    };
+  compiledPhases = phaseSpec [
+    {
+      name = "apply";
+      phase = "apply";
+      run = _value: poison;
+    }
+    {
+      name = "prepare-first";
+      phase = "prepare";
+      run = _value: poison;
+    }
+    {
+      name = "prepare-second";
+      phase = "prepare";
+      run = _value: poison;
+    }
+  ];
 
   cases = [
     {
@@ -141,6 +276,94 @@ let
           "leaf"
         ]
       );
+    }
+    {
+      name = "schema normalizes declared fields without forcing payloads";
+      pass =
+        validSchemaResult.diagnostics == [ ]
+        && validSchemaResult.value.name == "normalized-sample"
+        && validSchemaResult.value.count == 2;
+    }
+    {
+      name = "schema accumulates unknown invalid and missing diagnostics";
+      pass =
+        invalidSchemaResult.diagnostics == [
+          "unknown-extra"
+          "invalid-count"
+          "missing-name"
+        ];
+    }
+    {
+      name = "registry ordering and lookup leave implementations lazy";
+      pass =
+        compiledRegistry.value.keys == [
+          "first"
+          "second"
+        ]
+        && (compiledRegistry.value.lookup "second").name == "second";
+    }
+    {
+      name = "registry duplicate diagnostics are caller-owned";
+      pass =
+        (registrySpec [
+          {
+            name = "same";
+            priority = 1;
+          }
+          {
+            name = "same";
+            priority = 2;
+          }
+        ]).diagnostics == [ "duplicate-same" ];
+    }
+    {
+      name = "registry validation and duplicates accumulate without keying malformed entries";
+      pass =
+        (registrySpec [
+          { priority = 0; }
+          {
+            name = "same";
+            priority = 1;
+          }
+          {
+            name = "same";
+            priority = 2;
+          }
+        ]).diagnostics == [
+          "malformed-registration"
+          "duplicate-same"
+        ];
+    }
+    {
+      name = "requirements qualify complete enabled candidates";
+      pass =
+        map (entry: entry.candidate.name) requirementObservation.qualified == [ "complete" ]
+        &&
+          map (entry: entry.candidate.name) requirementObservation.rejected == [
+            "disabled"
+            "partial"
+          ]
+        && (builtins.elemAt requirementObservation.rejected 1).missing == [ "render" ];
+    }
+    {
+      name = "phases group registrations in declared phase order";
+      pass =
+        map (registration: registration.name) (compiledPhases.value.for "prepare") == [
+          "prepare-first"
+          "prepare-second"
+        ]
+        && map (registration: registration.name) (compiledPhases.value.for "apply") == [ "apply" ];
+    }
+    {
+      name = "phases accumulate caller-owned boundary diagnostics";
+      pass =
+        (phaseSpec [
+          { phase = "apply"; }
+          { phase = "unknown"; }
+        ]).diagnostics == [
+          "unknown-unknown"
+          "invalid-apply"
+        ];
     }
   ];
 

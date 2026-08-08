@@ -6,12 +6,14 @@
 let
   ownerships = import ../ownerships { inherit lib; };
   krisis = import ../krisis { inherit lib; };
+  axiom = import ../axiom { inherit lib; };
   contract = import ./contract.nix { inherit lib; };
   core = import ./core.nix {
     inherit
       lib
       contract
       krisis
+      axiom
       resolve
       resolveSystem
       ;
