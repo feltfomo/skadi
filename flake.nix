@@ -86,6 +86,10 @@
       url = "github:NousResearch/hermes-agent/v2026.6.5";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -142,7 +146,11 @@
   outputs =
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } (
-      { lib, den, ... }:
+      {
+        lib,
+        den,
+        ...
+      }:
       let
         # the frameworks are external tools now. each is a function of its
         # dependencies, so skadi supplies lib and the shared axiom rather than

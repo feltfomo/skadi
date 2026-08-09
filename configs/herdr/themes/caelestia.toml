@@ -1,0 +1,25 @@
+[ui]
+agent_panel_sort = "spaces"
+
+[ui.toast]
+delivery = "herdr"
+
+[theme]
+name = "kanagawa-lotus"
+auto_switch = false
+
+[theme.custom]
+panel_bg = "#{{ surface.hex }}"
+accent = "#{{ primary.hex }}"
+green = "#{{ term2.hex }}"
+yellow = "#{{ term3.hex }}"
+blue = "#{{ secondary.hex }}"
+red = "#{{ error.hex }}"
+surface0 = "#{{ surface.hex }}"
+surface1 = "#{{ surfaceContainer.hex }}"
+surface_dim = "#{{ surfaceDim.hex }}"
+overlay0 = "#{{ outline.hex }}"
+overlay1 = "#{{ outlineVariant.hex }}"
+text = "#{{ onSurface.hex }}"
+subtext0 = "#{{ onSurfaceVariant.hex }}"
+mauve = "#{{ tertiary.hex }}"
