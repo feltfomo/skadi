@@ -122,6 +122,91 @@
               ];
             }
             {
+              # extracted out of skadi's modules/_lib, which still carries its own
+              # copy until the flake input lands.
+              name = "axiom-nix";
+              local_root = "/home/feltfomo/Projects/axiom-nix";
+              parent_page_id = "3b6d2f09c869803ba5ddeaf8810d704b";
+              ignore = [
+                ".git"
+                "result"
+                "result-*"
+                "*.lock"
+                ".direnv"
+                ".notion-sync"
+                # VM / build binaries -- never sync large images (OOM guard)
+                "*.qcow2"
+                "*.iso"
+                "*.img"
+                "*.raw"
+                "*.fd"
+              ];
+            }
+            {
+              # extracted out of skadi's modules/_lib alongside axiom, and takes
+              # axiom as a flake input rather than a relative import.
+              name = "krisis";
+              local_root = "/home/feltfomo/Projects/krisis";
+              parent_page_id = "3b6d2f09c8698066bd81e2403554adcb";
+              ignore = [
+                ".git"
+                "result"
+                "result-*"
+                "*.lock"
+                ".direnv"
+                ".notion-sync"
+                # VM / build binaries -- never sync large images (OOM guard)
+                "*.qcow2"
+                "*.iso"
+                "*.img"
+                "*.raw"
+                "*.fd"
+              ];
+            }
+            {
+              # the rust coordinator, split out of furnish. owns its own crate and
+              # its build definition, and hands furnish a function of pkgs.
+              name = "furnish-coordinator";
+              local_root = "/home/feltfomo/Projects/furnish-coordinator";
+              parent_page_id = "3b6d2f09c869800abbc9ffe500a2c0d9";
+              ignore = [
+                ".git"
+                "result"
+                "result-*"
+                "target"
+                "*.lock"
+                ".direnv"
+                ".notion-sync"
+                # VM / build binaries -- never sync large images (OOM guard)
+                "*.qcow2"
+                "*.iso"
+                "*.img"
+                "*.raw"
+                "*.fd"
+              ];
+            }
+            {
+              # furnish, ownerships, program, program.nix, and den.nix in one
+              # repo. takes axiom, krisis, and the coordinator as flake inputs.
+              name = "lexicon";
+              local_root = "/home/feltfomo/Projects/lexicon";
+              parent_page_id = "3b6d2f09c8698097bc75c00c8646e7a9";
+              ignore = [
+                ".git"
+                "result"
+                "result-*"
+                "*.lock"
+                ".direnv"
+                ".notion-sync"
+                # VM / build binaries -- never sync large images (OOM guard)
+                "*.qcow2"
+                "*.iso"
+                "*.img"
+                "*.raw"
+                "*.fd"
+              ];
+            }
+            {
               name = "den";
               local_root = "/home/feltfomo/Reference-Projects/den";
               parent_page_id = "3b6d2f09c86980e48033d30c15a170c6";
