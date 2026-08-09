@@ -2,11 +2,12 @@
   inputs,
   program,
   ...
-}: {
+}:
+{
   den.aspects.notion-sync = program {
-    nixos = {config, ...}: [
+    nixos = { config, ... }: [
       {
-        imports = [inputs.notion-sync.nixosModules.notion-sync];
+        imports = [ inputs.notion-sync.nixosModules.notion-sync ];
 
         # the token secret + how the installer provisions it, owned next to the
         # service that consumes it. optional: a blank paste falls back to the
@@ -23,7 +24,7 @@
           placeholder = "NOTION_TOKEN=REPLACE_ME";
         };
 
-        environment.systemPackages = [config.services.notion-sync.package];
+        environment.systemPackages = [ config.services.notion-sync.package ];
 
         services.notion-sync = {
           enable = true;
@@ -122,8 +123,8 @@
               ];
             }
             {
-              # extracted out of skadi's modules/_lib, which still carries its own
-              # copy until the flake input lands.
+              # axiom's own repo now. skadi consumes it as a flake input and
+              # keeps no copy of its own.
               name = "axiom-nix";
               local_root = "/home/feltfomo/Projects/axiom-nix";
               parent_page_id = "3b6d2f09c869803ba5ddeaf8810d704b";
@@ -143,8 +144,8 @@
               ];
             }
             {
-              # extracted out of skadi's modules/_lib alongside axiom, and takes
-              # axiom as a flake input rather than a relative import.
+              # split out alongside axiom, and takes axiom as a flake input
+              # rather than a relative import.
               name = "krisis";
               local_root = "/home/feltfomo/Projects/krisis";
               parent_page_id = "3b6d2f09c8698066bd81e2403554adcb";
@@ -340,7 +341,7 @@
         # crosses the ingress (direct tailnet path). the unit above stays untagged
         # (global), so every other host drops this unit and keeps keepWarm at its
         # module default -- only this one field is host-narrowed.
-        hosts = ["khion"];
+        hosts = [ "khion" ];
         services.notion-sync.keepWarm = {
           enable = true;
           url = "https://khion.tail4f0c8e.ts.net/notion-webhook";

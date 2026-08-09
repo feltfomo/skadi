@@ -1,12 +1,5 @@
-# the one ownerships check skadi keeps, because it is not a check on ownerships.
-# the engine, the roster backend and the membership rules are lexicon's to prove,
-# and lexicon proves them against a synthetic fleet. what is under test here is
-# THIS fleet: skadi's five hosts and three users, read through den, resolving the
-# same as the same fleet hand-declared. that data lives here, so this check does
-# too -- lexicon has no hosts to read.
-#
-# it goes through the public facade only. reaching into the engine would make
-# this a test of lexicon's internals, which is the thing extraction was for.
+# lexicon proves the engine; this proves skadi's own fleet resolves the same read
+# through den as hand-declared facade only
 {
   ownerships,
   roster,
@@ -15,10 +8,7 @@
 let
   inherit (ownerships) define toRoster mkResolve;
 
-  # the same fleet declared with no den, to prove the interface -- not just the
-  # data -- is backend-independent. den's real fleet lives on one system
-  # (x86_64-linux); the mirror federates onto that same system so both backends
-  # project identical canonical ids.
+  # same fleet without den, on the same system so both project identical ids
   mirror = toRoster [
     (define.host "generic" { system = "x86_64-linux"; })
     (define.host "installer" { system = "x86_64-linux"; })
@@ -36,8 +26,7 @@ let
     (define.user "grandpa" { hosts = [ "lumi" ]; })
   ];
 
-  # a caller adds host.system additively so the host ctx resolves to its
-  # canonical id; a bare host.name alone would default to the standalone system.
+  # host.system keeps this on the canonical id instead of the standalone one.
   ctx = {
     host = {
       name = "khion";
@@ -63,8 +52,7 @@ let
   underDen = mkResolve roster [ unit ] ctx;
   underDefine = mkResolve mirror [ unit ] ctx;
 
-  # grandpa lives on lumi only, so claiming grandpa inside a khion block is a
-  # membership contradiction -- it must fail under both backends.
+  # grandpa is lumi-only, so this must fail under both backends.
   crossAxisBad = {
     hosts = [ "khion" ];
     children = [
@@ -77,9 +65,7 @@ let
 
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
-  # a synthetic second system introduces a bare-name collision. "khion" now maps
-  # to two canonical ids. A bare claim must fail loud (never fan out), while the
-  # system-qualified canonical id still resolves to exactly one host.
+  # two systems make "khion" ambiguous: bare claims fail, qualified ones resolve.
   federated = toRoster [
     (define.host "khion" { system = "x86_64-linux"; })
     (define.host "khion" { system = "aarch64-linux"; })
@@ -140,12 +126,10 @@ let
       throw "skadi fleet roster parity FAILED (parity=${builtins.toString parity}, cross-axis fires=${builtins.toString bothFire}, federation=${builtins.toString federation})";
 in
 {
-  perSystem =
-    { pkgs, ... }:
-    {
-      checks.fleet-roster-parity = pkgs.runCommandLocal "fleet-roster-parity" { } (
-        assert ok;
-        "touch $out"
-      );
-    };
+  perSystem = { pkgs, ... }: {
+    checks.fleet-roster-parity = pkgs.runCommandLocal "fleet-roster-parity" { } (
+      assert ok;
+      "touch $out"
+    );
+  };
 }
