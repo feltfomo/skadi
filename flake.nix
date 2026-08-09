@@ -68,6 +68,23 @@
       flake = false;
     };
     den.url = "github:denful/den/v0.17.0";
+    # the extracted frameworks. one axiom across the whole closure, so krisis's
+    # and lexicon's schemas are the same values instead of two copies that
+    # merely look alike.
+    axiom.url = "github:feltfomo/axiom-nix";
+    krisis = {
+      url = "github:feltfomo/krisis";
+      inputs.axiom.follows = "axiom";
+    };
+    lexicon = {
+      url = "github:feltfomo/lexicon";
+      inputs.axiom.follows = "axiom";
+      inputs.krisis.follows = "krisis";
+    };
+    furnish-coordinator = {
+      url = "github:feltfomo/furnish-coordinator";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     hermes-agent = {
       # pinned to a tagged release instead of the moving main branch
       url = "github:NousResearch/hermes-agent/v2026.6.5";
@@ -131,22 +148,34 @@
     inputs.flake-parts.lib.mkFlake { inherit inputs; } (
       { lib, den, ... }:
       let
+        # the frameworks are external tools now. each is a function of its
+        # dependencies, so skadi supplies lib and the shared axiom rather than
+        # any of them pinning a nixpkgs on this config's behalf.
+        axiom = inputs.axiom.lib.axiom { inherit lib; };
+        krisis = inputs.krisis.lib.krisis { inherit lib axiom; };
+        ownerships = inputs.lexicon.lib.ownerships { inherit lib krisis axiom; };
         # the ownerships surface bound to the fleet roster, read once through
         # the one sanctioned den touch-site so program.nix (and any future
         # aspect) reach it the same way resolve/resolveSystem already do.
-        denApi = import ./modules/_lib/den.nix { inherit den lib; };
+        denApi = inputs.lexicon.lib.den {
+          inherit
+            den
+            lib
+            krisis
+            axiom
+            ;
+        };
         # whole-fleet roster over every system in den.hosts, not the flake-parts
         # systems list below (which only scopes perSystem devshells).
         inherit (denApi) roster;
-        ownershipsSurface = import ./modules/_lib/ownerships/surface.nix { inherit lib; };
-        resolve = ownershipsSurface.mkResolve roster;
+        resolve = ownerships.mkResolve roster;
         # host-only sibling for system/nixos slices that own by host with no
         # user in scope (hyprland's compositor). a distinct door from mkResolve
         # so the user-scope contract stays byte-identical.
-        resolveSystem = ownershipsSurface.mkResolveSystem roster;
+        resolveSystem = ownerships.mkResolveSystem roster;
         # prepared form used by program aspects to hoist the ctx-independent
         # half of the pipeline out of the per-user slices.
-        resolvePrepared = ownershipsSurface.mkResolvePrepared roster;
+        resolvePrepared = ownerships.mkResolvePrepared roster;
       in
       {
         imports = [ (inputs.import-tree ./modules) ];
@@ -156,16 +185,35 @@
         # den plumbing on this path.
         _module.args = {
           rootPath = ./.;
-          inherit resolve resolveSystem resolvePrepared;
-          program = import ./modules/_lib/program.nix {
+          inherit
+            resolve
+            resolveSystem
+            resolvePrepared
+            ownerships
+            roster
+            ;
+          program = inputs.lexicon.lib.program {
             inherit
               lib
+              krisis
+              axiom
               resolve
               resolveSystem
               resolvePrepared
               ;
+            # a function of pkgs, not a built package: the unit that runs the
+            # binary builds it with the host's pkgs, after this config's
+            # overlays.
+            inherit (inputs.furnish-coordinator.lib) mkCoordinator;
             inherit (denApi) filePrincipals hostUserNames;
           };
+          # applied once here so an aspect that owns a furnish option imports the
+          # runtime module instead of re-deriving it.
+          furnishRuntime = inputs.lexicon.lib.furnishRuntime {
+            inherit krisis axiom;
+            inherit (inputs.furnish-coordinator.lib) mkCoordinator;
+          };
+          inherit denApi;
         };
       }
     );

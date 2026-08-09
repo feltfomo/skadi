@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, furnishRuntime, ... }:
 {
   den.aspects.impermanence.nixos =
     { config, lib, ... }:
@@ -9,7 +9,7 @@
       # only brings the option namespace into scope.
       imports = [
         inputs.impermanence.nixosModules.impermanence
-        ../_lib/furnish/runtime.nix
+        furnishRuntime
       ];
 
       # persist and home must be available early in boot

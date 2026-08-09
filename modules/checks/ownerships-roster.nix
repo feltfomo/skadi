@@ -1,18 +1,19 @@
-# perSystem check that the den adapter and a mirror define.* roster resolve the
-# same unit identically, and that the cross-axis membership contradiction fires
-# under both backends. This is the only ownerships check that needs den; the den
-# read stays inside _lib/den.nix (reached through its roster wrapper here). The
-# den-free half of the roster proof lives in checks/ownerships.nix.
-{ den, lib, ... }:
+# the one ownerships check skadi keeps, because it is not a check on ownerships.
+# the engine, the roster backend and the membership rules are lexicon's to prove,
+# and lexicon proves them against a synthetic fleet. what is under test here is
+# THIS fleet: skadi's five hosts and three users, read through den, resolving the
+# same as the same fleet hand-declared. that data lives here, so this check does
+# too -- lexicon has no hosts to read.
+#
+# it goes through the public facade only. reaching into the engine would make
+# this a test of lexicon's internals, which is the thing extraction was for.
+{
+  ownerships,
+  roster,
+  ...
+}:
 let
-  resolve = import ../_lib/ownerships/resolve.nix { inherit lib; };
-  axes = import ../_lib/ownerships/axes.nix { inherit lib; };
-  denAdapter = import ../_lib/den.nix { inherit den lib; };
-
-  inherit (axes) include;
-  inherit (resolve) define toRoster resolveWith;
-
-  denRoster = denAdapter.roster;
+  inherit (ownerships) define toRoster mkResolve;
 
   # the same fleet declared with no den, to prove the interface -- not just the
   # data -- is backend-independent. den's real fleet lives on one system
@@ -46,36 +47,30 @@ let
   };
 
   unit = {
-    claim.host = include [
+    hosts = [
       "khion"
       "lumi"
     ];
     children = [
-      { value.packages = [ "a" ]; }
+      { packages = [ "a" ]; }
       {
-        claim.user = include [ "feltfomo" ];
-        value.packages = [ "b" ];
+        users = [ "feltfomo" ];
+        packages = [ "b" ];
       }
     ];
   };
 
-  underDen = resolveWith {
-    roster = denRoster;
-    inherit ctx;
-  } unit;
-  underDefine = resolveWith {
-    roster = mirror;
-    inherit ctx;
-  } unit;
+  underDen = mkResolve roster [ unit ] ctx;
+  underDefine = mkResolve mirror [ unit ] ctx;
 
   # grandpa lives on lumi only, so claiming grandpa inside a khion block is a
   # membership contradiction -- it must fail under both backends.
   crossAxisBad = {
-    claim.host = include [ "khion" ];
+    hosts = [ "khion" ];
     children = [
       {
-        claim.user = include [ "grandpa" ];
-        value.x = 1;
+        users = [ "grandpa" ];
+        x = 1;
       }
     ];
   };
@@ -101,15 +96,16 @@ let
       name = "khion";
       system = "x86_64-linux";
     };
+    user.name = "feltfomo";
   };
 
   ambiguousUnit = {
-    claim.host = include [ "khion" ];
-    value.x = 1;
+    hosts = [ "khion" ];
+    x = 1;
   };
   qualifiedUnit = {
-    claim.host = include [ "x86_64-linux/khion" ];
-    value.x = 1;
+    hosts = [ "x86_64-linux/khion" ];
+    x = 1;
   };
 
   collisionVisible =
@@ -117,17 +113,9 @@ let
       "x86_64-linux/khion"
       "aarch64-linux/khion"
     ];
-  ambiguityFires = throws (
-    resolveWith {
-      roster = federated;
-      ctx = fedCtx;
-    } ambiguousUnit
-  );
+  ambiguityFires = throws (mkResolve federated [ ambiguousUnit ] fedCtx);
   qualifiedResolves =
-    (resolveWith {
-      roster = federated;
-      ctx = fedCtx;
-    } qualifiedUnit) == {
+    mkResolve federated [ qualifiedUnit ] fedCtx == {
       x = 1;
     };
 
@@ -141,18 +129,7 @@ let
         ];
       };
   bothFire =
-    throws (
-      resolveWith {
-        roster = denRoster;
-        inherit ctx;
-      } crossAxisBad
-    )
-    && throws (
-      resolveWith {
-        roster = mirror;
-        inherit ctx;
-      } crossAxisBad
-    );
+    throws (mkResolve roster [ crossAxisBad ] ctx) && throws (mkResolve mirror [ crossAxisBad ] ctx);
 
   federation = collisionVisible && ambiguityFires && qualifiedResolves;
 
@@ -160,13 +137,13 @@ let
     if parity && bothFire && federation then
       true
     else
-      throw "ownerships roster parity FAILED (parity=${builtins.toString parity}, cross-axis fires=${builtins.toString bothFire}, federation=${builtins.toString federation})";
+      throw "skadi fleet roster parity FAILED (parity=${builtins.toString parity}, cross-axis fires=${builtins.toString bothFire}, federation=${builtins.toString federation})";
 in
 {
   perSystem =
     { pkgs, ... }:
     {
-      checks.ownerships-roster-parity = pkgs.runCommandLocal "ownerships-roster-parity" { } (
+      checks.fleet-roster-parity = pkgs.runCommandLocal "fleet-roster-parity" { } (
         assert ok;
         "touch $out"
       );

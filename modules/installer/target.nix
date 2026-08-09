@@ -1,16 +1,16 @@
 # install-time host composition. build a host with some top-level aspects removed,
 # for one machine only, without editing the host file. the canonical
 # nixosConfigurations.<host> is never touched. the den-internals work (the
-# filtered standalone resolve + instantiate) lives in _lib/den.nix; this wires the
-# --drop menu to that boundary and is otherwise a thin caller.
+# filtered standalone resolve + instantiate) lives in lexicon's den adapter, read
+# once in flake.nix and handed down as denApi; this wires the --drop menu to that
+# boundary and is otherwise a thin caller.
 {
-  den,
+  denApi,
   lib,
   ...
 }:
 let
   systems = [ "x86_64-linux" ];
-  denApi = import ../_lib/den.nix { inherit den lib; };
 in
 {
   flake.lib = lib.genAttrs systems (system: {
