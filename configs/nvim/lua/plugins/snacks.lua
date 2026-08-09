@@ -1,17 +1,23 @@
 return {
-  "folke/snacks.nvim",
-  --made it load so there is no error from plugin loading race condition
-  priority = 1000,
-  lazy = false,
-  --@type snacks.Config
-  keys = {
-    { "<leader>e", function() Snacks.explorer() end, desc = "File Explorer" },
-  },
-  opts = {
-    dashboard = {
-      width = 100,
-      preset = {
-        header = [[
+	"folke/snacks.nvim",
+	--made it load so there is no error from plugin loading race condition
+	priority = 1000,
+	lazy = false,
+	---@type snacks.Config
+	keys = {
+		{
+			"<leader>e",
+			function()
+				Snacks.explorer()
+			end,
+			desc = "File Explorer",
+		},
+	},
+	opts = {
+		dashboard = {
+			width = 100,
+			preset = {
+				header = [[
                                        __        ____      __
                                       /  \       \   \    /  \
                                       \   \       \   \  /   /
@@ -33,11 +39,11 @@ return {
                                       /   /\   \       \   \
                                      /   /  \   \       \   \
                                      \__/    \___\       \__/]],
-      },
-      formats = {
-        header = { "%s", align = "left" },
-      },
-    },
-    explorer = {}
-  }
+			},
+			formats = {
+				header = { "%s", align = "left" },
+			},
+		},
+		explorer = {},
+	},
 }
