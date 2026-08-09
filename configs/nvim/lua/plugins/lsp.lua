@@ -6,6 +6,9 @@ return {
 		-- that name, so these overrides apply regardless of load order
 		-- between this repo's lsp/*.lua files and nvim-lspconfig's own.
 		vim.lsp.config("lua_ls", {
+			root_dir = function(bufnr, on_dir)
+				on_dir("/etc/skadi/configs/nvim")
+			end,
 			settings = {
 				Lua = {
 					diagnostics = { globals = { "vim" } },
