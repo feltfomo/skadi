@@ -969,11 +969,11 @@
         "treefmt-nix": "treefmt-nix_5"
       },
       "locked": {
-        "lastModified": 1786246471,
-        "narHash": "sha256-Uy8dxWfQyqgpJcFFsMGXkxmbPCTUmFhQt+T1wtb7PHI=",
+        "lastModified": 1786247039,
+        "narHash": "sha256-qyEMXnFLP6mRSN+RQe5gqZyHTwPH4Dszquuv2SYbkco=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "d21bfe09b43ab2ecf115b0d89ff8ca6a3a8e587a",
+        "rev": "1a289f5d50f2a53cc869fe1c160201c40ce58f78",
         "type": "github"
       },
       "original": {
