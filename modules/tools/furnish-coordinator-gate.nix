@@ -9,7 +9,6 @@
         # evaluator rather than silently certify it under a different nix.
         runtimeInputs = with pkgs; [
           bash
-          bc
           coreutils
           findutils
           git
