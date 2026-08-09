@@ -81,10 +81,6 @@
       inputs.axiom.follows = "axiom";
       inputs.krisis.follows = "krisis";
     };
-    furnish-coordinator = {
-      url = "github:feltfomo/furnish-coordinator";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     hermes-agent = {
       # pinned to a tagged release instead of the moving main branch
       url = "github:NousResearch/hermes-agent/v2026.6.5";
@@ -201,18 +197,11 @@
               resolveSystem
               resolvePrepared
               ;
-            # a function of pkgs, not a built package: the unit that runs the
-            # binary builds it with the host's pkgs, after this config's
-            # overlays.
-            inherit (inputs.furnish-coordinator.lib) mkCoordinator;
             inherit (denApi) filePrincipals hostUserNames;
           };
           # applied once here so an aspect that owns a furnish option imports the
           # runtime module instead of re-deriving it.
-          furnishRuntime = inputs.lexicon.lib.furnishRuntime {
-            inherit krisis axiom;
-            inherit (inputs.furnish-coordinator.lib) mkCoordinator;
-          };
+          furnishRuntime = inputs.lexicon.lib.furnishRuntime { inherit krisis axiom; };
           inherit denApi;
         };
       }

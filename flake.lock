@@ -281,24 +281,6 @@
     },
     "flake-parts_3": {
       "inputs": {
-        "nixpkgs-lib": "nixpkgs-lib_3"
-      },
-      "locked": {
-        "lastModified": 1785627969,
-        "narHash": "sha256-4dtXQk/NMePegK/nWp5NSeuZKLATItOq61lpEvmXqGw=",
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "rev": "427bf4bd9435fdf21321c8cc628c24efc14c0f7a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hercules-ci",
-        "repo": "flake-parts",
-        "type": "github"
-      }
-    },
-    "flake-parts_4": {
-      "inputs": {
         "nixpkgs-lib": [
           "hermes-agent",
           "nixpkgs"
@@ -310,6 +292,24 @@
         "owner": "hercules-ci",
         "repo": "flake-parts",
         "rev": "f20dc5d9b8027381c474144ecabc9034d6a839a3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "flake-parts_4": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib_3"
+      },
+      "locked": {
+        "lastModified": 1785627969,
+        "narHash": "sha256-4dtXQk/NMePegK/nWp5NSeuZKLATItOq61lpEvmXqGw=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "427bf4bd9435fdf21321c8cc628c24efc14c0f7a",
         "type": "github"
       },
       "original": {
@@ -447,11 +447,12 @@
     },
     "furnish-coordinator": {
       "inputs": {
-        "flake-parts": "flake-parts_3",
+        "flake-parts": "flake-parts_6",
         "nixpkgs": [
+          "lexicon",
           "nixpkgs"
         ],
-        "treefmt-nix": "treefmt-nix_2"
+        "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
         "lastModified": 1786230527,
@@ -485,7 +486,7 @@
     },
     "hermes-agent": {
       "inputs": {
-        "flake-parts": "flake-parts_4",
+        "flake-parts": "flake-parts_3",
         "nixpkgs": [
           "nixpkgs"
         ],
@@ -880,7 +881,7 @@
         ],
         "quickshell": "quickshell_2",
         "roundedPolygon": "roundedPolygon",
-        "treefmt-nix": "treefmt-nix_3",
+        "treefmt-nix": "treefmt-nix_2",
         "upstream": "upstream"
       },
       "locked": {
@@ -936,9 +937,9 @@
         "axiom": [
           "axiom"
         ],
-        "flake-parts": "flake-parts_5",
+        "flake-parts": "flake-parts_4",
         "nixpkgs": "nixpkgs_3",
-        "treefmt-nix": "treefmt-nix_4"
+        "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
         "lastModified": 1786228702,
@@ -959,7 +960,8 @@
         "axiom": [
           "axiom"
         ],
-        "flake-parts": "flake-parts_6",
+        "flake-parts": "flake-parts_5",
+        "furnish-coordinator": "furnish-coordinator",
         "krisis": [
           "krisis"
         ],
@@ -967,11 +969,11 @@
         "treefmt-nix": "treefmt-nix_5"
       },
       "locked": {
-        "lastModified": 1786243475,
-        "narHash": "sha256-+zUhn91rEmgFzporeW5Csj/XtOkXkO5O6HwrDVJZfxU=",
+        "lastModified": 1786244275,
+        "narHash": "sha256-aGhCMKSK71qG7cQKeD4n4sl44iuZjegAnpxc/DSKKs4=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "1ce5832776074ba606e85165c65b6624595ffc66",
+        "rev": "f5e6b17f4c938a097a558176b1d5619334910d06",
         "type": "github"
       },
       "original": {
@@ -1576,7 +1578,6 @@
         "dms": "dms",
         "elephant": "elephant",
         "flake-parts": "flake-parts_2",
-        "furnish-coordinator": "furnish-coordinator",
         "hermes-agent": "hermes-agent",
         "home-manager": "home-manager",
         "hyprland": "hyprland",
@@ -1830,7 +1831,7 @@
     "treefmt-nix_2": {
       "inputs": {
         "nixpkgs": [
-          "furnish-coordinator",
+          "illogical-impulse-shell",
           "nixpkgs"
         ]
       },
@@ -1851,7 +1852,7 @@
     "treefmt-nix_3": {
       "inputs": {
         "nixpkgs": [
-          "illogical-impulse-shell",
+          "krisis",
           "nixpkgs"
         ]
       },
@@ -1872,7 +1873,8 @@
     "treefmt-nix_4": {
       "inputs": {
         "nixpkgs": [
-          "krisis",
+          "lexicon",
+          "furnish-coordinator",
           "nixpkgs"
         ]
       },
