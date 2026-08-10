@@ -308,6 +308,24 @@
               ];
             }
             {
+              name = "nix-effects";
+              local_root = "/home/feltfomo/Reference-Projects/nix-effects";
+              parent_page_id = "3b7d2f09c86980faa860cc65fd0b269f";
+              ignore = [
+                ".git"
+                "result"
+                "result-*"
+                "*.lock"
+                ".direnv"
+                ".notion-sync"
+                "*.qcow2"
+                "*.iso"
+                "*.img"
+                "*.raw"
+                "*.fd"
+              ];
+            }
+            {
               name = "workflow-workbench";
               local_root = "/home/feltfomo/Projects/workflow-workbench";
               parent_page_id = "3b6d2f09c86980b3a9ead532116c0718";
