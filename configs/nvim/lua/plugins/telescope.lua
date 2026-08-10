@@ -10,7 +10,7 @@ return {
 		{ "<leader>fh", "<cmd>Telescope help_tags<cr>", desc = "Help tags" },
 	},
 	config = function()
-		require("telescope").setup()
+		require("telescope").setup({})
 
 		local palette_path = vim.fn.stdpath("config") .. "/lua/reactive/palette.lua"
 

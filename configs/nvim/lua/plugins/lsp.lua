@@ -6,7 +6,7 @@ return {
 		-- that name, so these overrides apply regardless of load order
 		-- between this repo's lsp/*.lua files and nvim-lspconfig's own.
 		vim.lsp.config("lua_ls", {
-			root_dir = function(bufnr, on_dir)
+			root_dir = function(_, on_dir)
 				on_dir("/etc/skadi/configs/nvim")
 			end,
 			settings = {
@@ -21,6 +21,31 @@ return {
 					check = { command = "clippy" },
 				},
 			},
+		})
+
+		vim.diagnostic.config({
+			virtual_text = {
+				spacing = 4,
+				prefix = function(diagnostic)
+					local icons = {
+						[vim.diagnostic.severity.ERROR] = " ",
+						[vim.diagnostic.severity.WARN] = " ",
+						[vim.diagnostic.severity.INFO] = " ",
+						[vim.diagnostic.severity.HINT] = " ",
+					}
+					return icons[diagnostic.severity] or "●"
+				end,
+			},
+			signs = {
+				text = {
+					[vim.diagnostic.severity.ERROR] = " ",
+					[vim.diagnostic.severity.WARN] = " ",
+					[vim.diagnostic.severity.INFO] = " ",
+					[vim.diagnostic.severity.HINT] = " ",
+				},
+			},
+			underline = true,
+			severity_sort = true,
 		})
 
 		vim.lsp.enable({

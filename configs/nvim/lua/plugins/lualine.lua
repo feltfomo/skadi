@@ -7,13 +7,13 @@ return {
 
 		local function setup()
 			if vim.g.colors_name ~= "reactive" then
-				lualine.setup()
+				lualine.setup({})
 				return
 			end
 
 			local ok, p = pcall(dofile, palette_path)
 			if not ok then
-				lualine.setup()
+				lualine.setup({})
 				return
 			end
 
