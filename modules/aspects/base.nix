@@ -1,14 +1,17 @@
-{ inputs, den, ... }:
 {
+  inputs,
+  den,
+  ...
+}: {
   den.aspects.base = {
     includes = with den.aspects; [
-      system
+      sops
       audio
       thunar
+      system
+      provision
       impermanence
       graalvm-oracle-21
-      sops
-      provision
       installer-tunables
     ];
 
@@ -22,7 +25,7 @@
       # home-manager runs inside the system, sharing pkgs and overlays
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;
-      home-manager.extraSpecialArgs = { inherit inputs; };
+      home-manager.extraSpecialArgs = {inherit inputs;};
 
       # an empty declaration set still retires files from older generations.
       lexicon.furnish.enable = true;
