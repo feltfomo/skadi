@@ -2,12 +2,11 @@
   inputs,
   program,
   ...
-}:
-{
+}: {
   den.aspects.notion-sync = program {
-    nixos = { config, ... }: [
+    nixos = {config, ...}: [
       {
-        imports = [ inputs.notion-sync.nixosModules.notion-sync ];
+        imports = [inputs.notion-sync.nixosModules.notion-sync];
 
         # the token secret + how the installer provisions it, owned next to the
         # service that consumes it. optional: a blank paste falls back to the
@@ -24,7 +23,7 @@
           placeholder = "NOTION_TOKEN=REPLACE_ME";
         };
 
-        environment.systemPackages = [ config.services.notion-sync.package ];
+        environment.systemPackages = [config.services.notion-sync.package];
 
         services.notion-sync = {
           enable = true;
@@ -50,7 +49,7 @@
             {
               name = "notion-sync";
               local_root = "/home/feltfomo/Projects/notion-sync";
-              parent_page_id = "3b6d2f09c86980da9cc6e181db780f17";
+              parent_page_id = "9addd8564d16438d9f02d9feae1c7631";
               ignore = [
                 ".git"
                 "target"
@@ -72,7 +71,7 @@
             {
               name = "skadi";
               local_root = "/etc/skadi";
-              parent_page_id = "3b6d2f09c86980d1b357f8f6befc3f59";
+              parent_page_id = "4893908605e4489196431a8d3f082db2";
               ignore = [
                 ".git"
                 "result"
@@ -99,7 +98,7 @@
             {
               name = "multiloader-template";
               local_root = "/home/feltfomo/Projects/multiloader-template";
-              parent_page_id = "3b6d2f09c869805aab98d52be64ac0d0";
+              parent_page_id = "aa2de8075afd420fad741b422355b133";
               ignore = [
                 ".git"
                 "build"
@@ -127,7 +126,7 @@
               # keeps no copy of its own.
               name = "axiom-nix";
               local_root = "/home/feltfomo/Projects/axiom-nix";
-              parent_page_id = "3b6d2f09c869803ba5ddeaf8810d704b";
+              parent_page_id = "a6ba082e236d46cdb3ea6104b9407750";
               ignore = [
                 ".git"
                 "result"
@@ -148,7 +147,7 @@
               # rather than a relative import.
               name = "krisis";
               local_root = "/home/feltfomo/Projects/krisis";
-              parent_page_id = "3b6d2f09c8698066bd81e2403554adcb";
+              parent_page_id = "890586d8f09f4c8e895d692288ececd9";
               ignore = [
                 ".git"
                 "result"
@@ -169,7 +168,7 @@
               # its build definition, and hands furnish a function of pkgs.
               name = "furnish-coordinator";
               local_root = "/home/feltfomo/Projects/furnish-coordinator";
-              parent_page_id = "3b6d2f09c869800abbc9ffe500a2c0d9";
+              parent_page_id = "cc848aa34d6a489b815df1905fc901c2";
               ignore = [
                 ".git"
                 "result"
@@ -191,7 +190,7 @@
               # repo. takes axiom, krisis, and the coordinator as flake inputs.
               name = "lexicon";
               local_root = "/home/feltfomo/Projects/lexicon";
-              parent_page_id = "3b6d2f09c8698097bc75c00c8646e7a9";
+              parent_page_id = "1e5643c5a6244bbdba6b30056accc54b";
               ignore = [
                 ".git"
                 "result"
@@ -210,7 +209,7 @@
             {
               name = "den";
               local_root = "/home/feltfomo/Reference-Projects/den";
-              parent_page_id = "3b6d2f09c86980e48033d30c15a170c6";
+              parent_page_id = "dc76796d5d4648d9a083557dc4e29994";
               ignore = [
                 ".git"
                 "result"
@@ -230,7 +229,7 @@
             {
               name = "dots-hyprland";
               local_root = "/home/feltfomo/Reference-Projects/dots-hyprland";
-              parent_page_id = "3b6d2f09c8698004bfced47bb59ceb62";
+              parent_page_id = "912fa25a13d94c4c8003beb02b9df96f";
               ignore = [
                 ".git"
                 "result"
@@ -256,7 +255,7 @@
             {
               name = "end4-pC";
               local_root = "/home/feltfomo/Reference-Projects/end4-pC";
-              parent_page_id = "3b6d2f09c86980f5ba28d7d4c2dffdb2";
+              parent_page_id = "bb05209502ff4c3f870319799ce8ad14";
               ignore = [
                 ".git"
                 "result"
@@ -283,7 +282,7 @@
             {
               name = "illogical-impulse-shell-nix";
               local_root = "/home/feltfomo/Projects/illogical-impulse-shell-nix";
-              parent_page_id = "3b6d2f09c869805a959bc2763ace6f94";
+              parent_page_id = "982d5121eaf04c0781e82be1c82b0c58";
               ignore = [
                 ".git"
                 "result"
@@ -310,7 +309,7 @@
             {
               name = "nix-effects";
               local_root = "/home/feltfomo/Reference-Projects/nix-effects";
-              parent_page_id = "3b7d2f09c86980faa860cc65fd0b269f";
+              parent_page_id = "5365cb6797df46409f4929f42d705e55";
               ignore = [
                 ".git"
                 "result"
@@ -328,7 +327,7 @@
             {
               name = "workflow-workbench";
               local_root = "/home/feltfomo/Projects/workflow-workbench";
-              parent_page_id = "3b6d2f09c86980b3a9ead532116c0718";
+              parent_page_id = "6f71915d02bb406e994685e47d099094";
               ignore = [
                 ".git"
                 "result"
@@ -359,7 +358,7 @@
         # crosses the ingress (direct tailnet path). the unit above stays untagged
         # (global), so every other host drops this unit and keeps keepWarm at its
         # module default -- only this one field is host-narrowed.
-        hosts = [ "khion" ];
+        hosts = ["khion"];
         services.notion-sync.keepWarm = {
           enable = true;
           url = "https://khion.tail4f0c8e.ts.net/notion-webhook";
