@@ -2,8 +2,7 @@
   program,
   rootPath,
   ...
-}:
-{
+}: {
   den.aspects.ghostty = program {
     pkg = pkgs: pkgs.ghostty;
     directories = [
@@ -15,7 +14,7 @@
     theme = {
       id = "ghostty";
       output = ".config/ghostty/themes/skadi.conf";
-      reload = "for pid in $(pgrep -f '/bin/[g]hostty --gtk-single-instance=true'); do kill -SIGUSR2 \"$pid\"; done";
+      reload = "pkill -USR2 -f '/bin/[g]hostty --gtk-single-instance=true'";
       renderers = {
         noctalia = {
           source = "${rootPath}/configs/ghostty/themes/skadi.conf";
