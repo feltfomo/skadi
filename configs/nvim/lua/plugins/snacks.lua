@@ -12,6 +12,13 @@ return {
 			end,
 			desc = "File Explorer",
 		},
+		{
+			"<leader>g",
+			function()
+				Snacks.lazygit()
+			end,
+			desc = "Lazygit",
+		},
 	},
 	opts = {
 		dashboard = {
@@ -45,5 +52,6 @@ return {
 			},
 		},
 		explorer = {},
+		lazygit = {},
 	},
 }
