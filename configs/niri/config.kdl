@@ -25,6 +25,11 @@ layout {
     default-column-width { proportion 0.5; }
 }
 
+layer-rule {
+  match namespace="^quickshell$"
+  place-within-backdrop true
+}
+
 blur {
     passes 3
 }
