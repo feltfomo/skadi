@@ -16,10 +16,10 @@
 
     nixos.imports = [
       inputs.disko.nixosModules.disko
-      ./_vm/disko.nix
-      ./_vm/hardware.nix
-      ./_vm/networking.nix
-      ./_vm/test-identity.nix
+      ./_nixos/disko.nix
+      ./_nixos/hardware.nix
+      ./_nixos/networking.nix
+      ./_nixos/test-identity.nix
     ];
 
     # bootloader relocated out of the universal system aspect (khion/lumi now

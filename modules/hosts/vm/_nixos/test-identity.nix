@@ -1,6 +1,6 @@
 { config, lib, ... }:
 let
-  fixture = ./secrets.yaml;
+  fixture = ../secrets.yaml;
   expectedSecrets = [
     "feltfomo-password"
     "notion-token"
@@ -38,7 +38,7 @@ in
       assertion =
         toString config.sops.secrets."feltfomo-password".sopsFile == toString fixture
         && toString config.sops.secrets."notion-token".sopsFile == toString fixture;
-      message = "vm secrets must use only the generated _vm test fixture";
+      message = "vm secrets must use only the generated VM test fixture";
     }
   ];
 }

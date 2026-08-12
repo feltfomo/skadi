@@ -890,7 +890,7 @@ vm_prepare_identity_fixture() (
   trap 'rm -rf "$work"' EXIT
   plaintext="$work/secrets.plain.yaml"
   encrypted="$work/secrets.yaml"
-  fixture="$destination/modules/hosts/_vm/secrets.yaml"
+  fixture="$destination/modules/hosts/vm/secrets.yaml"
   before_inventory="$work/real-sops-before.sha256"
   after_inventory="$work/real-sops-after.sha256"
   vm_real_sops_inventory "$destination" > "$before_inventory"
@@ -956,7 +956,7 @@ vm_prepare_test_flake() {
   vm_prepare_identity_fixture "$destination"
   git -C "$destination" init -q
   git -C "$destination" add -A
-  git -C "$destination" ls-files --error-unmatch modules/hosts/_vm/secrets.yaml >/dev/null \
+  git -C "$destination" ls-files --error-unmatch modules/hosts/vm/secrets.yaml >/dev/null \
     || die "generated VM fixture was not staged in the disposable source"
   git -C "$destination" -c user.name=program-files-regression \
     -c user.email=program-files-regression@invalid commit -qm "disposable VM test source"

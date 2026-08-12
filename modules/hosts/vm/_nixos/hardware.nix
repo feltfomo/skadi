@@ -34,7 +34,7 @@
   # initrd and point cryptroot at it so the disk auto-unlocks and boot reaches a
   # login prompt unattended. writeText adds no trailing newline, matching disko's
   # `--key-file <(echo -n "disko")` enroll byte-for-byte. vm-only -- real hosts
-  # never import _vm, so they keep their interactive passphrase.
+  # never import the VM host module, so they keep their interactive passphrase.
   boot.initrd.systemd.contents."/luks.key".source = pkgs.writeText "vm-luks-key" "disko";
   boot.initrd.luks.devices.cryptroot.keyFile = "/luks.key";
 

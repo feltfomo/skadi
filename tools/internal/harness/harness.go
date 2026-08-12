@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	vmFixtureRelPath     = "modules/hosts/_vm/secrets.yaml"
+	vmFixtureRelPath     = "modules/hosts/vm/secrets.yaml"
 	vmRuntimeIdentityDir = "/run/skadi-vm-identity"
 	vmIdentityComment    = "skadi vm host identity - generated per run, test only"
 	fixedVMPasswordHash  = "$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0"

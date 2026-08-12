@@ -206,7 +206,7 @@ log "driving unattended 'skadi-install $HOST' (cold, from source) ..."
 log "install log -> $INSTALL_LOG"
 # IN_DISKO_TEST=1 is disko's own hook: its luks script keys the cryptroot slot
 # with the deterministic passphrase `disko` (--key-file <(echo -n ..), no trailing
-# newline) instead of prompting on a tty we don't have. the installed _vm host
+# newline) instead of prompting on a tty we don't have. the installed vm host
 # embeds a byte-identical keyfile in its initrd, so the disk auto-unlocks on the
 # post-install boot and the harness can watch for a login prompt. vm-only: real
 # skadi-install runs never set it, so khion keeps its passphrase.
@@ -232,6 +232,8 @@ while IFS= read -r secret; do
 done <<SECRETS
 $mkpasswd_secrets
 SECRETS
+# No identity directory is supplied here: skadi-install creates the standalone
+# test's disposable host identity and encrypted fixture inside its throwaway clone.
 # shellcheck disable=SC2090
 remote="env IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1${SECRET_ENV} skadi-install '${HOST}'"
 if [ -n "$DROP" ]; then

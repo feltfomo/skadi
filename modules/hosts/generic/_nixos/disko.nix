@@ -4,7 +4,7 @@ let
   # (git-added) before `disko --flake .#generic`. the committed sentinel is only
   # for `nix flake check`; the installer asserts a real device first, so this
   # value never reaches a live disko run. fileContents strips the trailing NL.
-  device = lib.fileContents ./device;
+  device = lib.fileContents ../device;
 in
 {
   disko.devices.disk.main = {

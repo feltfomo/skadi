@@ -23,8 +23,8 @@
     # disko's nixos module must sit with the disko.devices it enables
     nixos.imports = [
       inputs.disko.nixosModules.disko
-      ./_khion/disko.nix
-      ./_khion/hardware.nix
+      ./_nixos/disko.nix
+      ./_nixos/hardware.nix
     ];
 
     # bootloader is a per-host machine fact. relocated verbatim out of the

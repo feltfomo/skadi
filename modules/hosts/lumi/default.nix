@@ -18,8 +18,8 @@
     # disko's nixos module must sit with the disko.devices it enables
     nixos.imports = [
       inputs.disko.nixosModules.disko
-      ./_lumi/disko.nix
-      ./_lumi/hardware.nix
+      ./_nixos/disko.nix
+      ./_nixos/hardware.nix
     ];
 
     # bootloader is a per-host machine fact. lumi is a UEFI laptop (ESP at

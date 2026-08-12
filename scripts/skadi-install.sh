@@ -3,7 +3,7 @@
 # the installer iso. steps: disko format+mount, host key + sops secrets into
 # /persist, nixos-install. --drop removes named top-level aspects for this install
 # only via mkInstallTarget; the committed nixosConfigurations.<host> and
-# modules/hosts/<host>.nix are never touched. no host on a tty opens an
+# modules/hosts/<host>/default.nix are never touched. no host on a tty opens an
 # interactive picker that resolves to the same path as an explicit --drop.
 # --print-target is a read-only dry run: prints the resolved invocation and the
 # composed toplevel drvPath, no disk writes.
@@ -21,7 +21,7 @@ log()  { printf '\033[0;32m[skadi-install]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[skadi-install]\033[0m %s\n' "$*"; }
 die()  { printf '\033[0;31m[skadi-install]\033[0m %s\n' "$*" >&2; exit 1; }
 
-# generic ships no committed _generic/{device,hardware}.nix for the machine in
+# generic has no committed device or hardware profile for the machine in
 # front of us, so discover the disk at install time. enumerate whole disks
 # (lsblk type=disk excludes the iso's sr0/rom + loop devices), require exactly
 # one, set GENERIC_DEVICE. multi-disk metal dies rather than guess which disk to
@@ -35,7 +35,7 @@ detect_generic_disk() {
     die "generic: no whole-disk device detected (lsblk saw none). This slice installs to a single internal disk -- attach one and retry."
   elif [ "$n" -gt 1 ]; then
     lsblk --nodeps --output NAME,SIZE,TYPE,MODEL >&2
-    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection isn't wired yet; add an explicit per-host layout for multi-disk hardware (khion/lumi-style modules/hosts/_<host>/{disko,hardware}.nix)."
+    die "generic: found $n disks but this slice auto-installs to EXACTLY one. Interactive multi-disk selection isn't wired yet; add an explicit per-host layout for multi-disk hardware (khion/lumi-style modules/hosts/<host>/_nixos/{disko,hardware}.nix)."
   fi
   GENERIC_DEVICE="/dev/${disks[0]}"
   log "generic: detected sole target disk $GENERIC_DEVICE"
@@ -49,8 +49,8 @@ detect_generic_disk() {
 select_target() {
   local all=() hosts=() aspects=() drop_flag=() hosts_json aspects_json h i n choice csv
 
-  # hosts = nixosConfigurations that also have a modules/hosts/<h>.nix, so the
-  # iso's own installer config (no hosts/ file) never shows up as a target.
+  # hosts = nixosConfigurations that also have a modules/hosts/<h>/default.nix,
+  # so the iso's own installer config never shows up as a target.
   hosts_json="$(nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames')" \
     || die "could not enumerate hosts (nix eval failed)"
   mapfile -t all < <(jq -r '.[]' <<<"$hosts_json")
@@ -58,9 +58,9 @@ select_target() {
     # generic is explicit-trigger-only: it passes this filter but its disk and
     # hardware are discovered at install time, so never offer it in the menu.
     if [ "$h" = generic ]; then continue; fi
-    if [ -f "modules/hosts/${h}.nix" ]; then hosts+=("$h"); fi
+    if [ -f "modules/hosts/${h}/default.nix" ]; then hosts+=("$h"); fi
   done
-  [ "${#hosts[@]}" -gt 0 ] || die "no installable hosts (nixosConfigurations with a modules/hosts/<host>.nix)"
+  [ "${#hosts[@]}" -gt 0 ] || die "no installable hosts (nixosConfigurations with a modules/hosts/<host>/default.nix)"
 
   echo "Select a host to install:" >&2
   for i in "${!hosts[@]}"; do printf '  %d) %s\n' "$((i + 1))" "${hosts[i]}" >&2; done
@@ -179,7 +179,7 @@ fi
 cd "$WORK"
 
 # Snapshot the real SOPS material before any VM-test work. The generated fixture
-# lives under modules/hosts/_vm and is intentionally excluded. Comparing this
+# lives under modules/hosts/vm and is intentionally excluded. Comparing this
 # deterministic inventory later avoids depending on Git worktree discovery after
 # disko and the installer store relocation.
 VM_REAL_SOPS_BASELINE=""
@@ -192,6 +192,45 @@ hash_real_sops_material() {
 if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "${HOST:-}" = vm ]; then
   VM_REAL_SOPS_BASELINE="$(mktemp)"
   hash_real_sops_material > "$VM_REAL_SOPS_BASELINE"
+fi
+
+# The standalone vm-test deliberately has no pre-staged source or identity. Give
+# that caller a disposable host identity and matching encrypted fixture inside
+# this throwaway clone. Callers that prepare their own identity set
+# SKADI_VM_TEST_IDENTITY_DIR and bypass this branch.
+prepare_standalone_vm_test_identity() (
+  local identity_dir="$1" fixture="$2" recipient temp_dir plaintext encrypted
+  umask 077
+
+  rm -rf "$identity_dir"
+  install -d -m0700 "$identity_dir"
+  ssh-keygen -q -t ed25519 -N "" -C "skadi standalone vm installer test" \
+    -f "$identity_dir/ssh_host_ed25519_key"
+
+  recipient="$(ssh-to-age -i "$identity_dir/ssh_host_ed25519_key.pub")"
+  [ -n "$recipient" ] || die "standalone vm test identity has no age recipient"
+
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf "$temp_dir"' EXIT
+  plaintext="$temp_dir/secrets.json"
+  encrypted="$temp_dir/secrets.yaml"
+  jq -n \
+    --arg password '$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0' \
+    --arg token 'NOTION_TOKEN=REPLACE_ME' \
+    '{"feltfomo-password": $password, "notion-token": $token}' > "$plaintext"
+  sops --encrypt --age "$recipient" --filename-override "$fixture" \
+    --input-type json --output-type yaml "$plaintext" > "$encrypted"
+  install -D -m0644 "$encrypted" "$fixture"
+  git add -- "$fixture"
+)
+
+if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "${HOST:-}" = vm ] \
+  && [ -z "${SKADI_VM_TEST_IDENTITY_DIR:-}" ]; then
+  SKADI_VM_TEST_IDENTITY_DIR=/run/skadi-vm-identity
+  export SKADI_VM_TEST_IDENTITY_DIR
+  prepare_standalone_vm_test_identity \
+    "$SKADI_VM_TEST_IDENTITY_DIR" "$WORK/modules/hosts/vm/secrets.yaml"
+  log "prepared standalone vm test identity and encrypted fixture"
 fi
 
 # the builder's system, used to address flake.lib.<system>.* (the menu's
@@ -224,27 +263,28 @@ DROP_CSV=""
 for a in "${DROP[@]}"; do DROP_NIX+="\"$a\" "; DROP_CSV+="${DROP_CSV:+,}$a"; done
 
 # cheap pre-check then the authoritative check: the host must resolve to a
-# nixosConfigurations.<host>, not merely have a file by that name.
-test -f "modules/hosts/${HOST}.nix" || die "unknown host '$HOST' (no modules/hosts/${HOST}.nix)"
+# nixosConfigurations.<host>, not merely have a directory by that name.
+test -f "modules/hosts/${HOST}/default.nix" \
+  || die "unknown host '$HOST' (no modules/hosts/${HOST}/default.nix)"
 nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
-# generic: no committed _generic/{device,hardware}.nix describes this machine, so
-# discover it. detect the disk, write _generic/device, and write the vm-test
+# generic: no committed device or hardware profile describes this machine, so
+# discover it. detect the disk, write generic/device, and write the vm-test
 # sentinel from the same IN_DISKO_TEST signal disko's key enroll uses so the
 # format-time key and boot-time keyFile can't disagree, then git-add so the
 # git+file flake eval and disko --flake see them. hardware.nix comes later once
 # disko has mounted /mnt. skipped under --print-target.
 if [ "$HOST" = generic ] && [ "$PRINT_TARGET" != 1 ]; then
   detect_generic_disk
-  printf '%s' "$GENERIC_DEVICE" > modules/hosts/_generic/device
+  printf '%s' "$GENERIC_DEVICE" > modules/hosts/generic/device
   if [ "${IN_DISKO_TEST:-}" = 1 ]; then
-    printf '1' > modules/hosts/_generic/vm-test
+    printf '1' > modules/hosts/generic/vm-test
   else
-    printf '0' > modules/hosts/_generic/vm-test
+    printf '0' > modules/hosts/generic/vm-test
   fi
-  git add -A modules/hosts/_generic/device modules/hosts/_generic/vm-test
+  git add -A modules/hosts/generic/device modules/hosts/generic/vm-test
 fi
 
 # select the install target: the canonical host, or with --drop that host minus
@@ -257,7 +297,7 @@ if [ "${#DROP[@]}" -gt 0 ]; then
   # composing: the flake exposes the factory under lib.<system>.mkInstallTarget
   # (SYSTEM was resolved above; the menu and --print-target need it too).
   log "composing '$HOST' minus top-level aspect(s): $DROP_CSV"
-  log "  (canonical nixosConfigurations.$HOST and modules/hosts/$HOST.nix stay untouched)"
+  log "  (canonical nixosConfigurations.$HOST and modules/hosts/$HOST/default.nix stay untouched)"
 fi
 
 # nix eval --json of a <selector> (e.g. .config.skadi.installer) on the target.
@@ -325,7 +365,7 @@ CORES=$(jq -r '.cores'                              <<<"$TUNABLES")
 # disko: destroy + format + mount at /mnt.
 #    (older disko: swap the mode for `--mode disko`.)
 lsblk
-warn "about to DESTROY and repartition the disk in modules/hosts/_${HOST}/disko.nix"
+warn "about to DESTROY and repartition the disk in modules/hosts/${HOST}/_nixos/disko.nix"
 if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
   # unattended: the harness has already committed to destroying this disk.
   log "unattended: auto-confirming disk destroy for '$HOST'"
@@ -345,8 +385,8 @@ disko "${disko_wipe[@]}" --mode destroy,format,mount --flake ".#${HOST}"
 # no ttyS0/keyfile -- those live in the IN_DISKO_TEST-gated vm-test-hooks.nix).
 if [ "$HOST" = generic ]; then
   log "generic: generating hardware.nix from detected hardware"
-  nixos-generate-config --no-filesystems --root "$MNT" --show-hardware-config > modules/hosts/_generic/hardware.nix || die "generic: nixos-generate-config failed"
-  git add -A modules/hosts/_generic/hardware.nix
+  nixos-generate-config --no-filesystems --root "$MNT" --show-hardware-config > modules/hosts/generic/_nixos/hardware.nix || die "generic: nixos-generate-config failed"
+  git add -A modules/hosts/generic/_nixos/hardware.nix
 fi
 
 # temporary build swap so a from-source compile can't oom-kill the install on a
@@ -438,7 +478,7 @@ VM_TEST_IDENTITY=0
 VM_TEST_IDENTITY_DIR="${SKADI_VM_TEST_IDENTITY_DIR:-}"
 VM_TEST_KEY="$VM_TEST_IDENTITY_DIR/ssh_host_ed25519_key"
 VM_TEST_PUB="$VM_TEST_IDENTITY_DIR/ssh_host_ed25519_key.pub"
-VM_TEST_FIXTURE="$WORK/modules/hosts/_vm/secrets.yaml"
+VM_TEST_FIXTURE="$WORK/modules/hosts/vm/secrets.yaml"
 
 if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "$HOST" = vm ]; then
   VM_TEST_IDENTITY=1
@@ -635,7 +675,7 @@ assert_vm_test_identity() {
     [ -f "$configured_file" ] || die "$name effective sopsFile is missing"
     configured_hash="$(sha256sum "$configured_file" | awk '{print $1}')"
     [ "$configured_hash" = "$fixture_hash" ] \
-      || die "$name does not resolve to the generated _vm fixture"
+      || die "$name does not resolve to the generated VM fixture"
   done
 
   age_key="$(mktemp)"
