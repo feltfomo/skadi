@@ -2,7 +2,8 @@
   program,
   rootPath,
   ...
-}: {
+}:
+{
   den.aspects.ghostty = program {
     pkg = pkgs: pkgs.ghostty;
     directories = [
