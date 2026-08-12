@@ -470,113 +470,78 @@ else
   AGE_RECIP="$(ssh-to-age -i "$MNT/persist/etc/ssh/ssh_host_ed25519_key.pub")"
   [ -n "$AGE_RECIP" ] || die "ssh-to-age produced no recipient"
   log "age recipient: $AGE_RECIP"
-  cat > .sops.yaml <<EOF
-creation_rules:
-  - path_regex: secrets/secrets.yaml\$
-    age: $AGE_RECIP
-EOF
 fi
 
-# provision secrets: derive the set and how to fill each one from the host config,
-# then write + encrypt secrets/secrets.yaml. adding a user or a secret-bearing
-# aspect teaches this loop automatically. eval a narrow attr, never the whole
-# config, so it can't touch a package src or trip gitTracked.
-provision_secrets() {
-  local plan name method prompt format optional placeholder value raw envvar
-  plan="$(eval_target .config.skadi.provision.secrets)"
-  if [ "${IN_DISKO_TEST:-}" = 1 ]; then
-    # The checked-in rules target real machines, so test secrets use the fresh
-    # VM host recipient instead.
-    (
-      umask 077
-      local test_tmp target_map configured_sops_file target plaintext encrypted existing_target existing_plaintext
-      test_tmp="$(mktemp -d)"
-      trap 'rm -rf "$test_tmp"' EXIT
-      target_map="$test_tmp/targets"
-      : > "$target_map"
+# each secret resolves its destination through sops-nix
+# real installs and vm installs share this path
+set_sops_rule() {
+  local target="$1" file escaped rule tmp rc
+  file="$(basename "$target")"
+  escaped="${file//./\\.}"
+  rule="secrets/${escaped}\$"
 
-      for name in $(jq -r 'keys[]' <<<"$plan"); do
-        method=$(jq -r --arg n "$name" '.[$n].method'           <<<"$plan")
-        prompt=$(jq -r --arg n "$name" '.[$n].prompt'           <<<"$plan")
-        format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
-        optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
-        placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
-        envvar="SKADI_SECRET_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
-        case "$method" in
-          mkpasswd)
-            value="${!envvar:-}"
-            [ -n "$value" ] || die "$name is required (set $envvar to a sha-512 hash)"
-            ;;
-          placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
-          paste)
-            raw="${!envvar:-}"
-            if [ -n "$raw" ]; then
-              # shellcheck disable=SC2059  # trusted config template such as NOTION_TOKEN=%s
-              value=$(printf "$format" "$raw")
-            elif [ "$optional" = true ]; then
-              value="$placeholder"
-            else
-              die "$name is required"
-            fi
-            ;;
-          *) die "unknown provision method '$method' for $name" ;;
-        esac
-
-        configured_sops_file="$(eval_target ".config.sops.secrets.\"${name}\".sopsFile" | jq -r .)"
-        [ -n "$configured_sops_file" ] && [ "$configured_sops_file" != null ] \
-          || die "$name has no effective sopsFile"
-        target="secrets/$(basename "$configured_sops_file")"
-        plaintext=""
-        while IFS=$'\t' read -r existing_target existing_plaintext; do
-          if [ "$existing_target" = "$target" ]; then
-            plaintext="$existing_plaintext"
-            break
-          fi
-        done < "$target_map"
-        if [ -z "$plaintext" ]; then
-          plaintext="$(mktemp "$test_tmp/plaintext.XXXXXX")"
-          chmod 0600 "$plaintext"
-          printf '%s\t%s\n' "$target" "$plaintext" >> "$target_map"
-        fi
-        printf '%s: "%s"\n' "$name" "$value" >> "$plaintext"
-      done
-
-      while IFS=$'\t' read -r target plaintext; do
-        [ -n "$target" ] || continue
-        encrypted="$(mktemp "$test_tmp/encrypted.XXXXXX")"
-        (
-          cd "$test_tmp"
-          sops --encrypt --age "$AGE_RECIP" --input-type yaml --output-type yaml \
-            "$plaintext" > "$encrypted"
-        )
-        install -D -m0644 "$encrypted" "$target"
-        rm -f "$encrypted"
-        git add -A "$target"
-      done < "$target_map"
-    )
-    return
+  if [ ! -f .sops.yaml ]; then
+    printf 'creation_rules:\n' > .sops.yaml
   fi
-  install -d -m0755 secrets
-  : > secrets/secrets.yaml
+
+  tmp="$(mktemp)"
+  if awk -v rule="$rule" -v age="$AGE_RECIP" '
+    {
+      line = $0
+      if (line ~ /^[[:space:]]*- path_regex:/) {
+        sub(/^[[:space:]]*- path_regex:[[:space:]]*/, "", line)
+        target = line == rule
+        if (target) found = 1
+      } else if (target && $0 ~ /^[[:space:]]+age:/) {
+        sub(/age:.*/, "age: " age)
+        target = 0
+      }
+      print
+    }
+    END { if (!found) exit 42 }
+  ' .sops.yaml > "$tmp"; then
+    mv "$tmp" .sops.yaml
+  else
+    rc=$?
+    rm -f "$tmp"
+    [ "$rc" = 42 ] || die "failed to update the sops rule for $target"
+    printf '  - path_regex: %s\n    age: %s\n' "$rule" "$AGE_RECIP" >> .sops.yaml
+  fi
+}
+
+provision_secrets() (
+  local plan name method prompt format optional placeholder value raw envvar
+  local configured_sops_file target plaintext updated encrypted
+  local temp_dir target_map existing_target existing_plaintext
+
+  plan="$(eval_target .config.skadi.provision.secrets)"
+  temp_dir="$(mktemp -d)"
+  target_map="$temp_dir/targets"
+  : > "$target_map"
+  trap 'rm -rf "$temp_dir"' EXIT
+  umask 077
+
   for name in $(jq -r 'keys[]' <<<"$plan"); do
     method=$(jq -r --arg n "$name" '.[$n].method'           <<<"$plan")
     prompt=$(jq -r --arg n "$name" '.[$n].prompt'           <<<"$plan")
     format=$(jq -r --arg n "$name" '.[$n].format'           <<<"$plan")
     optional=$(jq -r --arg n "$name" '.[$n].optional'       <<<"$plan")
     placeholder=$(jq -r --arg n "$name" '.[$n].placeholder' <<<"$plan")
-    # unattended: each secret is supplied via env SKADI_SECRET_<NAME> (uppercased,
-    # '-' -> '_'). mkpasswd expects the final sha-512 hash; paste expects the raw token.
     envvar="SKADI_SECRET_$(printf '%s' "$name" | tr 'a-z-' 'A-Z_')"
+
     case "$method" in
       mkpasswd)
         if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
           value="${!envvar:-}"
           [ -n "$value" ] || die "$name is required (set $envvar to a sha-512 hash)"
         else
-          log "set the $name"; value=$(mkpasswd -m sha-512)
+          log "set ${prompt:-$name}"
+          value=$(mkpasswd -m sha-512)
         fi
         ;;
-      placeholder) value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan") ;;
+      placeholder)
+        value=$(jq -r --arg n "$name" '.[$n].value' <<<"$plan")
+        ;;
       paste)
         if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
           raw="${!envvar:-}"
@@ -584,7 +549,7 @@ provision_secrets() {
           read -r -p "paste $prompt: " raw
         fi
         if [ -n "$raw" ]; then
-          # shellcheck disable=SC2059  # $format is a trusted template like NOTION_TOKEN=%s
+          # shellcheck disable=SC2059
           value=$(printf "$format" "$raw")
         elif [ "$optional" = true ]; then
           value="$placeholder"
@@ -594,12 +559,44 @@ provision_secrets() {
         ;;
       *) die "unknown provision method '$method' for $name" ;;
     esac
-    printf '%s: "%s"\n' "$name" "$value" >> secrets/secrets.yaml
+
+    configured_sops_file="$(eval_target ".config.sops.secrets.\"${name}\".sopsFile" | jq -r .)"
+    [ -n "$configured_sops_file" ] && [ "$configured_sops_file" != null ] \
+      || die "$name has no effective sopsFile"
+    target="secrets/$(basename "$configured_sops_file")"
+    plaintext=""
+    while IFS=$'\t' read -r existing_target existing_plaintext; do
+      if [ "$existing_target" = "$target" ]; then
+        plaintext="$existing_plaintext"
+        break
+      fi
+    done < "$target_map"
+    if [ -z "$plaintext" ]; then
+      plaintext="$(mktemp "$temp_dir/plaintext.XXXXXX")"
+      printf '{}\n' > "$plaintext"
+      printf '%s\t%s\n' "$target" "$plaintext" >> "$target_map"
+    fi
+
+    updated="$(mktemp "$temp_dir/updated.XXXXXX")"
+    jq --arg name "$name" --arg value "$value" '. + {($name): $value}' \
+      "$plaintext" > "$updated"
+    mv "$updated" "$plaintext"
   done
-  log "encrypting secrets/secrets.yaml to $AGE_RECIP"
-  sops --encrypt --in-place secrets/secrets.yaml
-  git add -A .sops.yaml secrets/secrets.yaml
-}
+
+  while IFS=$'\t' read -r target plaintext; do
+    [ -n "$target" ] || continue
+    encrypted="$(mktemp "$temp_dir/encrypted.XXXXXX")"
+    sops --encrypt --age "$AGE_RECIP" --filename-override "$target" \
+      --input-type json --output-type yaml "$plaintext" > "$encrypted"
+    install -D -m0644 "$encrypted" "$target"
+    set_sops_rule "$target"
+    git add -- "$target"
+  done < "$target_map"
+
+  if [ -s "$target_map" ]; then
+    git add -- .sops.yaml
+  fi
+)
 
 assert_vm_test_identity() {
   local expected_pub runtime_pub actual_names fixture_hash configured_file configured_hash

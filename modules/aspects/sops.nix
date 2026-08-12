@@ -1,14 +1,14 @@
 { inputs, ... }:
 {
   den.aspects.sops.nixos =
-    { ... }:
+    { host, ... }:
     {
       imports = [ inputs.sops-nix.nixosModules.sops ];
       sops = {
-        defaultSopsFile = ../../secrets/secrets.yaml;
+        defaultSopsFile = ../../secrets/${host.name}.yaml;
         validateSopsFiles = false;
         age.sshKeyPaths = [ "/persist/etc/ssh/ssh_host_ed25519_key" ];
-        # decrypt via age only; stops the RSA->GPG import that fails in initrd
+        # age avoids the rsa to gpg import that failed in initrd
         gnupg.sshKeyPaths = [ ];
       };
     };

@@ -12,7 +12,6 @@
       cpuid-hypervisor
       docker
       gpu-nvidia
-      hermes
       networking
       notion-sync
       steam

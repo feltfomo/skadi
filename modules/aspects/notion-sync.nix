@@ -2,11 +2,12 @@
   inputs,
   program,
   ...
-}: {
+}:
+{
   den.aspects.notion-sync = program {
-    nixos = {config, ...}: [
+    nixos = { config, ... }: [
       {
-        imports = [inputs.notion-sync.nixosModules.notion-sync];
+        imports = [ inputs.notion-sync.nixosModules.notion-sync ];
 
         # the token secret + how the installer provisions it, owned next to the
         # service that consumes it. optional: a blank paste falls back to the
@@ -23,14 +24,13 @@
           placeholder = "NOTION_TOKEN=REPLACE_ME";
         };
 
-        environment.systemPackages = [config.services.notion-sync.package];
+        environment.systemPackages = [ config.services.notion-sync.package ];
 
         services.notion-sync = {
           enable = true;
 
-          # NOTION_TOKEN=ntn_... decrypted by sops-nix to /run/secrets/notion-token,
-          # owned by feltfomo so the user service can read it. provision the value in
-          # secrets/secrets.yaml before relying on it (see README).
+          # feltfomo owns the decrypted environment file read by the user service
+          # the installer provisions it in the target host's encrypted secret file
           environmentFile = config.sops.secrets."notion-token".path;
 
           logLevel = "info";
@@ -358,7 +358,7 @@
         # crosses the ingress (direct tailnet path). the unit above stays untagged
         # (global), so every other host drops this unit and keeps keepWarm at its
         # module default -- only this one field is host-narrowed.
-        hosts = ["khion"];
+        hosts = [ "khion" ];
         services.notion-sync.keepWarm = {
           enable = true;
           url = "https://khion.tail4f0c8e.ts.net/notion-webhook";
