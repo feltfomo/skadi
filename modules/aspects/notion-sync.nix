@@ -49,7 +49,7 @@
             {
               name = "notion-sync";
               local_root = "/home/feltfomo/Projects/notion-sync";
-              parent_page_id = "9addd8564d16438d9f02d9feae1c7631";
+              parent_page_id = "d6af6cb3d7ed4f7aa18ed110d5f0de28";
               ignore = [
                 ".git"
                 "target"
@@ -71,7 +71,7 @@
             {
               name = "skadi";
               local_root = "/etc/skadi";
-              parent_page_id = "4893908605e4489196431a8d3f082db2";
+              parent_page_id = "7e0b191d6dfd420db7b01fb9cb4bcbb2";
               ignore = [
                 ".git"
                 "result"
@@ -98,7 +98,7 @@
             {
               name = "multiloader-template";
               local_root = "/home/feltfomo/Projects/multiloader-template";
-              parent_page_id = "aa2de8075afd420fad741b422355b133";
+              parent_page_id = "56e9411ee63a4483a4275599d0aedcf5";
               ignore = [
                 ".git"
                 "build"
@@ -126,7 +126,7 @@
               # keeps no copy of its own.
               name = "axiom-nix";
               local_root = "/home/feltfomo/Projects/axiom-nix";
-              parent_page_id = "a6ba082e236d46cdb3ea6104b9407750";
+              parent_page_id = "493c8c6ba7ae4006a532baa0d388657e";
               ignore = [
                 ".git"
                 "result"
@@ -147,7 +147,7 @@
               # rather than a relative import.
               name = "krisis";
               local_root = "/home/feltfomo/Projects/krisis";
-              parent_page_id = "890586d8f09f4c8e895d692288ececd9";
+              parent_page_id = "224835117f0b4ddaa73a1c628c4d3337";
               ignore = [
                 ".git"
                 "result"
@@ -168,7 +168,7 @@
               # its build definition, and hands furnish a function of pkgs.
               name = "furnish-coordinator";
               local_root = "/home/feltfomo/Projects/furnish-coordinator";
-              parent_page_id = "cc848aa34d6a489b815df1905fc901c2";
+              parent_page_id = "bc4d27a94ec94d07bf7d4d6b38a2d6a9";
               ignore = [
                 ".git"
                 "result"
@@ -190,7 +190,7 @@
               # repo. takes axiom, krisis, and the coordinator as flake inputs.
               name = "lexicon";
               local_root = "/home/feltfomo/Projects/lexicon";
-              parent_page_id = "1e5643c5a6244bbdba6b30056accc54b";
+              parent_page_id = "faac735dcc7b436dbbe010d765a60da3";
               ignore = [
                 ".git"
                 "result"
@@ -209,7 +209,7 @@
             {
               name = "den";
               local_root = "/home/feltfomo/Reference-Projects/den";
-              parent_page_id = "dc76796d5d4648d9a083557dc4e29994";
+              parent_page_id = "17168541588743c1bbc5b250b1a9a3cf";
               ignore = [
                 ".git"
                 "result"
@@ -227,62 +227,9 @@
               ];
             }
             {
-              name = "dots-hyprland";
-              local_root = "/home/feltfomo/Reference-Projects/dots-hyprland";
-              parent_page_id = "912fa25a13d94c4c8003beb02b9df96f";
-              ignore = [
-                ".git"
-                "result"
-                "result-*"
-                "node_modules"
-                ".direnv"
-                ".venv"
-                "__pycache__"
-                ".notion-sync"
-                # Reference tree: keep source and small assets, but never mirror
-                # build products or large binary images into Notion.
-                "build"
-                "dist"
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-                "*.ova"
-                "*.vdi"
-              ];
-            }
-            {
-              name = "end4-pC";
-              local_root = "/home/feltfomo/Reference-Projects/end4-pC";
-              parent_page_id = "bb05209502ff4c3f870319799ce8ad14";
-              ignore = [
-                ".git"
-                "result"
-                "result-*"
-                "node_modules"
-                ".direnv"
-                ".venv"
-                "__pycache__"
-                ".notion-sync"
-                "material_symbols_rounded.json"
-                # Reference tree: keep source and small assets, but never mirror
-                # build products or large binary images into Notion.
-                "build"
-                "dist"
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-                "*.ova"
-                "*.vdi"
-              ];
-            }
-            {
               name = "illogical-impulse-shell-nix";
               local_root = "/home/feltfomo/Projects/illogical-impulse-shell-nix";
-              parent_page_id = "982d5121eaf04c0781e82be1c82b0c58";
+              parent_page_id = "4975ed24237d4353a7a946a6b35a308f";
               ignore = [
                 ".git"
                 "result"
@@ -309,7 +256,7 @@
             {
               name = "nix-effects";
               local_root = "/home/feltfomo/Reference-Projects/nix-effects";
-              parent_page_id = "5365cb6797df46409f4929f42d705e55";
+              parent_page_id = "efb8f20a480546fcb39e35979c963859";
               ignore = [
                 ".git"
                 "result"
@@ -327,7 +274,7 @@
             {
               name = "workflow-workbench";
               local_root = "/home/feltfomo/Projects/workflow-workbench";
-              parent_page_id = "6f71915d02bb406e994685e47d099094";
+              parent_page_id = "8b6da33078a74de7b505d1ed2ad879e0";
               ignore = [
                 ".git"
                 "result"
