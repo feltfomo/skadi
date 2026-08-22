@@ -3,10 +3,9 @@
   den.aspects.impermanence.nixos =
     { config, lib, ... }:
     {
-      # This aspect names a furnish option, so it owns the import rather than
-      # assuming some other aspect pulled the runtime in first. Hosts that take
-      # impermanence without furnish stay inert: enable defaults false, so this
-      # only brings the option namespace into scope.
+      # this aspect owns the furnish import instead of assuming another aspect
+      # pulled the runtime in first. hosts without furnish stay inert because
+      # enable defaults to false.
       imports = [
         inputs.impermanence.nixosModules.impermanence
         furnishRuntime
@@ -16,12 +15,9 @@
       fileSystems."/persist".neededForBoot = true;
       fileSystems."/home".neededForBoot = true;
 
-      # The ledger is the only thing standing between a repair decision and a
-      # blanket refusal, and @ is snapshotted away from @blank on every boot, so
-      # it has to live on the persisted subvolume. It is written to /persist
-      # directly rather than being listed in environment.persistence: that list
-      # bind-mounts paths back into the wiped root, which is a mount ordering
-      # dependency the reconcile unit does not need to take on.
+      # the ledger is the only thing between a repair decision and a blanket
+      # refusal. @ is replaced from @blank on every boot, so the ledger lives on
+      # /persist directly rather than behind an environment.persistence bind mount.
       lexicon.furnish.state = {
         path = "/persist/var/lib/furnish";
         durability = "durable";
@@ -39,14 +35,12 @@
             best: mount: if builtins.stringLength mount > builtins.stringLength best then mount else best
           ) "/" (lib.filter encloses declared);
         in
-        # A host that imports this aspect without enabling furnish reconciles
-        # nothing and reads no ledger, so it owes no durability proof.
+        # a host without furnish reconciles nothing and reads no ledger, so it
+        # owes no durability proof.
         lib.optionals cfg.enable [
           {
-            # A durability claim is worth exactly the mount behind it. Asserting
-            # the path spells /persist would prove nothing; asserting that the
-            # filesystem actually carrying it is declared and available before
-            # the units that read it is the claim itself.
+            # a durability claim is worth exactly the mount behind it. the
+            # filesystem carrying the state must be declared before its readers.
             assertion =
               state.durability != "durable"
               || (config.fileSystems ? ${enclosing} && config.fileSystems.${enclosing}.neededForBoot);
@@ -56,7 +50,7 @@
 
       # rollback btrfs root to blank snapshot on every boot
       boot.initrd.systemd.services.rollback = {
-        description = "Rollback BTRFS root subvolume to blank";
+        description = "Rollback Btrfs root subvolume to blank";
         wantedBy = [ "initrd.target" ];
         after = [ "systemd-cryptsetup@cryptroot.service" ];
         before = [ "sysroot.mount" ];
@@ -72,6 +66,19 @@
           fi
           echo "Creating fresh @ subvolume from @blank..."
           btrfs subvolume snapshot /mnt/@blank /mnt/@
+
+          old_roots=(/mnt/@old/*)
+          if [ -e "''${old_roots[0]}" ]; then
+            while [ "''${#old_roots[@]}" -gt 5 ]; do
+              oldest="''${old_roots[0]}"
+              echo "Deleting expired root $oldest..."
+              if ! btrfs subvolume delete -R "$oldest"; then
+                echo "Failed to delete $oldest; leaving remaining roots in place" >&2
+                break
+              fi
+              old_roots=("''${old_roots[@]:1}")
+            done
+          fi
           umount /mnt
         '';
       };

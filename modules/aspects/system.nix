@@ -9,8 +9,10 @@
           "pipe-operator"
         ];
         trusted-users = [ "@wheel" ];
-        # prevents hanging on offline caches
+        # offline substitutes get one short connection attempt instead of stalling builds
         connect-timeout = 5;
+        min-free = 10 * 1024 * 1024 * 1024;
+        max-free = 30 * 1024 * 1024 * 1024;
       };
 
       nix.gc = {
@@ -27,6 +29,15 @@
       i18n.defaultLocale = "en_US.UTF-8";
 
       services.printing.enable = true;
+
+      services.journald.extraConfig = ''
+        SystemMaxUse=1G
+        SystemKeepFree=10G
+      '';
+      systemd.coredump.settings.Coredump = {
+        MaxUse = "512M";
+        KeepFree = "10G";
+      };
 
       security.sudo.wheelNeedsPassword = true;
 
@@ -111,7 +122,7 @@
         gsettings-desktop-schemas
       ];
 
-      # iOS device support
+      # ios device support
       services.usbmuxd.enable = true;
 
       programs = {
