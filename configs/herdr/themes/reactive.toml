@@ -1,5 +1,6 @@
 [ui]
 agent_panel_sort = "spaces"
+accent = "{{ colors.primary.default.hex }}"
 
 [ui.toast]
 delivery = "herdr"
@@ -10,6 +11,9 @@ auto_switch = false
 
 [theme.custom]
 panel_bg = "{{ colors.surface.default.hex }}"
+sidebar_bg = "{{ colors.surface.default.hex }}"
+active_row_bg = "{{ colors.surface_container_high.default.hex }}"
+selection_bg = "{{ colors.surface_container_highest.default.hex }}"
 accent = "{{ colors.primary.default.hex }}"
 green = "{{ base16.base0b.default.hex }}"
 yellow = "{{ base16.base0a.default.hex }}"
@@ -23,3 +27,5 @@ overlay1 = "{{ colors.outline.default.hex }}"
 text = "{{ colors.on_surface.default.hex }}"
 subtext0 = "{{ colors.on_surface_variant.default.hex }}"
 mauve = "{{ colors.tertiary.default.hex }}"
+teal = "{{ base16.base0c.default.hex }}"
+peach = "{{ base16.base09.default.hex }}"
