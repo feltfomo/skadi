@@ -7,7 +7,18 @@
       hardware.nvidia = {
         modesetting.enable = true;
         open = true; # required for the rtx 4060 (ada) on current drivers
-        package = config.boot.kernelPackages.nvidiaPackages.stable;
+        package =
+          let
+            cachyosNvidia = config.boot.kernelPackages.nvidiaPackages.cachyos;
+          in
+          cachyosNvidia.overrideAttrs (old: {
+            passthru = old.passthru // {
+              # strip external modules before the cachyos kernel compresses them
+              open = old.passthru.open.overrideAttrs (openOld: {
+                installFlags = (openOld.installFlags or [ ]) ++ [ "INSTALL_MOD_STRIP=1" ];
+              });
+            };
+          });
         nvidiaSettings = true;
         nvidiaPersistenced = true;
         powerManagement = {
@@ -88,8 +99,7 @@
         vulkan-validation-layers
       ];
 
-      # do not set VK_DRIVER_FILES or VK_ICD_FILENAMES globally — it breaks 32-bit vulkan
-      # by overriding the loader's ICD discovery with only the 64-bit path.
-      # the loader finds /run/opengl-driver{,-32}/share/vulkan/icd.d/ automatically.
+      # setting VK_DRIVER_FILES or VK_ICD_FILENAMES globally breaks 32-bit vulkan.
+      # the loader finds both opengl driver trees automatically.
     };
 }

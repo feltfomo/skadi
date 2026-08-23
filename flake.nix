@@ -18,6 +18,8 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # CachyOS kernels plus their binary cache and NixOS overlay.
+    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # temporary logseq's buildPhase hangs on nixos-unstable until the yauzl fix
     # (nixpkgs #536292) reaches that branch; pull logseq from master meanwhile.
     # drop this input and revert feltfomo.nix once nixos-unstable has the fix.

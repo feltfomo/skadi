@@ -20,23 +20,32 @@
       noctalia-greeter
     ];
 
-    # disko's nixos module must sit with the disko.devices it enables
-    nixos.imports = [
-      inputs.disko.nixosModules.disko
-      ./_nixos/disko.nix
-      ./_nixos/hardware.nix
-    ];
+    nixos =
+      { pkgs, ... }:
+      {
+        # chaotic-nyx supplies the package overlay and binary cache.
+        # the overlay keeps the host package set and its unfree policy.
+        imports = [
+          inputs.chaotic.nixosModules.default
+          inputs.disko.nixosModules.disko
+          ./_nixos/disko.nix
+          ./_nixos/hardware.nix
+        ];
 
-    # bootloader is a per-host machine fact. relocated verbatim out of the
-    # universal system aspect so lumi can use systemd-boot without inheriting
-    # khion's GRUB; khion's resolved boot.loader is unchanged (byte-identical).
-    nixos.boot.loader = {
-      grub = {
-        enable = true;
-        device = "nodev";
-        efiSupport = true;
+        boot = {
+          # khion is zen 3, so keep the cached generic clang build.
+          kernelPackages = pkgs.linuxPackages_cachyos;
+
+          # lumi uses systemd-boot and must not inherit khion's grub configuration.
+          loader = {
+            grub = {
+              enable = true;
+              device = "nodev";
+              efiSupport = true;
+            };
+            efi.canTouchEfiVariables = true;
+          };
+        };
       };
-      efi.canTouchEfiVariables = true;
-    };
   };
 }
