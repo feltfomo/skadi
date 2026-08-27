@@ -49,7 +49,7 @@
             {
               name = "notion-sync";
               local_root = "/home/feltfomo/Projects/notion-sync";
-              parent_page_id = "d6af6cb3d7ed4f7aa18ed110d5f0de28";
+              parent_page_id = "3c983700344f80bdb983e6204a873878";
               ignore = [
                 ".git"
                 "target"
@@ -71,7 +71,7 @@
             {
               name = "skadi";
               local_root = "/etc/skadi";
-              parent_page_id = "7e0b191d6dfd420db7b01fb9cb4bcbb2";
+              parent_page_id = "3c983700344f8061bb99e663b2068439";
               ignore = [
                 ".git"
                 "result"
@@ -95,80 +95,80 @@
                 "*.vdi"
               ];
             }
-            {
-              name = "multiloader-template";
-              local_root = "/home/feltfomo/Projects/multiloader-template";
-              parent_page_id = "56e9411ee63a4483a4275599d0aedcf5";
-              ignore = [
-                ".git"
-                "build"
-                ".gradle"
-                ".kotlin"
-                ".pkl-generated"
-                "generated"
-                ".idea"
-                "result"
-                "result-*"
-                "node_modules"
-                "run"
-                "*.salive"
-                ".notion-sync"
-                # VM / build binaries -- never sync large images (OOM guard)
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-              ];
-            }
-            {
-              # axiom's own repo now. skadi consumes it as a flake input and
-              # keeps no copy of its own.
-              name = "axiom-nix";
-              local_root = "/home/feltfomo/Projects/axiom-nix";
-              parent_page_id = "493c8c6ba7ae4006a532baa0d388657e";
-              ignore = [
-                ".git"
-                "result"
-                "result-*"
-                "*.lock"
-                ".direnv"
-                ".notion-sync"
-                # VM / build binaries -- never sync large images (OOM guard)
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-              ];
-            }
-            {
-              # split out alongside axiom, and takes axiom as a flake input
-              # rather than a relative import.
-              name = "krisis";
-              local_root = "/home/feltfomo/Projects/krisis";
-              parent_page_id = "224835117f0b4ddaa73a1c628c4d3337";
-              ignore = [
-                ".git"
-                "result"
-                "result-*"
-                "*.lock"
-                ".direnv"
-                ".notion-sync"
-                # VM / build binaries -- never sync large images (OOM guard)
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-              ];
-            }
+            # {
+            #   name = "multiloader-template";
+            #   local_root = "/home/feltfomo/Projects/multiloader-template";
+            #   parent_page_id = "7fe26be620354c4fb748033ddab16fbe";
+            #   ignore = [
+            #     ".git"
+            #     "build"
+            #     ".gradle"
+            #     ".kotlin"
+            #     ".pkl-generated"
+            #     "generated"
+            #     ".idea"
+            #     "result"
+            #     "result-*"
+            #     "node_modules"
+            #     "run"
+            #     "*.salive"
+            #     ".notion-sync"
+            #     # VM / build binaries -- never sync large images (OOM guard)
+            #     "*.qcow2"
+            #     "*.iso"
+            #     "*.img"
+            #     "*.raw"
+            #     "*.fd"
+            #   ];
+            # }
+            # {
+            #   # axiom's own repo now. skadi consumes it as a flake input and
+            #   # keeps no copy of its own.
+            #   name = "axiom-nix";
+            #   local_root = "/home/feltfomo/Projects/axiom-nix";
+            #   parent_page_id = "0e57e0ed99494c0c94f04ab95dbabc78";
+            #   ignore = [
+            #     ".git"
+            #     "result"
+            #     "result-*"
+            #     "*.lock"
+            #     ".direnv"
+            #     ".notion-sync"
+            #     # VM / build binaries -- never sync large images (OOM guard)
+            #     "*.qcow2"
+            #     "*.iso"
+            #     "*.img"
+            #     "*.raw"
+            #     "*.fd"
+            #   ];
+            # }
+            # {
+            #   # split out alongside axiom, and takes axiom as a flake input
+            #   # rather than a relative import.
+            #   name = "krisis";
+            #   local_root = "/home/feltfomo/Projects/krisis";
+            #   parent_page_id = "e1c4c4ff96324ba388777124506498c8";
+            #   ignore = [
+            #     ".git"
+            #     "result"
+            #     "result-*"
+            #     "*.lock"
+            #     ".direnv"
+            #     ".notion-sync"
+            #     # VM / build binaries -- never sync large images (OOM guard)
+            #     "*.qcow2"
+            #     "*.iso"
+            #     "*.img"
+            #     "*.raw"
+            #     "*.fd"
+            #   ];
+            # }
             {
               # the rust coordinator, split out of furnish. owns its own crate and
               # its build definition, and hands furnish a function of pkgs.
               name = "furnish-coordinator";
               local_root = "/home/feltfomo/Projects/furnish-coordinator";
-              parent_page_id = "bc4d27a94ec94d07bf7d4d6b38a2d6a9";
+              parent_page_id = "3c983700344f8001bb11d0f4dce56653";
               ignore = [
                 ".git"
                 "result"
@@ -190,7 +190,7 @@
               # repo. takes axiom, krisis, and the coordinator as flake inputs.
               name = "lexicon";
               local_root = "/home/feltfomo/Projects/lexicon";
-              parent_page_id = "faac735dcc7b436dbbe010d765a60da3";
+              parent_page_id = "3c983700344f80cd8d20c89f7cc897a4";
               ignore = [
                 ".git"
                 "result"
@@ -206,64 +206,75 @@
                 "*.fd"
               ];
             }
+            # {
+            #   name = "illogical-impulse-shell-nix";
+            #   local_root = "/home/feltfomo/Projects/illogical-impulse-shell-nix";
+            #   parent_page_id = "b5578129ff474945aa48d70a4e6ab7cd";
+            #   ignore = [
+            #     ".git"
+            #     "result"
+            #     "result-*"
+            #     ".direnv"
+            #     ".venv"
+            #     "__pycache__"
+            #     ".pytest_cache"
+            #     ".ruff_cache"
+            #     ".mypy_cache"
+            #     "build"
+            #     "dist"
+            #     ".notion-sync"
+            #     # Keep source assets and flake.lock, but never mirror large images.
+            #     "*.qcow2"
+            #     "*.iso"
+            #     "*.img"
+            #     "*.raw"
+            #     "*.fd"
+            #     "*.ova"
+            #     "*.vdi"
+            #   ];
+            # }
             {
-              name = "den";
-              local_root = "/home/feltfomo/Reference-Projects/den";
-              parent_page_id = "17168541588743c1bbc5b250b1a9a3cf";
+              # JVM Minecraft runtime-shell prototype. Keep generated Gradle output,
+              # downloaded game/runtime artifacts, and native binaries out of Notion.
+              name = "fomo-client";
+              local_root = "/home/feltfomo/Projects/fomo-client";
+              parent_page_id = "3c983700344f80c5ba26fe9ff407e8e9";
               ignore = [
                 ".git"
-                "result"
-                "result-*"
-                "node_modules"
-                "*.lock"
-                ".direnv"
-                ".notion-sync"
-                # VM / build binaries -- never sync large images (OOM guard)
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-              ];
-            }
-            {
-              name = "illogical-impulse-shell-nix";
-              local_root = "/home/feltfomo/Projects/illogical-impulse-shell-nix";
-              parent_page_id = "4975ed24237d4353a7a946a6b35a308f";
-              ignore = [
-                ".git"
-                "result"
-                "result-*"
-                ".direnv"
-                ".venv"
-                "__pycache__"
-                ".pytest_cache"
-                ".ruff_cache"
-                ".mypy_cache"
                 "build"
-                "dist"
-                ".notion-sync"
-                # Keep source assets and flake.lock, but never mirror large images.
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-                "*.ova"
-                "*.vdi"
-              ];
-            }
-            {
-              name = "nix-effects";
-              local_root = "/home/feltfomo/Reference-Projects/nix-effects";
-              parent_page_id = "efb8f20a480546fcb39e35979c963859";
-              ignore = [
-                ".git"
+                "bin"
+                "out"
+                "target"
+                ".gradle"
+                ".kotlin"
+                ".idea"
+                ".settings"
+                ".project"
+                ".classpath"
+                ".direnv"
                 "result"
                 "result-*"
-                "*.lock"
-                ".direnv"
+                "run"
+                "runtime"
+                ".runtime"
+                ".minecraft"
+                "libraries"
+                "assets"
+                "versions"
+                "natives"
+                "logs"
+                "crash-reports"
+                ".cache"
                 ".notion-sync"
+                "*.class"
+                "*.jar"
+                "*.so"
+                "*.dll"
+                "*.dylib"
+                "*.hprof"
+                "*.jfr"
+                "hs_err_pid*"
+                "replay_pid*"
                 "*.qcow2"
                 "*.iso"
                 "*.img"
@@ -271,30 +282,48 @@
                 "*.fd"
               ];
             }
-            {
-              name = "workflow-workbench";
-              local_root = "/home/feltfomo/Projects/workflow-workbench";
-              parent_page_id = "8b6da33078a74de7b505d1ed2ad879e0";
-              ignore = [
-                ".git"
-                "result"
-                "result-*"
-                "__pycache__"
-                ".pytest_cache"
-                ".ruff_cache"
-                ".mypy_cache"
-                ".direnv"
-                "dist"
-                "*.pyz"
-                ".notion-sync"
-                # VM / build binaries -- never sync large images (OOM guard)
-                "*.qcow2"
-                "*.iso"
-                "*.img"
-                "*.raw"
-                "*.fd"
-              ];
-            }
+            # {
+            #   name = "nix-effects";
+            #   local_root = "/home/feltfomo/Reference-Projects/nix-effects";
+            #   parent_page_id = "a9a9a14bd1744db8a5b9ec6840750ee0";
+            #   ignore = [
+            #     ".git"
+            #     "result"
+            #     "result-*"
+            #     "*.lock"
+            #     ".direnv"
+            #     ".notion-sync"
+            #     "*.qcow2"
+            #     "*.iso"
+            #     "*.img"
+            #     "*.raw"
+            #     "*.fd"
+            #   ];
+            # }
+            # {
+            #   name = "workflow-workbench";
+            #   local_root = "/home/feltfomo/Projects/workflow-workbench";
+            #   parent_page_id = "11bf1bfedf674a83bf021bf596860271";
+            #   ignore = [
+            #     ".git"
+            #     "result"
+            #     "result-*"
+            #     "__pycache__"
+            #     ".pytest_cache"
+            #     ".ruff_cache"
+            #     ".mypy_cache"
+            #     ".direnv"
+            #     "dist"
+            #     "*.pyz"
+            #     ".notion-sync"
+            #     # VM / build binaries -- never sync large images (OOM guard)
+            #     "*.qcow2"
+            #     "*.iso"
+            #     "*.img"
+            #     "*.raw"
+            #     "*.fd"
+            #   ];
+            # }
           ];
         };
       }
