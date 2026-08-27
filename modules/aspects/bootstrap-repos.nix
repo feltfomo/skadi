@@ -85,7 +85,13 @@ _: {
           After = [ "network-online.target" ];
         };
         Service = {
-          Type = "oneshot";
+          # Home Manager starts newly enabled user units while reloadSystemd is
+          # still inside home-manager-feltfomo.service. A retrying oneshot makes
+          # that activation wait for every clone and hit its five-minute system
+          # timeout when the network is unavailable. Type=exec acknowledges the
+          # successful process launch immediately while the bootstrap continues
+          # independently under the user manager.
+          Type = "exec";
           ExecStart = "${bootstrap}/bin/bootstrap-repos";
         };
         Install.WantedBy = [ "default.target" ];

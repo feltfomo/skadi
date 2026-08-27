@@ -259,7 +259,9 @@ QEMU_PID=$!
 # Serial markers are diagnostic only: a console can be quiet while the system is
 # healthy, and a login prompt can appear before required services settle. Prove
 # the installed system over its test-only SSH identity, then require systemd to
-# reach a non-degraded running state.
+# settle with no substantive failed units. Short-lived root SSH probes can leave
+# failed session scopes behind; those transport artifacts are ignored only after
+# the required Home Manager and Furnish services are proved active.
 log "waiting for the installed $HOST to accept ssh on :$SSH_PORT ..."
 installed_ssh=0
 for ((i = 0; i < 120; i++)); do
@@ -273,28 +275,48 @@ log "installed $HOST accepts the generated test identity."
 log "waiting for the installed system to reach a healthy running state ..."
 settled=0
 system_state="starting"
+substantive_failed=""
 for ((i = 0; i < 120; i++)); do
   kill -0 "$QEMU_PID" 2>/dev/null || die "installed VM exited while systemd was settling (see $SERIAL)"
   system_state="$(ssh_vm systemctl is-system-running 2>/dev/null || true)"
   case "$system_state" in
-    running) settled=1; break ;;
-    degraded|maintenance|emergency) break ;;
+    running)
+      settled=1
+      break
+      ;;
+    degraded)
+      failed_output="$(ssh_vm systemctl --failed --no-pager --no-legend --plain 2>/dev/null || true)"
+      substantive_failed=""
+      while read -r unit _; do
+        case "$unit" in
+          ""|session-*.scope) ;;
+          *) substantive_failed="${substantive_failed}${substantive_failed:+ }$unit" ;;
+        esac
+      done <<< "$failed_output"
+      [ -z "$substantive_failed" ] && settled=1
+      break
+      ;;
+    maintenance|emergency)
+      break
+      ;;
   esac
   sleep 5
 done
 
 if [ "$settled" != 1 ]; then
-  warn "installed system did not reach running state (state=$system_state)"
+  warn "installed system did not reach an acceptable state (state=$system_state, failed=${substantive_failed:-unknown})"
   ssh_vm systemctl --failed --no-pager --no-legend 2>&1 || true
   ssh_vm systemctl status home-manager-feltfomo.service --no-pager -l 2>&1 || true
   ssh_vm journalctl -b -u home-manager-feltfomo.service --no-pager -n 200 2>&1 || true
   die "installed system health proof failed (state=$system_state); see $SERIAL"
 fi
 
+ssh_vm systemctl is-active --quiet home-manager-feltfomo.service \
+  || die "installed system settled but home-manager-feltfomo.service is not active"
 ssh_vm systemctl is-active --quiet furnish.service \
-  || die "installed system is running but furnish.service is not active"
+  || die "installed system settled but furnish.service is not active"
 ssh_vm getent passwd feltfomo >/dev/null \
-  || die "installed system is running but the primary test user is missing"
+  || die "installed system settled but the primary test user is missing"
 
 log "installed $HOST is running, furnish is active, and the primary user exists. PASS."
 log "done."
