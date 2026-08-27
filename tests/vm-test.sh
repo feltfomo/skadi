@@ -254,25 +254,45 @@ log "booting the installed disk (no ISO) to verify $HOST comes up ..."
 qemu-system-x86_64 "${QEMU_COMMON[@]}" -boot order=cd &
 QEMU_PID=$!
 
-# watch the serial log for a login marker. only works if the installed host puts a
-# console on ttyS0; if it doesn't we time out to a warn (the install already
-# succeeded) and you can re-run with --keep to inspect it.
-log "watching $SERIAL for a login prompt ..."
-verified=0
-for ((i = 0; i < 60; i++)); do
-  kill -0 "$QEMU_PID" 2>/dev/null || break
-  if grep -Eq "($HOST login:|login:|Reached target.*Multi-User|Startup finished)" "$SERIAL" 2>/dev/null; then
-    verified=1; break
-  fi
+# Serial markers are diagnostic only: a console can be quiet while the system is
+# healthy, and a login prompt can appear before required services settle. Prove
+# the installed system over its test-only SSH identity, then require systemd to
+# reach a non-degraded running state.
+log "waiting for the installed $HOST to accept ssh on :$SSH_PORT ..."
+installed_ssh=0
+for ((i = 0; i < 120; i++)); do
+  kill -0 "$QEMU_PID" 2>/dev/null || die "installed VM exited before ssh came up (see $SERIAL)"
+  if ssh_vm true 2>/dev/null; then installed_ssh=1; break; fi
+  sleep 5
+done
+[ "$installed_ssh" = 1 ] || die "installed VM never accepted ssh within 10 minutes (see $SERIAL)"
+log "installed $HOST accepts the generated test identity."
+
+log "waiting for the installed system to reach a healthy running state ..."
+settled=0
+system_state="starting"
+for ((i = 0; i < 120; i++)); do
+  kill -0 "$QEMU_PID" 2>/dev/null || die "installed VM exited while systemd was settling (see $SERIAL)"
+  system_state="$(ssh_vm systemctl is-system-running 2>/dev/null || true)"
+  case "$system_state" in
+    running) settled=1; break ;;
+    degraded|maintenance|emergency) break ;;
+  esac
   sleep 5
 done
 
-if [ "$verified" = 1 ]; then
-  log "installed $HOST reached a login prompt -- the primary user can log in. PASS."
-else
-  warn "no login marker seen on serial within timeout."
-  warn "the install itself succeeded (rc=0); the installed host may not log to ttyS0."
-  warn "re-run with --keep and inspect $SERIAL or attach a console to confirm login."
+if [ "$settled" != 1 ]; then
+  warn "installed system did not reach running state (state=$system_state)"
+  ssh_vm systemctl --failed --no-pager --no-legend 2>&1 || true
+  ssh_vm systemctl status home-manager-feltfomo.service --no-pager -l 2>&1 || true
+  ssh_vm journalctl -b -u home-manager-feltfomo.service --no-pager -n 200 2>&1 || true
+  die "installed system health proof failed (state=$system_state); see $SERIAL"
 fi
 
+ssh_vm systemctl is-active --quiet furnish.service \
+  || die "installed system is running but furnish.service is not active"
+ssh_vm getent passwd feltfomo >/dev/null \
+  || die "installed system is running but the primary test user is missing"
+
+log "installed $HOST is running, furnish is active, and the primary user exists. PASS."
 log "done."

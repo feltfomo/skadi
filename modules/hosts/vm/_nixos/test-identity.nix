@@ -26,7 +26,7 @@ in
     };
   };
   users.users.root.openssh.authorizedKeys.keys = [
-    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIElUx+G8NdV6W0NVEh3wpOg33mBnHY0oG9b31eds/LSs skadi-vm-test"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOgAOLIbgZ8Smas/KvnWNOaMzCDrZ5RFDUvQ+08MZ8Uh skadi-vm-test"
   ];
 
   assertions = [
