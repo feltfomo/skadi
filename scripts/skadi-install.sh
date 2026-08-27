@@ -217,7 +217,7 @@ prepare_standalone_vm_test_identity() (
     --arg password '$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0' \
     --arg token 'NOTION_TOKEN=REPLACE_ME' \
     '{"feltfomo-password": $password, "notion-token": $token}' > "$plaintext"
-  sops --encrypt --age "$recipient" --filename-override "$fixture" \
+  sops --config /dev/null --encrypt --age "$recipient" --filename-override "$fixture" \
     --input-type json --output-type yaml "$plaintext" > "$encrypted"
   install -D -m0644 "$encrypted" "$fixture"
   git add -- "$fixture"
