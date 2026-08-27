@@ -162,11 +162,10 @@ fi
 
 # obtain the flake we install from (writable tree with .git for notion-sync).
 # SKADI_INSTALL_SOURCE lets a caller pin us to a pre-staged source tree instead of
-# cloning from GitHub at run time -- the rebuild-vm-golden harness stages one
-# deterministic pinned-rev worktree and points both its disko dry-run probe and
-# this install at it, so probe and wipe validate byte-identical config. The tree
-# must be a real git worktree (git+file eval, hyprland's gitTracked, notion-sync
-# all require .git).
+# cloning from GitHub at run time. Callers can use one deterministic pinned-rev
+# worktree for both a disko dry-run probe and this install, so probe and wipe
+# validate byte-identical config. The tree must be a real git worktree
+# (git+file eval, hyprland's gitTracked, and notion-sync all require .git).
 if [ -n "${SKADI_INSTALL_SOURCE:-}" ]; then
   [ -d "${SKADI_INSTALL_SOURCE}/.git" ] || die "SKADI_INSTALL_SOURCE=$SKADI_INSTALL_SOURCE is not a git worktree"
   WORK="$SKADI_INSTALL_SOURCE"
@@ -306,7 +305,7 @@ eval_target() {
     nix eval --json "${WORK}#nixosConfigurations.${HOST}${1}"
   else
     nix eval --impure --json \
-      --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX}]; })${1}"
+      --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX} ]; })${1}"
   fi
 }
 
@@ -321,7 +320,7 @@ build_target() {
     nix build --no-link --print-out-paths --impure \
       --max-jobs "$MAX_JOBS" --cores "$CORES" \
       --min-free "$MIN_FREE" --max-free "$MAX_FREE" \
-      --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX}]; }).config.system.build.toplevel"
+      --expr "let s = builtins.getFlake \"git+file://${WORK}\"; in (s.lib.${SYSTEM}.mkInstallTarget { host = \"${HOST}\"; drop = [ ${DROP_NIX} ]; }).config.system.build.toplevel"
   fi
 }
 

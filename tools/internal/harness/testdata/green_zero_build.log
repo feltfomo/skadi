@@ -1,9 +1,0 @@
-# provenance real Lix CLI grammar capture
-# command env NO_COLOR=1 TERM=dumb nix --log-format raw build --impure --file /tmp/skadi-h6-lix-grammar.neguBY/single.nix --store 'local?root=/tmp/skadi-h6-lix-grammar.neguBY/plain-green-single-store' --no-link -L --option sandbox false --option substituters 'file:///tmp/skadi-h6-lix-grammar.neguBY/cache-single' --option require-sigs false --option builders '' --option max-jobs 1
-# lix version nix (Lix, like Nix) 2.96.0-dev-pre20260728-dev_64c99ac
-# store root /tmp/skadi-h6-lix-grammar.neguBY/plain-green-single-store
-# capture date 2026-07-29T17:18:59+00:00
-# raw capture sha256 671e4500d5f5750c8e9f9b4fef843062a82284a814e1737a37cef5f217505f27
-this path will be fetched (0.00 MiB download, 0.00 MiB unpacked):
-  /nix/store/98xw3m44f0zf2jhyh74frc91rif34hz7-skadi-h6-single
-copying path '/nix/store/98xw3m44f0zf2jhyh74frc91rif34hz7-skadi-h6-single' from 'file:///tmp/skadi-h6-lix-grammar.neguBY/cache-single'...

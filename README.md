@@ -17,7 +17,7 @@ Den defines the host and user roster and activates feature **aspects** from `mod
 
 The machinery around those aspects lives in separate repositories, consumed as flake inputs:
 
-- **[lexicon](https://github.com/feltfomo/lexicon)** carries Program, Ownerships, Furnish, and the Den integration. Program turns a compact package, file, directory, and template declaration into matching NixOS, Home Manager, and Furnish slices. Ownerships validates host and user claims, selects units for one context, and merges the surviving plain Nix values. Furnish describes managed files and directories.
+- **[lexicon](https://github.com/feltfomo/lexicon)** carries Program, Ownerships, Furnish, the Den integration, and Furnish's system-test harness. Program turns a compact package, file, directory, and template declaration into matching NixOS, Home Manager, and Furnish slices. Ownerships validates host and user claims, selects units for one context, and merges the surviving plain Nix values. Furnish describes managed files and directories; Lexicon owns its synthetic golden-VM and fail-closed lifecycle proofs.
 - **[furnish-coordinator](https://github.com/feltfomo/furnish-coordinator)** is the Rust reconciler that applies Furnish manifests onto the filesystem with ledger, recovery, and safety checks. Lexicon owns this input, so this flake never names it.
 - **[krisis](https://github.com/feltfomo/krisis)** provides structured diagnostic aggregation and safe rendering.
 - **[axiom](https://github.com/feltfomo/axiom-nix)** provides the schemas, registries, and phase laws the others validate against.
@@ -50,13 +50,14 @@ Those frameworks are usable outside this repository and are not requirements for
 | `configs/` | Source configuration trees consumed by aspects and Program. |
 | `pkgs/` | Local package definitions and checked-in binary source inputs. |
 | `scripts/` | Production installer and runtime command bodies. |
-| `tests/` | Repository shell gates, regression manifests, and checked-in baselines. |
-| `tools/` | Go repository tooling, including the VM golden-image rebuild implementation. |
+| `tests/` | Skadi-specific installer, fleet, and repository regression fixtures. |
 | `.github/workflows/ci.yml` | Repository CI. |
 
 ## Documentation
 
 Each framework documents itself in its own repository: [lexicon](https://github.com/feltfomo/lexicon/tree/main/docs), [furnish-coordinator](https://github.com/feltfomo/furnish-coordinator/tree/main/docs), [krisis](https://github.com/feltfomo/krisis/tree/main/docs), and [axiom](https://github.com/feltfomo/axiom-nix/tree/main/docs).
+
+Furnish compiler, runtime, golden-VM, and lifecycle validation lives in Lexicon under `tests/system/` and runs with `nix run .#furnish-coordinator-gate` from a clean Lexicon checkout. Skadi retains its separate `nix run .#vm-test` installer proof for fleet-specific installation, disk, secret, and rollback behavior.
 
 ## Build and deploy
 

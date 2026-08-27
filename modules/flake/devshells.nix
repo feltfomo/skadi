@@ -4,22 +4,16 @@
     {
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
-          go
+          bashInteractive
+          deadnix
+          marksman
           nixd
-          cargo
-          gopls
-          rustc
-          taplo
           nixfmt
+          shellcheck
+          shfmt
           statix
           stylua
-          clippy
-          rustfmt
-          deadnix
-          gofumpt
-          marksman
-          golangci-lint
-          rust-analyzer
+          taplo
           lua-language-server
           yaml-language-server
           vscode-langservers-extracted

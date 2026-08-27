@@ -208,6 +208,27 @@
         "type": "github"
       }
     },
+    "disko_2": {
+      "inputs": {
+        "nixpkgs": [
+          "lexicon",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1781152676,
+        "narHash": "sha256-RxWs5ND31KzTG7wvMM+PMfUjyNpmIEr999lqNARaM5o=",
+        "owner": "nix-community",
+        "repo": "disko",
+        "rev": "ff8702b4de27f72b4c78573dfb89ec74e36abdf1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "disko",
+        "type": "github"
+      }
+    },
     "dms": {
       "inputs": {
         "dank-qml-common": "dank-qml-common",
@@ -546,11 +567,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1786230527,
-        "narHash": "sha256-KmlUzBBRBlyIS6ET9+4lVZkI+a4Tr84RPFu2Gj7s2mQ=",
+        "lastModified": 1787826771,
+        "narHash": "sha256-cWpqRrI3nHnz/oPaQG7/QV0/QZrREA0So94M4NsHS5g=",
         "owner": "feltfomo",
         "repo": "furnish-coordinator",
-        "rev": "607dfcd24de0bd0644359a94b0ae452bdee9abc4",
+        "rev": "36d48f5a0c2a6cce7ec024fff8522784c67ec8e7",
         "type": "github"
       },
       "original": {
@@ -1072,6 +1093,7 @@
         "axiom": [
           "axiom"
         ],
+        "disko": "disko_2",
         "flake-parts": "flake-parts_5",
         "furnish-coordinator": "furnish-coordinator",
         "krisis": [
@@ -1081,11 +1103,11 @@
         "treefmt-nix": "treefmt-nix_5"
       },
       "locked": {
-        "lastModified": 1786591301,
-        "narHash": "sha256-DGFbNVdFqdDPjSeKJ1NpgYD1M6ivlRdDnd1BRvF1ioY=",
+        "lastModified": 1787839839,
+        "narHash": "sha256-0wGkavwlXLQUzgJfqrKG5G8hBy5J/L3EZjM4G/greek=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "a5313af3b1600c7ac20abae5ce00e8f75410afec",
+        "rev": "14a7d7cb6d060ab92c4f66a4fd88603222d55a50",
         "type": "github"
       },
       "original": {
