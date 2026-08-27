@@ -18,6 +18,7 @@ SSH_KEY="$CACHE/vm-test-key"
 if [ "${1:-}" = ssh ]; then
   shift
   exec ssh -i "$SSH_KEY" -p "$SSH_PORT" \
+    -o IdentitiesOnly=yes \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
     -o LogLevel=ERROR \
@@ -71,6 +72,7 @@ USAGE
 
 ssh_vm() {
   ssh -i "$SSH_KEY" -p "$SSH_PORT" \
+    -o IdentitiesOnly=yes \
     -o StrictHostKeyChecking=no \
     -o UserKnownHostsFile=/dev/null \
     -o LogLevel=ERROR \
