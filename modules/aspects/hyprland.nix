@@ -5,6 +5,34 @@
   ...
 }:
 let
+  # config modules are discovered during evaluation while libraries stay explicit
+  luaModules =
+    directory:
+    let
+      entries = builtins.readDir directory;
+    in
+    builtins.filter (name: entries.${name} == "regular" && builtins.match ".*\\.lua$" name != null) (
+      builtins.attrNames entries
+    );
+  # generated manifests avoid filesystem scanning inside hyprland's lua runtime
+  luaManifest =
+    name: prefix: modules:
+    builtins.toFile name (
+      builtins.concatStringsSep "\n" (
+        map (
+          file:
+          let
+            moduleName = builtins.substring 0 (builtins.stringLength file - 4) file;
+          in
+          ''require("${prefix}.${moduleName}")''
+        ) modules
+      )
+      + "\n"
+    );
+
+  hyprConfigModules = luaModules "${rootPath}/configs/hypr/config";
+  hyprlandAutoload = luaManifest "hyprland-autoload.lua" "config" hyprConfigModules;
+
   # keep audio-playing windows opaque while inactive.
   audioOpacityService =
     { pkgs, ... }:
@@ -51,6 +79,24 @@ in
           "khion"
           "lumi"
         ];
+
+        # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
+        # remove this overlay once the frontend supports these sessions upstream
+        nixpkgs.overlays = [
+          (_: prev: {
+            xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
+              postPatch = (old.postPatch or "") + ''
+                substituteInPlace src/xdg-desktop-portal.service.in \
+                  --replace-fail \
+                    "Requisite=graphical-session.target" \
+                    "Requires=dbus.service"
+                sed -i '/^After=graphical-session.target$/i After=dbus.service' \
+                  src/xdg-desktop-portal.service.in
+              '';
+            });
+          })
+        ];
+
         programs.hyprland = {
           enable = true;
           package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
@@ -60,7 +106,6 @@ in
         programs.ydotool.enable = true;
         services.flatpak.enable = true;
 
-        # pin ScreenCast to the hyprland portal (not gnome's) to avoid black/empty screenshares in discord/equibop keep FileChooser on gtk.
         xdg.portal = {
           extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
           config.hyprland = {
@@ -73,14 +118,34 @@ in
             "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
           };
         };
+
       }
     ];
     imports = [ audioOpacityService ];
+    files = [
+      {
+        src = hyprlandAutoload;
+        dest = ".config/hypr/autoload.lua";
+      }
+    ];
+    # separate declarations keep nested config and library files visible to furnish
     directories = [
       {
         src = "${rootPath}/configs/hypr";
         dest = ".config/hypr";
-        exclude = [ ".luarc.json" ];
+        exclude = [
+          ".luarc.json"
+          "config"
+          "lib"
+        ];
+      }
+      {
+        src = "${rootPath}/configs/hypr/config";
+        dest = ".config/hypr/config";
+      }
+      {
+        src = "${rootPath}/configs/hypr/lib";
+        dest = ".config/hypr/lib";
       }
     ];
     theme = {

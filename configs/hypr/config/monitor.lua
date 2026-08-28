@@ -1,5 +1,6 @@
 local G = require("globals")
 
+-- workspace routing depends on these output names and their stable left-to-right order
 if G.hostname == "lumi" then
 	hl.monitor({
 		output = "eDP-1",
@@ -8,7 +9,6 @@ if G.hostname == "lumi" then
 		scale = "1",
 	})
 elseif G.hostname == "khion" then
-	-- two side-by-side 1440p@180 panels: left at 0x0, right at 2560x0
 	for i, output in ipairs({ G.monitors.left, G.monitors.right }) do
 		hl.monitor({
 			output = output,
