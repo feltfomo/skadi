@@ -1,7 +1,7 @@
 [dock]
-background_opacity = 0.6
+background_opacity = 0.59999999999999998
 border_width = 1.0
-enabled = true
+enabled = false
 launcher_position = "start"
 margin_edge = 10
 monitors = ["DP-1"]

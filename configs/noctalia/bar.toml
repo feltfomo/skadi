@@ -1,5 +1,7 @@
 [bar.default]
-background_opacity = 0.6
+background_opacity = 0.88999998010694981
+capsule_fill = "surface"
+capsule_foreground = "primary"
 end = [
   "temp",
   "ram",
@@ -10,10 +12,28 @@ end = [
   "notifications",
   "control-center",
 ]
-margin_edge = 6
-margin_ends = 10.0
+margin_edge = 0
+margin_ends = 0
 margin_opposite_edge = 1
-start = ["workspaces", "space", "media", "audio_visualizer"]
+radius = 0
+start = ["workspaces", "media", "audio_visualizer"]
+
+[widget.clock]
+format = "{:%H:%M:%S}"
+
+[widget.control-center]
+custom_image = "/home/feltfomo/Downloads/nixos-customized.svg"
+custom_image_colorize = true
+scale = 1.1500000000000001
 
 [widget.volume]
 show_label = false
+
+[widget.workspaces]
+anchor = true
+capsule = true
+capsule_opacity = 0.0
+capsule_padding = 0
+capsule_radius = 0
+focused_output_only = true
+hide_when_empty = true

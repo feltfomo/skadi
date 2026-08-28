@@ -1,6 +1,6 @@
 [desktop_widgets]
 schema_version = 2
-widget_order = ["desktop-widget-0000000000000001"]
+widget_order = []
 
 [desktop_widgets.grid]
 cell_size = 16
