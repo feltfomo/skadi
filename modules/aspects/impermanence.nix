@@ -1,7 +1,23 @@
 { inputs, furnishRuntime, ... }:
 {
   den.aspects.impermanence.nixos =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      persistence,
+      ...
+    }:
+    let
+      mergePaths = entries: {
+        directories = lib.concatMap (entry: entry.directories or [ ]) entries;
+        files = lib.concatMap (entry: entry.files or [ ]) entries;
+      };
+      systemPersistence = mergePaths persistence;
+      userNames = lib.unique (lib.concatMap (entry: lib.attrNames (entry.users or { })) persistence);
+      userPersistence = lib.genAttrs userNames (
+        name: mergePaths (map (entry: (entry.users or { }).${name} or { }) persistence)
+      );
+    in
     {
       # this aspect owns the furnish import instead of assuming another aspect
       # pulled the runtime in first. hosts without furnish stay inert because
@@ -91,22 +107,18 @@
           "/var/log"
           "/var/lib/bluetooth"
           "/var/lib/systemd/coredump"
-          # tailscale node identity + funnel/serve config -- without this, khion
-          # re-registers as a brand-new node every boot (khion-1, khion-2, ...)
-          # and loses the funnel, forcing a fresh `tailscale up` + funnel setup
-          "/var/lib/tailscale"
-          "/etc/NetworkManager/system-connections"
           "/var/lib/nixos"
-          # synced greeter appearance + remembered session/scheme (noctalia-greeter)
-          "/var/lib/noctalia-greeter"
-        ];
+        ]
+        ++ systemPersistence.directories;
         files = [
           "/etc/machine-id"
           "/etc/ssh/ssh_host_ed25519_key"
           "/etc/ssh/ssh_host_ed25519_key.pub"
           "/etc/ssh/ssh_host_rsa_key"
           "/etc/ssh/ssh_host_rsa_key.pub"
-        ];
+        ]
+        ++ systemPersistence.files;
+        users = userPersistence;
       };
     };
 }

@@ -8,6 +8,7 @@
     includes = with den.aspects; [
       den.batteries.define-user
       den.batteries.primary-user
+      (den.batteries.user-shell "fish")
 
       zed
       obs
@@ -36,7 +37,6 @@
     # define-user creates the account; primary-user grants wheel and networkmanager
     nixos =
       {
-        pkgs,
         config,
         ...
       }:
@@ -64,7 +64,6 @@
           # an unprovisioned feltfomo-password leaves the account without a login
           # run `nixos-rebuild test` and verify a fresh tty before switching
           hashedPasswordFile = config.sops.secrets."feltfomo-password".path;
-          shell = pkgs.fish;
           extraGroups = [
             "video"
             "docker"
@@ -88,9 +87,6 @@
           "Videos"
           "Music"
           ".config"
-          # steam kept its install and games under ~/.local/share/Steam
-          # persisting ~/.steam once caused recurring "couldn't set up steam data"
-          ".local"
           ".ssh"
           "Projects"
         ];
