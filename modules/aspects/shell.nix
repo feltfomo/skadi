@@ -2,6 +2,7 @@
   den.aspects.shell = {
     includes = with den.aspects; [
       fish
+      bat
       btop
       cava
       fastfetch
@@ -12,6 +13,15 @@
         enable = true;
         enableFishIntegration = true;
         nix-output-monitor.enable = true;
+      };
+
+      programs.zoxide = {
+        enable = true;
+        enableFishIntegration = true;
+        options = [
+          "--cmd"
+          "cd"
+        ];
       };
 
       home.packages = with pkgs; [
