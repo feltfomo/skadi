@@ -2,7 +2,8 @@
   program,
   rootPath,
   ...
-}: {
+}:
+{
   den.aspects.fuzzel = program {
     imports = [
       (_: {
