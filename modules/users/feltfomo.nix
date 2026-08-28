@@ -12,8 +12,6 @@
       zed
       obs
       dms
-      btop
-      cava
       helix
       thunar
       nvim
@@ -31,7 +29,6 @@
       hyprland
       spicetify
       caelestia
-      fastfetch
       gtk-theme
       bootstrap-repos
     ];
