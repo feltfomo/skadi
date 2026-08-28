@@ -1,6 +1,5 @@
 return {
 	"folke/snacks.nvim",
-	--made it load so there is no error from plugin loading race condition
 	priority = 1000,
 	lazy = false,
 	---@type snacks.Config
@@ -52,6 +51,10 @@ return {
 			},
 		},
 		explorer = {},
+		indent = {},
 		lazygit = {},
+		notifier = {
+			style = "fancy",
+		},
 	},
 }
