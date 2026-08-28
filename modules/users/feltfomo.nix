@@ -34,7 +34,6 @@
       bootstrap-repos
     ];
 
-    # define-user creates the account; primary-user grants wheel and networkmanager
     nixos =
       {
         config,
@@ -79,7 +78,6 @@
         };
         users.groups.feltfomo = { };
 
-        # user directories that survive the boot rollback
         environment.persistence."/persist".users.feltfomo.directories = [
           "Downloads"
           "Documents"
@@ -158,7 +156,6 @@
           python3
           lazygit
           equibop
-          gamemode
           hyprshot
           obsidian
           grimblast
@@ -166,7 +163,6 @@
           librewolf
           tesseract
           alejandra
-          gamescope
           proton-vpn
           winetricks
           hyprpicker

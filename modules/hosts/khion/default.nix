@@ -12,6 +12,7 @@
       cpuid-hypervisor
       docker
       gpu-nvidia
+      performance
       networking
       notion-sync
       steam
@@ -23,8 +24,6 @@
     nixos =
       { pkgs, ... }:
       {
-        # chaotic-nyx supplies the package overlay and binary cache.
-        # the overlay keeps the host package set and its unfree policy.
         imports = [
           inputs.chaotic.nixosModules.default
           inputs.disko.nixosModules.disko

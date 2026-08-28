@@ -36,6 +36,8 @@
       };
 
       boot.kernelParams = [
+        # nvidia drm fbdev keeps the early wayland handoff out of simpledrm
+        "nvidia-drm.fbdev=1"
         "nvidia.NVreg_PreserveVideoMemoryAllocations=1"
         "nvidia.NVreg_TemporaryFilePath=/var/tmp"
       ];
