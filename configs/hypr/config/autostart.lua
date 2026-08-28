@@ -4,6 +4,7 @@ local G = require("globals")
 hl.on("hyprland.start", function()
 	local commands = {
 		"end4-pc-shell",
+		"pypr",
 		"wl-paste --type text --watch cliphist store",
 		"wl-paste --type image --watch cliphist store",
 		"systemctl --user restart audio-opacity",
@@ -14,8 +15,9 @@ hl.on("hyprland.start", function()
 	end
 
 	-- persistent rules place these apps without one-shot launch properties
+	-- spotify is launched lazily by its scratchpad instead
 	if G.hostname == "khion" then
-		for _, command in ipairs({ "zen-twilight", "spotify", "equibop", "steam" }) do
+		for _, command in ipairs({ "zen-twilight", "equibop", "steam" }) do
 			hl.exec_cmd(command)
 		end
 	end

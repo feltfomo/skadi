@@ -1,0 +1,12 @@
+[pyprland]
+plugins = ["scratchpads"]
+
+[scratchpads.spotify]
+# lazy startup avoids racing spotify against pyprland during compositor startup
+lazy = true
+animation = "fromTop"
+command = "spotify"
+class = "spotify"
+size = "80% 75%"
+max_size = "1600px 100%"
+margin = 50

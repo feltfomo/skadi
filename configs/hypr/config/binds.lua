@@ -7,6 +7,9 @@ local shell = require("lib.end4")
 bind.group("apps", { mods = G.mod }, function()
 	bind("T", hl.dsp.exec_cmd(G.terminal))
 	bind("C", hl.dsp.exec_cmd(G.clipboard))
+
+	-- the client avoids python startup overhead when talking to the running daemon
+	bind("S", hl.dsp.exec_cmd("pypr-client toggle spotify"))
 end)
 
 bind.group("shell", { mods = G.mod }, function()

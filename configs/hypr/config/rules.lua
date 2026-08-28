@@ -33,9 +33,8 @@ hl.window_rule({
 if G.hostname == "khion" then
 	local startup_rules = {
 		{ name = "startup-zen", class = "^zen-twilight$", workspace = 1 },
-		{ name = "startup-spotify", class = "^spotify$", workspace = 2 },
-		{ name = "startup-equibop", class = "^equibop$", workspace = 3 },
-		{ name = "startup-steam", class = "^steam$", workspace = 4 },
+		{ name = "startup-equibop", class = "^equibop$", workspace = 2 },
+		{ name = "startup-steam", class = "^steam$", workspace = 3 },
 	}
 
 	-- silent placement keeps startup windows from changing the focused workspace

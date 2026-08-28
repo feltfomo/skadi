@@ -18,6 +18,9 @@ hl.config({
 		col = {
 			active_border = colors.primary,
 			inactive_border = colors.outline_variant or colors.outline,
+			-- pyprland scratchpads deny grouping and use the no-group border colors
+			nogroup_border = colors.outline_variant or colors.outline,
+			nogroup_border_active = colors.primary,
 		},
 	},
 	decoration = {

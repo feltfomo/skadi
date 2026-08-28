@@ -73,6 +73,7 @@ in
       "khion"
       "lumi"
     ];
+    pkg = pkgs: pkgs.pyprland;
     nixos = { pkgs, ... }: [
       {
         hosts = [
@@ -126,6 +127,10 @@ in
       {
         src = hyprlandAutoload;
         dest = ".config/hypr/autoload.lua";
+      }
+      {
+        src = "${rootPath}/configs/pypr/config.toml";
+        dest = ".config/pypr/config.toml";
       }
     ];
     # separate declarations keep nested config and library files visible to furnish
