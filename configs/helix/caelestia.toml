@@ -1,0 +1,119 @@
+# renderer-owned evilhelix theme
+"attribute" = { fg = "primary", modifiers = ["bold"] }
+"type" = "primary"
+"type.enum.variant" = "secondary"
+"constructor" = "tertiary"
+"constant" = "secondary"
+"constant.character" = "secondaryContainer"
+"constant.character.escape" = "tertiaryContainer"
+"string" = "tertiary"
+"string.regexp" = "tertiaryContainer"
+"string.special" = "tertiary"
+"string.special.path" = { fg = "secondary", underline = { color = "secondary", style = "line" } }
+"comment" = { fg = "outline", modifiers = ["italic"] }
+"variable" = "onSurface"
+"variable.builtin" = "secondary"
+"variable.parameter" = { fg = "onSurfaceVariant", modifiers = ["italic"] }
+"variable.other.member" = "primary"
+"label" = "secondary"
+"punctuation" = "outline"
+"keyword" = { fg = "primary", modifiers = ["bold"] }
+"keyword.control.conditional" = { fg = "tertiary", modifiers = [
+  "italic",
+  "bold",
+] }
+"operator" = { fg = "secondary", modifiers = ["bold"] }
+"function" = "tertiary"
+"function.macro" = "tertiary"
+"tag" = "secondary"
+"namespace" = { fg = "secondary", modifiers = ["italic"] }
+"special" = "secondary"
+"markup.heading" = "primary"
+"markup.list" = "onSurface"
+"markup.bold" = { fg = "secondary", modifiers = ["bold"] }
+"markup.italic" = { fg = "secondary", modifiers = ["italic"] }
+"markup.link.url" = { fg = "secondary", modifiers = ["italic", "underlined"] }
+"markup.link.label" = "primary"
+"markup.raw" = "onSurface"
+"markup.quote" = "secondary"
+"diff.plus" = "secondary"
+"diff.minus" = "error"
+"diff.delta" = "primary"
+"ui.background" = { bg = "surface" }
+"ui.cursor" = { fg = "onSecondary", bg = "secondary" }
+"ui.cursor.match" = { fg = "onTertiary", bg = "tertiary", modifiers = ["bold"] }
+"ui.cursor.primary" = { fg = "onPrimary", bg = "primary" }
+"ui.linenr" = { fg = "onSurfaceVariant" }
+"ui.linenr.selected" = { fg = "primary" }
+"ui.statusline" = { fg = "onSurface", bg = "surfaceContainerLow" }
+"ui.statusline.inactive" = { fg = "onSurfaceVariant", bg = "surfaceContainerLowest" }
+"ui.statusline.normal" = { fg = "onPrimary", bg = "primary", modifiers = [
+  "bold",
+] }
+"ui.statusline.insert" = { fg = "onTertiary", bg = "tertiary", modifiers = [
+  "bold",
+] }
+"ui.statusline.select" = { fg = "onSecondary", bg = "secondary", modifiers = [
+  "bold",
+] }
+"ui.bufferline" = { fg = "onSurface", bg = "surfaceContainerLowest" }
+"ui.bufferline.active" = { fg = "onSurface", bg = "surfaceContainer", underline = { color = "primary", style = "line" } }
+"ui.bufferline.background" = { bg = "surfaceContainerLowest" }
+"ui.popup" = { fg = "onSurface", bg = "surfaceContainerLow" }
+"ui.window" = { fg = "outlineVariant" }
+"ui.help" = { fg = "onSurface", bg = "surfaceContainerLow" }
+"ui.text" = { fg = "onBackground" }
+"ui.text.focus" = { fg = "onSurface", bg = "surfaceContainer", modifiers = [
+  "bold",
+] }
+"ui.virtual" = "surfaceVariant"
+"ui.virtual.ruler" = { bg = "surfaceContainerLow" }
+"ui.virtual.indent-guide" = "surfaceVariant"
+"ui.virtual.inlay-hint" = { fg = "onSurfaceVariant", bg = "surfaceContainer", modifiers = [
+  "dim",
+] }
+"ui.virtual.jump-label" = { fg = "primary", modifiers = ["bold"] }
+"ui.menu" = { fg = "onSurface", bg = "surfaceContainer" }
+"ui.menu.selected" = { fg = "onPrimary", bg = "primary", modifiers = ["bold"] }
+"ui.selection" = { bg = "primaryContainer", fg = "onPrimaryContainer" }
+"ui.highlight" = { bg = "primaryContainer", modifiers = ["bold"] }
+"ui.cursorline" = { bg = "surfaceContainerLowest" }
+"ui.cursorline.primary" = { bg = "surfaceContainerLow" }
+error = "error"
+warning = "tertiary"
+info = "primary"
+hint = "secondary"
+"diagnostic.hint" = { underline = { color = "secondary", style = "curl" } }
+"diagnostic.info" = { underline = { color = "primary", style = "curl" } }
+"diagnostic.warning" = { underline = { color = "tertiary", style = "curl" } }
+"diagnostic.error" = { underline = { color = "error", style = "curl" } }
+"diagnostic.unnecessary" = { modifiers = ["dim"] }
+
+[palette]
+primary = "#{{ primary.hex }}"
+onPrimary = "#{{ onPrimary.hex }}"
+primaryContainer = "#{{ primaryContainer.hex }}"
+onPrimaryContainer = "#{{ onPrimaryContainer.hex }}"
+secondary = "#{{ secondary.hex }}"
+onSecondary = "#{{ onSecondary.hex }}"
+secondaryContainer = "#{{ secondaryContainer.hex }}"
+onSecondaryContainer = "#{{ onSecondaryContainer.hex }}"
+tertiary = "#{{ tertiary.hex }}"
+onTertiary = "#{{ onTertiary.hex }}"
+tertiaryContainer = "#{{ tertiaryContainer.hex }}"
+onTertiaryContainer = "#{{ onTertiaryContainer.hex }}"
+error = "#{{ error.hex }}"
+onError = "#{{ onError.hex }}"
+background = "#{{ background.hex }}"
+onBackground = "#{{ onBackground.hex }}"
+surface = "#{{ surface.hex }}"
+onSurface = "#{{ onSurface.hex }}"
+surfaceVariant = "#{{ surfaceVariant.hex }}"
+onSurfaceVariant = "#{{ onSurfaceVariant.hex }}"
+outline = "#{{ outline.hex }}"
+outlineVariant = "#{{ outlineVariant.hex }}"
+surfaceContainerLowest = "#{{ surfaceContainerLowest.hex }}"
+surfaceContainerLow = "#{{ surfaceContainerLow.hex }}"
+surfaceContainer = "#{{ surfaceContainer.hex }}"
+surfaceContainerHigh = "#{{ surfaceContainerHigh.hex }}"
+surfaceContainerHighest = "#{{ surfaceContainerHighest.hex }}"

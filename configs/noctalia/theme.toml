@@ -5,17 +5,6 @@ source = "wallpaper"
 wallpaper_scheme = "m3-content"
 
 [theme.templates]
-builtin_ids = [
-  "alacritty",
-  "btop",
-  "cava",
-  "emacs",
-  "foot",
-  "gtk3",
-  "gtk4",
-  "helix",
-  "kcolorscheme",
-  "qt",
-  "wezterm",
-]
+# these remain built in because program does not own their templates yet
+builtin_ids = ["alacritty", "emacs", "foot", "kcolorscheme", "qt", "wezterm"]
 community_ids = ["zed", "discord", "steam", "telegram"]

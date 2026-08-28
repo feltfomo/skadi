@@ -1,0 +1,55 @@
+/* renderer-owned gtk 4 palette */
+
+@define-color accent_color #{{ primary.hex }};
+@define-color accent_bg_color #{{ primary.hex }};
+@define-color accent_fg_color #{{ onPrimary.hex }};
+@define-color destructive_bg_color #{{ error.hex }};
+@define-color destructive_fg_color #{{ onError.hex }};
+@define-color error_bg_color #{{ error.hex }};
+@define-color error_fg_color #{{ onError.hex }};
+@define-color window_bg_color #{{ surface.hex }};
+@define-color window_fg_color #{{ onSurface.hex }};
+@define-color view_bg_color #{{ surface.hex }};
+@define-color view_fg_color #{{ onSurface.hex }};
+@define-color headerbar_bg_color #{{ surface.hex }};
+@define-color headerbar_fg_color #{{ onSurface.hex }};
+@define-color headerbar_backdrop_color @window_bg_color;
+@define-color popover_bg_color #{{ surfaceContainer.hex }};
+@define-color popover_fg_color #{{ onSurface.hex }};
+@define-color card_bg_color #{{ surfaceContainer.hex }};
+@define-color card_fg_color #{{ onSurface.hex }};
+@define-color dialog_bg_color #{{ surface.hex }};
+@define-color dialog_fg_color #{{ onSurface.hex }};
+@define-color sidebar_bg_color #{{ surfaceContainer.hex }};
+@define-color sidebar_fg_color #{{ onSurface.hex }};
+@define-color sidebar_backdrop_color @window_bg_color;
+@define-color sidebar_border_color #{{ outlineVariant.hex }};
+
+:root {
+  --accent-color: #{{ primary.hex }};
+  --accent-bg-color: #{{ primary.hex }};
+  --accent-fg-color: #{{ onPrimary.hex }};
+  --destructive-bg-color: #{{ error.hex }};
+  --destructive-fg-color: #{{ onError.hex }};
+  --error-color: #{{ error.hex }};
+  --window-bg-color: #{{ surface.hex }};
+  --window-fg-color: #{{ onSurface.hex }};
+  --view-bg-color: #{{ surface.hex }};
+  --view-fg-color: #{{ onSurface.hex }};
+  --headerbar-bg-color: #{{ surface.hex }};
+  --headerbar-fg-color: #{{ onSurface.hex }};
+  --popover-bg-color: #{{ surfaceContainer.hex }};
+  --popover-fg-color: #{{ onSurface.hex }};
+  --card-bg-color: #{{ surfaceContainer.hex }};
+  --card-fg-color: #{{ onSurface.hex }};
+  --dialog-bg-color: #{{ surface.hex }};
+  --dialog-fg-color: #{{ onSurface.hex }};
+  --sidebar-bg-color: #{{ surfaceContainer.hex }};
+  --sidebar-fg-color: #{{ onSurface.hex }};
+  --warning-bg-color: #{{ tertiaryContainer.hex }};
+  --warning-fg-color: #{{ onTertiaryContainer.hex }};
+  --success-color: #{{ secondary.hex }};
+  --success-bg-color: #{{ secondaryContainer.hex }};
+  --success-fg-color: #{{ onSecondaryContainer.hex }};
+  --shade-color: rgba(0, 0, 0, 0.36);
+}

@@ -1,0 +1,34 @@
+/* renderer-owned gtk 3 palette */
+
+@define-color accent_color #{{ primary.hex }};
+@define-color accent_bg_color #{{ primary.hex }};
+@define-color accent_fg_color #{{ onPrimary.hex }};
+@define-color destructive_bg_color #{{ error.hex }};
+@define-color destructive_fg_color #{{ onError.hex }};
+@define-color error_bg_color #{{ error.hex }};
+@define-color error_fg_color #{{ onError.hex }};
+@define-color window_bg_color #{{ surface.hex }};
+@define-color window_fg_color #{{ onSurface.hex }};
+@define-color view_bg_color #{{ surface.hex }};
+@define-color view_fg_color #{{ onSurface.hex }};
+@define-color headerbar_bg_color #{{ surfaceContainer.hex }};
+@define-color headerbar_fg_color #{{ onSurface.hex }};
+@define-color headerbar_backdrop_color @window_bg_color;
+@define-color popover_bg_color #{{ surfaceContainer.hex }};
+@define-color popover_fg_color #{{ onSurface.hex }};
+@define-color card_bg_color #{{ surfaceContainer.hex }};
+@define-color card_fg_color #{{ onSurface.hex }};
+@define-color dialog_bg_color #{{ surface.hex }};
+@define-color dialog_fg_color #{{ onSurface.hex }};
+@define-color sidebar_bg_color #{{ surfaceContainer.hex }};
+@define-color sidebar_fg_color #{{ onSurface.hex }};
+@define-color sidebar_backdrop_color @window_bg_color;
+@define-color sidebar_border_color #{{ outlineVariant.hex }};
+@define-color theme_selected_bg_color @accent_bg_color;
+@define-color theme_selected_fg_color @accent_fg_color;
+@define-color theme_unfocused_fg_color @window_fg_color;
+@define-color theme_unfocused_text_color @view_fg_color;
+@define-color theme_unfocused_bg_color @window_bg_color;
+@define-color theme_unfocused_base_color @window_bg_color;
+@define-color theme_unfocused_selected_bg_color @accent_bg_color;
+@define-color theme_unfocused_selected_fg_color @accent_fg_color;

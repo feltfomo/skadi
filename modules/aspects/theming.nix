@@ -28,7 +28,7 @@
         programs.btop = {
           enable = true;
           settings = {
-            color_theme = "noctalia";
+            color_theme = "reactive";
             theme_background = "false";
             true-color = true;
             rounded-corners = true;

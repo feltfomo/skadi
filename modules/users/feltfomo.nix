@@ -12,6 +12,10 @@
       zed
       obs
       dms
+      btop
+      cava
+      helix
+      gtk-theme
       nvim
       niri
       shell
@@ -171,7 +175,6 @@
           proton-vpn
           winetricks
           hyprpicker
-          evil-helix
           motrix-next
           qbittorrent
           tor-browser
