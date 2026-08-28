@@ -33,12 +33,22 @@ let
   hyprConfigModules = luaModules "${rootPath}/configs/hypr/config";
   hyprlandAutoload = luaManifest "hyprland-autoload.lua" "config" hyprConfigModules;
 
+  # the tagged source requests glaze 7 while its pinned nixpkgs provides glaze 8
+  # relaxing the cmake constraint keeps the build offline and matches nixpkgs' fix
+  hyprlandPackage =
+    pkgs:
+    inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland.overrideAttrs (old: {
+      postPatch = (old.postPatch or "") + ''
+        substituteInPlace CMakeLists.txt --replace-fail "glaze 7...<8" "glaze"
+      '';
+    });
+
   # keep audio-playing windows opaque while inactive.
   audioOpacityService =
     { pkgs, ... }:
     with pkgs;
     let
-      hyprctlPkg = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
+      hyprctlPkg = hyprlandPackage pkgs;
       audio-opacity = writeShellApplication {
         name = "audio-opacity";
         runtimeInputs = [
@@ -74,54 +84,63 @@ in
       "lumi"
     ];
     pkg = pkgs: pkgs.pyprland;
-    nixos = { pkgs, ... }: [
-      {
-        hosts = [
-          "khion"
-          "lumi"
-        ];
+    nixos =
+      { pkgs, ... }:
+      let
+        hyprlandPkg = hyprlandPackage pkgs;
+        # the gloview input follows this same tagged compositor and owns its package details
+        gloviewPkg = inputs.gloview.packages.${pkgs.stdenv.hostPlatform.system}.gloview;
+      in
+      [
+        {
+          hosts = [
+            "khion"
+            "lumi"
+          ];
 
-        # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
-        # remove this overlay once the frontend supports these sessions upstream
-        nixpkgs.overlays = [
-          (_: prev: {
-            xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
-              postPatch = (old.postPatch or "") + ''
-                substituteInPlace src/xdg-desktop-portal.service.in \
-                  --replace-fail \
-                    "Requisite=graphical-session.target" \
-                    "Requires=dbus.service"
-                sed -i '/^After=graphical-session.target$/i After=dbus.service' \
-                  src/xdg-desktop-portal.service.in
-              '';
-            });
-          })
-        ];
+          # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
+          # remove this overlay once the frontend supports these sessions upstream
+          nixpkgs.overlays = [
+            (_: prev: {
+              xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
+                postPatch = (old.postPatch or "") + ''
+                  substituteInPlace src/xdg-desktop-portal.service.in \
+                    --replace-fail \
+                      "Requisite=graphical-session.target" \
+                      "Requires=dbus.service"
+                  sed -i '/^After=graphical-session.target$/i After=dbus.service' \
+                    src/xdg-desktop-portal.service.in
+                '';
+              });
+            })
+          ];
 
-        programs.hyprland = {
-          enable = true;
-          package = inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
-          portalPackage =
-            inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-        };
-        programs.ydotool.enable = true;
-        services.flatpak.enable = true;
-
-        xdg.portal = {
-          extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-          config.hyprland = {
-            default = [
-              "hyprland"
-              "gtk"
-            ];
-            "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
-            "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
-            "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+          programs.hyprland = {
+            enable = true;
+            package = hyprlandPkg;
+            portalPackage =
+              inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
           };
-        };
+          # expose gloview through the system profile so the lua startup can load a stable path
+          environment.systemPackages = [ gloviewPkg ];
+          programs.ydotool.enable = true;
+          services.flatpak.enable = true;
 
-      }
-    ];
+          xdg.portal = {
+            extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+            config.hyprland = {
+              default = [
+                "hyprland"
+                "gtk"
+              ];
+              "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
+              "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
+              "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+            };
+          };
+
+        }
+      ];
     imports = [ audioOpacityService ];
     files = [
       {

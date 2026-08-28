@@ -3,6 +3,8 @@ local G = require("globals")
 -- portals use dbus activation and must not be launched from compositor startup
 hl.on("hyprland.start", function()
 	local commands = {
+		-- the nixos hyprland module has no plugin option, so load the packaged library directly
+		"hyprctl plugin list | grep -q gloview || hyprctl plugin load /run/current-system/sw/lib/libgloview.so",
 		"end4-pc-shell",
 		"pypr",
 		"wl-paste --type text --watch cliphist store",

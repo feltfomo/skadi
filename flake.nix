@@ -28,9 +28,13 @@
     # independent of the unstable channel the fleet tracks so the installer
     # stays reproducible while the main config churns.
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
-    hyprland = {
-      url = "github:hyprwm/Hyprland";
-      inputs.nixpkgs.follows = "nixpkgs";
+    # gloview 0.3 targets the 0.56.2 plugin api and must share its exact abi
+    # keep the tag's dependency graph intact because forcing fleet nixpkgs mixes c++ runtimes
+    hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
+    # plugins must follow the compositor input exactly because the abi is unstable
+    gloview = {
+      url = "github:fedsfarm/gloview";
+      inputs.hyprland.follows = "hyprland";
     };
     mango = {
       url = "github:mangowm/mango";

@@ -1,5 +1,11 @@
 [pyprland]
-plugins = ["scratchpads"]
+plugins = ["scratchpads", "fetch_client_menu"]
+
+[fetch_client_menu]
+# fetched windows float and land in the middle of the focused monitor
+engine = "fuzzel"
+center_on_fetch = true
+margin = 60
 
 [scratchpads.spotify]
 # lazy startup avoids racing spotify against pyprland during compositor startup
@@ -7,6 +13,16 @@ lazy = true
 animation = "fromTop"
 command = "spotify"
 class = "spotify"
+size = "80% 75%"
+max_size = "1600px 100%"
+margin = 50
+
+[scratchpads.thunar]
+# thunar shares spotify's geometry and top-edge animation
+lazy = true
+animation = "fromTop"
+command = "thunar"
+class = "thunar"
 size = "80% 75%"
 max_size = "1600px 100%"
 margin = 50

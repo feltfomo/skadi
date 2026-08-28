@@ -15,13 +15,14 @@
       btop
       cava
       helix
-      gtk-theme
+      thunar
       nvim
       niri
       shell
       kitty
       qt-hm
       herdr
+      fuzzel
       ghostty
       theming
       mangowm
@@ -31,6 +32,7 @@
       spicetify
       caelestia
       fastfetch
+      gtk-theme
       bootstrap-repos
     ];
 
