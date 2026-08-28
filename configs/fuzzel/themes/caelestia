@@ -1,0 +1,13 @@
+# rendered by caelestia from the active material palette
+[colors]
+background={{ background.hex }}CC
+text={{ onSurface.hex }}ff
+prompt={{ secondary.hex }}ff
+placeholder={{ tertiary.hex }}ff
+input={{ primary.hex }}ff
+match={{ tertiary.hex }}ff
+selection={{ primary.hex }}80
+selection-text={{ onSurface.hex }}ff
+selection-match={{ onPrimary.hex }}ff
+counter={{ secondary.hex }}ff
+border={{ primary.hex }}ff
