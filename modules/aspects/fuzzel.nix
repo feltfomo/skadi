@@ -1,5 +1,8 @@
-{ program, rootPath, ... }:
 {
+  program,
+  rootPath,
+  ...
+}: {
   den.aspects.fuzzel = program {
     imports = [
       (_: {
@@ -8,10 +11,9 @@
           settings.main = {
             include = "~/.config/fuzzel/themes/reactive";
             namespace = "fuzzel";
-            placeholder = "bru";
             icon-theme = "Papirus-Dark";
-            message = "Skadi - App Launcher";
             show-actions = "true";
+            placeholder = "search...";
             lines = "35";
             width = "75";
             layer = "overlay";
