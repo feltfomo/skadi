@@ -74,7 +74,8 @@
       renderers.noctalia = {
         source = "${rootPath}/configs/mango/colors.conf";
         output = ".config/mango/colors.conf";
-        reload = "mmsg -d reload_config";
+        # noctalia starts before mango exports its ipc socket, so discover it here
+        reload = ''runtime_dir="$XDG_RUNTIME_DIR"; [ -n "$runtime_dir" ] || runtime_dir="/run/user/$(id -u)"; socket="$(find "$runtime_dir" -maxdepth 1 -type s -name 'mango-*.sock' -print -quit)"; if [ -n "$socket" ]; then MANGO_INSTANCE_SIGNATURE="$socket" mmsg dispatch reload_config; fi'';
       };
     };
   };
