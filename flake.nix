@@ -79,7 +79,7 @@
       url = "gitlab:sanoojes/spicetify-lucid?ref=main";
       flake = false;
     };
-    den.url = "github:denful/den/v0.17.0";
+    den.url = "github:denful/den/v0.18.0";
     # the extracted frameworks. one axiom across the whole closure, so krisis's
     # and lexicon's schemas are the same values instead of two copies that
     # merely look alike.
