@@ -1,6 +1,7 @@
 return {
 	"neovim/nvim-lspconfig",
 	lazy = false,
+	dependencies = { "mfussenegger/nvim-jdtls" },
 	config = function()
 		-- vim.lsp.config() merges onto whichever base config resolves for
 		-- that name, so these overrides apply regardless of load order
@@ -15,12 +16,39 @@ return {
 				},
 			},
 		})
-		vim.lsp.config("rust_analyzer", {
+		vim.lsp.config("jdtls", {
 			settings = {
-				["rust-analyzer"] = {
-					check = { command = "clippy" },
+				java = {
+					configuration = { updateBuildConfiguration = "interactive" },
+					import = {
+						gradle = {
+							enabled = true,
+							wrapper = { enabled = true },
+						},
+					},
 				},
 			},
+		})
+
+		-- rustaceanvim owns rust-analyzer so only one client attaches per buffer
+		vim.api.nvim_create_autocmd("LspAttach", {
+			callback = function(args)
+				local client = vim.lsp.get_client_by_id(args.data.client_id)
+				if not client or client.name ~= "jdtls" then
+					return
+				end
+
+				local opts = { buffer = args.buf, silent = true }
+				vim.keymap.set("n", "<leader>co", function()
+					require("jdtls").organize_imports()
+				end, vim.tbl_extend("force", opts, { desc = "Organize Java Imports" }))
+				vim.keymap.set("n", "<leader>cv", function()
+					require("jdtls").extract_variable()
+				end, vim.tbl_extend("force", opts, { desc = "Extract Java Variable" }))
+				vim.keymap.set("v", "<leader>cv", function()
+					require("jdtls").extract_variable(true)
+				end, vim.tbl_extend("force", opts, { desc = "Extract Java Variable" }))
+			end,
 		})
 
 		vim.diagnostic.config({
@@ -51,7 +79,6 @@ return {
 		vim.lsp.enable({
 			"nixd",
 			"lua_ls",
-			"rust_analyzer",
 			"jdtls",
 			"kotlin_language_server",
 			"pyright",

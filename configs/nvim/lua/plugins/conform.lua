@@ -6,6 +6,8 @@ return {
 		formatters_by_ft = {
 			nix = { "alejandra" },
 			lua = { "stylua" },
+			java = { "google_java_format" },
+			kotlin = { "ktlint" },
 			rust = { "rustfmt" },
 		},
 		format_on_save = {

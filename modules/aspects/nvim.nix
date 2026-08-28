@@ -2,28 +2,30 @@
   program,
   rootPath,
   ...
-}:
-{
+}: {
   # lazy.nvim self-clones for now; swap to nix-supplied vimPlugins store
   # paths once the plugin list actually settles.
   den.aspects.nvim = program {
-    pkg =
-      pkgs:
+    pkg = pkgs:
       pkgs.symlinkJoin {
         name = "neovim-with-deps";
         paths = with pkgs; [
-          neovim
           gcc
-          tree-sitter
-          nixd
-          lua-language-server
-          rust-analyzer
-          jdt-language-server
-          kotlin-language-server
-          pyright
           zls
           ols
+          nixd
+          cargo
+          neovim
+          ktlint
+          pyright
+          rustfmt
+          tree-sitter
           wl-clipboard
+          rust-analyzer
+          google-java-format
+          lua-language-server
+          jdt-language-server
+          kotlin-language-server
         ];
       };
     directories = [
@@ -39,11 +41,11 @@
       renderers = {
         noctalia = {
           source = "${rootPath}/configs/nvim/colors/theme-templates/noctalia-dms.lua";
-          sharedWith = [ "dms" ];
+          sharedWith = ["dms"];
         };
         illogical-impulse = {
           source = "${rootPath}/configs/nvim/colors/theme-templates/illogical-impulse-end4-pc.lua";
-          sharedWith = [ "end4-pc" ];
+          sharedWith = ["end4-pc"];
         };
         caelestia.source = "${rootPath}/configs/nvim/colors/theme-templates/caelestia-palette.lua";
       };
