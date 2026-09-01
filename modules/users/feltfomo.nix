@@ -155,6 +155,7 @@
           spotatui
           python3
           lazygit
+          devenv
           equibop
           hyprshot
           obsidian
