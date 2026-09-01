@@ -102,6 +102,15 @@
       url = "github:numtide/llm-agents.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    desktop-commander = {
+      url = "github:wonderwhy-er/DesktopCommanderMCP/e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9";
+      flake = false;
+    };
+    mcp-proxy = {
+      # nixpkgs still ships 0.10.0; 0.12.0 carries the current MCP transport stack.
+      url = "github:sparfenyuk/mcp-proxy/v0.12.0";
+      flake = false;
+    };
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
