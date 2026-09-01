@@ -1,0 +1,18 @@
+input {
+  keyboard {
+    xkb {
+      layout "us"
+    }
+    repeat-delay 200
+    repeat-rate 25
+    numlock
+  }
+
+  touchpad {
+    tap
+    natural-scroll
+  }
+
+  warp-mouse-to-focus
+  workspace-auto-back-and-forth
+}

@@ -1,0 +1,40 @@
+binds {
+  Mod+T { spawn "kitty"; }
+  Mod+Space { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
+  Mod+V { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
+  Mod+Shift+Slash { spawn "dms" "ipc" "call" "keybinds" "toggle" "niri"; }
+  Mod+Alt+L { spawn "dms" "ipc" "call" "lock" "lock"; }
+
+  Mod+Q { close-window; }
+  Mod+Shift+E { quit; }
+
+  // focus binds
+  Mod+Left { focus-column-left; }
+  Mod+Down { focus-window-down; }
+  Mod+Up { focus-window-up; }
+  Mod+Right { focus-column-right; }
+  Mod+Ctrl+Left { focus-monitor-left; }
+  Mod+Ctrl+Right { focus-monitor-right; }
+  Mod+H { focus-column-left; }
+  Mod+J { focus-window-down; }
+  Mod+K { focus-window-up; }
+  Mod+L { focus-column-right; }
+
+  // workspace binds
+  Mod+Page_Down { focus-workspace-down; }
+  Mod+Page_Up { focus-workspace-up; }
+  Mod+Shift+Page_Down { move-column-to-workspace-down; }
+  Mod+Shift+Page_Up { move-column-to-workspace-up; }
+
+  // window control
+  Mod+R { switch-preset-column-width; }
+  Mod+F { maximize-column; }
+  Mod+Shift+F { fullscreen-window; }
+  Mod+C { center-column; }
+  Mod+Alt+Left { consume-or-expel-window-left; }
+  Mod+Alt+Right { consume-or-expel-window-right; }
+
+  // screenshot binds
+  Print { screenshot; }
+  Mod+Print { screenshot-window; }
+}

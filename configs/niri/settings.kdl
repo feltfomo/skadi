@@ -1,0 +1,6 @@
+hotkey-overlay {
+  skip-at-startup
+}
+
+// no title bars
+prefer-no-csd
