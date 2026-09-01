@@ -5,8 +5,8 @@ local M = {}
 
 -- each monitor owns a ten-workspace bank
 for i = 1, 10 do
-	hl.workspace_rule({ workspace = tostring(i), monitor = G.monitors.left })
-	hl.workspace_rule({ workspace = tostring(i + 10), monitor = G.monitors.right })
+	hl.workspace_rule({ workspace = tostring(i), monitor = G.monitors.left, persistent = true })
+	hl.workspace_rule({ workspace = tostring(i + 10), monitor = G.monitors.right, persistent = true })
 end
 
 function M.bind_workspace(i)
