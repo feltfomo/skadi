@@ -4,7 +4,7 @@ return {
 	cmd = { "ConformInfo" },
 	opts = {
 		formatters_by_ft = {
-			nix = { "alejandra" },
+			nix = { "nixfmt" },
 			lua = { "stylua" },
 			java = { "google_java_format" },
 			kotlin = { "ktlint" },

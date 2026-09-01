@@ -23,5 +23,6 @@ return {
 		{ "<S-l>", "<cmd>BufferLineCycleNext<cr>", desc = "Next Buffer" },
 		{ "<leader>bp", "<cmd>BufferLineTogglePin<cr>", desc = "Pin Buffer" },
 		{ "<leader>bo", "<cmd>BufferLineCloseOthers<cr>", desc = "Close Other Buffers" },
+		{ "<leader>bd", "<cmd>bdelete<cr>", desc = "Delete Buffer" },
 	},
 }
