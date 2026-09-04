@@ -12,10 +12,6 @@
     ];
     nixos = { pkgs, ... }: [
       {
-        hosts = [
-          "khion"
-          "lumi"
-        ];
         imports = [ inputs.niri.nixosModules.niri ];
         nixpkgs.overlays = [ inputs.niri.overlays.niri ];
         programs.niri = {

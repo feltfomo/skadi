@@ -93,11 +93,6 @@ in
       in
       [
         {
-          hosts = [
-            "khion"
-            "lumi"
-          ];
-
           # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
           # remove this overlay once the frontend supports these sessions upstream
           nixpkgs.overlays = [

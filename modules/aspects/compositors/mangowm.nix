@@ -14,10 +14,6 @@
     ];
     nixos = { pkgs, ... }: [
       {
-        hosts = [
-          "khion"
-          "lumi"
-        ];
         imports = [ inputs.mango.nixosModules.mango ];
         programs.mango = {
           enable = true;
