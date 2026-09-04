@@ -1,16 +1,11 @@
-# Undim windows that are playing audio while they are inactive.
+# undim inactive windows while they are playing audio.
 #
-# Watches PipeWire for streams that are actually playing (not paused/corked),
-# maps each stream's process back to the window that owns it, and forces that
-# window's `opaque` property on so Hyprland's inactive-opacity dimming skips it.
-# Driven by `pactl subscribe`, so it idles until audio starts or stops.
+# pipewire streams map back through their process trees to the owning windows.
+# pactl subscribe keeps the script idle until audio state changes.
 #
-# No shebang / PATH setup here on purpose: this file is embedded by
-# modules/aspects/hyprland.nix via pkgs.writeShellApplication, which prepends the
-# bash shebang, `set -euo pipefail`, and a PATH built from runtimeInputs
-# (hyprctl, pactl, jq, awk, procps, coreutils).
+# writeShellApplication supplies the shebang, strict mode, and runtime path.
 
-# Reach the running Hyprland even if systemd did not inherit its signature.
+# reach the running hyprland instance when systemd lacks its signature.
 if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -d "${XDG_RUNTIME_DIR:-}/hypr" ]; then
 	# instance dirs are hex signatures, so ls -t is safe to word-split here
 	# shellcheck disable=SC2012
@@ -19,12 +14,11 @@ if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -d "${XDG_RUNTIME_DIR:-}/hypr"
 fi
 
 reconcile() {
-	# PIDs of streams that are actually playing (not corked / paused).
+	# process ids for streams that are playing
 	playing="$(pactl -f json list sink-inputs 2>/dev/null \
 		| jq -r '.[] | select(.corked==false) | .properties["application.process.id"] // empty' || true)"
 
-	# Expand each to its full parent chain, so a browser's sandboxed audio
-	# subprocess maps back to the main, window-owning process.
+	# include parent chains so sandboxed audio maps to the owning window
 	ancestors=" "
 	while read -r pid; do
 		[ -n "$pid" ] || continue
@@ -37,7 +31,7 @@ reconcile() {
 		done
 	done <<< "$playing"
 
-	# opaque ON for any window whose PID is in that set, OFF for the rest.
+	# enable opaque for matching process ids and disable it for the rest
 	{
 		hyprctl clients -j 2>/dev/null | jq -r '.[] | "\(.address) \(.pid)"' \
 			| while read -r addr cpid; do

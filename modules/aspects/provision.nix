@@ -2,10 +2,8 @@
   den.aspects.provision.nixos =
     { lib, ... }:
     {
-      # provisioning policy as data: each secret-bearing aspect declares, right
-      # next to its own sops secret, how skadi-install should fill it. the
-      # installer evals config.skadi.provision.secrets and loops over it, so
-      # adding a user or a secret never means editing the script.
+      # each secret-bearing aspect declares how skadi-install fills its secret.
+      # the installer loops over config.skadi.provision.secrets.
       options.skadi.provision.secrets = lib.mkOption {
         default = { };
         type = lib.types.attrsOf (
@@ -22,7 +20,7 @@
                 type = lib.types.str;
                 default = "";
               };
-              # printf template applied to a pasted value, e.g. "NOTION_TOKEN=%s"
+              # printf template applied to a pasted value such as "API_TOKEN=%s"
               format = lib.mkOption {
                 type = lib.types.str;
                 default = "%s";

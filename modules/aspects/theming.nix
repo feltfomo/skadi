@@ -1,8 +1,8 @@
 {
   den.aspects.theming = {
     nixos = {
-      # System desktop entries launch outside Home Manager's environment.
-      # qt-hm selects Fusion so qtct can apply Noctalia's generated palette.
+      # system desktop entries launch outside home manager's environment.
+      # qt-hm selects fusion so qtct can apply noctalia's generated palette.
       qt = {
         enable = true;
         platformTheme = "qt5ct";

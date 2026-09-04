@@ -3,8 +3,7 @@
   perSystem =
     { pkgs, ... }:
     {
-      # fleet-aware nh wrappers: `nix run .#khion -- switch`, and equivalent
-      # wrappers for every other host and standalone home Den exposes.
+      # fleet-aware nh wrappers cover every host and standalone home den exposes.
       packages = den.lib.nh.denPackages { fromFlake = true; } pkgs;
 
       devShells.default = pkgs.mkShell {

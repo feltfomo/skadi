@@ -1,6 +1,6 @@
-# hypervisor <enable|disable|status>: swap between the CPUID-faulting module and
-# the AMD KVM stack. For legacy Proton titles that trip on hypervisor/UMIP checks.
-# No shebang: embedded via writeShellApplication (see cpuid-hypervisor.nix).
+# hypervisor <enable|disable|status> swaps between the cpuid-faulting module and
+# the amd kvm stack for legacy proton titles that trip on hypervisor or umip checks.
+# writeShellApplication supplies the shebang and runtime path.
 case "${1:-}" in
   enable)
     sudo modprobe -r kvm_amd kvm

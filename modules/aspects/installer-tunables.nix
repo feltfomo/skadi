@@ -2,19 +2,9 @@
   den.aspects.installer-tunables.nixos =
     { lib, ... }:
     {
-      # installer tunables as data, mirroring provision.nix: skadi-install evals
-      # config.skadi.installer (ONE narrow eval, never the whole config) and
-      # substitutes these in. every default equals the literal it replaces, so
-      # behavior is unchanged -- pure parameterization. included via base.nix so
-      # the options land on the TARGET host the installer evals (vm/khion/lumi),
-      # NOT the ISO (den.aspects.installer would miss the eval), and stay
-      # per-host overridable.
-      #
-      # NOTE: build-dir + the store-relocation paths (STORE_RW / SWAPFILE) are
-      # deliberately NOT here. build-dir is owned by installer.nix and read by
-      # the nix-daemon at ISO-build time, so it can't come from a target-host
-      # eval; STORE_RW / SWAPFILE are mount-relative literals tied to it.
-      # Lifting them would be a dual source of truth + a behavior change.
+      # skadi-install reads these values from the target host configuration.
+      # defaults match the literals they replace and remain overridable per host.
+      # build-dir, STORE_RW, and SWAPFILE stay with installer-time store setup.
       options.skadi.installer = {
         swapSizeGiB = lib.mkOption {
           type = lib.types.ints.positive;

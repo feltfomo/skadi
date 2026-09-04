@@ -1,9 +1,7 @@
 { lib, pkgs, ... }:
 let
-  # gated on IN_DISKO_TEST, materialized as a committed sentinel so the plain
-  # `nixosConfigurations.generic` eval stays pure (no --impure). committed "0";
-  # the vm-test branch of skadi-install writes "1" here (git-added) iff
-  # IN_DISKO_TEST=1, exactly like generic/device. off on real hardware.
+  # a committed sentinel keeps generic evaluation pure.
+  # vm-test writes one only when IN_DISKO_TEST is enabled.
   vmTest = (lib.fileContents ../vm-test) == "1";
 in
 lib.mkIf vmTest {

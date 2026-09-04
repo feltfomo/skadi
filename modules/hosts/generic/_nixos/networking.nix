@@ -1,7 +1,7 @@
 { lib, ... }:
 {
-  # DHCP so the install has substituter access and the box boots networked.
-  # hostName mkDefault'd so den (or a later rename) can override without conflict.
+  # dhcp gives the installer substituter access and leaves the installed host networked.
+  # hostName stays overridable for den and later host renames.
   networking = {
     hostName = lib.mkDefault "generic";
     networkmanager.enable = true;

@@ -1,5 +1,5 @@
 {
-  # disk layout: gpt -> esp + luks -> btrfs subvolumes
+  # gpt with esp, luks, and btrfs subvolumes
   disko.devices = {
     disk = {
       nvme0n1 = {

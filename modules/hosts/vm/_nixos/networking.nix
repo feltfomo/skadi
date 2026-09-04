@@ -1,5 +1,5 @@
 {
-  # QEMU user-net gives DHCP on the virtio nic; bootstrap-repos needs it at boot.
+  # qemu user networking provides dhcp for the virtio interface at boot.
   networking = {
     hostName = "vm";
     networkmanager.enable = true;

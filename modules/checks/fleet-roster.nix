@@ -65,7 +65,7 @@ let
 
   throws = x: !(builtins.tryEval (builtins.deepSeq x x)).success;
 
-  # two systems make "khion" ambiguous: bare claims fail, qualified ones resolve.
+  # two systems make bare khion claims ambiguous while qualified claims resolve.
   federated = toRoster [
     (define.host "khion" { system = "x86_64-linux"; })
     (define.host "khion" { system = "aarch64-linux"; })

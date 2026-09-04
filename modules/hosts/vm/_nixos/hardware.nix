@@ -18,23 +18,15 @@
   ];
   boot.kernelModules = [ ];
 
-  # vm-test runs QEMU headless with ttyS0 redirected to a file and greps it for
-  # a login prompt; with no serial console the guest reaches userspace but the
-  # harness can't see it. real hosts never import this module, so it stays
-  # vm-only. tty0 first so a graphical console still works if one is attached.
+  # vm-test needs ttyS0 for headless boot diagnostics.
+  # tty0 keeps an attached graphical console usable.
   boot.kernelParams = [
     "console=tty0"
     "console=ttyS0,115200"
   ];
 
-  # vm-test boots this disk headless with serial -> a file, so nobody can type
-  # the LUKS passphrase disko sets at install time. the harness formats under
-  # IN_DISKO_TEST=1 (tests/vm-test.sh), which keys the cryptroot slot with the
-  # deterministic passphrase `disko`; we embed a byte-identical keyfile in the
-  # initrd and point cryptroot at it so the disk auto-unlocks and boot reaches a
-  # login prompt unattended. writeText adds no trailing newline, matching disko's
-  # `--key-file <(echo -n "disko")` enroll byte-for-byte. vm-only -- real hosts
-  # never import the VM host module, so they keep their interactive passphrase.
+  # vm-test enrolls the deterministic disko key without a trailing newline.
+  # the vm-only initrd keyfile matches it for unattended boot.
   boot.initrd.systemd.contents."/luks.key".source = pkgs.writeText "vm-luks-key" "disko";
   boot.initrd.luks.devices.cryptroot.keyFile = "/luks.key";
 

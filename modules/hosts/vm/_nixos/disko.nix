@@ -1,7 +1,6 @@
 {
-  # identical layout to the real hosts (gpt -> esp + luks(cryptroot) -> btrfs
-  # subvolumes) so impermanence's rollback (/dev/mapper/cryptroot) behaves the
-  # same. only the device differs: /dev/vda is the QEMU virtio disk.
+  # match the real-host layout so impermanence rollback behaves the same.
+  # only the qemu virtio device differs.
   disko.devices = {
     disk = {
       vda = {
