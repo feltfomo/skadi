@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
-# skadi-install [<host>] [--drop a,b,c] [--print-target] [--yes-wipe-all-disks]: two-phase reinstall from
-# the installer iso. steps: disko format+mount, host key + sops secrets into
-# /persist, nixos-install. --drop removes named top-level aspects for this install
-# only via mkInstallTarget; the committed nixosConfigurations.<host> and
-# modules/hosts/<host>/default.nix are never touched. no host on a tty opens an
-# interactive picker that resolves to the same path as an explicit --drop.
-# --print-target is a read-only dry run: prints the resolved invocation and the
-# composed toplevel drvPath, no disk writes.
+# skadi-install [<host>] [--drop a,b,c] [--print-target] [--yes-wipe-all-disks]
+# reinstalls through disko, sops provisioning, and nixos-install.
+# --drop composes a temporary target without changing committed host modules.
+# --print-target resolves the target without writing to disk.
 #
 # home repos clone on first boot via bootstrap-repos, not here.
 # never run against a booted skadi system -- disko repartitions. guarded below.
@@ -41,11 +37,8 @@ detect_generic_disk() {
   log "generic: detected sole target disk $GENERIC_DEVICE"
 }
 
-# interactive target selection when no host arg on a tty: pick a host, toggle
-# which top-level aspects to drop, then set HOST + DROP and hand off to the normal
-# path. the menu is enumerated from flake.lib.<system>.hostAspects, the same list
-# mkInstallTarget validates --drop against, so an interactive pick can't produce
-# an invalid drop. base is required and never offered as a toggle.
+# interactive selection resolves to the same host and drop inputs as flags.
+# the menu uses the same aspect list and validation as mkInstallTarget.
 select_target() {
   local all=() hosts=() aspects=() drop_flag=() hosts_json aspects_json h i n choice csv
 
@@ -55,8 +48,7 @@ select_target() {
     || die "could not enumerate hosts (nix eval failed)"
   mapfile -t all < <(jq -r '.[]' <<<"$hosts_json")
   for h in "${all[@]}"; do
-    # generic is explicit-trigger-only: it passes this filter but its disk and
-    # hardware are discovered at install time, so never offer it in the menu.
+    # generic stays explicit because its hardware is discovered during installation.
     if [ "$h" = generic ]; then continue; fi
     if [ -f "modules/hosts/${h}/default.nix" ]; then hosts+=("$h"); fi
   done
@@ -150,8 +142,7 @@ while [ $# -gt 0 ]; do
     *)  [ -z "$HOST" ] || die "unexpected extra argument: $1"; HOST="$1"; shift ;;
   esac
 done
-# no host check here: a missing host is resolved after the clone, interactively on
-# a tty or a usage die otherwise.
+# resolve a missing host after the source is available
 
 # refuse to run on a booted skadi install -- disko would repartition it.
 # --print-target is read-only so it bypasses this guard on purpose, which is what
@@ -160,12 +151,8 @@ if [ "$PRINT_TARGET" != 1 ] && [ ! -d /iso ] && [ -e /persist/etc/skadi ]; then
   die "this looks like a booted skadi system, not the ISO -- refusing to repartition."
 fi
 
-# obtain the flake we install from (writable tree with .git for notion-sync).
-# SKADI_INSTALL_SOURCE lets a caller pin us to a pre-staged source tree instead of
-# cloning from GitHub at run time. Callers can use one deterministic pinned-rev
-# worktree for both a disko dry-run probe and this install, so probe and wipe
-# validate byte-identical config. The tree must be a real git worktree
-# (git+file eval, hyprland's gitTracked, and notion-sync all require .git).
+# use SKADI_INSTALL_SOURCE to pin a prepared git worktree for probe and installation.
+# git+file evaluation and hyprland gitTracked both require its git metadata.
 if [ -n "${SKADI_INSTALL_SOURCE:-}" ]; then
   [ -d "${SKADI_INSTALL_SOURCE}/.git" ] || die "SKADI_INSTALL_SOURCE=$SKADI_INSTALL_SOURCE is not a git worktree"
   WORK="$SKADI_INSTALL_SOURCE"
@@ -177,10 +164,7 @@ else
 fi
 cd "$WORK"
 
-# Snapshot the real SOPS material before any VM-test work. The generated fixture
-# lives under modules/hosts/vm and is intentionally excluded. Comparing this
-# deterministic inventory later avoids depending on Git worktree discovery after
-# disko and the installer store relocation.
+# snapshot real sops material before creating the disposable vm fixture
 VM_REAL_SOPS_BASELINE=""
 hash_real_sops_material() {
   local path
@@ -193,10 +177,8 @@ if [ "${IN_DISKO_TEST:-}" = 1 ] && [ "${HOST:-}" = vm ]; then
   hash_real_sops_material > "$VM_REAL_SOPS_BASELINE"
 fi
 
-# The standalone vm-test deliberately has no pre-staged source or identity. Give
-# that caller a disposable host identity and matching encrypted fixture inside
-# this throwaway clone. Callers that prepare their own identity set
-# SKADI_VM_TEST_IDENTITY_DIR and bypass this branch.
+# standalone vm-test creates a disposable host identity and encrypted fixture.
+# callers with a prepared identity set SKADI_VM_TEST_IDENTITY_DIR.
 prepare_standalone_vm_test_identity() (
   local identity_dir="$1" fixture="$2" recipient temp_dir plaintext encrypted
   umask 077
@@ -215,8 +197,7 @@ prepare_standalone_vm_test_identity() (
   encrypted="$temp_dir/secrets.yaml"
   jq -n \
     --arg password '$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0' \
-    --arg token 'NOTION_TOKEN=REPLACE_ME' \
-    '{"feltfomo-password": $password, "notion-token": $token}' > "$plaintext"
+    '{"feltfomo-password": $password}' > "$plaintext"
   sops --config /dev/null --encrypt --age "$recipient" --filename-override "$fixture" \
     --input-type json --output-type yaml "$plaintext" > "$encrypted"
   install -D -m0644 "$encrypted" "$fixture"
@@ -256,25 +237,20 @@ for a in "${DROP[@]}"; do
   fi
 done
 
-# Render the drop list once: a nix list fragment ("a" "b" ) and a human CSV.
+# render the drop list for nix and human output
 DROP_NIX=""
 DROP_CSV=""
 for a in "${DROP[@]}"; do DROP_NIX+="\"$a\" "; DROP_CSV+="${DROP_CSV:+,}$a"; done
 
-# cheap pre-check then the authoritative check: the host must resolve to a
-# nixosConfigurations.<host>, not merely have a directory by that name.
+# require both a host module and a nixos configuration
 test -f "modules/hosts/${HOST}/default.nix" \
   || die "unknown host '$HOST' (no modules/hosts/${HOST}/default.nix)"
 nix eval --json "${WORK}#nixosConfigurations" --apply 'builtins.attrNames' \
   | jq -e --arg h "$HOST" 'index($h)' >/dev/null \
   || die "unknown host '$HOST' (not in nixosConfigurations)"
 
-# generic: no committed device or hardware profile describes this machine, so
-# discover it. detect the disk, write generic/device, and write the vm-test
-# sentinel from the same IN_DISKO_TEST signal disko's key enroll uses so the
-# format-time key and boot-time keyFile can't disagree, then git-add so the
-# git+file flake eval and disko --flake see them. hardware.nix comes later once
-# disko has mounted /mnt. skipped under --print-target.
+# generic records the detected disk before disko evaluation.
+# hardware configuration follows after disko mounts the target.
 if [ "$HOST" = generic ] && [ "$PRINT_TARGET" != 1 ]; then
   detect_generic_disk
   printf '%s' "$GENERIC_DEVICE" > modules/hosts/generic/device
@@ -286,15 +262,10 @@ if [ "$HOST" = generic ] && [ "$PRINT_TARGET" != 1 ]; then
   git add -A modules/hosts/generic/device modules/hosts/generic/vm-test
 fi
 
-# select the install target: the canonical host, or with --drop that host minus
-# named top-level aspects via mkInstallTarget. eval_target and build_target both
-# point at the same target, so a dropped aspect's tunables, secrets and closure
-# disappear together and we never prompt for a secret whose aspect was dropped.
-# the --drop branch uses --impure --expr over the same git-aware $WORK clone so
-# hyprland's gitTracked still holds.
+# use one composed target for tunables, secrets, and the final closure.
+# the drop path stays git-aware for hyprland source evaluation.
 if [ "${#DROP[@]}" -gt 0 ]; then
-  # composing: the flake exposes the factory under lib.<system>.mkInstallTarget
-  # (SYSTEM was resolved above; the menu and --print-target need it too).
+  # compose through lib.<system>.mkInstallTarget
   log "composing '$HOST' minus top-level aspect(s): $DROP_CSV"
   log "  (canonical nixosConfigurations.$HOST and modules/hosts/$HOST/default.nix stay untouched)"
 fi
@@ -324,9 +295,7 @@ build_target() {
   fi
 }
 
-# --print-target: read-only dry run. print the resolved invocation and the composed
-# toplevel drvPath, then exit before any disk work (it bypassed the booted-skadi
-# guard above so it runs on khion too). evaluating .drvPath does not build.
+# --print-target resolves drvPath without touching disks or building
 if [ "$PRINT_TARGET" = 1 ]; then
   if [ "${#DROP[@]}" -gt 0 ]; then
     echo "resolved: skadi-install $HOST --drop $DROP_CSV"
@@ -361,12 +330,11 @@ DISK_WARN_GIB=$(jq -r '.diskWarnGiB'                <<<"$TUNABLES")
 MAX_JOBS=$(jq -r '.maxJobs'                         <<<"$TUNABLES")
 CORES=$(jq -r '.cores'                              <<<"$TUNABLES")
 
-# disko: destroy + format + mount at /mnt.
-#    (older disko: swap the mode for `--mode disko`.)
+# disko destroys, formats, and mounts the target at /mnt
 lsblk
 warn "about to DESTROY and repartition the disk in modules/hosts/${HOST}/_nixos/disko.nix"
 if [ "${SKADI_INSTALL_UNATTENDED:-}" = 1 ]; then
-  # unattended: the harness has already committed to destroying this disk.
+  # unattended mode already committed to destroying this disk
   log "unattended: auto-confirming disk destroy for '$HOST'"
   confirm="$HOST"
 else
@@ -378,10 +346,8 @@ disko_wipe=()
 [ "$YES_WIPE" = 1 ] && disko_wipe=(--yes-wipe-all-disks)
 disko "${disko_wipe[@]}" --mode destroy,format,mount --flake ".#${HOST}"
 
-# generic: /mnt is now mounted, so generate hardware.nix from this machine and
-# stage it over the placeholder before the closure build reads it. disko owns the
-# filesystems so --no-filesystems; the generated file stays pure (no fileSystems,
-# no ttyS0/keyfile -- those live in the IN_DISKO_TEST-gated vm-test-hooks.nix).
+# generic generates hardware configuration after disko mounts the target.
+# disko owns filesystems and vm-test-hooks owns test-only boot settings.
 if [ "$HOST" = generic ]; then
   log "generic: generating hardware.nix from detected hardware"
   nixos-generate-config --no-filesystems --root "$MNT" --show-hardware-config > modules/hosts/generic/_nixos/hardware.nix || die "generic: nixos-generate-config failed"
@@ -389,8 +355,8 @@ if [ "$HOST" = generic ]; then
 fi
 
 # temporary build swap so a from-source compile can't oom-kill the install on a
-# lean-ram box. lix and notion-sync always build from source here; on 8-16g that
-# needs swap. placed on the target btrfs (no-cow via mkswapfile) and torn down on exit.
+# lean-ram box. lix builds from source here; on 8-16g that needs swap. placed on
+# the target btrfs (no-cow via mkswapfile) and torn down on exit.
 SWAPFILE="$MNT/swapfile"
 STORE_RELOCATED=0
 teardown() {
@@ -423,20 +389,14 @@ fi
 # overlay over /nix/store with upper/work on /mnt, layered only over the squashfs
 # base (/nix/.ro-store).
 #
-# lowerdir MUST be the squashfs alone -- do not include the iso's tmpfs rw layer.
-# stacking it poisons root chown on the merged store: even full-cap root gets
-# EPERM chown'ing store files, which breaks `tar --same-owner` during rust
-# vendoring. the only thing in the tmpfs layer is post-boot writes (the flake
-# source disko copies in), which we migrate into the disk upper below before
-# mounting so the ram-resident nix db stays consistent.
+# lowerdir must contain only squashfs because the tmpfs layer breaks ownership.
+# migrate post-boot writes into the disk upper before replacing that layer.
 #
 # keeps the path literally /nix/store, i.e. non-diverted, so build and eval share
 # one store (no unsigned cross-store copy, gitTracked stays git-aware).
 STORE_RW="$MNT/nix-build-rw"
 mkdir -p "$STORE_RW/store" "$STORE_RW/work"
-# canonical /nix/store perms so the daemon's nixbld builders can write the merged
-# store: overlayfs takes the upperdir's mode for the merged dir, so setting it on
-# the disk upper is what the daemon and its build users see after the mount.
+# preserve canonical store permissions on the merged overlay
 chown root:nixbld "$STORE_RW/store"
 chmod 1775 "$STORE_RW/store"
 # carry over post-boot tmpfs writes, crucially the flake source disko registered
@@ -469,9 +429,7 @@ systemctl restart nix-daemon
 mkdir -p "$MNT/nix-build-tmp"
 log "daemon build scratch -> $MNT/nix-build-tmp (on target disk, not tmpfs)"
 
-# Host keys -> /persist. The disposable vm test uses the harness-generated,
-# per-run identity that encrypts its generated fixture. Every other host keeps
-# the ordinary fresh-key provisioning flow.
+# persist harness keys for vm tests and generate fresh keys for real hosts
 install -d -m0755 "$MNT/persist/etc/ssh"
 VM_TEST_IDENTITY=0
 VM_TEST_IDENTITY_DIR="${SKADI_VM_TEST_IDENTITY_DIR:-}"
@@ -648,8 +606,7 @@ assert_vm_test_identity() {
   [ "$runtime_pub" = "$expected_pub" ] \
     || die "vm test runtime identity does not match its public key"
 
-  # The public test identity must never be a recipient of real encrypted files
-  # or real creation rules. The real files must also remain byte-untouched.
+  # keep the disposable test identity out of real encrypted material
   if grep -R -Fq -- "$AGE_RECIP" .sops.yaml secrets; then
     die "SECURITY INVARIANT: vm test recipient appears in real SOPS material"
   fi
@@ -665,17 +622,15 @@ assert_vm_test_identity() {
   rm -f "$current_real_sops"
 
   actual_names="$(eval_target .config.sops.secrets | jq -c 'keys | sort')"
-  [ "$actual_names" = '["feltfomo-password","notion-token"]' ] \
-    || die "vm test identity expected exactly feltfomo-password + notion-token; got $actual_names"
+  [ "$actual_names" = '["feltfomo-password"]' ] \
+    || die "vm test identity expected exactly feltfomo-password; got $actual_names"
 
   fixture_hash="$(sha256sum "$VM_TEST_FIXTURE" | awk '{print $1}')"
-  for name in feltfomo-password notion-token; do
-    configured_file="$(eval_target ".config.sops.secrets.\"${name}\".sopsFile" | jq -r .)"
-    [ -f "$configured_file" ] || die "$name effective sopsFile is missing"
-    configured_hash="$(sha256sum "$configured_file" | awk '{print $1}')"
-    [ "$configured_hash" = "$fixture_hash" ] \
-      || die "$name does not resolve to the generated VM fixture"
-  done
+  configured_file="$(eval_target '.config.sops.secrets.\"feltfomo-password\".sopsFile' | jq -r .)"
+  [ -f "$configured_file" ] || die "feltfomo-password effective sopsFile is missing"
+  configured_hash="$(sha256sum "$configured_file" | awk '{print $1}')"
+  [ "$configured_hash" = "$fixture_hash" ] \
+    || die "feltfomo-password does not resolve to the generated VM fixture"
 
   age_key="$(mktemp)"
   chmod 0600 "$age_key"
@@ -683,9 +638,8 @@ assert_vm_test_identity() {
   decrypted="$(SOPS_AGE_KEY_FILE="$age_key" sops --decrypt --output-type json "$VM_TEST_FIXTURE")"
   rm -f "$age_key"
   jq -e '
-    (keys | sort) == ["feltfomo-password", "notion-token"]
+    (keys | sort) == ["feltfomo-password"]
     and .["feltfomo-password"] == "$6$skadivmtest$tp5BUeNDHy1miR21O7X2QXROL/yxzqnT9XeKJ4UKI.PpyYdkise0/iV58ErEoKs5SuKbvW/xy93Mzu3lQ2Fgf0"
-    and .["notion-token"] == "NOTION_TOKEN=REPLACE_ME"
   ' >/dev/null <<<"$decrypted" || die "vm test fixture plaintext failed invariant check"
   log "vm test identity assertions passed (per-run key, exact secret set, fixture decrypt, real secrets untouched)"
 }
@@ -701,23 +655,9 @@ fi
 install -d -m0755 "$MNT/persist/etc"
 rm -rf "$MNT/persist/etc/skadi"
 cp -a "$WORK" "$MNT/persist/etc/skadi"
-# build the closure with `nix build` first, then install it with
-# `nixos-install --system`. do NOT use `nixos-install --flake`: it copies the
-# flake + inputs into the target store (/mnt) and re-evaluates there, so upstream
-# hyprland's `src = fs.gitTracked ../.` runs against a .git-less /mnt copy and
-# hard-fails ("not a local working tree of a Git repository"). nix build evaluates
-# against the installer's own git-aware store and substitutes the desktop from the
-# trusted caches, so that branch never runs.
-#
-# the build goes through the daemon in the default non-diverted store (moved onto
-# the target disk by the relocation above): build and eval share one store so
-# gitTracked stays git-aware, and outputs land on /mnt not the iso's ram tmpfs so a
-# cold from-source build survives lean 8-16g machines. substituters live in
-# installer.nix; lix is not among them and builds from source every install (the
-# disk canary), as does the rest of the fleet closure.
-# disk resilience:
-#   * preflight: fail fast before the long build if the disk can't hold it.
-#   * min/max-free: nix gcs unneeded store paths mid-build when space gets tight.
+# build against the git-aware source, then install the prebuilt closure.
+# nixos-install --flake copies a gitless tree and breaks hyprland gitTracked.
+# the disk-backed store and gc thresholds protect cold builds from resource limits.
 avail_gib=$(( $(df -B1 --output=avail "$MNT" | tail -1) / 1024 / 1024 / 1024 ))
 if [ "$avail_gib" -lt "$DISK_FLOOR_GIB" ]; then
   die "only ${avail_gib}G free on $MNT -- too small for the system closure (${DISK_FLOOR_GIB}G floor)."
@@ -725,16 +665,12 @@ elif [ "$avail_gib" -lt "$DISK_WARN_GIB" ]; then
   warn "only ${avail_gib}G free on $MNT -- ok for a cached install, tight for a COLD from-source build."
 fi
 log "disk preflight: ${avail_gib}G free on $MNT"
-MIN_FREE=$((MIN_FREE_GIB * 1024 * 1024 * 1024))    # below this, nix GCs mid-build
-MAX_FREE=$((MAX_FREE_GIB * 1024 * 1024 * 1024))    # GC target ceiling
+MIN_FREE=$((MIN_FREE_GIB * 1024 * 1024 * 1024))    # nix collects garbage below this threshold
+MAX_FREE=$((MAX_FREE_GIB * 1024 * 1024 * 1024))    # garbage collection target ceiling
 
 log "building system closure for $HOST onto the target disk (RAM-lean, cached)"
-# --max-jobs 1: serialize derivations so only one big source build holds scratch at
-#   a time (the pile-up + lix's doubled debuginfo target enospc'd the 100g vm).
-#   --cores 0 keeps each package on all cores; we only drop cross-package parallelism.
-# --min-free/--max-free: nix gcs unneeded store paths mid-build when disk is tight.
-# the build goes through the daemon with stock nixbld users and sandbox on, like
-# khion: that gives fods a real userns (pasta works) and keeps builds pure.
+# serialize derivations while retaining all cores within each package build.
+# gc thresholds protect disk space and sandboxed nixbld users keep builds pure.
 if ! SYS_PATH="$(build_target)"; then
   warn "system build FAILED -- disk / OOM post-mortem:"
   df -h "$MNT" / || true
@@ -746,5 +682,4 @@ log "installing prebuilt closure: $SYS_PATH"
 nixos-install --system "$SYS_PATH" --no-root-passwd
 
 log "OS install done. home repos clone themselves on first boot (bootstrap-repos)."
-log "reboot into $HOST, confirm login on a fresh tty, then run"
-log "'tailscale funnel --bg 8080' once for notion-sync webhooks."
+log "reboot into $HOST and confirm login on a fresh tty."

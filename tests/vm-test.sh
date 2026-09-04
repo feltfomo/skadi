@@ -3,8 +3,8 @@
 # unattended skadi-install, and confirm the result boots to a login prompt.
 # everything lives under ~/.cache/skadi-vm; the repo tree is never touched.
 #
-# the install runs cold on purpose: lix and notion-sync are uncached, so this
-# exercises the real worst case (a from-source build on a small box).
+# the install runs cold on purpose so this exercises the real worst case
+# of a from-source build on a small box.
 #
 # set -euo pipefail and PATH come from writeShellApplication. OVMF_FD comes from
 # the nix wrapper. the iso build reuses the caller's lix so the lix-dialect
@@ -14,7 +14,7 @@ CACHE="${SKADI_VM_CACHE:-$HOME/.cache/skadi-vm}"
 SSH_PORT=2222
 SSH_KEY="$CACHE/vm-test-key"
 
-# ssh subcommand: shell into the running vm
+# ssh subcommand for the running vm
 if [ "${1:-}" = ssh ]; then
   shift
   exec ssh -i "$SSH_KEY" -p "$SSH_PORT" \
@@ -110,7 +110,7 @@ if [ ! -f "$SSH_KEY" ]; then
   die "missing vm-test private key at $SSH_KEY
   -> place the dedicated throwaway private key there (chmod 600) and re-run.
      Its public half is in the installer's authorizedKeys; this key must never
-     live in the repo / notion-sync tree."
+     live in the repo."
 fi
 chmod 600 "$SSH_KEY" 2>/dev/null || true
 
@@ -129,10 +129,8 @@ shopt -u nullglob
 ISO="${isos[0]}"
 log "ISO: $ISO"
 
-# fresh disk needs fresh nvram. a stale OVMF_VARS still listing a previous
-# install's boot entry (pointing at a gone disk guid) makes the firmware try the
-# empty disk or pxe instead of the iso: the "failed to load NixOS-boot / Not
-# Found" hang.
+# fresh disks need fresh nvram variables.
+# stale boot entries can send firmware to an empty disk instead of the iso.
 if [ "$RESET" = 1 ]; then rm -f "$DISK_IMG"; fi
 fresh_disk=0
 if [ ! -f "$DISK_IMG" ]; then
@@ -206,19 +204,9 @@ fi
 # cold-from-source comes from the iso's own nix settings, not from here.
 log "driving unattended 'skadi-install $HOST' (cold, from source) ..."
 log "install log -> $INSTALL_LOG"
-# IN_DISKO_TEST=1 is disko's own hook: its luks script keys the cryptroot slot
-# with the deterministic passphrase `disko` (--key-file <(echo -n ..), no trailing
-# newline) instead of prompting on a tty we don't have. the installed vm host
-# embeds a byte-identical keyfile in its initrd, so the disk auto-unlocks on the
-# post-install boot and the harness can watch for a login prompt. vm-only: real
-# skadi-install runs never set it, so khion keeps its passphrase.
-# feed every mkpasswd secret on this host the deterministic test hash, derived
-# from the host's own config, so generic gets owner-password, khion gets
-# feltfomo-password, and any future host gets whatever it declares. only
-# method == "mkpasswd" secrets are forced; paste/optional ones self-placeholder
-# when unset. env var names match skadi-install: SKADI_SECRET_<NAME>, uppercased,
-# '-' -> '_'. evaluated against $FLAKE; a --drop run's secret set is only ever a
-# subset, so any extra env var is ignored.
+# disko uses IN_DISKO_TEST=1 to enroll the deterministic vm key without a newline.
+# the installed vm carries the matching initrd keyfile for unattended boot.
+# every mkpasswd secret receives the deterministic test hash through its env var.
 log "resolving mkpasswd secrets for '$HOST' from its config"
 mkpasswd_secrets="$(nix eval --raw "${FLAKE}#nixosConfigurations.${HOST}.config.skadi.provision.secrets" \
   --apply 's: builtins.concatStringsSep "\n" (builtins.filter (n: (builtins.getAttr n s).method == "mkpasswd") (builtins.attrNames s))')" \
@@ -234,8 +222,7 @@ while IFS= read -r secret; do
 done <<SECRETS
 $mkpasswd_secrets
 SECRETS
-# No identity directory is supplied here: skadi-install creates the standalone
-# test's disposable host identity and encrypted fixture inside its throwaway clone.
+# skadi-install creates a disposable identity when none is supplied
 # shellcheck disable=SC2090
 remote="env IN_DISKO_TEST=1 SKADI_INSTALL_UNATTENDED=1${SECRET_ENV} skadi-install '${HOST}'"
 if [ -n "$DROP" ]; then
@@ -256,12 +243,8 @@ log "booting the installed disk (no ISO) to verify $HOST comes up ..."
 qemu-system-x86_64 "${QEMU_COMMON[@]}" -boot order=cd &
 QEMU_PID=$!
 
-# Serial markers are diagnostic only: a console can be quiet while the system is
-# healthy, and a login prompt can appear before required services settle. Prove
-# the installed system over its test-only SSH identity, then require systemd to
-# settle with no substantive failed units. Short-lived root SSH probes can leave
-# failed session scopes behind; those transport artifacts are ignored only after
-# the required Home Manager and Furnish services are proved active.
+# verify the installed system through ssh rather than serial output.
+# ignore failed session scopes only after required services are active.
 log "waiting for the installed $HOST to accept ssh on :$SSH_PORT ..."
 installed_ssh=0
 for ((i = 0; i < 120; i++)); do

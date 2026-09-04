@@ -18,7 +18,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # CachyOS kernels plus their binary cache and NixOS overlay.
+    # cachyos kernels with their binary cache and nixos overlay
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     # temporary logseq's buildPhase hangs on nixos-unstable until the yauzl fix
     # (nixpkgs #536292) reaches that branch; pull logseq from master meanwhile.
@@ -107,16 +107,13 @@
       flake = false;
     };
     mcp-proxy = {
-      # nixpkgs still ships 0.10.0; 0.12.0 carries the current MCP transport stack.
-      url = "github:sparfenyuk/mcp-proxy/v0.12.0";
+      # each mcp session receives its own stdio child through the http bridge.
+      url = "github:punkpeye/mcp-proxy/88ebe4aa6115d39bd27832c60a112cca277e8405";
       flake = false;
     };
+    serena.url = "github:oraios/serena/801a388c2b7a6a8998f313291678b1609664e794";
     sops-nix = {
       url = "github:Mic92/sops-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    notion-sync = {
-      url = "github:feltfomo/notion-sync";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     treefmt-nix = {

@@ -1,7 +1,7 @@
 # throwaway vm host for testing the installer end-to-end in qemu without touching
 # real hardware. same disko/luks/impermanence/sops flow as the real hosts, but the
 # disk is /dev/vda (virtio) and there's no nvidia/steam/gpu.
-# install from the ISO with:  skadi-install vm
+# install from the iso with `skadi-install vm`
 { den, inputs, ... }:
 {
   den.hosts.x86_64-linux.vm = {
@@ -11,7 +11,6 @@
   den.aspects.vm = {
     includes = with den.aspects; [
       base # system + impermanence + sops + graalvm + thunar
-      notion-sync # exercises the notion-token secret + mappings
     ];
 
     nixos.imports = [
@@ -22,9 +21,7 @@
       ./_nixos/test-identity.nix
     ];
 
-    # bootloader relocated out of the universal system aspect (khion/lumi now
-    # own theirs). the installer-test vm keeps the previous universal GRUB
-    # unchanged so it still boots end-to-end in qemu.
+    # keep the vm bootloader local so installer tests boot end-to-end in qemu.
     nixos.boot.loader = {
       grub = {
         enable = true;

@@ -1,23 +1,15 @@
 { config, lib, ... }:
 let
   fixture = ../secrets.yaml;
-  expectedSecrets = [
-    "feltfomo-password"
-    "notion-token"
-  ];
+  expectedSecrets = [ "feltfomo-password" ];
   actualSecrets = lib.sort builtins.lessThan (builtins.attrNames config.sops.secrets);
 in
 {
-  # Disposable-VM-only SOPS fixture, generated afresh by the golden harness.
-  # Its throwaway recipient must never enter real creation rules or host config.
-  sops.secrets = {
-    "feltfomo-password".sopsFile = lib.mkForce fixture;
-    "notion-token".sopsFile = lib.mkForce fixture;
-  };
+  # the harness generates this disposable vm-only sops fixture.
+  # its throwaway recipient must never enter real rules or host configuration.
+  sops.secrets."feltfomo-password".sopsFile = lib.mkForce fixture;
 
-  # The installer ISO already trusts this public half for the harness's
-  # transport key. Keep the same test-only key on the installed VM so the
-  # first-boot and overlay proofs can reconnect after the ISO is removed.
+  # keep the harness transport key on the installed vm for first-boot checks.
   services.openssh = {
     enable = true;
     settings = {
@@ -32,13 +24,11 @@ in
   assertions = [
     {
       assertion = actualSecrets == expectedSecrets;
-      message = "vm test identity requires exactly feltfomo-password and notion-token";
+      message = "vm test identity requires exactly feltfomo-password";
     }
     {
-      assertion =
-        toString config.sops.secrets."feltfomo-password".sopsFile == toString fixture
-        && toString config.sops.secrets."notion-token".sopsFile == toString fixture;
-      message = "vm secrets must use only the generated VM test fixture";
+      assertion = toString config.sops.secrets."feltfomo-password".sopsFile == toString fixture;
+      message = "vm secrets must use only the generated vm test fixture";
     }
   ];
 }

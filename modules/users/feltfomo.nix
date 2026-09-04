@@ -68,9 +68,6 @@
             "docker"
             "ydotool"
           ];
-          # notion-sync must start before the first login
-          linger = true;
-
           # system.nix disables password auth, so khion uses feltfomo's github key
           openssh.authorizedKeys.keys = [
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINKAWZ+4L7E0osgTA8eybrsmUoTUtBSzEaE4ytD+rcPO 241195017+feltfomo@users.noreply.github.com"

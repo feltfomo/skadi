@@ -1,13 +1,12 @@
-# first-boot bootstrap: clone the wallpaper repo + notion-sync mapping repos into
-# feltfomo's home if missing. runs as the user on the booted system, so paths
-# resolve in the real namespace (no impermanence bind-mount guessing) and
-# ownership is correct with no chown. self-healing: re-clones anything deleted.
+# first-boot bootstrap clones the wallpaper and project repos into feltfomo's
+# home if missing. it runs as the user on the booted system, so paths resolve in
+# the real namespace and ownership is correct with no chown. deleted repos are
+# cloned again on the next start.
 _: {
   den.aspects.bootstrap-repos.homeManager =
     { pkgs, lib, ... }:
     let
       repos = {
-        "Projects/notion-sync".url = "https://github.com/feltfomo/notion-sync";
         "Projects/multiloader-template".url = "https://github.com/feltfomo/multiloader-template";
         # this repo wraps its images in an inner Wallpapers/ dir; promote that
         # subdir so they land flat at ~/Wallpapers, not ~/Wallpapers/Wallpapers.
@@ -35,7 +34,7 @@ _: {
                 if [ ! -e "$dest/.git" ]; then
                   mkdir -p "$(dirname "$dest")"
                   # user services can't reliably wait on the system network-online
-                  # target (and feltfomo lingers), so retry instead of failing early.
+                  # target, so retry instead of failing early.
                   for attempt in $(seq 1 30); do
                     echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
                     if git clone "${url}" "$dest"; then
@@ -80,17 +79,13 @@ _: {
     {
       systemd.user.services.bootstrap-repos = {
         Unit = {
-          Description = "Clone wallpaper + notion-sync mapping repos if missing";
+          Description = "Clone wallpaper and project repos if missing";
           Wants = [ "network-online.target" ];
           After = [ "network-online.target" ];
         };
         Service = {
-          # Home Manager starts newly enabled user units while reloadSystemd is
-          # still inside home-manager-feltfomo.service. A retrying oneshot makes
-          # that activation wait for every clone and hit its five-minute system
-          # timeout when the network is unavailable. Type=exec acknowledges the
-          # successful process launch immediately while the bootstrap continues
-          # independently under the user manager.
+          # type exec lets activation continue after bootstrap starts.
+          # the user manager owns retries without blocking home manager.
           Type = "exec";
           ExecStart = "${bootstrap}/bin/bootstrap-repos";
         };

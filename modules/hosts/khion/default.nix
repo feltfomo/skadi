@@ -12,13 +12,10 @@
       cpuid-hypervisor
       docker
       desktop-commander-mcp
-      github-mcp
       gpu-nvidia
       performance
       networking
-      notion-sync
       steam
-      tailscale
       wayland
       noctalia-greeter
     ];
