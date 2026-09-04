@@ -23,6 +23,9 @@
         inputs.lix-module.nixosModules.default
       ];
 
+      # fleet disk layouts do not use zfs
+      boot.zfs.forceImportRoot = false;
+
       # home-manager runs inside the system, sharing pkgs and overlays
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;

@@ -61,6 +61,7 @@
         inputs.lix-module.nixosModules.default
       ];
 
+      boot.zfs.forceImportRoot = false;
       networking.hostName = "skadi-installer";
 
       # networkmanager so nmtui works for the laptop; lan is automatic. no wifi psk
