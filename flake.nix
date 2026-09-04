@@ -80,18 +80,11 @@
       flake = false;
     };
     den.url = "github:denful/den/v0.18.0";
-    # the extracted frameworks. one axiom across the whole closure, so krisis's
-    # and lexicon's schemas are the same values instead of two copies that
-    # merely look alike.
-    axiom.url = "github:feltfomo/axiom-nix";
-    krisis = {
-      url = "github:feltfomo/krisis";
-      inputs.axiom.follows = "axiom";
-    };
+    # lexicon owns axiom, krisis, and the furnish coordinator.
+    # consumers align only its nixpkgs input with the host configuration.
     lexicon = {
       url = "github:feltfomo/lexicon";
-      inputs.axiom.follows = "axiom";
-      inputs.krisis.follows = "krisis";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
     hermes-agent = {
       # pinned to a tagged release instead of the moving main branch
@@ -164,29 +157,14 @@
   outputs =
     inputs:
     inputs.flake-parts.lib.mkFlake { inherit inputs; } (
-      {
-        lib,
-        den,
-        ...
-      }:
+      { den, ... }:
       let
-        # the frameworks are external tools now. each is a function of its
-        # dependencies, so skadi supplies lib and the shared axiom rather than
-        # any of them pinning a nixpkgs on this config's behalf.
-        axiom = inputs.axiom.lib.axiom { inherit lib; };
-        krisis = inputs.krisis.lib.krisis { inherit lib axiom; };
-        ownerships = inputs.lexicon.lib.ownerships { inherit lib krisis axiom; };
+        # lexicon binds its own framework dependencies behind the public api.
+        ownerships = inputs.lexicon.lib.ownerships { };
         # the ownerships surface bound to the fleet roster, read once through
-        # the one sanctioned den touch-site so program.nix (and any future
-        # aspect) reach it the same way resolve/resolveSystem already do.
-        denApi = inputs.lexicon.lib.den {
-          inherit
-            den
-            lib
-            krisis
-            axiom
-            ;
-        };
+        # the one sanctioned den touch-site so program.nix and future aspects
+        # reach it through the same resolve doors.
+        denApi = inputs.lexicon.lib.den { inherit den; };
         # whole-fleet roster over every system in den.hosts, not the flake-parts
         # systems list below (which only scopes perSystem devshells).
         inherit (denApi) roster;
@@ -216,9 +194,6 @@
             ;
           program = inputs.lexicon.lib.program {
             inherit
-              lib
-              krisis
-              axiom
               resolve
               resolveSystem
               resolvePrepared
@@ -227,7 +202,7 @@
           };
           # applied once here so an aspect that owns a furnish option imports the
           # runtime module instead of re-deriving it.
-          furnishRuntime = inputs.lexicon.lib.furnishRuntime { inherit krisis axiom; };
+          furnishRuntime = inputs.lexicon.lib.furnishRuntime { };
           inherit denApi;
         };
       }
