@@ -142,24 +142,25 @@
           vlc
           grim
           slurp
-          brave
           satty
           heroic
-          sgdboop
+          nixfmt
+          devenv
           gifski
           zenity
           nushell
-          spotatui
           python3
           lazygit
-          devenv
           equibop
+          sgdboop
+          spotatui
           hyprshot
           obsidian
           grimblast
           superfile
           librewolf
           tesseract
+          tty-clock
           alejandra
           proton-vpn
           winetricks
@@ -168,6 +169,7 @@
           qbittorrent
           tor-browser
           imagemagick
+          brave-origin
           appimage-run
           osu-lazer-bin
           jetbrains.idea
