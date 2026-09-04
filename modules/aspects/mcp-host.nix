@@ -636,7 +636,7 @@
         };
         ngrokRunner = pkgs.writeShellScript "run-mcp-host-ngrok" ''
           export NGROK_AUTHTOKEN="$(cat "$CREDENTIALS_DIRECTORY/authtoken")"
-          exec ${pkgs.ngrok}/bin/ngrok http 8087 --url "${ngrokDomain}" --host-header=rewrite
+          exec ${pkgs.ngrok}/bin/ngrok http 8087 --url "${ngrokDomain}"
         '';
       in
       {
