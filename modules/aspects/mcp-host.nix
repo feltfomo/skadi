@@ -29,6 +29,8 @@
         allowedDirectories = [
           "/home/feltfomo/Projects/axiom-nix"
           "/home/feltfomo/Projects/lexicon"
+          "/home/feltfomo/Projects/krisis"
+          "/home/feltfomo/Projects/furnish-coordinator"
           "/etc/skadi"
           "/home/feltfomo/Projects/rime"
           projectRoot
