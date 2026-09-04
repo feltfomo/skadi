@@ -59,7 +59,7 @@ let
           hyprctlPkg
           pulseaudio
         ];
-        text = builtins.readFile ../../scripts/audio-opacity.sh;
+        text = builtins.readFile ../../../scripts/audio-opacity.sh;
       };
     in
     {
