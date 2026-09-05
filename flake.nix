@@ -52,10 +52,6 @@
       inputs.hyprland.follows = "hyprland";
       url = "github:fedsfarm/gloview";
     };
-    hermes-agent = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:NousResearch/hermes-agent/v2026.6.5";
-    };
     home-manager = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:nix-community/home-manager";
