@@ -20,7 +20,6 @@
           gedit
           gnome-characters
           gnome-music
-          gnome-photos
           gnome-terminal
           gnome-tour
           hitori

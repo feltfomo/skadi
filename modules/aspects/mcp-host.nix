@@ -1,5 +1,18 @@
 { inputs, ... }:
 {
+  flake-file.inputs = {
+    desktop-commander = {
+      url = "github:wonderwhy-er/DesktopCommanderMCP/e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9";
+      flake = false;
+    };
+    mcp-proxy = {
+      # each mcp session receives its own stdio child through the http bridge.
+      url = "github:punkpeye/mcp-proxy/88ebe4aa6115d39bd27832c60a112cca277e8405";
+      flake = false;
+    };
+    serena.url = "github:oraios/serena/801a388c2b7a6a8998f313291678b1609664e794";
+  };
+
   den.aspects.desktop-commander-mcp = {
     persistence.directories = [
       "/var/lib/desktop-commander-mcp"

@@ -5,6 +5,11 @@
   ...
 }:
 {
+  flake-file.inputs.niri = {
+    url = "github:epireyn/niri-flake";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   den.aspects.niri = program {
     hosts = [
       "khion"

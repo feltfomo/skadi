@@ -4,6 +4,8 @@
   ...
 }:
 {
+  flake-file.inputs.den.url = "github:denful/den/v0.18.0";
+
   imports = [ inputs.den.flakeModule ];
 
   # home-manager owns packages and program modules

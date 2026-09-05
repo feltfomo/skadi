@@ -30,10 +30,10 @@
 
       services.printing.enable = true;
 
-      services.journald.extraConfig = ''
-        SystemMaxUse=1G
-        SystemKeepFree=10G
-      '';
+      services.journald.settings.Journal = {
+        SystemMaxUse = "1G";
+        SystemKeepFree = "10G";
+      };
       systemd.coredump.settings.Coredump = {
         MaxUse = "512M";
         KeepFree = "10G";

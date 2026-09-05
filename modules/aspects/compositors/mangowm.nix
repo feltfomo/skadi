@@ -5,6 +5,11 @@
   ...
 }:
 {
+  flake-file.inputs.mango = {
+    url = "github:mangowm/mango";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   # vm excluded. the installer-test VM doesn't need a compositor
   # closure. coexists with hyprland, not a replacement.
   den.aspects.mangowm = program {

@@ -5,6 +5,19 @@
   ...
 }:
 {
+  flake-file.inputs = {
+    # temporary transport override while git.outfoxxed.me is unavailable
+    quickshell = {
+      url = "github:quickshell-mirror/quickshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    caelestia = {
+      url = "github:caelestia-dots/shell";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.quickshell.follows = "quickshell";
+    };
+  };
+
   den.aspects.caelestia = program {
     imports = [
       inputs.caelestia.homeManagerModules.default

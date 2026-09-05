@@ -1,5 +1,8 @@
 { inputs, furnishRuntime, ... }:
 {
+  # impermanence declares no nixpkgs input, so there is nothing to follow.
+  flake-file.inputs.impermanence.url = "github:nix-community/impermanence";
+
   den.aspects.impermanence.nixos =
     {
       config,

@@ -4,6 +4,34 @@
   ...
 }:
 {
+  flake-file = {
+    inputs = {
+      # temporary logseq pin until nixpkgs #536292 reaches unstable
+      nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
+      illogical-impulse-shell = {
+        url = "github:feltfomo/illogical-impulse-shell-nix";
+        inputs.nixpkgs.follows = "nixpkgs";
+      };
+      noctalia = {
+        url = "github:noctalia-dev/noctalia";
+        inputs.nixpkgs.follows = "nixpkgs";
+      };
+      zen-browser = {
+        url = "github:0xc000022070/zen-browser-flake";
+        inputs = {
+          nixpkgs.follows = "nixpkgs";
+          home-manager.follows = "home-manager";
+        };
+      };
+    };
+    nixConfig = {
+      extra-substituters = [ "https://noctalia.cachix.org" ];
+      extra-trusted-public-keys = [
+        "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+      ];
+    };
+  };
+
   den.aspects.feltfomo = {
     includes = with den.aspects; [
       den.batteries.define-user

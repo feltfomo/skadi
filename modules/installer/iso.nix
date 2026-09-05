@@ -6,6 +6,9 @@
 # iso-mode / ventoy break the by-label device (see frictions log #1).
 { inputs, ... }:
 {
+  # the installer keeps its own stable package set while the fleet tracks unstable.
+  flake-file.inputs.nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
+
   # installer pins to stable 26.05 while the fleet tracks unstable. den's per-host
   # instantiate is meant to be overridden for exactly this. output still lands at
   # nixosConfigurations.installer.

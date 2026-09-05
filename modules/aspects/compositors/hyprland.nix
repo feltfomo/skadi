@@ -78,6 +78,23 @@ let
     };
 in
 {
+  flake-file = {
+    inputs = {
+      # gloview targets this compositor's plugin api and shares its exact abi.
+      hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
+      gloview = {
+        url = "github:fedsfarm/gloview";
+        inputs.hyprland.follows = "hyprland";
+      };
+    };
+    nixConfig = {
+      extra-substituters = [ "https://hyprland.cachix.org" ];
+      extra-trusted-public-keys = [
+        "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+      ];
+    };
+  };
+
   den.aspects.hyprland = program {
     hosts = [
       "khion"

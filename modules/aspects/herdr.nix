@@ -5,6 +5,11 @@
   ...
 }:
 {
+  flake-file.inputs.llm-agents = {
+    url = "github:numtide/llm-agents.nix";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   # theme.output = whole config.toml, herdr can't split files
   den.aspects.herdr = program {
     pkg = pkgs: inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr;

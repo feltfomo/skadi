@@ -5,6 +5,11 @@
   ...
 }:
 {
+  flake-file.inputs.dms = {
+    url = "github:AvengeMedia/DankMaterialShell";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   den.aspects.dms = program {
     hosts = [
       "khion"

@@ -1,210 +1,149 @@
+# DO-NOT-EDIT. This file was auto-generated using github:vic/flake-file.
+# Use `nix run .#write-flake` to regenerate it.
 {
   description = "skadi";
 
+  outputs = inputs: import ./outputs.nix inputs;
+
   nixConfig = {
     extra-substituters = [
-      "https://hyprland.cachix.org"
+      "https://noctalia.cachix.org"
       "https://walker.cachix.org"
       "https://walker-git.cachix.org"
-      "https://noctalia.cachix.org"
+      "https://hyprland.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+      "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
       "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
       "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
-      "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+      "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
     ];
   };
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    # cachyos kernels with their binary cache and nixos overlay
+    caelestia = {
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        quickshell.follows = "quickshell";
+      };
+      url = "github:caelestia-dots/shell";
+    };
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
-    # temporary logseq's buildPhase hangs on nixos-unstable until the yauzl fix
-    # (nixpkgs #536292) reaches that branch; pull logseq from master meanwhile.
-    # drop this input and revert feltfomo.nix once nixos-unstable has the fix.
-    nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
-    # stable pin for the reinstall ISO only (nixosConfigurations.installer),
-    # independent of the unstable channel the fleet tracks so the installer
-    # stays reproducible while the main config churns.
-    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
-    # gloview 0.3 targets the 0.56.2 plugin api and must share its exact abi
-    # keep the tag's dependency graph intact because forcing fleet nixpkgs mixes c++ runtimes
-    hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
-    # plugins must follow the compositor input exactly because the abi is unstable
-    gloview = {
-      url = "github:fedsfarm/gloview";
-      inputs.hyprland.follows = "hyprland";
+    den.url = "github:denful/den/v0.18.0";
+    desktop-commander = {
+      flake = false;
+      url = "github:wonderwhy-er/DesktopCommanderMCP/e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9";
     };
-    mango = {
-      url = "github:mangowm/mango";
+    disko = {
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    niri = {
-      url = "github:epireyn/niri-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nix-community/disko";
     };
     dms = {
+      inputs.nixpkgs.follows = "nixpkgs";
       url = "github:AvengeMedia/DankMaterialShell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    # temporary transport override while git.outfoxxed.me is unavailable
-    quickshell = {
-      url = "github:quickshell-mirror/quickshell";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    caelestia = {
-      url = "github:caelestia-dots/shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.quickshell.follows = "quickshell";
-    };
-    illogical-impulse-shell = {
-      url = "github:feltfomo/illogical-impulse-shell-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     elephant = {
+      inputs.nixpkgs.follows = "nixpkgs";
       url = "github:abenz1267/elephant";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
-    import-tree.url = "github:vic/import-tree";
+    flake-file.url = "github:denful/flake-file/v0.3.0";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    # impermanence only ships nixosModules and declares no nixpkgs input,
-    # so there is no nixpkgs for it to follow.
-    impermanence.url = "github:nix-community/impermanence";
-    spicetify-nix = {
-      url = "github:Gerg-L/spicetify-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    spicetify-lucid = {
-      url = "gitlab:sanoojes/spicetify-lucid?ref=main";
-      flake = false;
-    };
-    den.url = "github:denful/den/v0.18.0";
-    # lexicon owns axiom, krisis, and the furnish coordinator.
-    # consumers align only its nixpkgs input with the host configuration.
-    lexicon = {
-      url = "github:feltfomo/lexicon";
-      inputs.nixpkgs.follows = "nixpkgs";
+    gloview = {
+      inputs.hyprland.follows = "hyprland";
+      url = "github:fedsfarm/gloview";
     };
     hermes-agent = {
-      # pinned to a tagged release instead of the moving main branch
-      url = "github:NousResearch/hermes-agent/v2026.6.5";
       inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:NousResearch/hermes-agent/v2026.6.5";
+    };
+    home-manager = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nix-community/home-manager";
+    };
+    hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
+    illogical-impulse-shell = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:feltfomo/illogical-impulse-shell-nix";
+    };
+    impermanence.url = "github:nix-community/impermanence";
+    import-tree.url = "github:vic/import-tree";
+    lexicon = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:feltfomo/lexicon";
+    };
+    lix = {
+      flake = false;
+      url = "https://git.lix.systems/lix-project/lix/archive/64c99ac9af9c83b66643f46e9c8e50ab9f5e6e58.tar.gz";
+    };
+    lix-module = {
+      inputs = {
+        lix.follows = "lix";
+        nixpkgs.follows = "nixpkgs";
+      };
+      url = "https://git.lix.systems/lix-project/nixos-module/archive/main.tar.gz";
     };
     llm-agents = {
-      url = "github:numtide/llm-agents.nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:numtide/llm-agents.nix";
     };
-    desktop-commander = {
-      url = "github:wonderwhy-er/DesktopCommanderMCP/e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9";
-      flake = false;
+    mango = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:mangowm/mango";
     };
     mcp-proxy = {
-      # each mcp session receives its own stdio child through the http bridge.
-      url = "github:punkpeye/mcp-proxy/88ebe4aa6115d39bd27832c60a112cca277e8405";
       flake = false;
+      url = "github:punkpeye/mcp-proxy/88ebe4aa6115d39bd27832c60a112cca277e8405";
+    };
+    niri = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:epireyn/niri-flake";
+    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
+    nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
+    noctalia = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:noctalia-dev/noctalia";
+    };
+    noctalia-greeter = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:noctalia-dev/noctalia-greeter";
+    };
+    quickshell = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:quickshell-mirror/quickshell";
     };
     serena.url = "github:oraios/serena/801a388c2b7a6a8998f313291678b1609664e794";
     sops-nix = {
-      url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:Mic92/sops-nix";
+    };
+    spicetify-lucid = {
+      flake = false;
+      url = "gitlab:sanoojes/spicetify-lucid?ref=main";
+    };
+    spicetify-nix = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:Gerg-L/spicetify-nix";
     };
     treefmt-nix = {
+      inputs.nixpkgs.follows = "nixpkgs";
       url = "github:numtide/treefmt-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    disko = {
-      url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    noctalia = {
-      url = "github:noctalia-dev/noctalia";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    noctalia-greeter = {
-      url = "github:noctalia-dev/noctalia-greeter";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    home-manager = {
-      url = "github:nix-community/home-manager";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    lix = {
-      # 2026-08-01's da4a2da evaluator corrupted multi-output string contexts.
-      url = "https://git.lix.systems/lix-project/lix/archive/64c99ac9af9c83b66643f46e9c8e50ab9f5e6e58.tar.gz";
-      flake = false;
-    };
-    lix-module = {
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/main.tar.gz";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.lix.follows = "lix";
     };
     walker = {
+      inputs = {
+        elephant.follows = "elephant";
+        nixpkgs.follows = "nixpkgs";
+      };
       url = "github:abenz1267/walker";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.elephant.follows = "elephant";
     };
     zen-browser = {
-      url = "github:0xc000022070/zen-browser-flake";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
         home-manager.follows = "home-manager";
+        nixpkgs.follows = "nixpkgs";
       };
+      url = "github:0xc000022070/zen-browser-flake";
     };
   };
 
-  # den drives the fleet, flake-parts kept for perSystem devshells
-  outputs =
-    inputs:
-    inputs.flake-parts.lib.mkFlake { inherit inputs; } (
-      { den, ... }:
-      let
-        # lexicon binds its own framework dependencies behind the public api.
-        ownerships = inputs.lexicon.lib.ownerships { };
-        # the ownerships surface bound to the fleet roster, read once through
-        # the one sanctioned den touch-site so program.nix and future aspects
-        # reach it through the same resolve doors.
-        denApi = inputs.lexicon.lib.den { inherit den; };
-        # whole-fleet roster over every system in den.hosts, not the flake-parts
-        # systems list below (which only scopes perSystem devshells).
-        inherit (denApi) roster;
-        resolve = ownerships.mkResolve roster;
-        # host-only sibling for system/nixos slices that own by host with no
-        # user in scope (hyprland's compositor). a distinct door from mkResolve
-        # so the user-scope contract stays byte-identical.
-        resolveSystem = ownerships.mkResolveSystem roster;
-        # prepared form used by program aspects to hoist the ctx-independent
-        # half of the pipeline out of the per-user slices.
-        resolvePrepared = ownerships.mkResolvePrepared roster;
-      in
-      {
-        imports = [ (inputs.import-tree ./modules) ];
-        systems = [ "x86_64-linux" ];
-        # rootPath, program, resolve, resolveSystem ride the same _module.args
-        # seam so every aspect gets them like lib. they stay pure libs -- no
-        # den plumbing on this path.
-        _module.args = {
-          rootPath = ./.;
-          inherit
-            resolve
-            resolveSystem
-            resolvePrepared
-            ownerships
-            roster
-            ;
-          program = inputs.lexicon.lib.program {
-            inherit
-              resolve
-              resolveSystem
-              resolvePrepared
-              ;
-            inherit (denApi) filePrincipals hostUserNames;
-          };
-          # applied once here so an aspect that owns a furnish option imports the
-          # runtime module instead of re-deriving it.
-          furnishRuntime = inputs.lexicon.lib.furnishRuntime { };
-          inherit denApi;
-        };
-      }
-    );
 }

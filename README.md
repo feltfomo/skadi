@@ -16,8 +16,9 @@ Den composes the fleet, Home Manager handles user configuration, and Lexicon han
 
 | Path | What lives there |
 | --- | --- |
-| `flake.nix` | Inputs, caches, Den wiring, and shared module arguments |
-| `modules/aspects/` | Reusable system and user features |
+| `flake.nix` | Generated input and cache manifest; never edit it directly |
+| `outputs.nix` | Flake outputs, Den wiring, and shared module arguments |
+| `modules/aspects/` | Reusable features with their owned flake inputs |
 | `modules/hosts/` | Host declarations, hardware, disks, bootloaders, and networking |
 | `modules/users/` | Accounts, Home Manager features, and user persistence |
 | `modules/installer/` | Installer ISO and temporary install-target composition |
@@ -28,10 +29,15 @@ Den composes the fleet, Home Manager handles user configuration, and Lexicon han
 
 ## Build and check
 
+Feature inputs and their cache metadata live beside the module that owns them through flake-file. After changing either, regenerate the committed manifest before formatting or checking:
+
 ```fish
+nix run --accept-flake-config .#write-flake
 nix fmt
-nix flake check -L
+nix flake check --accept-flake-config -L
 ```
+
+`flake.nix` is generated. Edit the declarations under `modules/` or the custom output wiring in `outputs.nix`, never the generated file itself.
 
 The full check builds both real hosts and runs the repository checks. Den currently emits an `unknown flake output 'denful'` warning; it is expected.
 

@@ -1,5 +1,7 @@
 { den, inputs, ... }:
 {
+  flake-file.inputs.chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
+
   den.hosts.x86_64-linux.khion = {
     users.feltfomo = { };
   };

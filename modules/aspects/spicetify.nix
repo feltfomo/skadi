@@ -4,6 +4,17 @@
   ...
 }:
 {
+  flake-file.inputs = {
+    spicetify-nix = {
+      url = "github:Gerg-L/spicetify-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    spicetify-lucid = {
+      url = "gitlab:sanoojes/spicetify-lucid?ref=main";
+      flake = false;
+    };
+  };
+
   den.aspects.spicetify.homeManager =
     { pkgs, ... }:
     let
