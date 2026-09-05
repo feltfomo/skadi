@@ -1,100 +1,73 @@
 # skadi
 
-A personal NixOS fleet built with [Den](https://github.com/denful/den), Home Manager, and a set of configuration frameworks this flake takes as inputs. One flake defines physical hosts, installer targets, users, reusable aspects, managed files, and the checks that keep them aligned.
+My NixOS fleet. One flake owns the machines, users, desktop features, installer, and the checks that keep them bootable.
+
+Den composes the fleet, Home Manager handles user configuration, and Lexicon handles program declarations and managed files. They are plumbing, not the point of the repository.
 
 ## Systems
 
-- **khion** — NVIDIA desktop with Wayland, gaming, impermanence, and the full `feltfomo` environment.
-- **lumi** — laptop with GNOME, `feltfomo`, and the restricted `grandpa` account.
-- **vm** — throwaway QEMU target for testing the installer, disk layout, secrets, and rollback flow.
-- **generic** — hardware-discovered installation target with a minimal `owner` account.
+- **khion** is the NVIDIA desktop, with Wayland, gaming, impermanence, and the full `feltfomo` environment.
+- **lumi** is the GNOME laptop, with `feltfomo` and a restricted family account.
+- **vm** is a disposable QEMU target for the complete installer and first-boot path.
+- **generic** discovers its disk and hardware during installation and starts with a minimal `owner` account.
 
-`khion` and `lumi` are the real machines. `vm` and `generic` exercise the same configuration and installation machinery without pretending to be additional fleet hardware.
+`khion` and `lumi` are real machines. `vm` and `generic` exist to prove the install path without gambling on either one.
 
-## How the configuration fits together
+## Layout
 
-Den defines the host and user roster and activates feature **aspects** from `modules/aspects/`. Host aspects own NixOS features; user aspects own Home Manager features. Machine-specific hardware, disk, boot, and networking facts stay under `modules/hosts/`.
-
-The machinery around those aspects lives in separate repositories, consumed as flake inputs:
-
-- **[lexicon](https://github.com/feltfomo/lexicon)** carries Program, Ownerships, Furnish, the Den integration, and Furnish's system-test harness. Program turns a compact package, file, directory, and template declaration into matching NixOS, Home Manager, and Furnish slices. Ownerships validates host and user claims, selects units for one context, and merges the surviving plain Nix values. Furnish describes managed files and directories; Lexicon owns its synthetic golden-VM and fail-closed lifecycle proofs.
-- **[furnish-coordinator](https://github.com/feltfomo/furnish-coordinator)** is the Rust reconciler that applies Furnish manifests onto the filesystem with ledger, recovery, and safety checks. Lexicon owns this input, so this flake never names it.
-- **[krisis](https://github.com/feltfomo/krisis)** provides structured diagnostic aggregation and safe rendering.
-- **[axiom](https://github.com/feltfomo/axiom-nix)** provides the schemas, registries, and phase laws the others validate against.
-
-The normal flow is:
-
-```text
-aspect declarations
-  → Program or explicit Ownerships units
-  → host/user selection and merge
-  → NixOS + Home Manager configuration
-  → Furnish manifests and coordinator reconciliation
-```
-
-Those frameworks are usable outside this repository and are not requirements for unrelated Nix configurations. Ownerships and its unit import helpers can also be used without Den.
-
-## Repository layout
-
-| Path | Purpose |
+| Path | What lives there |
 | --- | --- |
-| `flake.nix` | Inputs, caches, Den wiring, and shared module arguments. |
-| `modules/den.nix` | Den schema defaults and fleet module entry point. |
-| `modules/aspects/` | Reusable system and user features. |
-| `modules/hosts/` | Host declarations plus hardware, disk, boot, and networking facts. |
-| `modules/users/` | User declarations, account policy, Home Manager features, and persistence. |
-| `modules/checks/` | Parity check for this fleet's own hosts and users. |
-| `modules/flake/` | Per-system checks, development shells, and formatting wiring. |
-| `modules/installer/` | Installer ISO and installation-target composition. |
-| `modules/tools/` | Runnable flake applications and their Nix wrappers. |
-| `configs/` | Source configuration trees consumed by aspects and Program. |
-| `pkgs/` | Local package definitions and checked-in binary source inputs. |
-| `scripts/` | Production installer and runtime command bodies. |
-| `tests/` | Skadi-specific installer, fleet, and repository regression fixtures. |
-| `.github/workflows/ci.yml` | Repository CI. |
+| `flake.nix` | Inputs, caches, Den wiring, and shared module arguments |
+| `modules/aspects/` | Reusable system and user features |
+| `modules/hosts/` | Host declarations, hardware, disks, bootloaders, and networking |
+| `modules/users/` | Accounts, Home Manager features, and user persistence |
+| `modules/installer/` | Installer ISO and temporary install-target composition |
+| `modules/flake/` | Checks, development shells, and formatting |
+| `modules/tools/` | Runnable flake applications such as the VM test |
+| `configs/` | Configuration trees installed by feature aspects |
+| `scripts/` and `tests/` | Installer/runtime scripts and skadi-specific regression coverage |
 
-## Documentation
-
-Each framework documents itself in its own repository: [lexicon](https://github.com/feltfomo/lexicon/tree/main/docs), [furnish-coordinator](https://github.com/feltfomo/furnish-coordinator/tree/main/docs), [krisis](https://github.com/feltfomo/krisis/tree/main/docs), and [axiom](https://github.com/feltfomo/axiom-nix/tree/main/docs).
-
-Furnish compiler, runtime, golden-VM, and lifecycle validation lives in Lexicon under `tests/system/` and runs with `nix run .#furnish-coordinator-gate` from a clean Lexicon checkout. Skadi retains its separate `nix run .#vm-test` installer proof for fleet-specific installation, disk, secret, and rollback behavior.
-
-## Build and deploy
-
-Format and run the complete repository gate:
+## Build and check
 
 ```fish
 nix fmt
 nix flake check -L
 ```
 
-Test a host configuration without changing the boot default:
+The full check builds both real hosts and runs the repository checks. Den currently emits an `unknown flake output 'denful'` warning; it is expected.
 
-```fish
-sudo nixos-rebuild test --flake /etc/skadi#khion
-```
-
-Make the tested generation the boot default:
-
-```fish
-sudo nixos-rebuild switch --flake /etc/skadi#khion
-```
-
-Inspect a system closure before activation:
+Build khion without activating it:
 
 ```fish
 nix build .#nixosConfigurations.khion.config.system.build.toplevel
 nix store diff-closures /run/current-system ./result
 ```
 
-Replace `khion` with the intended real host. The VM and generic targets are driven through the installer and test tooling rather than deployed over a running physical machine.
+Test a generation before making it the boot default:
 
-## Operational notes
+```fish
+sudo nixos-rebuild test --flake /etc/skadi#khion
+sudo nixos-rebuild switch --flake /etc/skadi#khion
+```
 
-- `khion` uses impermanence and restores a blank root snapshot at boot. Anything that must survive belongs in the declared system or user persistence sets.
-- Never run Disko or the installer against a running host disk. Both are allowed to repartition storage.
-- Provision required SOPS secrets before rebuilding a new account or machine. Use `nixos-rebuild test` and confirm login from a fresh TTY before `switch`.
-- Secrets live outside the Notion synchronization surface. Do not add encrypted or decrypted secret material to synchronized mappings.
-- `nix fmt` runs the repository's configured formatting and static-analysis pipeline; a second pass should converge with no changes.
-- Updating a framework is `nix flake update lexicon` (or `axiom`, `krisis`) followed by the usual gate.
-- The `unknown flake output 'denful'` warning is expected from the current Den integration.
+Use the intended real host name in place of `khion`.
+
+## Installer
+
+`skadi-install <host>` runs the destructive install path from the installer ISO. With no host on a TTY it opens the host and aspect picker. `--drop` removes selected top-level aspects from that install without editing the committed host.
+
+The end-to-end VM gate builds the ISO, installs onto a disposable encrypted disk, removes the ISO, and waits for the installed system to settle:
+
+```fish
+nix run .#vm-test -- --host vm
+```
+
+Never run Disko or `skadi-install` against a running host. Both are allowed to repartition disks.
+
+## Operational constraints
+
+- Khion restores a blank root snapshot at every boot. Persistent state must be declared under system or user persistence before anything relies on it.
+- SOPS secrets must exist before rebuilding a new account or machine. Test login from a fresh TTY before switching the boot generation.
+- Desktop Commander hosts the remote MCP tools on khion behind one authenticated gateway. Git, secrets, and privileged activation stay outside that service.
+- Lexicon owns Axiom, Krisis, and Furnish Coordinator. Skadi consumes only the Lexicon input and updates it with `nix flake update lexicon`.
+- Installer artifacts belong under `~/.cache/skadi-vm`, not in this repository.
