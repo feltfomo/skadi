@@ -3,18 +3,18 @@
     programs.tealdeer.enable = true;
 
     home.packages = with pkgs; [
-      fd
-      eza
-      ripgrep
-      dust
-      duf
-      procs
-      sd
       hyperfine
-      xh
-      ouch
-      jq
       libnotify
+      ripgrep
+      procs
+      dust
+      ouch
+      eza
+      duf
+      fd
+      sd
+      xh
+      jq
     ];
   };
 }

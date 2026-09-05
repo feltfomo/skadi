@@ -14,11 +14,11 @@
 
   den.aspects.shell = {
     includes = with den.aspects; [
-      fish
-      bat
+      fastfetch
       btop
       cava
-      fastfetch
+      fish
+      bat
     ];
 
     homeManager.programs.nix-your-shell = {

@@ -9,7 +9,6 @@
       nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
       import-tree.url = "github:vic/import-tree";
       flake-parts.url = "github:hercules-ci/flake-parts";
-      # lexicon owns the shared ownership and program framework.
       lexicon = {
         url = "github:feltfomo/lexicon";
         inputs.nixpkgs.follows = "nixpkgs";
