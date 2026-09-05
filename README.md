@@ -41,21 +41,24 @@ nix flake check --accept-flake-config -L
 
 The full check builds both real hosts and runs the repository checks. Den currently emits an `unknown flake output 'denful'` warning; it is expected.
 
-Build khion without activating it:
+The preferred host interface is den's generated `nh` wrapper. `modules/flake/devshells.nix` exposes `den.lib.nh.denPackages { fromFlake = true; } pkgs` through `perSystem.packages`, so each host is runnable by name:
+
+```fish
+nix run .#khion
+nix run .#khion -- switch
+nix run .#khion -- switch --dry
+```
+
+With no action, the wrapper builds the host. `switch` activates it through `nh os`, and ordinary `nh` flags can follow the action. Use the intended real host name in place of `khion`.
+
+For an explicit closure comparison before switching:
 
 ```fish
 nix build .#nixosConfigurations.khion.config.system.build.toplevel
 nix store diff-closures /run/current-system ./result
 ```
 
-Test a generation before making it the boot default:
-
-```fish
-sudo nixos-rebuild test --flake /etc/skadi#khion
-sudo nixos-rebuild switch --flake /etc/skadi#khion
-```
-
-Use the intended real host name in place of `khion`.
+Direct `sudo nixos-rebuild ... --flake /etc/skadi#khion` remains a recovery fallback when the wrapper cannot run.
 
 ## Installer
 
