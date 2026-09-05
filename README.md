@@ -2,8 +2,7 @@
 
 My NixOS fleet. One flake owns the machines, users, desktop features, installer, and the checks that keep them bootable.
 
-Den composes the fleet, Home Manager handles user configuration, and Lexicon handles program declarations and managed files. They are plumbing, not the point of the repository.
-
+Den composes the fleet, Home Manager handles user configuration, and Lexicon handles program declarations and managed files.
 ## Systems
 
 - **khion** is the NVIDIA desktop, with Wayland, gaming, impermanence, and the full `feltfomo` environment.
