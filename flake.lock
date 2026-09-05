@@ -35,16 +35,14 @@
     },
     "axiom": {
       "inputs": {
-        "flake-parts": "flake-parts_2",
-        "nixpkgs": "nixpkgs_4",
-        "treefmt-nix": "treefmt-nix_2"
+        "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1786228544,
-        "narHash": "sha256-ZhD292Zh7XPkqTXGTODVzWTl8mHmRfx70eSTR0m5Cfg=",
+        "lastModified": 1788630075,
+        "narHash": "sha256-eCsHSpBp6JgGS6BZdfkUbRwejrLPm0an/u35YQi2jyw=",
         "owner": "feltfomo",
         "repo": "axiom-nix",
-        "rev": "c0dfc9ddb7b6dab0749aae4432ab45d09c1b2066",
+        "rev": "d56208631f0b89b8ff0a115105ad385017aaef23",
         "type": "github"
       },
       "original": {
@@ -1118,11 +1116,11 @@
         "treefmt-nix": "treefmt-nix_5"
       },
       "locked": {
-        "lastModified": 1788630059,
-        "narHash": "sha256-4Dck5GneevqzLoo51p7t8/T89aT5YERWoL4prfRMVF0=",
+        "lastModified": 1788630495,
+        "narHash": "sha256-NxnvY9GZUyzYRHs+3g49606GbSdEv7Zvg8qOeuzui2Y=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "8e40fa106380e38315bdbe30c44b234a63353c4a",
+        "rev": "4d1069fc5f691b896a136c754c0dd2cd553b69e7",
         "type": "github"
       },
       "original": {
