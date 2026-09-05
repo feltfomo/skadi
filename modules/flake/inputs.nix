@@ -14,11 +14,6 @@
         url = "github:feltfomo/lexicon";
         inputs.nixpkgs.follows = "nixpkgs";
       };
-      # hermes remains a fleet-level input until its owning aspect lands.
-      hermes-agent = {
-        url = "github:NousResearch/hermes-agent/v2026.6.5";
-        inputs.nixpkgs.follows = "nixpkgs";
-      };
       # host and installer disk layouts share the same disko module.
       disko = {
         url = "github:nix-community/disko";
