@@ -41,9 +41,6 @@
 
       security.sudo.wheelNeedsPassword = true;
 
-      # audio. pipewire replaces pulseaudio; the pulse shim is what provides
-      # pactl, which the steam runtime shells out to -- without it steam logged
-      # "pactl command not found" and skipped audio device setup.
       services.pulseaudio.enable = false;
       security.rtkit.enable = true;
       services.pipewire = {
@@ -53,17 +50,12 @@
         pulse.enable = true;
       };
 
-      # bluetooth. /var/lib/bluetooth is already in the impermanence persist
-      # list, so pairings were meant to survive the rollback -- but the radio
-      # itself was never turned on. blueman is the manager for the hyprland
-      # session; gnome brings its own.
       hardware.bluetooth = {
         enable = true;
         powerOnBoot = true;
       };
       services.blueman.enable = true;
 
-      # weekly trim for the luks+btrfs ssd root
       services.fstrim.enable = true;
 
       # noto covers broad scripts and emoji; the nerd fonts cover terminal glyphs.
@@ -95,11 +87,9 @@
         };
       };
 
-      # host-agnostic kernel watchdog disable
       boot.kernelParams = [ "nowatchdog" ];
 
-      # make /etc/skadi user-editable without sudo (zed "permission denied" on save).
-      # the Z rule re-owns on every activation, self-healing after a root-cp install.
+      # activation restores user ownership after root writes to /etc/skadi.
       systemd.tmpfiles.rules = [ "Z /etc/skadi - feltfomo feltfomo - -" ];
 
       environment.systemPackages = with pkgs; [
@@ -122,7 +112,6 @@
         gsettings-desktop-schemas
       ];
 
-      # ios device support
       services.usbmuxd.enable = true;
 
       programs = {

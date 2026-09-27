@@ -27,15 +27,9 @@ let
     "-/persist"
     "-/run/secrets"
   ];
-  # long jobs used to die with the service: systemd's cgroup kill takes the
-  # whole process tree down on restart, and desktop-commander's session
-  # registry lives in memory, so even a survivor becomes unreadable. every
-  # command now streams into a durable log under this directory, which makes
-  # output recoverable after the service that started it is gone.
+  # systemd stops the service cgroup; command output survives in this directory.
   runLogDirectory = "/var/lib/desktop-commander-mcp/runs";
-  # bash rather than fish: the commands that arrive here are written in bourne
-  # syntax (2>&1, heredocs, $(...)), and fish rejects enough of it to matter.
-  # flip the two bash references below to ${pkgs.fish}/bin/fish to revert.
+  # mcp commands use bourne syntax that fish cannot parse.
   dcShell = pkgs.writeShellApplication {
     name = "dc-shell";
     runtimeInputs = [

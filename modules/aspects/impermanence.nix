@@ -22,21 +22,15 @@
       );
     in
     {
-      # this aspect owns the furnish import instead of assuming another aspect
-      # pulled the runtime in first. hosts without furnish stay inert because
-      # enable defaults to false.
       imports = [
         inputs.impermanence.nixosModules.impermanence
         furnishRuntime
       ];
 
-      # persist and home must be available early in boot
       fileSystems."/persist".neededForBoot = true;
       fileSystems."/home".neededForBoot = true;
 
-      # the ledger is the only thing between a repair decision and a blanket
-      # refusal. @ is replaced from @blank on every boot, so the ledger lives on
-      # /persist directly rather than behind an environment.persistence bind mount.
+      # root rollback replaces @ on every boot; keep the ledger on /persist.
       lexicon.furnish.state = {
         path = "/persist/var/lib/furnish";
         durability = "durable";
@@ -54,12 +48,9 @@
             best: mount: if builtins.stringLength mount > builtins.stringLength best then mount else best
           ) "/" (lib.filter encloses declared);
         in
-        # a host without furnish reconciles nothing and reads no ledger, so it
-        # owes no durability proof.
         lib.optionals cfg.enable [
           {
-            # a durability claim is worth exactly the mount behind it. the
-            # filesystem carrying the state must be declared before its readers.
+            # durable state requires its enclosing filesystem at boot.
             assertion =
               state.durability != "durable"
               || (config.fileSystems ? ${enclosing} && config.fileSystems.${enclosing}.neededForBoot);
@@ -67,7 +58,6 @@
           }
         ];
 
-      # rollback btrfs root to blank snapshot on every boot
       boot.initrd.systemd.services.rollback = {
         description = "Rollback Btrfs root subvolume to blank";
         wantedBy = [ "initrd.target" ];

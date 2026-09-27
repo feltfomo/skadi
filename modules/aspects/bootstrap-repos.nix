@@ -1,15 +1,11 @@
-# first-boot bootstrap clones the wallpaper and project repos into feltfomo's
-# home if missing. it runs as the user on the booted system, so paths resolve in
-# the real namespace and ownership is correct with no chown. deleted repos are
-# cloned again on the next start.
+# the user service reclones missing repos when it starts.
 _: {
   den.aspects.bootstrap-repos.homeManager =
     { pkgs, lib, ... }:
     let
       repos = {
         "Projects/multiloader-template".url = "https://github.com/feltfomo/multiloader-template";
-        # this repo wraps its images in an inner Wallpapers/ dir; promote that
-        # subdir so they land flat at ~/Wallpapers, not ~/Wallpapers/Wallpapers.
+        # the repo nests images under Wallpapers/; the destination keeps them flat.
         "Wallpapers" = {
           url = "https://github.com/feltfomo/Wallpapers";
           subdir = "Wallpapers";
@@ -50,9 +46,7 @@ _: {
             else
               ''
                 dest="$HOME/${rel}"
-                # ${url} nests its content under ${subdir}/; promote that subdir so
-                # files land flat at $dest. the flattened tree keeps no top-level
-                # .git, so non-emptiness is the "already cloned" sentinel.
+                # moving ${subdir} drops .git, so non-emptiness marks a completed clone.
                 if [ -z "$(ls -A "$dest" 2>/dev/null || true)" ]; then
                   mkdir -p "$(dirname "$dest")"
                   for attempt in $(seq 1 30); do
@@ -84,8 +78,6 @@ _: {
           After = [ "network-online.target" ];
         };
         Service = {
-          # type exec lets activation continue after bootstrap starts.
-          # the user manager owns retries without blocking home manager.
           Type = "exec";
           ExecStart = "${bootstrap}/bin/bootstrap-repos";
         };
