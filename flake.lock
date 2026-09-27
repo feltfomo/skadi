@@ -1523,6 +1523,23 @@
         "type": "github"
       }
     },
+    "no-ai-slop": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1788322740,
+        "narHash": "sha256-l/BZaNnPvFKTUN7jVs5p5aEtRvOUbwMElu37cnP+k8E=",
+        "owner": "petergyang",
+        "repo": "no-ai-slop",
+        "rev": "000650b156983f5159695b441477f4e63b25dc85",
+        "type": "github"
+      },
+      "original": {
+        "owner": "petergyang",
+        "repo": "no-ai-slop",
+        "rev": "000650b156983f5159695b441477f4e63b25dc85",
+        "type": "github"
+      }
+    },
     "noctalia": {
       "inputs": {
         "nixpkgs": [
@@ -1704,6 +1721,7 @@
         "nixpkgs": "nixpkgs_6",
         "nixpkgs-logseq": "nixpkgs-logseq",
         "nixpkgs-stable": "nixpkgs-stable_2",
+        "no-ai-slop": "no-ai-slop",
         "noctalia": "noctalia",
         "noctalia-greeter": "noctalia-greeter",
         "quickshell": "quickshell_2",

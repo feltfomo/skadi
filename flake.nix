@@ -97,6 +97,10 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
+    no-ai-slop = {
+      flake = false;
+      url = "github:petergyang/no-ai-slop/000650b156983f5159695b441477f4e63b25dc85";
+    };
     noctalia = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:noctalia-dev/noctalia";
