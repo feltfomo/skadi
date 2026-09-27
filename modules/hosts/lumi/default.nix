@@ -12,6 +12,7 @@
       base
       gnome
       networking
+      tablet
       wayland
     ];
 

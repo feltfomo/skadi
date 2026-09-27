@@ -18,7 +18,10 @@
       performance
       networking
       steam
+      tablet
+      tailscale
       wayland
+      wooting
       noctalia-greeter
     ];
 

@@ -10,3 +10,10 @@ window-rule {
     blur true
   }
 }
+
+// the hardening matrix recreates this window once per cycle, so let it open in the
+// background instead of pulling focus out of whatever is already in front
+window-rule {
+  match app-id="^fomo-client$"
+  open-focused false
+}

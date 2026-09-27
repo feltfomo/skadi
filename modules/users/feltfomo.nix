@@ -41,10 +41,14 @@
       zed
       obs
       dms
+      osu
       helix
       thunar
+      tablet
       nvim
       niri
+      cline
+      codex
       shell
       kitty
       qt-hm
@@ -54,6 +58,7 @@
       theming
       mangowm
       firefox
+      wooting
       noctalia
       hyprland
       spicetify
@@ -93,7 +98,9 @@
           hashedPasswordFile = config.sops.secrets."feltfomo-password".path;
           extraGroups = [
             "video"
+            "input"
             "docker"
+            "uinput"
             "ydotool"
           ];
           # system.nix disables password auth, so khion uses feltfomo's github key
@@ -182,6 +189,7 @@
           equibop
           sgdboop
           spotatui
+          vscodium
           hyprshot
           obsidian
           grimblast
@@ -199,7 +207,6 @@
           imagemagick
           brave-origin
           appimage-run
-          osu-lazer-bin
           jetbrains.idea
           ayugram-desktop
           translate-shell
@@ -211,10 +218,37 @@
           inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.runtime
           inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.end4-pc-runtime
           (prismlauncher.override {
+            # lwjgl 3.4.1's bundled glfw dlopens libxkbcommon under wayland and the
+            # nixpkgs wrapper doesn't ship it, so 26.2 died at "Failed to load libxkbcommon"
+            # the rest is chromium's runtime, for mods that ship their own libcef
+            # (liquidbounce/mcef), which failed on libnspr4.so
+            additionalLibs = [
+              libxkbcommon
+              nspr
+              nss
+              atk
+              at-spi2-atk
+              at-spi2-core
+              cairo
+              cups
+              dbus
+              expat
+              glib
+              gtk3
+              pango
+              libdrm
+              libgbm
+              libxshmfence
+              xorg.libXcomposite
+              xorg.libXdamage
+              xorg.libXfixes
+              xorg.libxcb
+            ];
             jdks = [
               jdk8
               jdk21
               jdk17
+              jdk25
               pkgs.graalvm-oracle-21
               graalvmPackages.graalvm-ce
             ];

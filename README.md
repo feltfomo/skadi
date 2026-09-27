@@ -27,21 +27,39 @@ Den composes the fleet, Home Manager handles user configuration, and Lexicon han
 | `configs/` | Configuration trees installed by feature aspects |
 | `scripts/` and `tests/` | Installer/runtime scripts and skadi-specific regression coverage |
 
-## Build and check
+## Commands
 
-Feature inputs and their cache metadata live beside the module that owns them through flake-file. After changing either, regenerate the committed manifest before formatting or checking:
+`feltfomo`'s Home Manager profile installs the Skadi Praxis dispatcher, including shell completions. The development shell provides the same command set. `modules/flake/praxis.nix` owns the declaration and anchors execution to the live `/etc/skadi` checkout.
 
 ```fish
-nix run --accept-flake-config .#write-flake
-nix fmt
-nix flake check --accept-flake-config -L
+praxis list
+praxis help rebuild
+praxis plan rebuild --plain
+praxis rebuild
 ```
 
-`flake.nix` is generated. Edit the declarations under `modules/` or the custom output wiring in `outputs.nix`, never the generated file itself.
+`rebuild` is global, so it works from your home directory or another checkout. It regenerates the manifest, formats, runs the full check, and asks before switching the current `khion` or `lumi` host. The final step calls Den's `nh` wrapper from `/etc/skadi`; its relative flake reference never depends on where you typed the command. A shared lock prevents overlapping rebuilds.
 
-The full check builds both real hosts and runs the repository checks. Den currently emits an `unknown flake output 'denful'` warning; it is expected.
+Arguments such as `praxis rebuild --dry` go only to the final switch invocation. Put Praxis options before child arguments; use `--` when a child flag conflicts with a Praxis option. A dry switch still runs generation, formatting, and checks first.
 
-The preferred host interface is den's generated `nh` wrapper. `modules/flake/devshells.nix` exposes `den.lib.nh.denPackages { fromFlake = true; } pkgs` through `perSystem.packages`, so each host is runnable by name:
+`gen`, `fmt`, and `check` are project-scoped. Invoke them from `/etc/skadi` or one of its subdirectories; they always execute from the repository root:
+
+```fish
+cd /etc/skadi
+and praxis gen
+and praxis fmt
+and praxis check
+```
+
+Feature inputs and their cache metadata live beside the module that owns them through flake-file. `flake.nix` is generated. Edit declarations under `modules/` or the output wiring in `outputs.nix`, then run `praxis gen`; don't edit the generated file itself.
+
+The full check builds both real hosts and runs repository checks. Den emits an `unknown flake output 'denful'` warning; it is expected.
+
+## Bootstrap and recovery
+
+Before Praxis is installed, enter `nix develop /etc/skadi`, or launch the dispatcher with `nix run /etc/skadi#praxis -- rebuild`. Activating the resulting host configuration installs it persistently for `feltfomo`. An installed dispatcher uses the declarations from its build; enter the development shell or use the flake app to try declaration edits before activating them.
+
+Nix and Den remain available as lower-level interfaces. `modules/flake/devshells.nix` exposes Den's host packages, so a specific host can be built or switched explicitly:
 
 ```fish
 nix run .#khion
