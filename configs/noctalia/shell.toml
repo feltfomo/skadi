@@ -1,16 +1,21 @@
 [shell]
-app_icon_color = "primary"
+app_icon_color = "secondary"
+avatar_path = "/home/feltfomo/main_pfp.jpeg"
 clipboard_history_max_entries = 100.0
 font_family = "Maple Mono NF"
 launch_apps_as_systemd_services = true
+password_style = "random"
 polkit_agent = true
 screen_time_enabled = true
+settings_expand_all_groups = true
+settings_window_translucent = true
 telemetry_enabled = false
 
 [shell.greeter_sync]
 auto_sync = true
 
 [shell.launcher]
+app_grid = true
 session_search = true
 
 [shell.panel]
@@ -22,4 +27,8 @@ wallpaper_placement = "floating"
 
 [shell.screenshot]
 confirm_region = true
+directory = "/home/feltfomo/Pictures/Screenshots"
 pipe_command = "satty"
+
+[shell.window_switcher]
+mru = true

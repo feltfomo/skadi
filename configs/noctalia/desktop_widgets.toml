@@ -1,6 +1,9 @@
 [desktop_widgets]
 schema_version = 2
-widget_order = []
+widget_order = [
+  "desktop-widget-0000000000000001",
+  "desktop-widget-0000000000000005",
+]
 
 [desktop_widgets.grid]
 cell_size = 16
@@ -8,14 +11,28 @@ major_interval = 4
 visible = true
 
 [desktop_widgets.widget.desktop-widget-0000000000000001]
-box_height = 128.0
+box_height = 176.0
 box_width = 384.0
-cx = 2304.0
-cy = 1344.0
+cx = 256.0
+cy = 856.0
 output = "DP-2"
+placement_height = 1440.0
+placement_width = 2560.0
 rotation = 0.0
-type = "audio_visualizer"
+type = "media_player"
 
 [desktop_widgets.widget.desktop-widget-0000000000000001.settings]
 bands = 32
+layout = "horizontal"
 show_when_idle = true
+
+[desktop_widgets.widget.desktop-widget-0000000000000005]
+box_height = 448.0
+box_width = 640.0
+cx = 384.0
+cy = 1200.0
+output = "DP-2"
+placement_height = 1440.0
+placement_width = 2560.0
+rotation = 0.0
+type = "calendar"

@@ -6,4 +6,5 @@ wallpaper_scheme = "m3-content"
 
 [theme.templates]
 builtin_ids = []
-community_ids = ["zed", "discord", "steam", "telegram"]
+community_ids = []
+enable_community_templates = false
