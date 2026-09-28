@@ -142,6 +142,7 @@
         };
       in
       {
+        programs.t3code.enable = true;
         # the wiped root removed ~/.steam before the steam wrapper's repair step
         # repair then failed while creating ~/.steam/steam with "no such file or directory"
         home.activation.steamSymlinks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
@@ -190,6 +191,7 @@
           lazygit
           equibop
           sgdboop
+          mpvpaper
           spotatui
           vscodium
           hyprshot
@@ -200,6 +202,7 @@
           tesseract
           tty-clock
           alejandra
+          bubblewrap
           proton-vpn
           winetricks
           hyprpicker
@@ -241,10 +244,10 @@
               libdrm
               libgbm
               libxshmfence
-              xorg.libXcomposite
-              xorg.libXdamage
-              xorg.libXfixes
-              xorg.libxcb
+              libXcomposite
+              libXdamage
+              libXfixes
+              libxcb
             ];
             jdks = [
               jdk8
