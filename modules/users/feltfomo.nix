@@ -49,6 +49,7 @@
       niri
       cline
       codex
+      t3code
       shell
       kitty
       qt-hm
@@ -93,6 +94,7 @@
 
         users.users.feltfomo = {
           group = "feltfomo";
+          linger = true;
           # an unprovisioned feltfomo-password leaves the account without a login
           # run `nixos-rebuild test` and verify a fresh tty before switching
           hashedPasswordFile = config.sops.secrets."feltfomo-password".path;

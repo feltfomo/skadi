@@ -126,6 +126,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:Gerg-L/spicetify-nix";
     };
+    t3-code-nix.url = "github:LisaScheers/t3-code-nix";
     treefmt-nix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:numtide/treefmt-nix";
