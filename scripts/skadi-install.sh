@@ -355,8 +355,8 @@ if [ "$HOST" = generic ]; then
 fi
 
 # temporary build swap so a from-source compile can't oom-kill the install on a
-# lean-ram box. lix builds from source here; on 8-16g that needs swap. placed on
-# the target btrfs (no-cow via mkswapfile) and torn down on exit.
+# lean-ram box. placed on the target btrfs (no-cow via mkswapfile) and torn down
+# on exit.
 SWAPFILE="$MNT/swapfile"
 STORE_RELOCATED=0
 teardown() {

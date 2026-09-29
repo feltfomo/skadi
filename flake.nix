@@ -67,17 +67,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:feltfomo/lexicon";
     };
-    lix = {
-      flake = false;
-      url = "https://git.lix.systems/lix-project/lix/archive/64c99ac9af9c83b66643f46e9c8e50ab9f5e6e58.tar.gz";
-    };
-    lix-module = {
-      inputs = {
-        lix.follows = "lix";
-        nixpkgs.follows = "nixpkgs";
-      };
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/main.tar.gz";
-    };
     llm-agents = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:numtide/llm-agents.nix";

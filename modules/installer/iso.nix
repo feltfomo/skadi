@@ -22,10 +22,8 @@
       ...
     }:
     let
-      # match the disko cli to the fleet's disko module so `disko --flake` agrees
-      # with the host's disko.devices. rebuilt against lix (config.nix.package). the
-      # flake.lock is lix-dialect, but disko otherwise bundles cppnix and dies on
-      # "mismatch in field 'url'" evaluating the lock.
+      # Match disko's Nix client to the installed Lix so it can evaluate the
+      # fleet's flake.lock.
       disko = inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko.override {
         nix = config.nix.package;
       };
@@ -34,8 +32,7 @@
       skadi-install = pkgs.writeShellApplication {
         name = "skadi-install";
         runtimeInputs = [
-          # lix first so nixos-install also evaluates the lix-dialect lock with lix,
-          # not a cppnix picked up from PATH.
+          # Use the same Lix as the installer for flake evaluation.
           config.nix.package
           disko
         ]
@@ -57,12 +54,9 @@
     {
       imports = [
         (inputs.nixpkgs-stable + "/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix")
-        # lix, matching the fleet. flake.lock is written by lix, so the iso's
-        # nix/disko/nixos-install must also be lix or getFlake rejects the lock
-        # ("mismatch in field 'url'" on the git.lix.systems inputs). thin otherwise.
-        # just the nix impl, no base/home-manager/desktop.
-        inputs.lix-module.nixosModules.default
       ];
+
+      nix.package = pkgs.lixPackageSets.stable.lix;
 
       boot.zfs.forceImportRoot = false;
       networking.hostName = "skadi-installer";
@@ -108,12 +102,8 @@
         # gitTracked error only bites nixos-install --flake, which the two-step
         # build in skadi-install.sh avoids).
         #
-        # lix is deliberately not cached and wouldn't hit anyway. we pin lix head
-        # and compile against our nixpkgs, so it builds from source every install.
-        # that's wanted -- its doubled-debuginfo cargo/c++ target is the biggest
-        # from-source derivation and the disk-pressure canary that enospc'd the vm,
-        # so it exercises build-dir=/mnt + --max-jobs 1 + gc below. fleet code isn't
-        # cached either.
+        # Lix comes from nixpkgs and is cached by cache.nixos.org. Fleet code
+        # and other packages may still need local builds.
         substituters = [
           "https://cache.nixos.org"
           "https://hyprland.cachix.org"
