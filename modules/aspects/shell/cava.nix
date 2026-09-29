@@ -6,6 +6,13 @@
       {
         src = "${rootPath}/configs/cava";
         dest = ".config/cava";
+        files = [
+          {
+            names = [ "config" ];
+            representation = "writable";
+            onConflict = "source-wins";
+          }
+        ];
       }
     ];
     theme = {
