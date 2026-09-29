@@ -5,10 +5,10 @@ _: {
     let
       repos = {
         "Projects/multiloader-template".url = "https://github.com/feltfomo/multiloader-template";
-        # the repo nests images under Wallpapers/; the destination keeps them flat.
+        # the repo nests images under Pictures/; the destination keeps them flat.
         "Wallpapers" = {
           url = "https://github.com/feltfomo/Wallpapers";
-          subdir = "Wallpapers";
+          subdir = "Pictures";
         };
       };
       bootstrap = pkgs.writeShellApplication {
@@ -33,11 +33,14 @@ _: {
                   # target, so retry instead of failing early.
                   for attempt in $(seq 1 30); do
                     echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
-                    if git clone "${url}" "$dest"; then
+                    tmp="$(mktemp -d "$(dirname "$dest")/.bootstrap-repos.XXXXXX")"
+                    if git clone "${url}" "$tmp/repo" && mv -T "$tmp/repo" "$dest"; then
+                      rm -rf "$tmp"
                       break
                     fi
                     echo "bootstrap-repos: clone failed, retrying in 10s"
-                    rm -rf "$dest"
+                    rm -rf "$tmp"
+                    [ ! -e "$dest" ] || break
                     sleep 10
                   done
                   [ -e "$dest/.git" ] || echo "bootstrap-repos: WARN gave up on ${url}"
@@ -51,16 +54,16 @@ _: {
                   mkdir -p "$(dirname "$dest")"
                   for attempt in $(seq 1 30); do
                     echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
-                    tmp="$(mktemp -d)"
-                    if git clone --depth 1 "${url}" "$tmp/repo" && [ -d "$tmp/repo/${subdir}" ]; then
-                      rm -rf "$dest"
-                      mkdir -p "$(dirname "$dest")"
-                      mv "$tmp/repo/${subdir}" "$dest"
+                    tmp="$(mktemp -d "$(dirname "$dest")/.bootstrap-repos.XXXXXX")"
+                    if git clone --depth 1 "${url}" "$tmp/repo" \
+                      && [ -d "$tmp/repo/${subdir}" ] \
+                      && mv -T "$tmp/repo/${subdir}" "$dest"; then
                       rm -rf "$tmp"
                       break
                     fi
                     echo "bootstrap-repos: clone failed, retrying in 10s"
-                    rm -rf "$tmp" "$dest"
+                    rm -rf "$tmp"
+                    [ -z "$(ls -A "$dest" 2>/dev/null || true)" ] || break
                     sleep 10
                   done
                   [ -n "$(ls -A "$dest" 2>/dev/null || true)" ] || echo "bootstrap-repos: WARN gave up on ${url}"
