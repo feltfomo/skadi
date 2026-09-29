@@ -87,6 +87,7 @@
         experimental-features = [
           "nix-command"
           "flakes"
+          "pipe-operator"
         ];
 
         # build the fleet closure like khion. daemon + stock nixbld users + sandbox

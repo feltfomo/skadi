@@ -330,6 +330,19 @@ DISK_WARN_GIB=$(jq -r '.diskWarnGiB'                <<<"$TUNABLES")
 MAX_JOBS=$(jq -r '.maxJobs'                         <<<"$TUNABLES")
 CORES=$(jq -r '.cores'                              <<<"$TUNABLES")
 
+# Every password needed during activation must be written into the new host's
+# encrypted secret file before the disk is changed.
+if ! USER_SECRETS="$(eval_target .config.sops.secrets)"; then
+  die "could not read required user secrets for '$HOST'"
+fi
+if ! PROVISION_PLAN="$(eval_target .config.skadi.provision.secrets)"; then
+  die "could not read provisioning rules for '$HOST'"
+fi
+MISSING_USER_SECRETS="$(jq -nr --argjson secrets "$USER_SECRETS" --argjson plan "$PROVISION_PLAN" \
+  '$secrets | to_entries[] | select(.value.neededForUsers and ($plan[.key] == null)) | .key')"
+[ -z "$MISSING_USER_SECRETS" ] \
+  || die "no provisioning rule for required user secret(s): $MISSING_USER_SECRETS"
+
 # disko destroys, formats, and mounts the target at /mnt
 lsblk
 warn "about to DESTROY and repartition the disk in modules/hosts/${HOST}/_nixos/disko.nix"
@@ -482,7 +495,8 @@ set_sops_rule() {
   fi
 
   tmp="$(mktemp)"
-  if awk -v rule="$rule" -v age="$AGE_RECIP" '
+  if SOPS_TARGET_RULE="$rule" SOPS_AGE_RECIP="$AGE_RECIP" awk '
+    BEGIN { rule = ENVIRON["SOPS_TARGET_RULE"]; age = ENVIRON["SOPS_AGE_RECIP"] }
     {
       line = $0
       if (line ~ /^[[:space:]]*- path_regex:/) {

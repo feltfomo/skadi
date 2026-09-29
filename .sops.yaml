@@ -2,6 +2,6 @@ creation_rules:
   - path_regex: secrets/khion\.yaml$
     age: age10snd2yk5wfsfz64j8jnwghqptsm0xja7hwgxf3mg4y8s0lq64enqaxsj6u
   - path_regex: secrets/lumi\.yaml$
-    age: age1t38qt4q32zrdjwqwlek7nxac4734sn7s5w0theaepxusvx2jlu4qc79mla
+    age: age1mv9sxasng4xw5gjruw7zhpfetknvr6leuqamnr4kc6rhsf93jyeqja07ed
   - path_regex: secrets/generic\.yaml$
     age: age10snd2yk5wfsfz64j8jnwghqptsm0xja7hwgxf3mg4y8s0lq64enqaxsj6u

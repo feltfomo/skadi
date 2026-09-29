@@ -12,6 +12,10 @@
       { pkgs, config, ... }:
       {
         sops.secrets."grandpa-password".neededForUsers = true;
+        skadi.provision.secrets.grandpa-password = {
+          method = "mkpasswd";
+          prompt = "login password for grandpa";
+        };
 
         users.users.grandpa = {
           isNormalUser = true;
