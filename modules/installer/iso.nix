@@ -65,7 +65,6 @@
       # is baked in so nothing wifi-related leaks through the notion mirror. for
       # lumi run nmtui once at install time.
       networking.networkmanager.enable = true;
-      networking.wireless.enable = lib.mkForce false;
 
       # remote install over ssh with your key only, no passwords.
       services.openssh = {
