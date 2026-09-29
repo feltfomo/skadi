@@ -1612,6 +1612,29 @@
         "type": "github"
       }
     },
+    "pi-extensions": {
+      "inputs": {
+        "home-manager": [
+          "home-manager"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790720092,
+        "narHash": "sha256-81U+6sYxQqjFOjqqf8OqkMqoaoTgZak3zNE7VgQxpow=",
+        "owner": "feltfomo",
+        "repo": "pi-extensions",
+        "rev": "ae40fb6b0d526e3c7d2c42b252931f96374f4a55",
+        "type": "github"
+      },
+      "original": {
+        "owner": "feltfomo",
+        "repo": "pi-extensions",
+        "type": "github"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1773,6 +1796,7 @@
         "no-ai-slop": "no-ai-slop",
         "noctalia": "noctalia",
         "noctalia-greeter": "noctalia-greeter",
+        "pi-extensions": "pi-extensions",
         "quickshell": "quickshell_2",
         "serena": "serena",
         "sops-nix": "sops-nix",

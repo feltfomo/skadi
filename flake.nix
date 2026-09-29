@@ -98,6 +98,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:noctalia-dev/noctalia-greeter";
     };
+    pi-extensions = {
+      inputs = {
+        home-manager.follows = "home-manager";
+        nixpkgs.follows = "nixpkgs";
+      };
+      url = "github:feltfomo/pi-extensions";
+    };
     quickshell = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:quickshell-mirror/quickshell";

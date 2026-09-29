@@ -49,6 +49,7 @@
       niri
       cline
       codex
+      pi
       t3code
       shell
       kitty
@@ -217,7 +218,6 @@
           translate-shell
           opencode-desktop
           logseqPkgs.logseq
-          inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.runtime
