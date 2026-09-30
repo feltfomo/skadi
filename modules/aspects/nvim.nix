@@ -39,7 +39,7 @@
     theme = {
       id = "nvim";
       output = ".config/nvim/lua/reactive/palette.lua";
-      reload = "find \"$XDG_RUNTIME_DIR\" -maxdepth 1 -type s -name 'nvim.*.0' -exec nvim --server {} --remote-expr 'execute(\"colorscheme reactive\")' \\; >/dev/null";
+      reload = ''nvim --headless -u NONE -l "$HOME/.config/nvim/reload-theme.lua"'';
       renderers = {
         noctalia = {
           source = "${rootPath}/configs/nvim/colors/theme-templates/noctalia-dms.lua";

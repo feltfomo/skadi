@@ -45,6 +45,22 @@
                 ${configFile.source.value} ${seeds} ${settingsFile.source.value}
               touch "$out"
             '';
+        nvim-theme-reload =
+          let
+            pkgs = inputs.nixpkgs.legacyPackages.${system};
+          in
+          pkgs.runCommand "nvim-theme-reload-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.neovim
+              ];
+            }
+            ''
+              python3 ${../../tests/nvim-theme-reload.py} \
+                nvim --headless -u NONE -l ${../../configs/nvim/reload-theme.lua}
+              touch "$out"
+            '';
         mcp-gateway =
           let
             pkgs = inputs.nixpkgs.legacyPackages.${system};
