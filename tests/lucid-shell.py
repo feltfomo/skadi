@@ -1,11 +1,91 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import tomllib
+
+
+def check_monitors(data):
+    source = (data / "shell/Monitors.qml").read_text()
+    methods = []
+    for name in ("keyFor", "output", "keyForName", "nameOf", "screenFor"):
+        match = re.search(r"^    function " + name + r"\(.*?^    \}", source, re.M | re.S)
+        assert match, name
+        methods.append(name + ": " + match[0].strip())
+    probe = re.search(r"            onStreamFinished: \{\n(.*?)^            \}", source, re.M | re.S)
+    assert probe
+    script = '''
+const assert = require("node:assert/strict");
+const root = {outputs: [], probed: false};
+const Quickshell = {screens: []};
+const Hyprland = {
+    monitors: {values: []},
+    monitorFor: screen => Hyprland.monitors.values.find(m => m.name === screen.name)
+};
+Object.assign(root, {METHODS});
+function probe(monitors) {
+    Hyprland.monitors.values = monitors;
+    Quickshell.screens = monitors.map(m => ({name: m.name}));
+    (function () { PROBE }).call({text: JSON.stringify(monitors)});
+}
+const duplicates = [
+    {name: "DP-1", description: "Identical monitor 123"},
+    {name: "DP-2", description: "Identical monitor 123"}
+];
+Hyprland.monitors.values = duplicates;
+assert.equal(root.keyFor("DP-2", duplicates[1].description), "DP-2");
+probe(duplicates);
+assert.deepEqual(root.outputs.map(m => m.key), ["DP-1", "DP-2"]);
+for (const output of root.outputs) {
+    assert.equal(root.nameOf(output.key), output.name);
+    assert.equal(root.screenFor(output.key).name, output.name);
+    assert.equal(root.keyForName(output.name), output.key);
+}
+probe([
+    {name: "DP-3", description: "Unique left"},
+    {name: "DP-4", description: "Unique right"}
+]);
+assert.equal(root.keyForName("DP-4"), "desc:Unique right");
+assert.equal(root.screenFor("desc:Unique right").name, "DP-4");
+probe([{name: "DP-2", description: ""}]);
+assert.equal(root.keyForName("DP-2"), "DP-2");
+console.log("lucid-shell: duplicate, unique and unnamed monitor identities passed");
+'''.replace("METHODS", ",\n".join(methods)).replace("PROBE", probe[1])
+    subprocess.run(["node", "-e", script], check=True)
+
+
+def check_environment_scopes(data, root, environment):
+    home = root / "environment-home"
+    home.mkdir()
+    log = root / "environment-commands"
+    log.write_text("")
+    tools = root / "environment-bin"
+    tools.mkdir()
+    for name in ("gsettings", "hyprctl"):
+        tool = tools / name
+        tool.write_text(f"#!{shutil.which('sh')}\nprintf '%s\\n' " + json.dumps(name) + ' "$@" >> "$TEST_LOG"\n')
+        tool.chmod(0o755)
+    env = environment | {"HOME": str(home), "PATH": str(tools) + ":" + environment["PATH"], "TEST_LOG": str(log)}
+    cfg = {
+        "applyGtk": False, "applyQt": False, "applyHypr": False,
+        "cursorTheme": "test-cursor", "cursorSize": 48,
+        "iconTheme": "test-icons", "appFont": "test-font", "colorScheme": "dark",
+    }
+    helper = data / "shell/lucidprefs/envtool.py"
+    result = json.loads(subprocess.check_output([sys.executable, str(helper), "apply", json.dumps(cfg)], env=env, text=True))
+    assert result["touched"] == [], result
+    assert log.read_text() == "", log.read_text()
+    assert not (home / ".icons/default/index.theme").exists()
+    cfg["applyHypr"] = True
+    result = json.loads(subprocess.check_output([sys.executable, str(helper), "apply", json.dumps(cfg)], env=env, text=True))
+    assert "hyprctl" in result["touched"], result
+    assert log.read_text().splitlines() == ["hyprctl", "setcursor", "test-cursor", "48"]
+    assert not (home / ".icons/default/index.theme").exists()
+    print("lucid-shell: disabled environment scopes and opt-in cursor application passed")
 
 
 data = Path(sys.argv[1])
@@ -148,6 +228,9 @@ io.write(palette.primary, "\\n")
     (device / "vendor").write_text("0x1002\n")
     result = subprocess.check_output([str(data / "helpers/launch-shell.sh"), "--explain"], env=gpu_env, text=True)
     assert "backend: opengl (Qt default)" in result, result
+
+    check_monitors(data)
+    check_environment_scopes(data, root, environment)
 
     for script in data.rglob("*.py"):
         compile(script.read_text(), str(script), "exec")

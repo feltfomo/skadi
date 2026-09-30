@@ -33,6 +33,7 @@
                 pkgs.matugen
                 pkgs.lua
                 pkgs.imagemagick
+                pkgs.nodejs
               ];
             }
             ''

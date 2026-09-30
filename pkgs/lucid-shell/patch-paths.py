@@ -39,6 +39,52 @@ for path in root.rglob("*"):
             )
     if path.name == "Mpris.qml":
         text = text.replace("/.config/cava/quickshell.conf", "/.config/cava/lucid.conf")
+    if path.name == "Monitors.qml":
+        replacements = (
+            (
+                """    // a description outlives the port it was plugged into, so it is the key
+    function keyFor(name, description) {
+        const d = String(description || "").trim();
+        return d !== "" ? "desc:" + d : String(name);
+    }""",
+                """    // Identical EDIDs can give different outputs the same description.
+    // Only unique descriptions can identify a display independently of its port.
+    function keyFor(name, description, outputs) {
+        const d = String(description || "").trim();
+        const monitors = outputs || (root.probed ? root.outputs : Hyprland.monitors.values);
+        const matches = monitors.filter((m) => String(m.description || "").trim() === d);
+        return d !== "" && matches.length <= 1 ? "desc:" + d : String(name);
+    }""",
+            ),
+            (
+                "                    for (const m of JSON.parse(this.text)) {",
+                "                    const monitors = JSON.parse(this.text);\n                    for (const m of monitors) {",
+            ),
+            (
+                '"key": root.keyFor(m.name, m.description),',
+                '"key": root.keyFor(m.name, m.description, monitors),',
+            ),
+        )
+        for before, after in replacements:
+            if text.count(before) != 1:
+                raise ValueError("cannot locate monitor identity mapping")
+            text = text.replace(before, after)
+    if path.name == "envtool.py":
+        # Toolkit switches also govern shared settings and live cursor updates.
+        start = text.index("def apply(cfg):")
+        head, body = text[:start], text[start:]
+        for before, after in (
+            ("    if cursor:\n", "    if (scope_gtk or scope_qt) and cursor:\n"),
+            ('    if have("gsettings"):\n', '    if scope_gtk and have("gsettings"):\n'),
+            (
+                '    if cursor and csize and have("hyprctl"):\n',
+                '    if scope_hypr and cursor and csize and have("hyprctl"):\n',
+            ),
+        ):
+            if body.count(before) != 1:
+                raise ValueError("cannot locate environment scope guard")
+            body = body.replace(before, after)
+        text = head + body
     if path.name == "launch-shell.sh":
         # NVIDIA's open module includes the architecture before its version.
         before = "Kernel Module *"
