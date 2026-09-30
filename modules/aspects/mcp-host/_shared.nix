@@ -100,22 +100,13 @@ let
       welcomeOnboardingEligible = false;
     }
   );
-  backendUnits = [
-    "desktop-commander-mcp-server.service"
-    "minecraft-modding-mcp-server.service"
-    "codebase-memory-mcp-server.service"
-    "serena-mcp-server.service"
-    "gradle-mcp-server.service"
-    "mcp-nixos-mcp-server.service"
-  ];
+  backendUnits = [ "desktop-commander-mcp-server.service" ];
   ngrokDomain = "snooper-captive-reactor.ngrok-free.dev";
 in
 {
   inherit
     mcp
     proxy
-    projectRoot
-    minecraftSourceRoot
     allowedDirectories
     readOnlyGitDirectories
     writableGitHookDirectories

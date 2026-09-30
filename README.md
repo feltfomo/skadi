@@ -90,6 +90,20 @@ nix run .#vm-test -- --host vm
 
 Never run Disko or `skadi-install` against a running host. Both are allowed to repartition disks.
 
+## MCP
+
+Desktop Commander runs on Khion through mcp-proxy and Tailscale Funnel. The gateway exposes only `/mcp`. Pi connects directly to the official hosted Context7 and GitHub endpoints; Exa comes from Pi Web Access.
+
+`configs/pi/mcp-adapter.json` declares those three Pi servers. `modules/aspects/pi.nix` links it to `.pi/agent/mcp-adapter.json` through Furnish. The Pi wrapper enables exclusive mode to disable other config discovery and Codex imports.
+
+The header helper reads Khion's existing gateway token from `/run/secrets/desktop-commander-mcp-token`. Clients on other hosts need `DESKTOP_COMMANDER_MCP_TOKEN` supplied by a private secret source. GitHub additionally requires a PAT in the adapter's OS credential store. After activation, store it using the masked prompt:
+
+```fish
+pi-mcp-adapter token set github
+```
+
+The gateway removes its credential before forwarding to Desktop Commander, and access logs redact it. Context7 and GitHub receive no gateway credentials. No token is embedded in the managed JSON or Nix store.
+
 ## Operational constraints
 
 - Khion restores a blank root snapshot at every boot. Persistent state must be declared under system or user persistence before anything relies on it.

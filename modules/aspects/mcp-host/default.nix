@@ -10,18 +10,11 @@
       url = "github:punkpeye/mcp-proxy/88ebe4aa6115d39bd27832c60a112cca277e8405";
       flake = false;
     };
-    serena.url = "github:oraios/serena/801a388c2b7a6a8998f313291678b1609664e794";
   };
 
   den.aspects.desktop-commander-mcp = {
     persistence.directories = [
       "/var/lib/desktop-commander-mcp"
-      "/var/lib/minecraft-modding-mcp"
-      "/var/lib/codebase-memory-mcp"
-      "/var/lib/serena-mcp"
-      "/var/lib/gradle-mcp"
-      "/var/lib/lldb-mcp"
-      "/var/lib/mcp-nixos-mcp"
     ];
 
     nixos =
@@ -36,8 +29,6 @@
         inherit (shared)
           mcp
           proxy
-          projectRoot
-          minecraftSourceRoot
           allowedDirectories
           readOnlyGitDirectories
           writableGitHookDirectories
@@ -49,39 +40,19 @@
           ngrokDomain
           ;
         packages = import ./_packages.nix { inherit inputs pkgs; };
-        inherit (packages)
-          desktopCommander
-          minecraftModding
-          codebaseMemory
-          serena
-          gradleMcp
-          lldbMcp
-          ;
-        serenaFiles = import ./_serena.nix { inherit lib pkgs projectRoot; };
-        inherit (serenaFiles) serenaJdtlsRoot serenaConfig serenaProjectConfig;
+        inherit (packages) desktopCommander;
         backendServices = import ./_services.nix {
           inherit
-            inputs
             pkgs
             mcp
             proxy
             inaccessiblePaths
-            projectRoot
-            minecraftSourceRoot
             allowedDirectories
             readOnlyGitDirectories
             writableGitHookDirectories
             dcShell
             desktopCommanderConfig
             desktopCommander
-            minecraftModding
-            codebaseMemory
-            serena
-            gradleMcp
-            lldbMcp
-            serenaJdtlsRoot
-            serenaConfig
-            serenaProjectConfig
             ;
         };
         gateway = import ./_gateway.nix { inherit pkgs mcp ngrokDomain; };
@@ -119,12 +90,6 @@
         };
         environment.systemPackages = [
           desktopCommander
-          minecraftModding
-          codebaseMemory
-          pkgs.mcp-nixos
-          serena
-          gradleMcp
-          lldbMcp
           tunnelControl
           mcpHostControl
         ];
@@ -133,25 +98,6 @@
           "d /var/lib/desktop-commander-mcp/.claude-server-commander 0700 feltfomo users - -"
           "f /var/lib/desktop-commander-mcp/.claude-server-commander/config.json 0600 feltfomo users - -"
           "d ${runLogDirectory} 0700 feltfomo users 14d -"
-          "d /var/lib/minecraft-modding-mcp 0700 feltfomo users - -"
-          "d /var/lib/minecraft-modding-mcp/cache 0700 feltfomo users - -"
-          "d /var/lib/codebase-memory-mcp 0700 feltfomo users - -"
-          "d /var/lib/codebase-memory-mcp/cache 0700 feltfomo users - -"
-          "d /var/lib/serena-mcp 0700 feltfomo users - -"
-          "d /var/lib/serena-mcp/.serena 0700 feltfomo users - -"
-          "f /var/lib/serena-mcp/.serena/serena_config.yml 0600 feltfomo users - -"
-          "d /var/lib/serena-mcp/projects 0700 feltfomo users - -"
-          "d /var/lib/serena-mcp/projects/fomo-client 0700 feltfomo users - -"
-          "d /var/lib/serena-mcp/projects/fomo-client/.serena 0700 feltfomo users - -"
-          "f /var/lib/serena-mcp/projects/fomo-client/.serena/project.yml 0600 feltfomo users - -"
-          "d /var/lib/serena-mcp/tmp 0700 feltfomo users - -"
-          "d /var/lib/gradle-mcp 0700 feltfomo users - -"
-          "d /var/lib/gradle-mcp/logs 0700 feltfomo users - -"
-          "d /var/lib/gradle-mcp/tmp 0700 feltfomo users - -"
-          "d /var/lib/lldb-mcp 0700 feltfomo users - -"
-          "d /var/lib/lldb-mcp/.lldb 0700 feltfomo users - -"
-          "d /var/lib/lldb-mcp/tmp 0700 feltfomo users - -"
-          "d /var/lib/mcp-nixos-mcp 0700 feltfomo users - -"
         ];
         systemd.services = backendServices // {
           mcp-host-gateway = {

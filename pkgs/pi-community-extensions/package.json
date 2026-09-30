@@ -1,0 +1,15 @@
+{
+  "name": "skadi-pi-community-extensions",
+  "version": "0.1.0",
+  "private": true,
+  "pi": {
+    "extensions": [
+      "./node_modules/pi-web-access/dist/index.js",
+      "./node_modules/pi-mcp-adapter/index.ts"
+    ]
+  },
+  "dependencies": {
+    "pi-web-access": "0.33.0",
+    "pi-mcp-adapter": "3.3.0"
+  }
+}

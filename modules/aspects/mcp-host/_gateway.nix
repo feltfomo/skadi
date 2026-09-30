@@ -4,32 +4,6 @@
   ngrokDomain,
 }:
 let
-  authorizedProxy = matcher: port: ''
-    @${matcher} header Authorization "Bearer {$DESKTOP_COMMANDER_MCP_TOKEN}"
-    handle @${matcher} {
-      reverse_proxy http://127.0.0.1:${toString port} {
-        header_up Host 127.0.0.1:${toString port}
-        flush_interval -1
-        transport http {
-          versions 1.1
-        }
-      }
-    }
-    respond "Unauthorized" 401
-  '';
-  # remote upstreams are authenticated at the gateway, then the bearer token is
-  # stripped so it never leaves the machine.
-  authorizedRemoteProxy = matcher: upstreamHost: ''
-    @${matcher} header Authorization "Bearer {$DESKTOP_COMMANDER_MCP_TOKEN}"
-    handle @${matcher} {
-      reverse_proxy https://${upstreamHost} {
-        header_up Host ${upstreamHost}
-        header_up -Authorization
-        flush_interval -1
-      }
-    }
-    respond "Unauthorized" 401
-  '';
   gatewayConfig = pkgs.writeText "mcp-host.caddyfile" ''
     {
       admin off
@@ -46,32 +20,19 @@ let
       handle /health {
         respond "ok" 200
       }
-      handle /mcp* {
-        ${authorizedProxy "desktopAuthorized" 8086}
-      }
-      handle_path /minecraft/* {
-        ${authorizedProxy "minecraftAuthorized" 8090}
-      }
-      handle_path /codebase-memory/* {
-        ${authorizedProxy "codebaseMemoryAuthorized" 8091}
-      }
-      handle_path /serena/* {
-        ${authorizedProxy "serenaAuthorized" 8092}
-      }
-      handle_path /gradle/* {
-        ${authorizedProxy "gradleAuthorized" 8093}
-      }
-      handle_path /lldb/* {
-        ${authorizedProxy "lldbAuthorized" 8094}
-      }
-      handle_path /nixos/* {
-        ${authorizedProxy "nixosAuthorized" 8095}
-      }
-      handle_path /context7/* {
-        ${authorizedRemoteProxy "context7Authorized" "mcp.context7.com"}
-      }
-      handle_path /kleisli/* {
-        ${authorizedRemoteProxy "kleisliAuthorized" "docs.kleisli.io"}
+      handle /mcp {
+        @desktopAuthorized header Authorization "Bearer {$DESKTOP_COMMANDER_MCP_TOKEN}"
+        handle @desktopAuthorized {
+          reverse_proxy http://127.0.0.1:8086 {
+            header_up Host 127.0.0.1:8086
+            header_up -Authorization
+            flush_interval -1
+            transport http {
+              versions 1.1
+            }
+          }
+        }
+        respond "Unauthorized" 401
       }
       respond "Not found" 404
     }

@@ -22,16 +22,6 @@ let
       base="https://${ngrokDomain}"
     fi
   '';
-  mcpPaths = [
-    "/mcp"
-    "/minecraft/mcp"
-    "/codebase-memory/mcp"
-    "/serena/mcp"
-    "/gradle/mcp"
-    "/nixos/mcp"
-    "/context7/mcp"
-    "/kleisli/mcp/transport"
-  ];
   tunnelControl = pkgs.writeShellApplication {
     name = "desktop-commander-tunnel";
     runtimeInputs = [
@@ -108,16 +98,14 @@ let
           ;;
         test)
           curl --fail --silent http://127.0.0.1:8087/health >/dev/null
-          for port in 8086 8090 8091 8092 8093 8095; do curl --fail --silent "http://127.0.0.1:$port/ping" >/dev/null; done
+          curl --fail --silent http://127.0.0.1:8086/ping >/dev/null
           status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8087/mcp)"
           [ "$status" = 401 ]
           echo "mcp host is healthy"
           ;;
         urls)
           ${resolveBase}
-          for path in ${lib.concatStringsSep " " mcpPaths}; do
-            echo "$base$path"
-          done
+          echo "$base/mcp"
           ;;
         *) echo "usage: mcp-host status|recover|reset|test|urls" >&2; exit 2 ;;
       esac

@@ -109,7 +109,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:quickshell-mirror/quickshell";
     };
-    serena.url = "github:oraios/serena/801a388c2b7a6a8998f313291678b1609664e794";
     sops-nix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:Mic92/sops-nix";

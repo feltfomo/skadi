@@ -1,0 +1,30 @@
+{
+  "imports": [],
+  "settings": {
+    "hostConfigDiscovery": "off"
+  },
+  "mcpServers": {
+    "desktop-commander": {
+      "url": "https://khion.tail4f0c8e.ts.net/mcp",
+      "lifecycle": "lazy",
+      "httpTransport": "streamable-http",
+      "auth": false,
+      "requestHeadersCommand": {
+        "command": "mcp-gateway-headers"
+      }
+    },
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "lifecycle": "lazy",
+      "httpTransport": "streamable-http",
+      "auth": false
+    },
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "lifecycle": "lazy",
+      "httpTransport": "streamable-http",
+      "auth": "bearer",
+      "bearerTokenStore": true
+    }
+  }
+}
