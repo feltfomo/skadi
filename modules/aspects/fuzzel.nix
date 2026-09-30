@@ -39,7 +39,7 @@
             "dms"
             "illogical-impulse"
             "end4-pc"
-            "lucid"
+            "serpantinum"
           ];
         };
         caelestia.source = "${rootPath}/configs/fuzzel/themes/caelestia";

@@ -105,6 +105,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:quickshell-mirror/quickshell";
     };
+    serpantinum = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:ilyamiro/serpantinum/9861a84d8a798dfd520102912db507773dc18971";
+    };
     sops-nix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:Mic92/sops-nix";

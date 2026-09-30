@@ -197,7 +197,7 @@ in
           source = "${rootPath}/configs/hypr/colors.lua";
           sharedWith = [
             "end4-pc"
-            "lucid"
+            "serpantinum"
           ];
         };
       };

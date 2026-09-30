@@ -1044,11 +1044,11 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1790769435,
-        "narHash": "sha256-hHyUUYm9Bak1dM1qtbQJCyutfk4OxorM8F97vFmhf8w=",
+        "lastModified": 1790786169,
+        "narHash": "sha256-trBrKoKQ1VkGLtdd4BvwB42r8nqz2VR4ZklIKX4sJrM=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "adc66271947b18e8de9f0b2868079bb4e6b7e154",
+        "rev": "da1b8fbfeabc3872dacc63791cdeaae38995bb10",
         "type": "github"
       },
       "original": {
@@ -1633,6 +1633,7 @@
         "noctalia-greeter": "noctalia-greeter",
         "pi-extensions": "pi-extensions",
         "quickshell": "quickshell",
+        "serpantinum": "serpantinum",
         "sops-nix": "sops-nix",
         "spicetify-lucid": "spicetify-lucid",
         "spicetify-nix": "spicetify-nix",
@@ -1662,6 +1663,44 @@
       "original": {
         "owner": "wlrfx",
         "repo": "scenefx",
+        "type": "github"
+      }
+    },
+    "serpantinum": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "serpantinum-wallpapers": "serpantinum-wallpapers"
+      },
+      "locked": {
+        "lastModified": 1790751646,
+        "narHash": "sha256-jhpTYQCms21+q0D8kFpuoK1fTH3LQoqYRCV/bYof5AM=",
+        "owner": "ilyamiro",
+        "repo": "serpantinum",
+        "rev": "9861a84d8a798dfd520102912db507773dc18971",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ilyamiro",
+        "repo": "serpantinum",
+        "rev": "9861a84d8a798dfd520102912db507773dc18971",
+        "type": "github"
+      }
+    },
+    "serpantinum-wallpapers": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789127588,
+        "narHash": "sha256-L3xRtDXH1ERwVIP+ztT6qn7YYh3aHpfpy1/nvyjvKIc=",
+        "owner": "ilyamiro",
+        "repo": "shell-wallpapers",
+        "rev": "4f5994aff60403f88d3f0378e6f9c9d0a00b0289",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ilyamiro",
+        "repo": "shell-wallpapers",
         "type": "github"
       }
     },

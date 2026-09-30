@@ -7,17 +7,20 @@
       checks = inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
         khion = inputs.self.nixosConfigurations.khion.config.system.build.toplevel;
         lumi = inputs.self.nixosConfigurations.lumi.config.system.build.toplevel;
-        lucid-shell =
+        serpantinum =
           let
             pkgs = inputs.nixpkgs.legacyPackages.${system};
             declarations = inputs.self.nixosConfigurations.khion.config.lexicon.furnish.declarations;
             configFile = builtins.head (
-              builtins.filter (entry: entry.destination == ".config/lucid/matugen/config.toml") declarations
+              builtins.filter (entry: entry.destination == ".config/serpantinum/matugen/config.toml") declarations
+            );
+            settingsFile = builtins.head (
+              builtins.filter (entry: entry.destination == ".config/serpantinum/settings.json") declarations
             );
             templates = builtins.filter (
-              entry: pkgs.lib.hasPrefix ".config/lucid/matugen/templates/" entry.destination
+              entry: pkgs.lib.hasPrefix ".config/serpantinum/matugen/templates/" entry.destination
             ) declarations;
-            seeds = pkgs.writeText "lucid-template-seeds.json" (
+            seeds = pkgs.writeText "serpantinum-template-seeds.json" (
               builtins.toJSON (
                 map (entry: {
                   dest = entry.destination;
@@ -26,7 +29,7 @@
               )
             );
           in
-          pkgs.runCommand "lucid-shell-check"
+          pkgs.runCommand "serpantinum-check"
             {
               nativeBuildInputs = [
                 pkgs.python3
@@ -37,9 +40,9 @@
               ];
             }
             ''
-              python3 ${../../tests/lucid-shell.py} \
-                ${inputs.self.packages.${system}.lucid-shell.data} \
-                ${configFile.source.value} ${seeds}
+              python3 ${../../tests/serpantinum.py} \
+                ${inputs.self.packages.${system}.serpantinum}/share/serpantinum \
+                ${configFile.source.value} ${seeds} ${settingsFile.source.value}
               touch "$out"
             '';
         mcp-gateway =

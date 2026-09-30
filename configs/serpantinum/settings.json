@@ -1,0 +1,13 @@
+{
+  "wallpaperDir": "/home/feltfomo/Wallpapers/Pictures",
+  "theme": {
+    "fontFamily": "sans-serif",
+    "activePreset": "Matugen",
+    "matugen": true,
+    "mode": "dark"
+  },
+  "idle": { "enabled": false },
+  "notifications": { "dnd": false, "sound": false },
+  "display": { "monitors": {} },
+  "dock": { "enabled": true, "screens": ["DP-1"] }
+}

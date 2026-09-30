@@ -1,6 +1,6 @@
 local G = require("globals")
 local bind = require("lib.bind")
-local shell = require("lib.lucid")
+local shell = require("lib.serpantinum")
 
 -- groups organize the file and add useful context when registration fails
 -- inherited modifiers keep common chords short while explicit binds remain available
@@ -17,22 +17,21 @@ bind.group("apps", { mods = G.mod }, function()
 end)
 
 bind.group("shell", { mods = G.mod }, function()
-	bind("SPACE", shell("launcher", "toggle"))
+	bind("SPACE", shell("toggle", "launcher"))
 	-- gloview replaces the shell overview on the familiar workspace chord
 	bind("Tab", hl.plugin.gloview.toggle)
-	bind("N", shell("notifs", "toggle"))
-	bind("K", shell("keyboard", "toggle"))
-	bind("M", shell("launcher", "power"))
-	bind("C", shell("launcher", "clipboard"))
-	bind("comma", shell("settings", "toggle"))
+	bind("N", shell("toggle", "notifications"))
+	bind("M", shell("toggle", "system"))
+	bind("C", shell("toggle", "clipboard"))
+	bind("comma", shell("toggle", "guide"))
 
 	bind.mods("SHIFT", {
-		M = shell("media", "toggle"),
+		M = shell("toggle", "music"),
 	})
 
 	bind.mods("CTRL", {
-		L = shell("lock", "lock"),
-		T = shell("launcher", "wallpaper"),
+		L = hl.dsp.exec_cmd("serpantinum lock"),
+		T = shell("toggle", "wallpaper"),
 	})
 end)
 
@@ -40,8 +39,7 @@ bind.group("capture", function()
 	bind("Print", hl.dsp.exec_cmd(G.screenshot))
 
 	bind.mods({ G.mod, "SHIFT" }, {
-		S = shell("snap", "open"),
-		X = shell("snap", "text"),
+		S = hl.dsp.exec_cmd("serpantinum screenshot --edit"),
 	})
 end)
 
@@ -58,10 +56,10 @@ bind.group("media", function()
 			locked = true,
 			repeating = true,
 		},
-		XF86AudioPlay = { action = shell("media", "playPause"), locked = true },
-		XF86AudioPause = { action = shell("media", "playPause"), locked = true },
-		XF86AudioNext = { action = shell("media", "next"), locked = true },
-		XF86AudioPrev = { action = shell("media", "previous"), locked = true },
+		XF86AudioPlay = { action = hl.dsp.exec_cmd("playerctl play-pause"), locked = true },
+		XF86AudioPause = { action = hl.dsp.exec_cmd("playerctl play-pause"), locked = true },
+		XF86AudioNext = { action = hl.dsp.exec_cmd("playerctl next"), locked = true },
+		XF86AudioPrev = { action = hl.dsp.exec_cmd("playerctl previous"), locked = true },
 	})
 end)
 

@@ -59,7 +59,7 @@
       wooting
       noctalia
       hyprland
-      lucid
+      serpantinum
       spicetify
       caelestia
       gtk-theme

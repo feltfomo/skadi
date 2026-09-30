@@ -5,7 +5,7 @@ hl.on("hyprland.start", function()
 	local commands = {
 		-- the nixos hyprland module has no plugin option, so load the packaged library directly
 		"hyprctl plugin list | grep -q gloview || hyprctl plugin load /run/current-system/sw/lib/libgloview.so",
-		"lucid-shell",
+		G.hostname == "khion" and "QSG_RHI_BACKEND=vulkan serpantinumd start" or "serpantinumd start",
 		"pypr",
 		"systemctl --user restart audio-opacity",
 	}
