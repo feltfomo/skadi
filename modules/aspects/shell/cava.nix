@@ -26,6 +26,7 @@
             "dms"
             "illogical-impulse"
             "end4-pc"
+            "lucid"
           ];
         };
         caelestia.source = "${rootPath}/configs/cava/caelestia.ini";

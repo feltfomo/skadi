@@ -8,10 +8,6 @@
     inputs = {
       # temporary logseq pin until nixpkgs #536292 reaches unstable
       nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
-      illogical-impulse-shell = {
-        url = "github:feltfomo/illogical-impulse-shell-nix";
-        inputs.nixpkgs.follows = "nixpkgs";
-      };
       noctalia = {
         url = "github:noctalia-dev/noctalia";
         inputs.nixpkgs.follows = "nixpkgs";
@@ -63,6 +59,7 @@
       wooting
       noctalia
       hyprland
+      lucid
       spicetify
       caelestia
       gtk-theme
@@ -220,8 +217,6 @@
           logseqPkgs.logseq
           inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
-          inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.runtime
-          inputs.illogical-impulse-shell.packages.${pkgs.stdenv.hostPlatform.system}.end4-pc-runtime
           (prismlauncher.override {
             # lwjgl 3.4.1's bundled glfw dlopens libxkbcommon under wayland and the
             # nixpkgs wrapper doesn't ship it, so 26.2 died at "Failed to load libxkbcommon"

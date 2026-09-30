@@ -41,6 +41,7 @@
                 "dms"
                 "illogical-impulse"
                 "end4-pc"
+                "lucid"
               ];
             };
             caelestia = {
@@ -59,6 +60,7 @@
                 "dms"
                 "illogical-impulse"
                 "end4-pc"
+                "lucid"
               ];
             };
             caelestia = {

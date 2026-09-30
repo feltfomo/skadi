@@ -47,7 +47,10 @@
         };
         illogical-impulse = {
           source = "${rootPath}/configs/nvim/colors/theme-templates/illogical-impulse-end4-pc.lua";
-          sharedWith = [ "end4-pc" ];
+          sharedWith = [
+            "end4-pc"
+            "lucid"
+          ];
         };
         caelestia.source = "${rootPath}/configs/nvim/colors/theme-templates/caelestia-palette.lua";
       };

@@ -195,7 +195,10 @@ in
         };
         illogical-impulse = {
           source = "${rootPath}/configs/hypr/colors.lua";
-          sharedWith = [ "end4-pc" ];
+          sharedWith = [
+            "end4-pc"
+            "lucid"
+          ];
         };
       };
     };

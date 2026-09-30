@@ -57,10 +57,6 @@
       url = "github:nix-community/home-manager";
     };
     hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
-    illogical-impulse-shell = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:feltfomo/illogical-impulse-shell-nix";
-    };
     impermanence.url = "github:nix-community/impermanence";
     import-tree.url = "github:vic/import-tree";
     lexicon = {

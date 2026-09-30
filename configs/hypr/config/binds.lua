@@ -1,6 +1,6 @@
 local G = require("globals")
 local bind = require("lib.bind")
-local shell = require("lib.end4")
+local shell = require("lib.lucid")
 
 -- groups organize the file and add useful context when registration fails
 -- inherited modifiers keep common chords short while explicit binds remain available
@@ -17,26 +17,22 @@ bind.group("apps", { mods = G.mod }, function()
 end)
 
 bind.group("shell", { mods = G.mod }, function()
-	bind("SPACE", shell("search", "toggle"))
+	bind("SPACE", shell("launcher", "toggle"))
 	-- gloview replaces the shell overview on the familiar workspace chord
 	bind("Tab", hl.plugin.gloview.toggle)
-	bind("A", shell("sidebarLeft", "toggle"))
-	bind("N", shell("sidebarRight", "toggle"))
-	bind("Slash", shell("cheatsheet", "toggle"))
-	bind("K", shell("osk", "toggle"))
-	bind("G", shell("overlay", "toggle"))
-	bind("J", shell("bar", "toggle"))
-	bind("M", shell("session", "toggle"))
-	bind("C", shell("search", "clipboardToggle"))
+	bind("N", shell("notifs", "toggle"))
+	bind("K", shell("keyboard", "toggle"))
+	bind("M", shell("launcher", "power"))
+	bind("C", shell("launcher", "clipboard"))
+	bind("comma", shell("settings", "toggle"))
 
 	bind.mods("SHIFT", {
-		M = shell("mediaControls", "toggle"),
+		M = shell("media", "toggle"),
 	})
 
 	bind.mods("CTRL", {
-		L = shell("lock", "activate"),
-		T = shell("wallpaperSelector", "toggle"),
-		P = shell("panelFamily", "cycle"),
+		L = shell("lock", "lock"),
+		T = shell("launcher", "wallpaper"),
 	})
 end)
 
@@ -44,15 +40,8 @@ bind.group("capture", function()
 	bind("Print", hl.dsp.exec_cmd(G.screenshot))
 
 	bind.mods({ G.mod, "SHIFT" }, {
-		S = shell("region", "screenshot"),
-		A = shell("region", "search"),
-		X = shell("region", "ocr"),
-		T = shell("screenTranslator", "translate"),
-		R = shell("region", "record"),
-	})
-
-	bind.mods({ G.mod, "ALT" }, {
-		R = shell("region", "recordWithSound"),
+		S = shell("snap", "open"),
+		X = shell("snap", "text"),
 	})
 end)
 
@@ -60,19 +49,19 @@ bind.group("media", function()
 	-- wrapped actions keep hyprland bind flags beside the dispatcher they affect
 	bind.mods("", {
 		XF86MonBrightnessUp = {
-			action = shell("brightness", "increment"),
+			action = hl.dsp.exec_cmd("brightnessctl set +5%"),
 			locked = true,
 			repeating = true,
 		},
 		XF86MonBrightnessDown = {
-			action = shell("brightness", "decrement"),
+			action = hl.dsp.exec_cmd("brightnessctl set 5%-"),
 			locked = true,
 			repeating = true,
 		},
-		XF86AudioPlay = { action = shell("mpris", "playPause"), locked = true },
-		XF86AudioPause = { action = shell("mpris", "playPause"), locked = true },
-		XF86AudioNext = { action = shell("mpris", "next"), locked = true },
-		XF86AudioPrev = { action = shell("mpris", "previous"), locked = true },
+		XF86AudioPlay = { action = shell("media", "playPause"), locked = true },
+		XF86AudioPause = { action = shell("media", "playPause"), locked = true },
+		XF86AudioNext = { action = shell("media", "next"), locked = true },
+		XF86AudioPrev = { action = shell("media", "previous"), locked = true },
 	})
 end)
 

@@ -1,0 +1,25 @@
+{
+  "pinnedApps": [
+    {
+      "appId": "zen-twilight",
+      "appKey": "zen-twilight",
+      "command": "zen-twilight",
+      "iconName": "zen-browser",
+      "name": "Zen"
+    },
+    {
+      "appId": "kitty",
+      "appKey": "kitty",
+      "command": "kitty",
+      "iconName": "kitty",
+      "name": "Kitty"
+    },
+    {
+      "appId": "thunar",
+      "appKey": "thunar",
+      "command": "thunar",
+      "iconName": "org.xfce.thunar",
+      "name": "Thunar"
+    }
+  ]
+}

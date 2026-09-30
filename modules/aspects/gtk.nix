@@ -21,6 +21,7 @@
                 "dms"
                 "illogical-impulse"
                 "end4-pc"
+                "lucid"
               ];
             };
             caelestia.source = "${rootPath}/configs/gtk/caelestia-gtk3.css";
@@ -38,6 +39,7 @@
                 "dms"
                 "illogical-impulse"
                 "end4-pc"
+                "lucid"
               ];
             };
             caelestia.source = "${rootPath}/configs/gtk/caelestia-gtk4.css";

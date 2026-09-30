@@ -39,6 +39,7 @@
                 "dms"
                 "illogical-impulse"
                 "end4-pc"
+                "lucid"
               ];
             };
             caelestia.source = "${rootPath}/configs/qt/caelestia.conf";
@@ -55,6 +56,7 @@
                 "dms"
                 "illogical-impulse"
                 "end4-pc"
+                "lucid"
               ];
             };
             caelestia.source = "${rootPath}/configs/qt/caelestia.conf";
