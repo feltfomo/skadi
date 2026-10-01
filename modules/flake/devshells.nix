@@ -1,13 +1,14 @@
 { den, ... }:
 {
   perSystem =
-    { pkgs, ... }:
+    { pkgs, self', ... }:
     {
       # fleet-aware nh wrappers cover every host and standalone home den exposes.
       packages = den.lib.nh.denPackages { fromFlake = true; } pkgs;
 
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
+          self'.packages.praxis
           bashInteractive
           deadnix
           marksman

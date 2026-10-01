@@ -1,5 +1,4 @@
-# lexicon proves the engine; this proves skadi's own fleet resolves the same read
-# through den as hand-declared facade only
+# skadi's den roster and explicit roster must resolve the same host and user claims.
 {
   ownerships,
   roster,

@@ -1,17 +1,10 @@
-# thin, stable-pinned reinstall iso for the skadi fleet. pinned to nixos-26.05
-# (inputs.nixpkgs-stable), independent of the unstable channel the fleet tracks.
-# build.
-#   nix build .#nixosConfigurations.installer.config.system.build.isoImage
-# then flash result/iso/*.iso in dd/raw mode (rufus dd, etcher, caligula) --
-# iso-mode / ventoy break the by-label device (see frictions log #1).
+# build with nix build .#nixosConfigurations.installer.config.system.build.isoImage.
+# flash result/iso/*.iso in raw mode so the filesystem label remains intact.
 { inputs, ... }:
 {
   # the installer keeps its own stable package set while the fleet tracks unstable.
   flake-file.inputs.nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
 
-  # installer pins to stable 26.05 while the fleet tracks unstable. den's per-host
-  # instantiate is meant to be overridden for exactly this. output still lands at
-  # nixosConfigurations.installer.
   den.hosts.x86_64-linux.installer.instantiate = inputs.nixpkgs-stable.lib.nixosSystem;
 
   den.aspects.installer.nixos =
@@ -22,7 +15,7 @@
       ...
     }:
     let
-      # Match disko's Nix client to the installed Lix so it can evaluate the
+      # match disko's nix client to the installed lix so it can evaluate the
       # fleet's flake.lock.
       disko = inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko.override {
         nix = config.nix.package;
@@ -32,7 +25,7 @@
       skadi-install = pkgs.writeShellApplication {
         name = "skadi-install";
         runtimeInputs = [
-          # Use the same Lix as the installer for flake evaluation.
+          # use the same lix as the installer for flake evaluation.
           config.nix.package
           disko
         ]
@@ -61,9 +54,7 @@
       boot.zfs.forceImportRoot = false;
       networking.hostName = "skadi-installer";
 
-      # networkmanager so nmtui works for the laptop; lan is automatic. no wifi psk
-      # is baked in so nothing wifi-related leaks through the notion mirror. for
-      # lumi run nmtui once at install time.
+      # use nmtui to connect lumi to wifi during installation. keep passwords out of the iso.
       networking.networkmanager.enable = true;
 
       # remote install over ssh with your key only, no passwords.
@@ -76,10 +67,8 @@
       };
       users.users.root.openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINKAWZ+4L7E0osgTA8eybrsmUoTUtBSzEaE4ytD+rcPO 241195017+feltfomo@users.noreply.github.com"
-        # throwaway keypair the vm harness uses for unattended installs on a
-        # disposable localhost vm. private half lives in ~/.cache/skadi-vm (never
-        # committed) and guards nothing real. the vm has no network and keeps the
-        # placeholder token.
+        # vm-test uses this key for unattended installs. its private key stays
+        # under ~/.cache/skadi-vm, outside the repository.
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOgAOLIbgZ8Smas/KvnWNOaMzCDrZ5RFDUvQ+08MZ8Uh skadi-vm-test"
       ];
 
@@ -90,20 +79,10 @@
           "pipe-operator"
         ];
 
-        # build the fleet closure like khion. daemon + stock nixbld users + sandbox
-        # on, so fods get a real userns (pasta works) and builds stay pure. sandbox
-        # defaults on but pin it so a stray --option sandbox false can't flip it.
+        # fixed-output builds need the sandbox's user namespace for pasta.
         sandbox = true;
 
-        # cache the third-party upstreams we don't build. base (cache.nixos.org)
-        # and the desktop projects (hyprland/walker/noctalia). opportunistic --
-        # each follows our nixpkgs, so when our pin diverges from upstream's cachix
-        # the hash misses and they build from source anyway, which is fine (the
-        # gitTracked error only bites nixos-install --flake, which the two-step
-        # build in skadi-install.sh avoids).
-        #
-        # Lix comes from nixpkgs and is cached by cache.nixos.org. Fleet code
-        # and other packages may still need local builds.
+        # desktop caches may miss when their nixpkgs pin differs from ours.
         substituters = [
           "https://cache.nixos.org"
           "https://hyprland.cachix.org"
@@ -119,15 +98,11 @@
           "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
         ];
 
-        # daemon build scratch on the target disk, not the iso's tmpfs. the client
-        # tmpdir doesn't reach the daemon builder (it unpacks into build-dir, whose
-        # only fallback is the daemon's own tmpfs /tmp -> oom). the daemon createDirs
-        # this on first build; /mnt just has to exist and be on disk.
+        # the daemon ignores the client's TMPDIR. put build scratch on the target
+        # disk so large builds do not exhaust the iso's tmpfs.
         build-dir = "/mnt/nix-build-tmp";
 
-        # accept-flake-config trusts the fleet flake's declared caches so the
-        # desktop closure substitutes instead of building, and drops the interactive
-        # "allow these settings?" prompt so an unattended run needs no keypress.
+        # trust the fleet's declared caches without prompting during unattended installs.
         accept-flake-config = true;
       };
 
@@ -146,8 +121,7 @@
         neovim
       ]);
 
-      # the iso's own channel, unrelated to the fleet's stateVersion. mkForce
-      # because den.default already defines it.
+      # override den.default's stateVersion for the stable installer.
       system.stateVersion = lib.mkForce "26.05";
     };
 }
