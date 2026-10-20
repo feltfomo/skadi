@@ -26,7 +26,6 @@
         environment.systemPackages = [ pkgs.xwayland-satellite-unstable ];
         services.flatpak.enable = true;
 
-        # to get poratls working
         xdg.portal = {
           enable = true;
           extraPortals = [

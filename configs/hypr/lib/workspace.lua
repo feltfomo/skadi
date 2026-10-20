@@ -1,5 +1,4 @@
 local G = require("globals")
-local bind = require("lib.bind")
 
 local M = {}
 
@@ -18,12 +17,12 @@ function M.bind_workspace(i)
 		return (monitor and monitor.name == G.monitors.right) and 10 or 0
 	end
 
-	bind(G.mod, key, function()
+	hl.bind(G.mod .. " + " .. key, function()
 		hl.dispatch(hl.dsp.focus({ workspace = i + offset() }))
 	end)
 
 	-- shift moves the window without following it
-	bind(G.mod .. " + SHIFT", key, function()
+	hl.bind(G.mod .. " + SHIFT + " .. key, function()
 		local workspace = hl.get_active_workspace()
 		if not workspace then
 			return
@@ -35,7 +34,7 @@ function M.bind_workspace(i)
 	end)
 
 	-- ctrl moves the window and follows it
-	bind(G.mod .. " + CTRL", key, function()
+	hl.bind(G.mod .. " + CTRL + " .. key, function()
 		local target = i + offset()
 		hl.dispatch(hl.dsp.window.move({ workspace = target }))
 		hl.dispatch(hl.dsp.focus({ workspace = target }))

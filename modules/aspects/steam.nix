@@ -1,13 +1,5 @@
 {
   den.aspects.steam = {
-    # persisting ~/.steam caused recurring "couldn't set up steam data" failures on khion
-    # steam's library stayed under ~/.local/share/Steam instead
-    persistence = { host, ... }: {
-      users = builtins.mapAttrs (_: _: {
-        directories = [ ".local" ];
-      }) host.users;
-    };
-
     nixos = { pkgs, ... }: {
       programs = {
         gamemode = {
@@ -37,8 +29,8 @@
           extest.enable = true;
           protontricks.enable = true;
           extraCompatPackages = with pkgs; [
-            proton-ge-bin
             proton-cachyos_x86_64_v3
+            proton-ge-bin
           ];
         };
       };

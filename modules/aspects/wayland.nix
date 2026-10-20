@@ -3,9 +3,9 @@
     { pkgs, ... }:
     {
       environment.systemPackages = with pkgs; [
+        wayland-utils
         wl-screenrec
         wl-clipboard
-        wayland-utils
       ];
 
       # tell qt/gtk/electron apps to prefer the wayland backend

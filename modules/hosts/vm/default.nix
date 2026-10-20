@@ -15,10 +15,10 @@
 
     nixos.imports = [
       inputs.disko.nixosModules.disko
-      ./_nixos/disko.nix
-      ./_nixos/hardware.nix
-      ./_nixos/networking.nix
       ./_nixos/test-identity.nix
+      ./_nixos/networking.nix
+      ./_nixos/hardware.nix
+      ./_nixos/disko.nix
     ];
 
     # keep the vm bootloader local so installer tests boot end-to-end in qemu.

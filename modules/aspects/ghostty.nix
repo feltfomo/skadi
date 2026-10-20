@@ -20,10 +20,10 @@
         noctalia = {
           source = "${rootPath}/configs/ghostty/themes/skadi.conf";
           sharedWith = [
-            "dms"
             "illogical-impulse"
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
+            "dms"
           ];
         };
         caelestia = {

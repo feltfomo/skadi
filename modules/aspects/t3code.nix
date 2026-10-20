@@ -17,8 +17,8 @@
         icon = "${config.programs.t3code.package.extracted}/t3code.png";
         categories = [ "Development" ];
         mimeType = [
-          "x-scheme-handler/t3code"
           "x-scheme-handler/t3code-dev"
+          "x-scheme-handler/t3code"
         ];
         settings.StartupWMClass = "t3code";
       };

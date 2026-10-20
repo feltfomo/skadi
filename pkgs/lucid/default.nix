@@ -12,8 +12,8 @@ pkgs.buildNpmPackage {
   npmDepsHash = "sha256-ooG9SInExQudTJd5ey7hw7JBd2RI8lZzypiOa7HszZw=";
 
   nativeBuildInputs = with pkgs; [
-    bun
     spicetify-cli
+    bun
   ];
 
   postPatch = ''

@@ -2,10 +2,10 @@
 {
   # use the live checkout, including when invoked outside /etc/skadi.
   cwd = "/etc/skadi";
+  scope = "global";
   commands = {
     gen = {
       description = "Regenerate flake.nix from the module declarations";
-      scope = "global";
       command = [
         "nix"
         "run"
@@ -15,7 +15,6 @@
     };
     fmt = {
       description = "Format the repository";
-      scope = "global";
       command = [
         "nix"
         "fmt"
@@ -23,7 +22,6 @@
     };
     check = {
       description = "Build the hosts and run the repository checks";
-      scope = "global";
       command = [
         "nix"
         "flake"
@@ -31,23 +29,10 @@
         "-L"
       ];
     };
-    update = {
+    update.input = {
       description = "Update one input: praxis update input <input>";
-      scope = "global";
-      parameters = [
-        {
-          name = "action";
-          positional = true;
-          required = true;
-          choices = [ "input" ];
-        }
-        {
-          name = "input";
-          positional = true;
-          required = true;
-          choices = builtins.attrNames inputs;
-        }
-      ];
+      positional = [ "input" ];
+      parameters.input.choices = builtins.attrNames inputs;
       command = [
         "nix"
         "flake"
@@ -56,39 +41,23 @@
       ];
       forwardArgs = false;
     };
-    flake = {
+    flake.update = {
       description = "Update all inputs: praxis flake update";
-      scope = "global";
-      parameters = [
-        {
-          name = "action";
-          positional = true;
-          required = true;
-          choices = [ "update" ];
-        }
-      ];
       command = [
         "nix"
         "flake"
-        { param = "action"; }
+        "update"
       ];
       forwardArgs = false;
     };
   };
   tasks.rebuild = {
     description = "Generate, format, check, then switch khion or lumi";
-    scope = "global";
     lock = "skadi-rebuild";
-    parameters = [
-      {
-        name = "host";
-        positional = true;
-        required = true;
-        choices = [
-          "khion"
-          "lumi"
-        ];
-      }
+    positional = [ "host" ];
+    parameters.host.choices = [
+      "khion"
+      "lumi"
     ];
     steps = [
       "gen"

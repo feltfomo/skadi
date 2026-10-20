@@ -30,16 +30,16 @@
           disko
         ]
         ++ (with pkgs; [
-          git
-          sops
-          ssh-to-age
-          age
-          mkpasswd
-          jq
-          curl
           nixos-install-tools
+          ssh-to-age
           util-linux
+          mkpasswd
           openssh
+          sops
+          curl
+          git
+          age
+          jq
         ]);
         text = builtins.readFile ../../scripts/skadi-install.sh;
       };
@@ -74,9 +74,9 @@
 
       nix.settings = {
         experimental-features = [
+          "pipe-operator"
           "nix-command"
           "flakes"
-          "pipe-operator"
         ];
 
         # fixed-output builds need the sandbox's user namespace for pasta.
@@ -91,11 +91,11 @@
           "https://noctalia.cachix.org"
         ];
         trusted-public-keys = [
-          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-          "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
-          "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
           "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
+          "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
           "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+          "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
+          "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
         ];
 
         # the daemon ignores the client's TMPDIR. put build scratch on the target
@@ -111,14 +111,14 @@
         disko
       ]
       ++ (with pkgs; [
-        git
-        sops
         ssh-to-age
-        age
         mkpasswd
-        jq
-        curl
         neovim
+        sops
+        curl
+        git
+        age
+        jq
       ]);
 
       # override den.default's stateVersion for the stable installer.

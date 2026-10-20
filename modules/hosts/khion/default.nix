@@ -10,19 +10,19 @@
   # the host entity are inert freeform metadata.
   den.aspects.khion = {
     includes = with den.aspects; [
-      base
-      cpuid-hypervisor
-      docker
       desktop-commander-mcp
-      gpu-nvidia
+      cpuid-hypervisor
+      noctalia-greeter
       performance
+      gpu-nvidia
       networking
-      steam
-      tablet
       tailscale
       wayland
       wooting
-      noctalia-greeter
+      docker
+      tablet
+      steam
+      base
     ];
 
     nixos =
@@ -31,8 +31,8 @@
         imports = [
           inputs.chaotic.nixosModules.default
           inputs.disko.nixosModules.disko
-          ./_nixos/disko.nix
           ./_nixos/hardware.nix
+          ./_nixos/disko.nix
         ];
 
         boot = {

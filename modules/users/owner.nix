@@ -2,8 +2,8 @@
 {
   den.aspects.owner = {
     includes = [
-      den.batteries.define-user
       den.batteries.primary-user
+      den.batteries.define-user
     ];
 
     # owner is the lean primary admin account for generic installations.

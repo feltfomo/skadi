@@ -11,21 +11,21 @@ let
   };
   projectRoot = "/home/feltfomo/Projects/fomo-client";
   minecraftSourceRoot = "/home/feltfomo/mc-src-vanilla";
-  allowedDirectories = [
-    "/home/feltfomo/Projects/axiom-nix"
-    "/home/feltfomo/Projects/lexicon"
-    "/home/feltfomo/Projects/krisis"
-    "/home/feltfomo/Projects/furnish-coordinator"
-    "/etc/skadi"
+  repositoryDirectories = [
     "/home/feltfomo/Projects/odyssey"
     projectRoot
     minecraftSourceRoot
   ];
+  worktreeDirectories = [
+    "/home/feltfomo/Projects/odyssey-fixes"
+    "/home/feltfomo/Projects/odyssey-plans"
+  ];
+  allowedDirectories = repositoryDirectories ++ worktreeDirectories;
   readOnlyGitDirectories = map (directory: "-${directory}/.git") allowedDirectories;
-  writableGitHookDirectories = map (directory: "-${directory}/.git/hooks") allowedDirectories;
+  writableGitHookDirectories = map (directory: "-${directory}/.git/hooks") repositoryDirectories;
   inaccessiblePaths = [
-    "-/persist"
     "-/run/secrets"
+    "-/persist"
   ];
   # systemd stops the service cgroup; command output survives in this directory.
   runLogDirectory = "/var/lib/desktop-commander-mcp/runs";
@@ -54,43 +54,43 @@ let
       inherit allowedDirectories;
       abTest_McpUiPreviews = "notShowMCPUi";
       blockedCommands = [
+        "nixos-rebuild"
+        "grub-install"
+        "nix-store"
+        "systemctl"
+        "diskpart"
+        "firewall"
+        "iptables"
+        "poweroff"
+        "shutdown"
         "adduser"
         "bcdedit"
-        "chsh"
-        "cipher"
-        "dd"
-        "diskpart"
-        "fdisk"
-        "firewall"
-        "format"
-        "grub-install"
-        "halt"
-        "init"
-        "iptables"
-        "mkfs"
-        "mount"
-        "net"
-        "netsh"
         "nix-env"
-        "nix-store"
-        "nixos-rebuild"
-        "parted"
-        "passwd"
-        "poweroff"
-        "reboot"
-        "reg"
-        "runas"
-        "sc"
-        "sfc"
-        "shutdown"
-        "su"
-        "sudo"
-        "systemctl"
         "takeown"
-        "umount"
         "useradd"
         "usermod"
+        "cipher"
+        "format"
+        "parted"
+        "passwd"
+        "reboot"
+        "umount"
         "visudo"
+        "fdisk"
+        "mount"
+        "netsh"
+        "runas"
+        "chsh"
+        "halt"
+        "init"
+        "mkfs"
+        "sudo"
+        "net"
+        "reg"
+        "sfc"
+        "dd"
+        "sc"
+        "su"
       ];
       defaultShell = "${dcShell}/bin/dc-shell";
       fileReadLineLimit = 1000;

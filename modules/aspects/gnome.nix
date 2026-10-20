@@ -6,26 +6,25 @@
         services = {
           displayManager.gdm.enable = true;
           desktopManager.gnome.enable = true;
-          # flatpak lives with the desktop that provides its xdg portal (gnome
-          # ships its own), not in base -- a lean base install has no app-store.
+          # enable flatpak here because gnome supplies its xdg portal.
           flatpak.enable = true;
         };
 
         environment.gnome.excludePackages = with pkgs; [
+          gnome-characters
+          gnome-terminal
+          gnome-music
+          gnome-tour
+          epiphany
           atomix
           cheese
-          epiphany
           evince
+          hitori
           geary
           gedit
-          gnome-characters
-          gnome-music
-          gnome-terminal
-          gnome-tour
-          hitori
           iagno
-          tali
           totem
+          tali
         ];
       };
 

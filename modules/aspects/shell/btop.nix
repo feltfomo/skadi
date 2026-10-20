@@ -15,10 +15,10 @@
         noctalia = {
           source = "${rootPath}/configs/btop/reactive.theme";
           sharedWith = [
-            "dms"
             "illogical-impulse"
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
+            "dms"
           ];
         };
         caelestia.source = "${rootPath}/configs/btop/caelestia.theme";

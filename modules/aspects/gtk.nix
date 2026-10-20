@@ -18,10 +18,10 @@
             noctalia = {
               source = "${rootPath}/configs/gtk/reactive-gtk3.css";
               sharedWith = [
-                "dms"
                 "illogical-impulse"
-                "end4-pc"
                 "serpantinum"
+                "end4-pc"
+                "dms"
               ];
             };
             caelestia.source = "${rootPath}/configs/gtk/caelestia-gtk3.css";
@@ -36,10 +36,10 @@
             noctalia = {
               source = "${rootPath}/configs/gtk/reactive-gtk4.css";
               sharedWith = [
-                "dms"
                 "illogical-impulse"
-                "end4-pc"
                 "serpantinum"
+                "end4-pc"
+                "dms"
               ];
             };
             caelestia.source = "${rootPath}/configs/gtk/caelestia-gtk4.css";

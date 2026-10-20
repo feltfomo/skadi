@@ -1,7 +1,8 @@
 {
   "imports": [],
   "settings": {
-    "hostConfigDiscovery": "off"
+    "hostConfigDiscovery": "off",
+    "showStatusIcon": false
   },
   "mcpServers": {
     "desktop-commander": {

@@ -4,9 +4,9 @@
     {
       nix.settings = {
         experimental-features = [
+          "pipe-operator"
           "nix-command"
           "flakes"
-          "pipe-operator"
         ];
         trusted-users = [ "@wheel" ];
         # offline substitutes get one short connection attempt instead of stalling builds
@@ -61,15 +61,15 @@
       # noto covers broad scripts and emoji; the nerd fonts cover terminal glyphs.
       fonts = {
         packages = with pkgs; [
-          noto-fonts
-          noto-fonts-cjk-sans
-          noto-fonts-color-emoji
-          liberation_ttf
-          inter
-          fira-code
-          maple-mono.NF
           nerd-fonts.jetbrains-mono
           nerd-fonts.symbols-only
+          noto-fonts-color-emoji
+          noto-fonts-cjk-sans
+          liberation_ttf
+          maple-mono.NF
+          noto-fonts
+          fira-code
+          inter
         ];
         fontconfig.defaultFonts = {
           serif = [ "Maple Mono" ];
@@ -93,23 +93,23 @@
       systemd.tmpfiles.rules = [ "Z /etc/skadi - feltfomo feltfomo - -" ];
 
       environment.systemPackages = with pkgs; [
-        jq
-        gcc
-        git
-        fzf
-        nil
+        gsettings-desktop-schemas
+        # pipewire ships the pulse server but not pactl, which steam invokes directly
+        pulseaudio
+        efibootmgr
+        grub2_efi
+        cliphist
+        ffmpeg
+        xclip
         nixd
         glib
         wget
         curl
-        xclip
-        ffmpeg
-        cliphist
-        # pipewire ships the pulse server but not pactl, which steam invokes directly
-        pulseaudio
-        grub2_efi
-        efibootmgr
-        gsettings-desktop-schemas
+        gcc
+        git
+        fzf
+        nil
+        jq
       ];
 
       services.usbmuxd.enable = true;

@@ -31,17 +31,17 @@
       bashInteractive
       coreutils
       findutils
-      fish
-      gnugrep
-      gnused
-      nix
       nodejs_22
+      gnugrep
+      python3
+      ripgrep
+      gnused
       # ps/pgrep/pkill were missing, so process inspection silently returned
       # nothing instead of reporting that the tool was absent.
       procps
-      python3
-      ripgrep
       which
+      fish
+      nix
     ];
     readOnlyPaths = [
       "${desktopCommanderConfig}:/var/lib/desktop-commander-mcp/.claude-server-commander/config.json"
@@ -52,10 +52,8 @@
     memoryMax = "10G";
     tasksMax = 1024;
     extraServiceConfig = {
-      # the default (mixed) sigkills the whole cgroup on stop, so a rebuild
-      # or a restart destroys every long job the agent has in flight. only
-      # the proxy is the service; the work it spawned is allowed to finish
-      # and keeps writing to its run log.
+      # mixed would kill running jobs when the proxy restarts during a rebuild.
+      # stop only the proxy so its jobs can finish and keep writing their logs.
       KillMode = "process";
     };
   };

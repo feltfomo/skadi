@@ -96,9 +96,9 @@
       };
 
       environment.systemPackages = with pkgs; [
-        vulkan-tools
-        vulkan-loader
         vulkan-validation-layers
+        vulkan-loader
+        vulkan-tools
       ];
 
       # setting VK_DRIVER_FILES or VK_ICD_FILENAMES globally breaks 32-bit vulkan.

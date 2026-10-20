@@ -26,10 +26,10 @@ let
     name = "desktop-commander-tunnel";
     runtimeInputs = [
       pkgs.coreutils
-      pkgs.gnugrep
-      pkgs.jq
-      pkgs.systemd
       pkgs.tailscale
+      pkgs.gnugrep
+      pkgs.systemd
+      pkgs.jq
     ];
     text = ''
       provider="''${1:-}"
@@ -71,10 +71,10 @@ let
     name = "mcp-host";
     runtimeInputs = [
       pkgs.coreutils
+      pkgs.tailscale
+      pkgs.systemd
       pkgs.curl
       pkgs.jq
-      pkgs.systemd
-      pkgs.tailscale
     ];
     text = ''
       action="''${1:-status}"

@@ -23,10 +23,10 @@
         noctalia = {
           source = "${rootPath}/configs/cava/reactive.ini";
           sharedWith = [
-            "dms"
             "illogical-impulse"
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
+            "dms"
           ];
         };
         caelestia.source = "${rootPath}/configs/cava/caelestia.ini";

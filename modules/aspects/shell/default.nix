@@ -1,15 +1,15 @@
 { den, ... }:
 {
   imports = [
-    ./bat.nix
-    ./btop.nix
-    ./cava.nix
-    ./delta.nix
     ./fastfetch.nix
-    ./fish.nix
-    ./fzf.nix
     ./packages.nix
     ./zoxide.nix
+    ./delta.nix
+    ./btop.nix
+    ./cava.nix
+    ./fish.nix
+    ./bat.nix
+    ./fzf.nix
   ];
 
   den.aspects.shell = {

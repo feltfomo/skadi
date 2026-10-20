@@ -22,9 +22,9 @@
         pkgs.runCommand "skadi-praxis-check"
           {
             nativeBuildInputs = with pkgs; [
-              bash
               diffutils
               gnused
+              bash
             ];
             PRAXIS = "${testPraxis.package}/bin/praxis";
           }

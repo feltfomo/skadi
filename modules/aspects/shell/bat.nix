@@ -17,10 +17,10 @@
         noctalia = {
           source = "${rootPath}/configs/bat/reactive.tmTheme";
           sharedWith = [
-            "dms"
             "illogical-impulse"
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
+            "dms"
           ];
         };
         caelestia.source = "${rootPath}/configs/bat/caelestia.tmTheme";

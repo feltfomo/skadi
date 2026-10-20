@@ -60,7 +60,8 @@ with tempfile.TemporaryDirectory() as directory:
     assert palettes[0]["serpantinum-shell"] != palettes[2]["serpantinum-shell"]
     assert palettes[0]["nvim"] != palettes[2]["nvim"]
     assert sorted(hooks.read_text().splitlines()) == sorted(list(reloads) * 4)
-    assert "colorscheme reactive" in config["templates"]["nvim"]["post_hook"]
+    # nvim-theme-reload checks what the script does; this checks the hook reaches it
+    assert ".config/nvim/reload-theme.lua" in config["templates"]["nvim"]["post_hook"]
     nvim_palette = root / "nvim.lua"
     nvim_palette.write_text(palettes[0]["nvim"])
     selector = root / "select-palette.lua"

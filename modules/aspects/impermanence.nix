@@ -16,10 +16,6 @@
         files = lib.concatMap (entry: entry.files or [ ]) entries;
       };
       systemPersistence = mergePaths persistence;
-      userNames = lib.unique (lib.concatMap (entry: lib.attrNames (entry.users or { })) persistence);
-      userPersistence = lib.genAttrs userNames (
-        name: mergePaths (map (entry: (entry.users or { }).${name} or { }) persistence)
-      );
     in
     {
       imports = [
@@ -48,7 +44,17 @@
             best: mount: if builtins.stringLength mount > builtins.stringLength best then mount else best
           ) "/" (lib.filter encloses declared);
         in
-        lib.optionals cfg.enable [
+        # /home is the @home subvolume, which the rollback never touches. a
+        # per-user entry would mount an empty /persist copy over live data.
+        [
+          {
+            assertion =
+              builtins.all (entry: !(entry ? users)) persistence
+              && config.environment.persistence."/persist".users == { };
+            message = "persistence entries cover the wiped root only; /home already persists on @home";
+          }
+        ]
+        ++ lib.optionals cfg.enable [
           {
             # durable state requires its enclosing filesystem at boot.
             assertion =
@@ -111,7 +117,6 @@
           "/etc/ssh/ssh_host_rsa_key.pub"
         ]
         ++ systemPersistence.files;
-        users = userPersistence;
       };
     };
 }

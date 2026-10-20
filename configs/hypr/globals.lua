@@ -14,9 +14,7 @@ local G = {
 	mod = "SUPER",
 	mod_alt = "SUPER + ALT",
 	terminal = "kitty",
-	screenshot = "hyprshot -m region --raw | satty --filename -",
 	hostname = read_hostname(),
-	clipboard = "caelestia clipboard",
 	directions = {
 		right = { arrow = "right", vim = "l" },
 		left = { arrow = "left", vim = "h" },

@@ -2,23 +2,28 @@ binds {
   Mod+T { spawn "kitty"; }
   Mod+Space { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
   Mod+V { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
+  Mod+W { spawn "dms" "ipc" "wallpaperCarousel" "toggle"; }
   Mod+Shift+Slash { spawn "dms" "ipc" "call" "keybinds" "toggle" "niri"; }
   Mod+Alt+L { spawn "dms" "ipc" "call" "lock" "lock"; }
 
   Mod+Q { close-window; }
   Mod+Shift+E { quit; }
 
-  // focus binds
+  // arrow keys focus binds
+  Mod+Right { focus-column-right; }
   Mod+Left { focus-column-left; }
   Mod+Down { focus-window-down; }
   Mod+Up { focus-window-up; }
-  Mod+Right { focus-column-right; }
   Mod+Ctrl+Left { focus-monitor-left; }
   Mod+Ctrl+Right { focus-monitor-right; }
-  Mod+H { focus-column-left; }
-  Mod+J { focus-window-down; }
-  Mod+K { focus-window-up; }
+
+  // vim focus binds
   Mod+L { focus-column-right; }
+  Mod+H { focus-column-left; }
+  Mod+j { focus-window-down; }
+  Mod+k { focus-window-up; }
+  Mod+Ctrl+h { focus-monitor-left; }
+  Mod+Ctrl+l { focus-monitor-right; }
 
   // workspace binds
   Mod+Page_Down { focus-workspace-down; }

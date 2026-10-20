@@ -14,8 +14,8 @@ _: {
       bootstrap = pkgs.writeShellApplication {
         name = "bootstrap-repos";
         runtimeInputs = [
-          pkgs.git
           pkgs.openssh
+          pkgs.git
         ];
         text = lib.concatStringsSep "\n" (
           lib.mapAttrsToList (

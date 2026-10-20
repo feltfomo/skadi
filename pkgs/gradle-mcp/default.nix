@@ -8,9 +8,9 @@ in
 pkgs.writeShellApplication {
   name = "gradle-mcp";
   runtimeInputs = [
-    pkgs.jdk25
-    pkgs.gradle
     pkgs.coreutils
+    pkgs.gradle
+    pkgs.jdk25
   ];
   text = ''
     exec ${pkgs.jdk25}/bin/java \

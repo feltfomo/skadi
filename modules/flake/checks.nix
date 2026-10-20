@@ -32,11 +32,11 @@
           pkgs.runCommand "serpantinum-check"
             {
               nativeBuildInputs = [
+                pkgs.imagemagick
                 pkgs.python3
                 pkgs.matugen
-                pkgs.lua
-                pkgs.imagemagick
                 pkgs.nodejs
+                pkgs.lua
               ];
             }
             ''

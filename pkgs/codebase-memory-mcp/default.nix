@@ -9,8 +9,8 @@ pkgs.stdenvNoCC.mkDerivation {
   inherit src;
 
   nativeBuildInputs = [
-    pkgs.gcc
     pkgs.makeWrapper
+    pkgs.gcc
   ];
 
   buildPhase = ''

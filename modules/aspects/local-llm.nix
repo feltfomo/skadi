@@ -1,14 +1,5 @@
 { den, ... }: {
   den.aspects.local-llm = {
-    # multi-gig ggufs, re-downloading them every boot isn't an option
-    persistence =
-      { host, ... }:
-      {
-        users = builtins.mapAttrs (_: _: {
-          directories = [ "Models" ];
-        }) host.users;
-      };
-
     homeManager =
       {
         host,
@@ -24,10 +15,10 @@
           localLlm = pkgs.writeShellApplication {
             name = "local-llm";
             runtimeInputs = [
-              huggingFace
               pkgs.coreutils
-              pkgs.curl
               pkgs.systemd
+              huggingFace
+              pkgs.curl
             ];
             text = ''
               root="''${LOCAL_LLM_MODEL_ROOT:-$HOME/Models/local-llm}"

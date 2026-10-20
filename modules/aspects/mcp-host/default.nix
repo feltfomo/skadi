@@ -90,8 +90,8 @@
         };
         environment.systemPackages = [
           desktopCommander
-          tunnelControl
           mcpHostControl
+          tunnelControl
         ];
         systemd.tmpfiles.rules = [
           "d /var/lib/desktop-commander-mcp 0700 feltfomo users - -"
@@ -137,8 +137,8 @@
             description = "Publish the MCP gateway through Tailscale Funnel";
             after = [
               "mcp-host-gateway.service"
-              "tailscaled.service"
               "network-online.target"
+              "tailscaled.service"
             ];
             requires = [
               "mcp-host-gateway.service"

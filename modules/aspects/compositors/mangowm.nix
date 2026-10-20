@@ -10,8 +10,7 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  # vm excluded. the installer-test VM doesn't need a compositor
-  # closure. coexists with hyprland, not a replacement.
+  # omit the compositor closure from installer-test vms.
   den.aspects.mangowm = program {
     hosts = [
       "khion"

@@ -1,9 +1,7 @@
 { den, ... }:
 {
   den.aspects.grandpa = {
-    # non-sudo, browser-only account. no primary-user (that is what adds wheel +
-    # networkmanager) and no desktop/home aspects -- define-user just makes the
-    # account and its home dir.
+    # omit primary-user to keep this account out of wheel and networkmanager.
     includes = [
       den.batteries.define-user
     ];
@@ -30,8 +28,8 @@
       { pkgs, ... }:
       {
         home.packages = with pkgs; [
-          firefox
           zed-editor
+          firefox
         ];
       };
   };

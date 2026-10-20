@@ -16,7 +16,7 @@ margin_edge = 0
 margin_ends = 0
 margin_opposite_edge = 1
 radius = 0
-start = ["workspaces", "media", "audio_visualizer"]
+start = ["workspaces", "media"]
 
 [widget.clock]
 format = "{:%H:%M:%S}"

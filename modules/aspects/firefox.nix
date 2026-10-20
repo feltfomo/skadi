@@ -38,10 +38,10 @@
             noctalia = {
               source = "${rootPath}/configs/firefox/chrome/userChrome.css";
               sharedWith = [
-                "dms"
                 "illogical-impulse"
-                "end4-pc"
                 "serpantinum"
+                "end4-pc"
+                "dms"
               ];
             };
             caelestia = {
@@ -57,10 +57,10 @@
             noctalia = {
               source = "${rootPath}/configs/firefox/chrome/userContent.css";
               sharedWith = [
-                "dms"
                 "illogical-impulse"
-                "end4-pc"
                 "serpantinum"
+                "end4-pc"
+                "dms"
               ];
             };
             caelestia = {

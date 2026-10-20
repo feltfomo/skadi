@@ -14,9 +14,9 @@ pkgs.buildNpmPackage {
   makeCacheWritable = true;
 
   nativeBuildInputs = with pkgs; [
-    bun
     makeWrapper
     nodejs_24
+    bun
   ];
 
   postPatch = ''

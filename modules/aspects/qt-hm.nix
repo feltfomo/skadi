@@ -36,10 +36,10 @@
             noctalia = {
               source = "${rootPath}/configs/qt/reactive.conf";
               sharedWith = [
-                "dms"
                 "illogical-impulse"
-                "end4-pc"
                 "serpantinum"
+                "end4-pc"
+                "dms"
               ];
             };
             caelestia.source = "${rootPath}/configs/qt/caelestia.conf";
@@ -53,10 +53,10 @@
             noctalia = {
               source = "${rootPath}/configs/qt/reactive.conf";
               sharedWith = [
-                "dms"
                 "illogical-impulse"
-                "end4-pc"
                 "serpantinum"
+                "end4-pc"
+                "dms"
               ];
             };
             caelestia.source = "${rootPath}/configs/qt/caelestia.conf";

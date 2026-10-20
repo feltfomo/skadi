@@ -16,10 +16,10 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
   };
 
   nativeBuildInputs = [
+    pkgs.pnpmConfigHook
     pkgs.makeWrapper
     pkgs.nodejs_24
     pkgs.pnpm_10
-    pkgs.pnpmConfigHook
   ];
 
   buildPhase = ''

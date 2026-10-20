@@ -16,8 +16,8 @@ let
     ProtectProc = "invisible";
     ProtectSystem = "strict";
     RestrictAddressFamilies = [
-      "AF_INET"
       "AF_INET6"
+      "AF_INET"
       "AF_UNIX"
     ];
     RestrictNamespaces = true;
@@ -63,10 +63,10 @@ let
       };
 
       nativeBuildInputs = [
+        pkgs.pnpmConfigHook
         pkgs.makeWrapper
         pkgs.nodejs_24
         pkgs.pnpm_10
-        pkgs.pnpmConfigHook
       ];
       buildPhase = ''
         runHook preBuild

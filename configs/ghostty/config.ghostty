@@ -1,1 +1,10 @@
 config-file = themes/skadi.conf
+
+font-family = Maple Mono NF
+font-size = 11
+
+cursor-style = bar
+shell-integration-features = no-cursor
+
+window-padding-x = 0
+window-padding-y = 0

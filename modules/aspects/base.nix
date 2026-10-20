@@ -13,14 +13,14 @@
 
   den.aspects.base = {
     includes = with den.aspects; [
-      sops
-      audio
+      installer-tunables
+      graalvm-oracle-21
+      impermanence
+      provision
       thunar
       system
-      provision
-      impermanence
-      graalvm-oracle-21
-      installer-tunables
+      audio
+      sops
     ];
 
     nixos = { pkgs, ... }: {

@@ -52,12 +52,12 @@ let
       audio-opacity = writeShellApplication {
         name = "audio-opacity";
         runtimeInputs = [
-          jq
-          gawk
-          procps
-          coreutils
           hyprctlPkg
           pulseaudio
+          coreutils
+          procps
+          gawk
+          jq
         ];
         text = builtins.readFile ../../../scripts/audio-opacity.sh;
       };
@@ -196,8 +196,8 @@ in
         illogical-impulse = {
           source = "${rootPath}/configs/hypr/colors.lua";
           sharedWith = [
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
           ];
         };
       };

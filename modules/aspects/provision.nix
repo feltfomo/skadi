@@ -11,9 +11,9 @@
             options = {
               method = lib.mkOption {
                 type = lib.types.enum [
+                  "placeholder"
                   "mkpasswd"
                   "paste"
-                  "placeholder"
                 ];
               };
               prompt = lib.mkOption {

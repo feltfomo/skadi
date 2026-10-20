@@ -17,8 +17,8 @@ buildNpmPackage {
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
-      ./package.json
       ./package-lock.json
+      ./package.json
     ];
   };
 

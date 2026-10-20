@@ -6,8 +6,8 @@ _: {
       vm-test = pkgs.writeShellApplication {
         name = "vm-test";
         runtimeInputs = with pkgs; [
-          qemu_kvm
           coreutils
+          qemu_kvm
           openssh
           gnugrep
         ];

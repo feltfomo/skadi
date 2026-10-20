@@ -43,15 +43,22 @@
       }
     ];
     imports = [
-      inputs.pi-extensions.homeManagerModules.status-lines
+      inputs.pi-extensions.homeManagerModules.default
       (
         { config, pkgs, ... }:
         let
           extensions = pkgs.callPackage ../../pkgs/pi-community-extensions { };
           extensionDir = "${config.programs.pi-coding-agent.configDir}/extensions";
+
         in
         {
-          programs.pi-coding-agent.extensions.status-lines.enable = true;
+          programs.pi-coding-agent.extensions = {
+            footer-plus = {
+              enable = true;
+              showReset = true;
+            };
+            session-manager.enable = true;
+          };
           home.packages = [
             extensions
             (pkgs.callPackage ../../pkgs/mcp-gateway-headers { })

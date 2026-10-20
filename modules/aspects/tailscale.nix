@@ -1,9 +1,7 @@
 {
   den.aspects.tailscale = {
-    # the node key, the tailnet name, and any serve/funnel config all live in
-    # this directory. khion rolls its root back to @blank every boot, so
-    # without persistence the machine rejoins as a brand new node and every
-    # published url changes.
+    # preserve the node identity and serve/funnel settings across root rollback
+    # so rebooting khion doesn't change its published urls.
     persistence.directories = [ "/var/lib/tailscale" ];
 
     nixos = {

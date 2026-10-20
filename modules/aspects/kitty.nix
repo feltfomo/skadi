@@ -21,10 +21,10 @@
         noctalia = {
           source = "${rootPath}/configs/kitty/themes/reactive.conf";
           sharedWith = [
-            "dms"
             "illogical-impulse"
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
+            "dms"
           ];
         };
         caelestia.source = "${rootPath}/configs/kitty/themes/caelestia.conf";

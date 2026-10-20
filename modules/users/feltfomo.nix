@@ -30,40 +30,39 @@
 
   den.aspects.feltfomo = {
     includes = with den.aspects; [
-      den.batteries.define-user
-      den.batteries.primary-user
       (den.batteries.user-shell "fish")
-
-      zed
-      obs
-      dms
-      osu
-      helix
-      thunar
-      tablet
-      nvim
-      niri
-      cline
-      codex
-      pi
-      t3code
-      shell
-      kitty
-      qt-hm
-      herdr
-      fuzzel
+      den.batteries.primary-user
+      den.batteries.define-user
+      bootstrap-repos
+      claude-code
+      serpantinum
+      spicetify
+      caelestia
+      gtk-theme
+      noctalia
+      hyprland
       ghostty
       theming
       mangowm
       firefox
       wooting
-      noctalia
-      hyprland
-      serpantinum
-      spicetify
-      caelestia
-      gtk-theme
-      bootstrap-repos
+      thunar
+      tablet
+      t3code
+      fuzzel
+      helix
+      codex
+      shell
+      kitty
+      qt-hm
+      herdr
+      nvim
+      niri
+      zed
+      obs
+      dms
+      osu
+      pi
     ];
 
     nixos =
@@ -97,11 +96,11 @@
           # run `nixos-rebuild test` and verify a fresh tty before switching
           hashedPasswordFile = config.sops.secrets."feltfomo-password".path;
           extraGroups = [
-            "video"
-            "input"
+            "ydotool"
             "docker"
             "uinput"
-            "ydotool"
+            "video"
+            "input"
           ];
           # system.nix disables password auth, so khion uses feltfomo's github key
           openssh.authorizedKeys.keys = [
@@ -109,17 +108,6 @@
           ];
         };
         users.groups.feltfomo = { };
-
-        environment.persistence."/persist".users.feltfomo.directories = [
-          "Downloads"
-          "Documents"
-          "Pictures"
-          "Videos"
-          "Music"
-          ".config"
-          ".ssh"
-          "Projects"
-        ];
       };
 
     homeManager =
@@ -171,78 +159,32 @@
         };
 
         home.packages = with pkgs; [
-          (pkgs.writeScriptBin "sops-edit" ''
-            #!${pkgs.nushell}/bin/nu
-            ${builtins.readFile ../../scripts/sops-edit.nu}
-          '')
-          vlc
-          grim
-          slurp
-          satty
-          heroic
-          nixfmt
-          devenv
-          gifski
-          zenity
-          nushell
-          python3
-          lazygit
-          equibop
-          sgdboop
-          mpvpaper
-          spotatui
-          vscodium
-          hyprshot
-          obsidian
-          grimblast
-          superfile
-          librewolf
-          tesseract
-          tty-clock
-          alejandra
-          bubblewrap
-          proton-vpn
-          winetricks
-          hyprpicker
-          motrix-next
-          qbittorrent
-          tor-browser
-          imagemagick
-          brave-origin
-          appimage-run
-          jetbrains.idea
-          ayugram-desktop
-          translate-shell
-          opencode-desktop
-          logseqPkgs.logseq
-          inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
-          inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           (prismlauncher.override {
             # lwjgl 3.4.1's bundled glfw dlopens libxkbcommon under wayland and the
             # nixpkgs wrapper doesn't ship it, so 26.2 died at "Failed to load libxkbcommon"
             # the rest is chromium's runtime, for mods that ship their own libcef
             # (liquidbounce/mcef), which failed on libnspr4.so
             additionalLibs = [
-              libxkbcommon
-              nspr
-              nss
-              atk
-              at-spi2-atk
-              at-spi2-core
-              cairo
-              cups
-              dbus
-              expat
-              glib
-              gtk3
-              pango
-              libdrm
-              libgbm
-              libxshmfence
               libXcomposite
+              libxkbcommon
+              at-spi2-core
+              libxshmfence
+              at-spi2-atk
               libXdamage
               libXfixes
+              libdrm
+              libgbm
               libxcb
+              cairo
+              expat
+              pango
+              nspr
+              cups
+              dbus
+              glib
+              gtk3
+              nss
+              atk
             ];
             jdks = [
               jdk8
@@ -253,6 +195,53 @@
               graalvmPackages.graalvm-ce
             ];
           })
+          (pkgs.writeScriptBin "sops-edit" ''
+            #!${pkgs.nushell}/bin/nu
+            ${builtins.readFile ../../scripts/sops-edit.nu}
+          '')
+          inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
+          inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
+          logseqPkgs.logseq
+          opencode-desktop
+          ayugram-desktop
+          translate-shell
+          jetbrains.idea
+          brave-origin
+          appimage-run
+          lunar-client
+          qbittorrent
+          tor-browser
+          imagemagick
+          bubblewrap
+          proton-vpn
+          winetricks
+          hyprpicker
+          grimblast
+          superfile
+          librewolf
+          tesseract
+          tty-clock
+          alejandra
+          mpvpaper
+          spotatui
+          vscodium
+          hyprshot
+          obsidian
+          rayburst
+          nushell
+          python3
+          lazygit
+          equibop
+          sgdboop
+          heroic
+          nixfmt
+          devenv
+          gifski
+          zenity
+          slurp
+          satty
+          grim
+          vlc
         ];
       };
   };

@@ -13,15 +13,6 @@
   den.aspects.codex = {
     includes = [ den.aspects.codex-skills ];
 
-    # the wiped root must keep auth tokens and rollout history across boots.
-    persistence =
-      { host, ... }:
-      {
-        users = builtins.mapAttrs (_: _: {
-          directories = [ ".codex" ];
-        }) host.users;
-      };
-
     homeManager =
       { pkgs, ... }:
       let
@@ -48,8 +39,8 @@
       in
       {
         home.packages = [
-          codex
           agents.chatgpt
+          codex
         ];
       };
   };

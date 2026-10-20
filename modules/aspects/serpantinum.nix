@@ -48,8 +48,8 @@ in
     imports = [
       ({ pkgs, ... }: {
         home.packages = [
-          pkgs.playerctl
           pkgs.libpulseaudio
+          pkgs.playerctl
         ];
       })
     ];

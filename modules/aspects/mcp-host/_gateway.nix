@@ -48,14 +48,8 @@ let
     export NGROK_AUTHTOKEN="$(cat "$CREDENTIALS_DIRECTORY/authtoken")"
     exec ${pkgs.ngrok}/bin/ngrok http 8087 --url "${ngrokDomain}"
   '';
-  # funnel only proxies to http://127.0.0.1, which is exactly what the gateway
-  # already binds, and only listens on 443, 8443, or 10000. --bg registers the
-  # mapping with tailscaled and exits, so this is a oneshot rather than a
-  # long-running child like the ngrok and cloudflare runners.
-  #
-  # this cannot use tunnelHardening: DynamicUser would deny access to
-  # /var/run/tailscale/tailscaled.sock, which the cli needs to reconfigure the
-  # daemon.
+  # --bg registers the mapping with tailscaled and exits, so use a oneshot.
+  # DynamicUser would block access to /var/run/tailscale/tailscaled.sock.
   funnelStart = pkgs.writeShellScript "start-mcp-host-funnel" ''
     exec ${pkgs.tailscale}/bin/tailscale funnel --yes --bg --https=443 http://127.0.0.1:8087
   '';

@@ -14,10 +14,10 @@
 
     nixos.imports = [
       inputs.disko.nixosModules.disko
-      ./_nixos/disko.nix
-      ./_nixos/hardware.nix
-      ./_nixos/networking.nix
       ./_nixos/vm-test-hooks.nix
+      ./_nixos/networking.nix
+      ./_nixos/hardware.nix
+      ./_nixos/disko.nix
     ];
 
     # keep generic's bootloader outside regenerated hardware configuration.

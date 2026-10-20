@@ -9,23 +9,23 @@
   # the host entity are inert freeform metadata.
   den.aspects.lumi = {
     includes = with den.aspects; [
-      base
-      gnome
       networking
-      tablet
       wayland
+      tablet
+      gnome
+      base
     ];
 
     # disko's nixos module must sit with the disko.devices it enables
     nixos.imports = [
       inputs.disko.nixosModules.disko
-      ./_nixos/disko.nix
       ./_nixos/hardware.nix
+      ./_nixos/disko.nix
     ];
 
     # lumi boots efi grub from the esp at /boot with a managed nvram entry.
-    # wrong-scout briefly installed systemd-boot here; remove its files and
-    # "linux boot manager" nvram entry before applying with boot and reboot.
+    # remove leftover systemd-boot files and its "linux boot manager" nvram
+    # entry before applying with boot and reboot.
     nixos.boot.loader = {
       grub = {
         enable = true;

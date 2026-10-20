@@ -1,5 +1,6 @@
 result
 result-*
+.runtime/
 target/
 *.qcow2
 *.iso

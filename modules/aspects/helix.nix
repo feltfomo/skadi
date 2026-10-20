@@ -16,10 +16,10 @@
         noctalia = {
           source = "${rootPath}/configs/helix/reactive.toml";
           sharedWith = [
-            "dms"
             "illogical-impulse"
-            "end4-pc"
             "serpantinum"
+            "end4-pc"
+            "dms"
           ];
         };
         caelestia.source = "${rootPath}/configs/helix/caelestia.toml";

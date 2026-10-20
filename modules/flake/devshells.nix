@@ -8,20 +8,20 @@
 
       devShells.default = pkgs.mkShell {
         packages = with pkgs; [
+          vscode-langservers-extracted
           self'.packages.praxis
+          yaml-language-server
+          lua-language-server
           bashInteractive
-          deadnix
-          marksman
-          nixd
-          nixfmt
           shellcheck
-          shfmt
+          marksman
+          deadnix
+          nixfmt
           statix
           stylua
+          shfmt
           taplo
-          lua-language-server
-          yaml-language-server
-          vscode-langservers-extracted
+          nixd
         ];
       };
     };
