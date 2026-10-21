@@ -5,12 +5,12 @@
 }:
 let
   pname = "wooting-bg-service";
-  version = "0.5.0";
-  # this endpoint serves whatever build is current, so the hash is the pin
+  release = builtins.fromJSON (builtins.readFile ./release.json);
+  inherit (release) version;
   src = fetchurl {
     name = "${pname}-${version}.AppImage";
-    url = "https://api.wooting.io/public/bg-service/download-installer?target=linux";
-    hash = "sha256-e5NQ9rExdmvobXMEQDfrnU0ofIDOd14AEfH7SkRC6VU=";
+    url = "https://api.wooting.io/public/bg-service/download-installer?target=linux&version=${version}";
+    inherit (release) hash;
   };
 in
 appimageTools.wrapType2 {

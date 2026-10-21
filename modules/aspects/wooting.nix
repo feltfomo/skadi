@@ -1,10 +1,29 @@
 _: {
+  perSystem = { pkgs, ... }: {
+    packages.update-wooting = pkgs.writeShellApplication {
+      name = "update-wooting";
+      runtimeInputs = [ pkgs.python3 ];
+      text = ''
+        exec python3 ${../../pkgs/wooting-bg-service/update.py} /etc/skadi/pkgs/wooting-bg-service/release.json
+      '';
+    };
+    checks.wooting-update =
+      pkgs.runCommand "wooting-update-check"
+        {
+          nativeBuildInputs = [ pkgs.python3 ];
+        }
+        ''
+          export PYTHONDONTWRITEBYTECODE=1
+          python3 ${../../tests/wooting-update.py} ${../../pkgs/wooting-bg-service/update.py}
+          touch "$out"
+        '';
+  };
+
   den.aspects.wooting = {
     nixos = {
       hardware.wooting.enable = true;
     };
 
-    # wooting-bg-service
     homeManager =
       { pkgs, ... }:
       let

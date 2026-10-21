@@ -42,11 +42,20 @@
       forwardArgs = false;
     };
     flake.update = {
-      description = "Update all inputs: praxis flake update";
+      description = "Update flake inputs and the Wooting background service";
+      shell = ''
+        set -euo pipefail
+        nix flake update "$@"
+        exec nix run .#update-wooting
+      '';
+      forwardArgs = false;
+    };
+    update.wooting = {
+      description = "Update the Wooting background service version and hash";
       command = [
         "nix"
-        "flake"
-        "update"
+        "run"
+        ".#update-wooting"
       ];
       forwardArgs = false;
     };

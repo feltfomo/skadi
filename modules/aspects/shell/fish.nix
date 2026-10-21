@@ -40,7 +40,7 @@
         gd = "git diff";
         gl = "git log --oneline --decorate --graph";
         nfc = "nix flake check -L";
-        nfu = "nix flake update";
+        nfu = "praxis flake update";
         nrt = "sudo nixos-rebuild test --flake /etc/skadi#(hostname)";
         nrs = "sudo nixos-rebuild switch --flake /etc/skadi#(hostname)";
       };
