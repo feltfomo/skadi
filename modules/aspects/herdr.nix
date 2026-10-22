@@ -9,13 +9,7 @@ let
     inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr.override {
       zig = pkgs.zig_0_16;
     };
-  themeTemplate =
-    name:
-    builtins.toFile "herdr-${name}.toml" (
-      builtins.readFile ../../configs/herdr/config.toml
-      + "\n"
-      + builtins.readFile (../../configs/herdr/themes + "/${name}.toml")
-    );
+
 in
 {
   flake-file.inputs.llm-agents = {
@@ -23,44 +17,94 @@ in
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  # theme output includes the keybindings because herdr reads one config file.
-  den.aspects.herdr = program {
-    pkg = herdrFor;
-    imports = [
-      (
-        { pkgs, lib, ... }:
-        let
-          herdr = herdrFor pkgs;
-          plugin = pkgs.callPackage ../../pkgs/herdr-nvim { };
-          pickr = pkgs.callPackage ../../pkgs/herdr-pickr { inherit herdr; };
-        in
-        {
-          home.packages = [ plugin ];
-          home.activation.herdrNvim = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-            run ${herdr}/bin/herdr plugin link ${plugin}
-          '';
-          home.activation.herdrPickr = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-            run ${herdr}/bin/herdr plugin link ${pickr}
-          '';
-        }
-      )
-    ];
-    theme = {
-      id = "herdr";
-      output = ".config/herdr/config.toml";
-      reload = "herdr server reload-config";
-      renderers = {
-        noctalia = {
-          source = themeTemplate "reactive";
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+  den.aspects.herdr =
+    { host, ... }:
+    let
+      pkgs = inputs.nixpkgs.legacyPackages.${host.system};
+      herdr = herdrFor pkgs;
+      reload = pkgs.writeShellApplication {
+        name = "herdr-reload-config";
+        text = ''
+          status="$(${herdr}/bin/herdr status server --json | ${pkgs.jq}/bin/jq -er '.status')"
+          case "$status" in
+            running) exec ${herdr}/bin/herdr server reload-config ;;
+            not_running) ;;
+            *) printf 'Unexpected Herdr server status: %s\n' "$status" >&2; exit 1 ;;
+          esac
+        '';
+      };
+    in
+    program {
+      pkg = herdrFor;
+      imports = [
+        (
+          { pkgs, lib, ... }:
+          let
+            herdr = herdrFor pkgs;
+            plugin = pkgs.callPackage ../../pkgs/herdr-nvim { };
+            pickr = pkgs.callPackage ../../pkgs/herdr-pickr { inherit herdr; };
+          in
+          {
+            home.packages = [ plugin ];
+            home.activation.herdrNvim = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+              run ${herdr}/bin/herdr plugin link ${plugin}
+            '';
+            home.activation.herdrPickr = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+              run ${herdr}/bin/herdr plugin link ${pickr}
+            '';
+          }
+        )
+      ];
+      theme = {
+        id = "herdr";
+        output = ".config/herdr/config.toml";
+        reload = "${reload}/bin/herdr-reload-config";
+        merge = {
+          format = "toml";
+          base = {
+            onboarding = false;
+            keys.command = [
+              {
+                key = "prefix+f";
+                type = "plugin_action";
+                command = "javoscript.herdr-pickr.panes-all";
+                description = "find pane";
+              }
+              {
+                key = "prefix+e";
+                type = "plugin_action";
+                command = "chmarax.herdr-nvim.toggle";
+                description = "nvim sidebar";
+              }
+              {
+                key = "prefix+o";
+                type = "plugin_action";
+                command = "chmarax.herdr-nvim.pick-file";
+                description = "open file from agent output";
+              }
+            ];
+            ui = {
+              agent_panel_sort = "spaces";
+              toast.delivery = "herdr";
+            };
+            theme = {
+              name = "kanagawa-lotus";
+              auto_switch = false;
+            };
+          };
         };
-        caelestia.source = themeTemplate "caelestia";
+        renderers = {
+          noctalia = {
+            source = ../../configs/herdr/themes/reactive.toml;
+            sharedWith = [
+              "illogical-impulse"
+              "serpantinum"
+              "end4-pc"
+              "dms"
+            ];
+          };
+          caelestia.source = ../../configs/herdr/themes/caelestia.toml;
+        };
       };
     };
-  };
 }

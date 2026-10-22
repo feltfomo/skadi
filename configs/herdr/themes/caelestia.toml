@@ -1,13 +1,5 @@
 [ui]
-agent_panel_sort = "spaces"
 accent = "#{{ primary.hex }}"
-
-[ui.toast]
-delivery = "herdr"
-
-[theme]
-name = "kanagawa-lotus"
-auto_switch = false
 
 [theme.custom]
 panel_bg = "#{{ surface.hex }}"

@@ -84,6 +84,13 @@ Furnish deliberately does not adopt matching pre-existing links. When migrating 
 
 `prefix+f` opens [Herdr Pickr](https://github.com/javoscript/herdr-pickr) across all spaces, with fuzzy search and a preview of the selected pane. Enter focuses that pane; Esc closes the popup. The plugin and its Lua, luv and fzf dependencies are installed declaratively. `prefix+e` and `prefix+o` keep their Neovim actions.
 
+Herdr's operational settings are Nix attributes in `modules/aspects/herdr.nix`.
+Its explicit TOML merge combines those settings with palette-only templates.
+Rebuilds apply bindings immediately and retain the last accepted palette;
+wallpaper changes update the palette through the same publisher. A fresh install
+uses Herdr's default palette until the first theme event. Onboarding stays off.
+The reload hook skips an absent server and reports real status or reload errors.
+
 ## installation
 
 build the installer from the repo:
