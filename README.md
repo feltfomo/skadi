@@ -76,7 +76,13 @@ systemctl --user restart bootstrap-skills.service
 
 The links may be dangling before the clone succeeds. `/home` already persists on both machines.
 
+The same aspect installs Herdr's skill in all three skill directories from the pinned Herdr release source. Claude Code and Codex can use it after a rebuild and a new CLI session. It updates with the Herdr package, without a separate skill download.
+
 Furnish deliberately does not adopt matching pre-existing links. When migrating a manual installation, first verify that each old role-skill path is a symlink to the expected checkout directory. Remove only those links before switching, leaving the checkout and unrelated skills in place. Furnish can then publish the links from absence and record their ownership. A matching link left in place still works, but remains outside Furnish's retirement ownership.
+
+## herdr pane picker
+
+`prefix+f` opens [Herdr Pickr](https://github.com/javoscript/herdr-pickr) across all spaces, with fuzzy search and a preview of the selected pane. Enter focuses that pane; Esc closes the popup. The plugin and its Lua, luv and fzf dependencies are installed declaratively. `prefix+e` and `prefix+o` keep their Neovim actions.
 
 ## installation
 

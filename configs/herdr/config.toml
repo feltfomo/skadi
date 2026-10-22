@@ -1,4 +1,10 @@
 [[keys.command]]
+key = "prefix+f"
+type = "plugin_action"
+command = "javoscript.herdr-pickr.panes-all"
+description = "find pane"
+
+[[keys.command]]
 key = "prefix+e"
 type = "plugin_action"
 command = "chmarax.herdr-nvim.toggle"

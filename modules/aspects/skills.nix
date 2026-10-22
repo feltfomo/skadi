@@ -1,7 +1,7 @@
-{ program, ... }:
+{ program, inputs, ... }:
 {
   den.aspects.skills =
-    { user, ... }:
+    { user, host, ... }:
     let
       names = [
         "subphase-orchestrator"
@@ -14,8 +14,13 @@
         ".codex/skills"
       ];
       checkout = "/home/${user.name}/Projects/skills";
+      herdr = inputs.llm-agents.packages.${host.system}.herdr;
     in
     program {
+      directories = map (directory: {
+        src = "${herdr.src}/skills/herdr";
+        dest = "${directory}/herdr";
+      }) directories;
       links = builtins.concatMap (
         directory:
         map (name: {

@@ -32,11 +32,15 @@ in
         let
           herdr = herdrFor pkgs;
           plugin = pkgs.callPackage ../../pkgs/herdr-nvim { };
+          pickr = pkgs.callPackage ../../pkgs/herdr-pickr { inherit herdr; };
         in
         {
           home.packages = [ plugin ];
           home.activation.herdrNvim = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
             run ${herdr}/bin/herdr plugin link ${plugin}
+          '';
+          home.activation.herdrPickr = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+            run ${herdr}/bin/herdr plugin link ${pickr}
           '';
         }
       )
