@@ -7,7 +7,10 @@
 {
   den.aspects.claude-code.includes = [ den.aspects.claude-code-cli ];
 
-  den.aspects.claude-code-cli = program {
+  den.aspects.claude-code-cli = {
+    includes = [ den.aspects.skills ];
+  }
+  // program {
     # the github plugin expands GITHUB_PERSONAL_ACCESS_TOKEN into its
     # Authorization header. reading the secret at launch keeps it out of
     # other shells, and hosts without the secret start without github mcp.

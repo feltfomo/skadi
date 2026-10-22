@@ -11,7 +11,10 @@
   };
 
   den.aspects.codex = {
-    includes = [ den.aspects.codex-skills ];
+    includes = with den.aspects; [
+      codex-skills
+      skills
+    ];
 
     homeManager =
       { pkgs, ... }:

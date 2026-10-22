@@ -64,6 +64,20 @@ after changing `praxis.nix`, use a fresh dev shell or `nix run /etc/skadi#praxis
 
 when adding a system service, declare any state it needs across reboots in `persistence.directories` or `persistence.files`. `/home` already persists, so it doesn't need those declarations.
 
+## shared skills
+
+The Claude Code CLI and Codex aspects include the shared skills aspect. It declares the three role-skill directories in `.claude/skills`, `.agents/skills` and `.codex/skills`, with Furnish linking each to `~/Projects/skills`. The private repository stays editable and outside the Nix store. Edits to existing skills are visible without rebuilding; adding another installed skill requires updating the name list in `modules/aspects/skills.nix` and rebuilding.
+
+`bootstrap-skills.service` clones the repository over SSH when the checkout is absent. It preserves an existing checkout and local edits. Provision GitHub SSH access separately, then retry a failed first clone with:
+
+```fish
+systemctl --user restart bootstrap-skills.service
+```
+
+The links may be dangling before the clone succeeds. `/home` already persists on both machines.
+
+Furnish deliberately does not adopt matching pre-existing links. When migrating a manual installation, first verify that each old role-skill path is a symlink to the expected checkout directory. Remove only those links before switching, leaving the checkout and unrelated skills in place. Furnish can then publish the links from absence and record their ownership. A matching link left in place still works, but remains outside Furnish's retirement ownership.
+
 ## installation
 
 build the installer from the repo:

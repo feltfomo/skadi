@@ -543,11 +543,11 @@
         "treefmt-nix": "treefmt-nix_2"
       },
       "locked": {
-        "lastModified": 1787826771,
-        "narHash": "sha256-cWpqRrI3nHnz/oPaQG7/QV0/QZrREA0So94M4NsHS5g=",
+        "lastModified": 1792662996,
+        "narHash": "sha256-LjMBmAT0cjdrjsqgbhN/MfaInaGvl3kwfkItyVvzedI=",
         "owner": "feltfomo",
         "repo": "furnish-coordinator",
-        "rev": "36d48f5a0c2a6cce7ec024fff8522784c67ec8e7",
+        "rev": "16e628d6a2f58b4bcf0da6139d00c80a4d6c1acc",
         "type": "github"
       },
       "original": {
@@ -1100,11 +1100,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1791665642,
-        "narHash": "sha256-edhkHz1QQvdUze27++drRFJmYpoHvM0rLze89MLdGsw=",
+        "lastModified": 1792663479,
+        "narHash": "sha256-HFWtrLrlUzw80T3Ae3jJljytr780QfXG2IT7OGe+wL0=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "d00293c9f5c9896d9cbe77492dc893f55a7a98a7",
+        "rev": "3007603bce10aeff849d0ca806d7fef00a13b365",
         "type": "github"
       },
       "original": {
