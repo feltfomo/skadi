@@ -12,12 +12,14 @@
             qt5ctSettings.Appearance = {
               color_scheme_path = "${config.home.homeDirectory}/.config/qt5ct/colors/reactive.conf";
               custom_palette = true;
+              icon_theme = config.gtk.iconTheme.name;
               style = "Fusion";
             };
 
             qt6ctSettings.Appearance = {
               color_scheme_path = "${config.home.homeDirectory}/.config/qt6ct/colors/reactive.conf";
               custom_palette = true;
+              icon_theme = config.gtk.iconTheme.name;
               style = "Fusion";
             };
           };

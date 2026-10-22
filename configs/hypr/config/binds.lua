@@ -6,28 +6,44 @@ hl.bind(G.mod .. " + S", hl.dsp.exec_cmd("pypr-client toggle spotify"))
 hl.bind(G.mod .. " + E", hl.dsp.exec_cmd("pypr-client toggle thunar"))
 hl.bind(G.mod .. " + CTRL + F", hl.dsp.exec_cmd("pypr-client fetch_client_menu"))
 
-hl.bind(G.mod .. " + SPACE", hl.dsp.exec_cmd("serpantinum msg toggle launcher"))
+hl.bind(G.mod .. " + SPACE", hl.dsp.global("quickshell:searchToggle"))
 -- gloview loads at startup, after the config has registered its bindings
 hl.bind(G.mod .. " + Tab", function()
 	hl.dispatch(hl.plugin.gloview.toggle)
 end)
-hl.bind(G.mod .. " + N", hl.dsp.exec_cmd("serpantinum msg toggle notifications"))
-hl.bind(G.mod .. " + M", hl.dsp.exec_cmd("serpantinum msg toggle system"))
-hl.bind(G.mod .. " + C", hl.dsp.exec_cmd("serpantinum msg toggle clipboard"))
-hl.bind(G.mod .. " + comma", hl.dsp.exec_cmd("serpantinum msg toggle guide"))
-hl.bind(G.mod .. " + SHIFT + M", hl.dsp.exec_cmd("serpantinum msg toggle music"))
-hl.bind(G.mod .. " + CTRL + L", hl.dsp.exec_cmd("serpantinum lock"))
-hl.bind(G.mod .. " + CTRL + T", hl.dsp.exec_cmd("serpantinum msg toggle wallpaper"))
+hl.bind(G.mod .. " + N", hl.dsp.global("quickshell:sidebarRightToggle"))
+hl.bind(G.mod .. " + M", hl.dsp.global("quickshell:sidebarRightToggle"))
+hl.bind(G.mod .. " + C", hl.dsp.exec_cmd("end4-pc-shell-ipc search clipboardToggle"))
+hl.bind(G.mod .. " + comma", hl.dsp.global("quickshell:settingsToggle"))
+hl.bind(G.mod .. " + SHIFT + M", hl.dsp.global("quickshell:mediaControlsToggle"))
+hl.bind(G.mod .. " + CTRL + L", hl.dsp.global("quickshell:lock"))
+hl.bind(G.mod .. " + CTRL + T", hl.dsp.global("quickshell:wallpaperSelectorToggle"))
 
-hl.bind("Print", hl.dsp.exec_cmd("serpantinum screenshot"))
-hl.bind(G.mod .. " + SHIFT + S", hl.dsp.exec_cmd("serpantinum screenshot --edit"))
+hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"))
+hl.bind(G.mod .. " + SHIFT + S", hl.dsp.exec_cmd("hyprshot -m region --raw | satty --filename -"))
 
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("serpantinum brightness raise"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("serpantinum brightness lower"), { locked = true, repeating = true })
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("serpantinum volume raise"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("serpantinum volume lower"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("serpantinum volume mute-toggle"), { locked = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("serpantinum volume mic-toggle"), { locked = true })
+hl.bind(
+	"XF86MonBrightnessUp",
+	hl.dsp.global("quickshell:brightnessIncrease"),
+	{ locked = true, repeating = true }
+)
+hl.bind(
+	"XF86MonBrightnessDown",
+	hl.dsp.global("quickshell:brightnessDecrease"),
+	{ locked = true, repeating = true }
+)
+hl.bind(
+	"XF86AudioRaiseVolume",
+	hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 2%+"),
+	{ locked = true, repeating = true }
+)
+hl.bind(
+	"XF86AudioLowerVolume",
+	hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"),
+	{ locked = true, repeating = true }
+)
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
 hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true })

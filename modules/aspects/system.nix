@@ -1,6 +1,6 @@
 {
   den.aspects.system.nixos =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     {
       nix.settings = {
         experimental-features = [
@@ -9,6 +9,8 @@
           "flakes"
         ];
         trusted-users = [ "@wheel" ];
+        max-jobs = lib.mkDefault 1;
+        cores = lib.mkDefault 2;
         # offline substitutes get one short connection attempt instead of stalling builds
         connect-timeout = 5;
         min-free = 10 * 1024 * 1024 * 1024;

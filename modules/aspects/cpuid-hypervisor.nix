@@ -30,11 +30,16 @@
           makeFlags = kernel.commonMakeFlags;
           enableParallelBuilding = true;
 
-          # kbuild leaves the module at the source root.
+          # Kbuild strips before generating the module certificate; later fixups must preserve it.
+          dontStrip = true;
+          dontPatchELF = true;
+
           installPhase = ''
             runHook preInstall
-            install -Dm444 cpuid_fault_emulation.ko \
-              "$out/lib/modules/${kernel.modDirVersion}/updates/cpuid_fault_emulation.ko"
+            make -C ${kernel.dev}/lib/modules/${kernel.modDirVersion}/build \
+              ${pkgs.lib.escapeShellArgs kernel.commonMakeFlags} \
+              M="$PWD" INSTALL_MOD_PATH="$out" INSTALL_MOD_DIR=updates \
+              INSTALL_MOD_STRIP=1 DEPMOD=true modules_install
             runHook postInstall
           '';
         }

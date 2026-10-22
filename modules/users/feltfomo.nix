@@ -35,15 +35,14 @@
       den.batteries.define-user
       bootstrap-repos
       claude-code
-      serpantinum
       spicetify
-      caelestia
       gtk-theme
       noctalia
       hyprland
       ghostty
       theming
       mangowm
+      end4-pc
       firefox
       wooting
       thunar

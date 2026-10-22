@@ -35,6 +35,12 @@
           ./_nixos/disko.nix
         ];
 
+        # Use the 5700X's 16 threads without launching many memory-heavy builds at once.
+        nix.settings = {
+          max-jobs = 2;
+          cores = 8;
+        };
+
         boot = {
           # khion is zen 3, so keep the cached generic clang build.
           kernelPackages = pkgs.linuxPackages_cachyos;

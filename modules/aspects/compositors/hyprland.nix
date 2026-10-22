@@ -37,11 +37,14 @@ let
   # relaxing the cmake constraint keeps the build offline and matches nixpkgs' fix
   hyprlandPackage =
     pkgs:
-    inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland.overrideAttrs (old: {
-      postPatch = (old.postPatch or "") + ''
-        substituteInPlace CMakeLists.txt --replace-fail "glaze 7...<8" "glaze"
-      '';
-    });
+    (inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland.override {
+      makeWrapper = pkgs.makeBinaryWrapper;
+    }).overrideAttrs
+      (old: {
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace CMakeLists.txt --replace-fail "glaze 7...<8" "glaze"
+        '';
+      });
 
   # keep audio-playing windows opaque while inactive.
   audioOpacityService =

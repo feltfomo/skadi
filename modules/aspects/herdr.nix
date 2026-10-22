@@ -4,6 +4,11 @@
   ...
 }:
 let
+  herdrFor =
+    pkgs:
+    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr.override {
+      zig = pkgs.zig_0_16;
+    };
   themeTemplate =
     name:
     builtins.toFile "herdr-${name}.toml" (
@@ -20,12 +25,12 @@ in
 
   # theme output includes the keybindings because herdr reads one config file.
   den.aspects.herdr = program {
-    pkg = pkgs: inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr;
+    pkg = herdrFor;
     imports = [
       (
         { pkgs, lib, ... }:
         let
-          herdr = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr;
+          herdr = herdrFor pkgs;
           plugin = pkgs.callPackage ../../pkgs/herdr-nvim { };
         in
         {

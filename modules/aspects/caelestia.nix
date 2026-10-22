@@ -25,13 +25,23 @@
         { pkgs, ... }:
         let
           inherit (pkgs.stdenv.hostPlatform) system;
+          cli = inputs.caelestia.inputs.caelestia-cli.packages.${system}.default.overrideAttrs (old: {
+            preBuild = (old.preBuild or "") + ''
+              export SETUPTOOLS_SCM_PRETEND_VERSION
+            '';
+          });
         in
         {
           programs.caelestia = {
             enable = true;
-            package = inputs.caelestia.packages.${system}.with-cli;
+            package = inputs.caelestia.packages.${system}.with-cli.override {
+              caelestia-cli = cli;
+            };
             systemd.enable = false;
-            cli.enable = true;
+            cli = {
+              enable = true;
+              package = cli;
+            };
           };
         }
       )

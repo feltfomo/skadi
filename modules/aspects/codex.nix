@@ -17,6 +17,11 @@
       { pkgs, ... }:
       let
         agents = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system};
+        chatgpt = agents.chatgpt.override {
+          chatgpt-unwrapped = agents.chatgpt.unwrapped.overrideAttrs (old: {
+            buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.tpm2-tss ];
+          });
+        };
         # the daemon copies a complete package from the running CLI executable.
         codex = pkgs.runCommand "codex-packaged-${agents.codex.version}" { } ''
           mkdir -p "$out/bin" "$out/libexec"
@@ -39,7 +44,7 @@
       in
       {
         home.packages = [
-          agents.chatgpt
+          chatgpt
           codex
         ];
       };

@@ -28,6 +28,7 @@
         imports = [ inputs.dms.nixosModules.dank-material-shell ];
         programs.dank-material-shell = {
           enable = true;
+          enableCalendarEvents = false;
           systemd = {
             enable = true;
             target = "niri.service";

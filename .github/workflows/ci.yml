@@ -3,6 +3,8 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+env:
+  NIX_CONFIG: "extra-experimental-features = pipe-operator"
 jobs:
   # fast gate (~1-2 min): eval the whole flake + check formatting without
   # realising the world, so eval errors and treefmt drift fail here immediately
