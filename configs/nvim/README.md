@@ -61,7 +61,9 @@ save. Java formatting is manual, matching Odyssey's repository policy.
 | Key | Action |
 | --- | --- |
 | Space G g | Open the Gradle projects and tasks browser |
-| Space t p | Choose a repository, Gradle or Cargo command |
+| Space t p | Search devenv tasks/scripts and Gradle/Cargo commands |
+| Space t o | Float the selected task or latest project command output |
+| Space t l | Rerun the last project command, including its arguments |
 | Space t t | Open the running/completed task list |
 | Space t a | Inspect, rerun or stop a task |
 | Space t r | Open Overseer's task templates |
@@ -73,10 +75,29 @@ save. Java formatting is manual, matching Odyssey's repository policy.
 | Space k r | Reload the Kotlin build model |
 | Space k d | Open Kotlin debugging |
 
-The project-command picker offers Odyssey's devenv commands only when they
-exist in the shell. Task output is saved under Neovim's state directory in
-`tasks/`, grouped by repository. The task list retains the output for review.
-Tasks run only when selected.
+The project-command picker discovers evaluated devenv tasks and scripts without
+parsing Nix source. It works when Neovim starts outside the development shell.
+Enter runs the selection in a floating output panel. Task execution belongs to
+`devenv tasks run`, including dependencies and caching. Scripts run through
+`devenv shell` to get the project's environment. Opening the picker evaluates
+configuration but doesn't run the selected task or script. The shell's normal
+setup hooks still run when launching a script.
+
+The picker preview shows descriptions, task relationships, the command and
+script body when available. Ctrl-e runs a script with arguments entered as a
+JSON array, for example `["--name", "two words"]`. Each string is one literal
+argument. Shell expansions and pipelines aren't interpreted. Ctrl-a toggles
+internal `devenv:` tasks. Ctrl-r refreshes discovery. Discovery runs
+asynchronously and caches results for one minute. Saving Nix files or devenv's
+YAML/lock file invalidates the project cache. Refresh after changing imported
+files outside the project or environment/profile settings.
+
+Gradle wrapper commands and current-crate Cargo commands remain available.
+These direct commands use Neovim's environment, so start Neovim in the dev
+shell when using them. Space t r keeps Overseer's other task templates; use
+Space t p for devenv. Task output is saved under Neovim's state directory in
+`tasks/`, grouped by repository. Project commands remain in the task list until
+you dispose of them. Space t l refuses to duplicate a still-running command.
 
 Space d b sets a breakpoint, Space d c starts or continues debugging, Space
 d i/o/O steps into/over/out, Space d e inspects an expression and Space d q
