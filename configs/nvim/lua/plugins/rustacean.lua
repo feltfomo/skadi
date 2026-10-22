@@ -3,6 +3,7 @@ return {
 	-- v8 targets neovim 0.11 while keeping the rust-specific lsp extensions stable
 	version = "^8",
 	lazy = false,
+	dependencies = { "mfussenegger/nvim-dap" },
 	init = function()
 		vim.g.rustaceanvim = {
 			tools = {
@@ -11,10 +12,10 @@ return {
 			server = {
 				default_settings = {
 					["rust-analyzer"] = {
-						cargo = { allFeatures = true },
+						cargo = { allTargets = true },
 						check = {
 							command = "clippy",
-							extraArgs = { "--all-targets", "--all-features" },
+							extraArgs = { "--all-targets" },
 						},
 						procMacro = { enable = true },
 					},
@@ -39,6 +40,12 @@ return {
 				vim.keymap.set("n", "<leader>rt", function()
 					vim.cmd.RustLsp("testables")
 				end, vim.tbl_extend("force", opts, { desc = "Rust Testables" }))
+				vim.keymap.set("n", "<leader>rd", function()
+					vim.cmd.RustLsp("debuggables")
+				end, vim.tbl_extend("force", opts, { desc = "Rust Debuggables" }))
+				vim.keymap.set("n", "<leader>re", function()
+					vim.cmd.RustLsp("expandMacro")
+				end, vim.tbl_extend("force", opts, { desc = "Expand Rust Macro" }))
 			end,
 		})
 	end,

@@ -5,13 +5,6 @@ return {
 	---@type snacks.Config
 	keys = {
 		{
-			"<leader>e",
-			function()
-				Snacks.explorer()
-			end,
-			desc = "File Explorer",
-		},
-		{
 			"<leader>g",
 			function()
 				Snacks.lazygit()
@@ -50,7 +43,8 @@ return {
 				header = { "%s", align = "left" },
 			},
 		},
-		explorer = {},
+		explorer = { enabled = false },
+		input = {},
 		indent = {},
 		lazygit = {},
 		notifier = {

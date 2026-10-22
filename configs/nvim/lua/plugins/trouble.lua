@@ -1,8 +1,10 @@
 return {
 	"folke/trouble.nvim",
-	opts = {},
+	opts = { modes = { symbols = { win = { position = "right", size = 36 } } } },
 	cmd = "Trouble",
 	keys = {
+		{ "<leader>ci", "<cmd>Trouble lsp_incoming_calls toggle<cr>", desc = "Incoming Calls" },
+		{ "<leader>cO", "<cmd>Trouble lsp_outgoing_calls toggle<cr>", desc = "Outgoing Calls" },
 		{
 			"<leader>xx",
 			"<cmd>Trouble diagnostics toggle<cr>",

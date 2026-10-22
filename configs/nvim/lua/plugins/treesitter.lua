@@ -3,7 +3,27 @@ return {
 	branch = "main",
 	build = ":TSUpdate",
 	config = function()
-		require("nvim-treesitter").install("all")
+		require("nvim-treesitter").install({
+			"markdown_inline",
+			"markdown",
+			"kotlin",
+			"luadoc",
+			"python",
+			"vimdoc",
+			"query",
+			"bash",
+			"diff",
+			"java",
+			"json",
+			"rust",
+			"toml",
+			"yaml",
+			"cpp",
+			"lua",
+			"nix",
+			"vim",
+			"c",
+		})
 
 		vim.api.nvim_create_autocmd("FileType", {
 			pattern = "*",

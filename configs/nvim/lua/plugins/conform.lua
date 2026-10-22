@@ -2,6 +2,16 @@ return {
 	"stevearc/conform.nvim",
 	event = { "BufWritePre" },
 	cmd = { "ConformInfo" },
+	keys = {
+		{
+			"<leader>cf",
+			function()
+				require("conform").format({ async = true, lsp_format = "never" })
+			end,
+			desc = "Format File or Selection",
+			mode = { "n", "x" },
+		},
+	},
 	opts = {
 		formatters_by_ft = {
 			nix = { "nixfmt" },
@@ -10,9 +20,12 @@ return {
 			kotlin = { "ktlint" },
 			rust = { "rustfmt" },
 		},
-		format_on_save = {
-			timeout_ms = 500,
-			lsp_fallback = true,
-		},
+		format_on_save = function(buf)
+			-- Java formatting is manual in Odyssey; save must not rewrite those files.
+			if vim.bo[buf].filetype == "java" then
+				return
+			end
+			return { timeout_ms = 2000, lsp_format = "never" }
+		end,
 	},
 }

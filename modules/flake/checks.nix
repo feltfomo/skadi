@@ -45,6 +45,32 @@
                 ${configFile.source.value} ${seeds} ${settingsFile.source.value}
               touch "$out"
             '';
+        nvim-project =
+          let
+            pkgs = inputs.nixpkgs.legacyPackages.${system};
+          in
+          pkgs.runCommand "nvim-project-check"
+            {
+              nativeBuildInputs = [
+                pkgs.neovim
+                pkgs.git
+              ];
+            }
+            ''
+              nvim --headless -u NONE -l ${../../tests/nvim-project.lua} \
+                ${../..} "$TMPDIR/project-fixture"
+              touch "$out"
+            '';
+        nvim-theme =
+          let
+            pkgs = inputs.nixpkgs.legacyPackages.${system};
+          in
+          pkgs.runCommand "nvim-theme-check" { nativeBuildInputs = [ pkgs.neovim ]; } ''
+            env XDG_CONFIG_HOME="$TMPDIR/config" \
+              nvim --headless -u NONE -l ${../../tests/nvim-theme.lua} \
+              ${../..} ${pkgs.vimPlugins.mini-hues}
+            touch "$out"
+          '';
         nvim-theme-reload =
           let
             pkgs = inputs.nixpkgs.legacyPackages.${system};

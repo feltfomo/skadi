@@ -23,10 +23,18 @@ if not vim.uv.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+local spec = { { import = "plugins" } }
+local lock = vim.fn.stdpath("config") .. "/lazy-lock.json"
+if vim.fn.filereadable(lock) == 1 then
+	for name, pin in pairs(vim.json.decode(table.concat(vim.fn.readfile(lock), "\n"))) do
+		spec[#spec + 1] = { name, commit = pin.commit, optional = true }
+	end
+end
+
 require("lazy").setup({
-	spec = {
-		{ import = "plugins" },
-	},
+	spec = spec,
+	-- Furnish deploys immutable config files; Lazy writes its working lock in state.
+	lockfile = vim.fn.stdpath("state") .. "/lazy-lock.json",
 	install = { colorscheme = { "habamax" } },
 	checker = { enabled = false },
 })

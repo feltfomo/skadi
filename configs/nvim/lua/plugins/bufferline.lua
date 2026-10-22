@@ -9,6 +9,7 @@ return {
 			separator_style = "slant",
 			always_show_bufferline = true,
 			offsets = {
+				{ filetype = "neo-tree", text = "Project", highlight = "Directory", separator = true },
 				{
 					filetype = "oil",
 					text = "Files",

@@ -8,18 +8,27 @@
   den.aspects.nvim = program {
     pkg =
       pkgs:
+      let
+        kotlinLsp = pkgs.callPackage ../../pkgs/kotlin-lsp { };
+        javaDebug = pkgs.vscode-extensions.vscjava.vscode-java-debug;
+      in
       pkgs.symlinkJoin {
         name = "neovim-with-deps";
+        nativeBuildInputs = [ pkgs.makeWrapper ];
         paths = with pkgs; [
-          kotlin-language-server
+          vscode-extensions.vadimcn.vscode-lldb.adapter
           lua-language-server
           jdt-language-server
           google-java-format
           rust-analyzer
           wl-clipboard
           tree-sitter
+          kotlinLsp
+          ripgrep
+          lazygit
           pyright
           rustfmt
+          stylua
           neovim
           ktlint
           cargo
@@ -27,7 +36,13 @@
           gcc
           zls
           ols
+          fd
         ];
+        postBuild = ''
+          wrapProgram "$out/bin/nvim" \
+            --set KOTLIN_LSP_DIR "${kotlinLsp}/share/kotlin-lsp" \
+            --set NVIM_JAVA_DEBUG_DIR "${javaDebug}/share/vscode/extensions/vscjava.vscode-java-debug/server"
+        '';
       };
     directories = [
       {
