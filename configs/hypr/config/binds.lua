@@ -22,16 +22,8 @@ hl.bind(G.mod .. " + CTRL + T", hl.dsp.global("quickshell:wallpaperSelectorToggl
 hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"))
 hl.bind(G.mod .. " + SHIFT + S", hl.dsp.exec_cmd("hyprshot -m region --raw | satty --filename -"))
 
-hl.bind(
-	"XF86MonBrightnessUp",
-	hl.dsp.global("quickshell:brightnessIncrease"),
-	{ locked = true, repeating = true }
-)
-hl.bind(
-	"XF86MonBrightnessDown",
-	hl.dsp.global("quickshell:brightnessDecrease"),
-	{ locked = true, repeating = true }
-)
+hl.bind("XF86MonBrightnessUp", hl.dsp.global("quickshell:brightnessIncrease"), { locked = true, repeating = true })
+hl.bind("XF86MonBrightnessDown", hl.dsp.global("quickshell:brightnessDecrease"), { locked = true, repeating = true })
 hl.bind(
 	"XF86AudioRaiseVolume",
 	hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 2%+"),
