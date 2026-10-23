@@ -4,10 +4,9 @@ inputs.flake-parts.lib.mkFlake { inherit inputs; } (
   let
     ownerships = inputs.lexicon.lib.ownerships { };
     denApi = inputs.lexicon.lib.den { inherit den; };
-    # the roster spans den.hosts; systems below only scopes perSystem outputs.
     inherit (denApi) roster;
     resolve = ownerships.mkResolve roster;
-    # system slices have a host principal without a user principal.
+    # system slices have a host principal without a user principal
     resolveSystem = ownerships.mkResolveSystem roster;
     resolvePrepared = ownerships.mkResolvePrepared roster;
   in
@@ -23,6 +22,7 @@ inputs.flake-parts.lib.mkFlake { inherit inputs; } (
         ownerships
         roster
         ;
+      lexicon = inputs.lexicon.lib.lexicon.forDen { inherit den; };
       program = inputs.lexicon.lib.program {
         inherit
           resolve
