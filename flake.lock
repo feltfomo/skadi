@@ -1016,11 +1016,11 @@
         "upstream": "upstream"
       },
       "locked": {
-        "lastModified": 1792655187,
-        "narHash": "sha256-0xRDr20KEkbfG7ZclouTZQqHuvfEvoew/8lhaUdxow0=",
+        "lastModified": 1792663776,
+        "narHash": "sha256-tgQCftxaUC1TV8JE0/XVpdXzCdFzbeMj8kKYDaGazSU=",
         "owner": "feltfomo",
         "repo": "illogical-impulse-shell-nix",
-        "rev": "1925a0678880dbdb7cdce145c333bbb134c442a0",
+        "rev": "cbac7bda47f66461f7bbb426394e84af25c55256",
         "type": "github"
       },
       "original": {
@@ -1100,11 +1100,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1792671953,
-        "narHash": "sha256-AuAs2ApZa2kFGAzXzStAnk6DCQ0l4N7ouY5A0cE6xSA=",
+        "lastModified": 1792721515,
+        "narHash": "sha256-g8y3OiJDPcejQYjxQMsrC1GO8bWp64haEchb9d49Ixc=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "cae8daf2eb90b4ce0f672d75e2ca4cb02afa7eed",
+        "rev": "8a4eb3eeebef80b2a439c1bcf3fd46f3f48e342e",
         "type": "github"
       },
       "original": {
