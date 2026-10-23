@@ -1,0 +1,27 @@
+--- a/lua/neo-tree/ui/renderer.lua
++++ b/lua/neo-tree/ui/renderer.lua
+@@ -1625,0 +1626,20 @@
++-- set_nodes consumes fresh nodes. Reusing live siblings drops their loaded
++-- descendants because Nui stores those children separately after initialization.
++local function copy_subtree(tree, node)
++  local children = {}
++  for _, child in ipairs(tree:get_nodes(node:get_id())) do
++    children[#children + 1] = copy_subtree(tree, child)
++  end
++  local data = {}
++  for key, value in pairs(node) do
++    if type(key) ~= "string" or key:sub(1, 1) ~= "_" then
++      data[key] = value
++    end
++  end
++  local copy = NuiTree.Node(data, children)
++  if node:is_expanded() then
++    copy:expand()
++  end
++  return copy
++end
++
+@@ -1712 +1732,2 @@
+-              break
++            else
++              siblings[i] = copy_subtree(state.tree, node)

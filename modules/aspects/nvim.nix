@@ -10,6 +10,7 @@
       pkgs:
       let
         kotlinLsp = pkgs.callPackage ../../pkgs/kotlin-lsp { };
+        neoTree = pkgs.callPackage ../../pkgs/neo-tree { };
         javaDebug = pkgs.vscode-extensions.vscjava.vscode-java-debug;
       in
       pkgs.symlinkJoin {
@@ -40,6 +41,7 @@
         ];
         postBuild = ''
           wrapProgram "$out/bin/nvim" \
+            --set NVIM_NEO_TREE_DIR "${neoTree}" \
             --set KOTLIN_LSP_DIR "${kotlinLsp}/share/kotlin-lsp" \
             --set NVIM_JAVA_DEBUG_DIR "${javaDebug}/share/vscode/extensions/vscjava.vscode-java-debug/server"
         '';

@@ -124,6 +124,14 @@ LSP semantic tokens share those roles. Wallpaper reloads regenerate both.
 
 ## Maintenance
 
+Neo-tree comes from Nix with a source patch that preserves loaded sibling
+directories when grouping package paths. Lazy loads that copy through
+`NVIM_NEO_TREE_DIR`. Its upstream revision stays in `lazy-lock.json`; changing
+it also requires updating the source hash in `pkgs/neo-tree/default.nix` and
+checking that the grouping patch still applies.
+Nix generates its help tags in a separate help directory, which Neovim adds
+to its runtime path so Lazy's sync doesn't write into the immutable plugin.
+
 `lazy-lock.json` records the plugin revisions used by this config. Lazy reads
 those commits as plugin constraints and writes its mutable working lock to
 the state directory, since Furnish deploys immutable configuration files.

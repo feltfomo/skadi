@@ -1,10 +1,14 @@
 return {
 	{
 		"nvim-neo-tree/neo-tree.nvim",
+		dir = vim.env.NVIM_NEO_TREE_DIR,
 		branch = "v3.x",
 		lazy = false,
 		cmd = "Neotree",
 		dependencies = { "nvim-lua/plenary.nvim", "MunifTanjim/nui.nvim", "echasnovski/mini.icons" },
+		init = function(plugin)
+			vim.opt.runtimepath:append(plugin.dir .. "/help")
+		end,
 		keys = {
 			{ "<leader>e", "<cmd>Neotree toggle<cr>", desc = "Toggle File Tree" },
 			{
