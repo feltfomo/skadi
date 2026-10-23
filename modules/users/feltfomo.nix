@@ -48,6 +48,7 @@
       thunar
       tablet
       t3code
+      linear
       fuzzel
       helix
       codex
