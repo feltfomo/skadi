@@ -16,13 +16,13 @@ use `lumi` on the laptop. this regenerates `flake.nix`, formats the repo and run
 
 praxis uses `/etc/skadi` even when run from another directory.
 
-| command | what it does |
-| --- | --- |
-| `praxis check` | build both machines and run the repo checks |
-| `praxis fmt` | format the repo |
-| `praxis update input lexicon` | update one flake input |
-| `praxis flake update` | update all flake inputs and the Wooting background service |
-| `praxis update wooting` | update just the Wooting background service |
+| command                       | what it does                                               |
+| ----------------------------- | ---------------------------------------------------------- |
+| `praxis check`                | build both machines and run the repo checks                |
+| `praxis fmt`                  | format the repo                                            |
+| `praxis update input lexicon` | update one flake input                                     |
+| `praxis flake update`         | update all flake inputs and the Wooting background service |
+| `praxis update wooting`       | update just the Wooting background service                 |
 
 `nfu` is the fish abbreviation for `praxis flake update`. plain `nix flake update` skips Wooting, which has its own [version and hash](pkgs/wooting-bg-service/release.json).
 
@@ -47,49 +47,22 @@ nix run /etc/skadi#praxis -- rebuild khion
 
 ## editing the config
 
-| path | what's there |
-| --- | --- |
-| [modules/hosts/](modules/hosts/) | each machine's aspects, hardware, disks and bootloader |
-| [modules/users/](modules/users/) | accounts and home manager settings |
-| [modules/aspects/](modules/aspects/) | programs, services and their config file declarations |
-| [configs/](configs/) | the config files themselves |
-| [pkgs/](pkgs/) | local packages and patches |
-| [praxis.nix](praxis.nix) | maintenance commands |
-| [modules/flake/](modules/flake/) | checks, formatting and the dev shell |
-| [scripts/](scripts/), [tests/](tests/) | installer scripts and tests |
+| path                                   | what's there                                           |
+| -------------------------------------- | ------------------------------------------------------ |
+| [modules/hosts/](modules/hosts/)       | each machine's aspects, hardware, disks and bootloader |
+| [modules/users/](modules/users/)       | accounts and home manager settings                     |
+| [modules/aspects/](modules/aspects/)   | programs, services and their config file declarations  |
+| [configs/](configs/)                   | the config files themselves                            |
+| [pkgs/](pkgs/)                         | local packages and patches                             |
+| [praxis.nix](praxis.nix)               | maintenance commands                                   |
+| [modules/flake/](modules/flake/)       | checks, formatting and the dev shell                   |
+| [scripts/](scripts/), [tests/](tests/) | installer scripts and tests                            |
 
 `flake.nix` is generated. change input declarations in the relevant module, then run `praxis gen`. [outputs.nix](outputs.nix) sets up module imports and the shared helpers from [lexicon](https://github.com/feltfomo/lexicon).
 
 after changing `praxis.nix`, use a fresh dev shell or `nix run /etc/skadi#praxis` to try it. the installed command keeps its old declarations until the next activation.
 
 when adding a system service, declare any state it needs across reboots in `persistence.directories` or `persistence.files`. `/home` already persists, so it doesn't need those declarations.
-
-## shared skills
-
-The Claude Code CLI and Codex aspects include the shared skills aspect. It declares the three role-skill directories in `.claude/skills`, `.agents/skills` and `.codex/skills`, with Furnish linking each to `~/Projects/skills`. The private repository stays editable and outside the Nix store. Edits to existing skills are visible without rebuilding; adding another installed skill requires updating the name list in `modules/aspects/skills.nix` and rebuilding.
-
-`bootstrap-skills.service` clones the repository over SSH when the checkout is absent. It preserves an existing checkout and local edits. Provision GitHub SSH access separately, then retry a failed first clone with:
-
-```fish
-systemctl --user restart bootstrap-skills.service
-```
-
-The links may be dangling before the clone succeeds. `/home` already persists on both machines.
-
-The same aspect installs Herdr's skill in all three skill directories from the pinned Herdr release source. Claude Code and Codex can use it after a rebuild and a new CLI session. It updates with the Herdr package, without a separate skill download.
-
-Furnish deliberately does not adopt matching pre-existing links. When migrating a manual installation, first verify that each old role-skill path is a symlink to the expected checkout directory. Remove only those links before switching, leaving the checkout and unrelated skills in place. Furnish can then publish the links from absence and record their ownership. A matching link left in place still works, but remains outside Furnish's retirement ownership.
-
-## herdr pane picker
-
-`prefix+f` opens [Herdr Pickr](https://github.com/javoscript/herdr-pickr) across all spaces, with fuzzy search and a preview of the selected pane. Enter focuses that pane; Esc closes the popup. The plugin and its Lua, luv and fzf dependencies are installed declaratively. `prefix+e` and `prefix+o` keep their Neovim actions.
-
-Herdr's operational settings are Nix attributes in `modules/aspects/herdr.nix`.
-Its explicit TOML merge combines those settings with palette-only templates.
-Rebuilds apply bindings immediately and retain the last accepted palette;
-wallpaper changes update the palette through the same publisher. A fresh install
-uses Herdr's default palette until the first theme event. Onboarding stays off.
-The reload hook skips an absent server and reports real status or reload errors.
 
 ## installation
 
@@ -111,9 +84,9 @@ this erases the target disk. the installer clones skadi from github when it runs
 
 there are two extra targets in [modules/hosts/](modules/hosts/):
 
-| target | purpose |
-| --- | --- |
-| `vm` | test installation and first boot in qemu |
+| target    | purpose                                                                    |
+| --------- | -------------------------------------------------------------------------- |
+| `vm`      | test installation and first boot in qemu                                   |
 | `generic` | detect hardware and install to a single disk with an `owner` admin account |
 
 `generic` requires exactly one disk and must be selected explicitly with `skadi-install generic`.

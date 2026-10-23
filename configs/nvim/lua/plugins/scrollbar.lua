@@ -1,0 +1,37 @@
+return {
+	"dstein64/nvim-scrollview",
+	event = "VeryLazy",
+	keys = {
+		{ "<leader>us", "<cmd>ScrollViewToggle<cr>", desc = "Toggle Scrollbar" },
+	},
+	opts = {
+		-- Keep file-length cues stable when folds are closed.
+		mode = "simple",
+		base = "right",
+		visibility = "always",
+		winblend = 0,
+		winblend_gui = 0,
+		hide_on_float_intersect = true,
+		signs_on_startup = { "diagnostics", "search" },
+		diagnostics_severities = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN },
+		excluded_filetypes = {
+			"neo-tree",
+			"lazy",
+			"TelescopePrompt",
+			"TelescopeResults",
+			"trouble",
+			"OverseerList",
+			"OverseerForm",
+			"dap-repl",
+			"dapui_scopes",
+			"dapui_breakpoints",
+			"dapui_stacks",
+			"dapui_watches",
+			"dapui_console",
+			"snacks_dashboard",
+			"snacks_terminal",
+			"oil",
+			"grug-far",
+		},
+	},
+}
