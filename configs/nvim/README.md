@@ -54,9 +54,49 @@ actions. Ctrl-k in insert mode shows signature help.
 
 Space u h toggles inlay hints, Space u d toggles buffer diagnostics and Space
 u t toggles the sticky context headers. Hints start disabled for Kotlin.
+Diagnostics expand below the current line. Symbol references highlight under
+the cursor; `[r` and `]r` move between them. Large files skip language servers
+and Tree-sitter analysis.
 
 Space c f formats explicitly. Kotlin uses ktlint and Rust uses rustfmt on
 save. Java formatting is manual, matching Odyssey's repository policy.
+Python uses Ruff, C uses clang-format, TOML uses Taplo, and Markdown/YAML use
+Prettier on save. Their executables come from Nix.
+
+Nix completion uses the current project's pinned nixpkgs when it has a flake.
+NixOS and integrated Home Manager options come from that flake's configuration
+for the current hostname. Flakes without that host expose no host options.
+Statix and deadnix report Nix findings on save. Python uses Pyright for types
+and Ruff for linting. C uses clangd, Nushell uses its built-in server, and
+JSON/YAML use SchemaStore schemas. For native projects, clangd needs the build's
+compiler flags, normally through `compile_commands.json`, to resolve external
+headers and defines accurately.
+
+| Key | Action |
+| --- | --- |
+| Space s r | Search and replace across the repository with a diff preview |
+| Space s w | Prefill search and replace with the current word |
+| s / S | Jump to a labelled match / select a syntax node |
+| g s a / g s d / g s r | Add / delete / replace surroundings |
+| a f / i f | Select around / inside a function |
+| a c / i c | Select around / inside a class |
+| a a / i a | Select around / inside an argument |
+| [f / ]f | Previous / next function |
+| [C / ]C | Previous / next class |
+| Space c < / Space c > | Swap an argument backward / forward |
+| Space q s | Restore the current directory and branch's session |
+| Space q S | Choose a saved session |
+| Space q l | Restore the last session |
+| Space q d | Stop saving the current session |
+| Space x q / Space x l | Toggle quickfix / location list |
+| Space h v | Review repository changes in Diffview |
+| Space h H | Show the current file's history |
+| Space h c | Close Diffview |
+
+Sessions save on exit and restore only when requested. In quickfix, `>` expands
+source context and `<` collapses it. Editing result text and saving applies the
+edits to its source files. Search and replace opens with a preview; Space r in
+that buffer applies the replacements.
 
 | Key | Action |
 | --- | --- |
@@ -98,10 +138,16 @@ shell when using them. Space t r keeps Overseer's other task templates; use
 Space t p for devenv. Task output is saved under Neovim's state directory in
 `tasks/`, grouped by repository. Project commands remain in the task list until
 you dispose of them. Space t l refuses to duplicate a still-running command.
+Completed project commands populate quickfix with Kotlin, Java/C compiler,
+Detekt and Rust error locations. Space x q opens those results. Space t a's
+"set quickfix diagnostics" action restores a selected completed task's parsed
+results. Full output remains in the task log.
 
 Space d b sets a breakpoint, Space d c starts or continues debugging, Space
 d i/o/O steps into/over/out, Space d e inspects an expression and Space d q
 stops the session. Space d u toggles the variables, watches and stack windows.
+Variable values also appear beside their definitions while debugging, where
+the language's Tree-sitter queries support it.
 
 Java offers attachment to a local JVM, defaulting to debug port 5005. The JVM
 must already have debugging enabled. Space d m discovers Java main classes.

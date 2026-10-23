@@ -26,7 +26,13 @@ function M.run(choice, root, args)
 		cmd = vim.deepcopy(command),
 		cwd = choice.cwd or root,
 		metadata = { project_root = root },
-		components = { { "on_output_write_file", filename = log }, "on_exit_set_status", "on_complete_notify" },
+		default_component_params = { errorformat = require("config.task_output").errorformat },
+		components = {
+			{ "on_output_write_file", filename = log },
+			{ "on_output_quickfix", items_only = true, set_diagnostics = true, tail = false },
+			"on_exit_set_status",
+			"on_complete_notify",
+		},
 	})
 	latest[root] = { choice = vim.deepcopy(choice), args = vim.deepcopy(args), task = task }
 	task:start()

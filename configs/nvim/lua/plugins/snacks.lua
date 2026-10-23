@@ -5,6 +5,20 @@ return {
 	---@type snacks.Config
 	keys = {
 		{
+			"]r",
+			function()
+				Snacks.words.jump(vim.v.count1)
+			end,
+			desc = "Next Symbol Reference",
+		},
+		{
+			"[r",
+			function()
+				Snacks.words.jump(-vim.v.count1)
+			end,
+			desc = "Previous Symbol Reference",
+		},
+		{
 			"<leader>g",
 			function()
 				Snacks.lazygit()
@@ -46,6 +60,8 @@ return {
 		explorer = { enabled = false },
 		input = {},
 		indent = {},
+		bigfile = {},
+		words = {},
 		lazygit = {},
 		notifier = {
 			style = "fancy",

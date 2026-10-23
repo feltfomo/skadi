@@ -21,6 +21,7 @@ return {
 			"cpp",
 			"lua",
 			"nix",
+			"nu",
 			"vim",
 			"c",
 		})

@@ -1,8 +1,25 @@
 return {
 	"neovim/nvim-lspconfig",
 	lazy = false,
-	dependencies = { "mfussenegger/nvim-jdtls", "mfussenegger/nvim-dap" },
+	dependencies = { "mfussenegger/nvim-jdtls", "mfussenegger/nvim-dap", "b0o/SchemaStore.nvim" },
 	config = function()
+		vim.lsp.config("nixd", {
+			settings = { nixd = {} },
+			before_init = function(_, config)
+				config.settings.nixd = require("config.nix").settings(config.root_dir)
+			end,
+		})
+		vim.lsp.config("jsonls", {
+			settings = { json = { schemas = require("schemastore").json.schemas(), validate = { enable = true } } },
+		})
+		vim.lsp.config("yamlls", {
+			settings = {
+				yaml = {
+					schemaStore = { enable = false, url = "" },
+					schemas = require("schemastore").yaml.schemas(),
+				},
+			},
+		})
 		vim.lsp.config("lua_ls", {
 			settings = {
 				Lua = {
@@ -40,6 +57,9 @@ return {
 				local client = vim.lsp.get_client_by_id(args.data.client_id)
 				if not client then
 					return
+				end
+				if client.name == "ruff" then
+					client.server_capabilities.hoverProvider = false
 				end
 
 				local opts = { buffer = args.buf, silent = true }
@@ -91,19 +111,8 @@ return {
 		})
 
 		vim.diagnostic.config({
-			virtual_text = {
-				severity = { min = vim.diagnostic.severity.WARN },
-				spacing = 4,
-				prefix = function(diagnostic)
-					local icons = {
-						[vim.diagnostic.severity.ERROR] = " ",
-						[vim.diagnostic.severity.WARN] = " ",
-						[vim.diagnostic.severity.INFO] = " ",
-						[vim.diagnostic.severity.HINT] = " ",
-					}
-					return icons[diagnostic.severity] or "●"
-				end,
-			},
+			virtual_text = false,
+			virtual_lines = { current_line = true },
 			signs = {
 				text = {
 					[vim.diagnostic.severity.ERROR] = " ",
@@ -122,6 +131,11 @@ return {
 			"lua_ls",
 			"jdtls",
 			"pyright",
+			"ruff",
+			"clangd",
+			"nushell",
+			"jsonls",
+			"yamlls",
 			"zls",
 			"ols",
 		})

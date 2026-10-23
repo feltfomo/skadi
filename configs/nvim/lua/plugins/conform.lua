@@ -19,6 +19,11 @@ return {
 			java = { "google_java_format" },
 			kotlin = { "ktlint" },
 			rust = { "rustfmt" },
+			python = { "ruff_format" },
+			c = { "clang_format" },
+			toml = { "taplo" },
+			markdown = { "prettier" },
+			yaml = { "prettier" },
 		},
 		format_on_save = function(buf)
 			-- Java formatting is manual in Odyssey; save must not rewrite those files.

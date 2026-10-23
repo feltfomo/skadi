@@ -11,6 +11,8 @@
           export XDG_DATA_HOME="$TMPDIR/data"
           nvim --headless -u NONE -l ${../../tests/nvim-tasks.lua} \
             ${../..} "$TMPDIR/devenv-fixture"
+          nvim --headless -u NONE -l ${../../tests/nvim-ide.lua} \
+            ${../..} "$TMPDIR/ide-fixture"
           nvim --headless -u NONE -l ${../../tests/nvim-tasks-ui.lua} \
             ${../..} "$TMPDIR/picker-fixture" \
             ${pkgs.vimPlugins.telescope-nvim} ${pkgs.vimPlugins.plenary-nvim}

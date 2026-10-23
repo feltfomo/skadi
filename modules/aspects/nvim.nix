@@ -18,20 +18,30 @@
         nativeBuildInputs = [ pkgs.makeWrapper ];
         paths = with pkgs; [
           vscode-extensions.vadimcn.vscode-lldb.adapter
+          vscode-langservers-extracted
+          yaml-language-server
           lua-language-server
           jdt-language-server
           google-java-format
           rust-analyzer
           wl-clipboard
           tree-sitter
+          clang-tools
           kotlinLsp
           ripgrep
           lazygit
           pyright
+          prettier
+          nushell
+          deadnix
           rustfmt
           stylua
           neovim
           ktlint
+          nixfmt
+          statix
+          taplo
+          ruff
           cargo
           nixd
           gcc
