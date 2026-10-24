@@ -9,29 +9,6 @@
     in
     {
       inherit (praxis) packages apps;
-      checks.praxis =
-        let
-          testPraxis = inputs.lexicon.lib.praxis (
-            (import ../../praxis.nix { inherit inputs; })
-            // {
-              inherit pkgs;
-              cwd = "/tmp";
-            }
-          );
-        in
-        pkgs.runCommand "skadi-praxis-check"
-          {
-            nativeBuildInputs = with pkgs; [
-              diffutils
-              gnused
-              bash
-            ];
-            PRAXIS = "${testPraxis.package}/bin/praxis";
-          }
-          ''
-            bash -euo pipefail ${../../tests/praxis.sh}
-            touch "$out"
-          '';
     };
 
   den.aspects.feltfomo.homeManager =

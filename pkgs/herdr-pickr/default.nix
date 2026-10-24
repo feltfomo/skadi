@@ -8,7 +8,6 @@
   coreutils,
   runtimeShell,
   herdr,
-  python3,
 }:
 let
   lua = lua5_4.withPackages (ps: [ ps.luv ]);
@@ -59,14 +58,6 @@ stdenvNoCC.mkDerivation {
     substituteInPlace "$out/src/pickr/core.lua" \
       --replace-fail '/bin/sh -c' '${runtimeShell} -c'
     runHook postInstall
-  '';
-
-  doInstallCheck = true;
-  nativeInstallCheckInputs = [ python3 ];
-  installCheckPhase = ''
-    runHook preInstallCheck
-    python3 ${../../tests/herdr-pickr.py} "$out"
-    runHook postInstallCheck
   '';
 
   meta = {

@@ -56,7 +56,7 @@ nix run /etc/skadi#praxis -- rebuild khion
 | [pkgs/](pkgs/)                         | local packages and patches                             |
 | [praxis.nix](praxis.nix)               | maintenance commands                                   |
 | [modules/flake/](modules/flake/)       | checks, formatting and the dev shell                   |
-| [scripts/](scripts/), [tests/](tests/) | installer scripts and tests                            |
+| [scripts/](scripts/), [tests/](tests/) | maintenance scripts and the VM installer harness        |
 
 `flake.nix` is generated. change input declarations in the relevant module, then run `praxis gen`. [outputs.nix](outputs.nix) sets up module imports and the shared helpers from [lexicon](https://github.com/feltfomo/lexicon).
 

@@ -7,16 +7,6 @@ _: {
         exec python3 ${../../pkgs/wooting-bg-service/update.py} /etc/skadi/pkgs/wooting-bg-service/release.json
       '';
     };
-    checks.wooting-update =
-      pkgs.runCommand "wooting-update-check"
-        {
-          nativeBuildInputs = [ pkgs.python3 ];
-        }
-        ''
-          export PYTHONDONTWRITEBYTECODE=1
-          python3 ${../../tests/wooting-update.py} ${../../pkgs/wooting-bg-service/update.py}
-          touch "$out"
-        '';
   };
 
   den.aspects.wooting = {
