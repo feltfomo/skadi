@@ -36,6 +36,7 @@
       bootstrap-repos
       claude-code
       spicetify
+      superfile
       gtk-theme
       noctalia
       hyprland
@@ -215,7 +216,6 @@
           winetricks
           hyprpicker
           grimblast
-          superfile
           tesseract
           tty-clock
           alejandra
