@@ -30,10 +30,6 @@
     };
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     den.url = "github:denful/den/v0.19.0";
-    desktop-commander = {
-      flake = false;
-      url = "github:wonderwhy-er/DesktopCommanderMCP/e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9";
-    };
     disko = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:nix-community/disko";
@@ -71,10 +67,6 @@
     mango = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:mangowm/mango";
-    };
-    mcp-proxy = {
-      flake = false;
-      url = "github:punkpeye/mcp-proxy/88ebe4aa6115d39bd27832c60a112cca277e8405";
     };
     niri = {
       inputs.nixpkgs.follows = "nixpkgs";

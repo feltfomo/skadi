@@ -225,9 +225,8 @@ that blocks. Never bury an approval request inside a technical section.
 
 ## Pi tools, MCP, and web research
 
-The configured MCP servers are `context7`, `github`, and `desktop-commander`. Context7 and
-GitHub use their hosted services. Desktop Commander runs on Khion and is reached through the
-authenticated Tailscale gateway. Exa search comes from Pi Web Access, not an Exa MCP server.
+The configured MCP servers are `context7` and `github`. Both use their hosted services.
+Exa search comes from Pi Web Access, not an Exa MCP server.
 
 Skip network tools when local source answers the question. Use Pi's `read`, `bash`, `edit`,
 and `write` tools for ordinary local project work.
@@ -249,10 +248,6 @@ Read the version that matches the pin in the repo, not the latest release.
 
 GitHub is for reading the actual source of a library you call, or of the JDK, when a signature
 or behavior matters and the docs don't settle it. Read the tag or commit that matches the pin.
-
-Desktop Commander is for remote filesystem and process work on Khion. Its capabilities do
-not grant permission to leave the requested project scope or run privileged commands. The
-same machine, security, and approval rules apply through MCP.
 
 Use Pi Web Access's `web_search` with provider `exa` for open-web questions the other tools
 don't cover: an upstream issue, a changelog, a bug report, or upstream discussion. If the web

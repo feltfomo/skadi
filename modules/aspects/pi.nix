@@ -17,7 +17,6 @@
       pkgs:
       let
         pi = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi;
-        headers = pkgs.callPackage ../../pkgs/mcp-gateway-headers { };
       in
       pkgs.symlinkJoin {
         name = "pi-mcp-${pi.version}";
@@ -26,8 +25,7 @@
         nativeBuildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
           wrapProgram "$out/bin/pi" \
-            --set PI_MCP_CONFIG_MODE exclusive \
-            --prefix PATH : ${headers}/bin
+            --set PI_MCP_CONFIG_MODE exclusive
         '';
       };
     furnish.files = [
@@ -62,7 +60,6 @@
           home = {
             packages = [
               extensions
-              (pkgs.callPackage ../../pkgs/mcp-gateway-headers { })
               pkgs.nodejs_24
               pkgs.keyutils
             ];

@@ -43,7 +43,6 @@
       theming
       mangowm
       end4-pc
-      firefox
       wooting
       thunar
       tablet
@@ -210,7 +209,6 @@
           appimage-run
           lunar-client
           qbittorrent
-          tor-browser
           imagemagick
           bubblewrap
           proton-vpn
@@ -218,7 +216,6 @@
           hyprpicker
           grimblast
           superfile
-          librewolf
           tesseract
           tty-clock
           alejandra

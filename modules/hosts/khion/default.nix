@@ -9,7 +9,6 @@
   # keep feature selection on the aspect so the installer can list and drop it.
   den.aspects.khion = {
     includes = with den.aspects; [
-      desktop-commander-mcp
       cpuid-hypervisor
       noctalia-greeter
       performance

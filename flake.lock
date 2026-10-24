@@ -187,23 +187,6 @@
         "type": "github"
       }
     },
-    "desktop-commander": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1787841048,
-        "narHash": "sha256-sW6nWVKYlKtrtUw5KZSEU8zYBSTYrf97QFX0AnolaCg=",
-        "owner": "wonderwhy-er",
-        "repo": "DesktopCommanderMCP",
-        "rev": "e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9",
-        "type": "github"
-      },
-      "original": {
-        "owner": "wonderwhy-er",
-        "repo": "DesktopCommanderMCP",
-        "rev": "e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9",
-        "type": "github"
-      }
-    },
     "disko": {
       "inputs": {
         "nixpkgs": [
@@ -1181,23 +1164,6 @@
         "type": "github"
       }
     },
-    "mcp-proxy": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1787760427,
-        "narHash": "sha256-5qxQ0lueeQw3sxuYcSnapbkzFRffxyrHN/viH+i9z6A=",
-        "owner": "punkpeye",
-        "repo": "mcp-proxy",
-        "rev": "88ebe4aa6115d39bd27832c60a112cca277e8405",
-        "type": "github"
-      },
-      "original": {
-        "owner": "punkpeye",
-        "repo": "mcp-proxy",
-        "rev": "88ebe4aa6115d39bd27832c60a112cca277e8405",
-        "type": "github"
-      }
-    },
     "niri": {
       "inputs": {
         "niri-stable": "niri-stable",
@@ -1703,7 +1669,6 @@
         "caelestia": "caelestia",
         "chaotic": "chaotic",
         "den": "den",
-        "desktop-commander": "desktop-commander",
         "disko": "disko",
         "dms": "dms",
         "elephant": "elephant",
@@ -1718,7 +1683,6 @@
         "lexicon": "lexicon",
         "llm-agents": "llm-agents",
         "mango": "mango",
-        "mcp-proxy": "mcp-proxy",
         "niri": "niri",
         "nixpkgs": "nixpkgs_7",
         "nixpkgs-logseq": "nixpkgs-logseq",

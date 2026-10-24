@@ -120,17 +120,7 @@ nix store diff-closures /run/current-system ./result
 
 ## remote tools
 
-khion hosts desktop commander through an authenticated tailscale funnel endpoint. check it or print the url with:
-
-```fish
-mcp-host status
-mcp-host test
-mcp-host urls
-```
-
-the service config is in [modules/aspects/mcp-host/](modules/aspects/mcp-host/). ngrok and cloudflare tunnels are available through `desktop-commander-tunnel`.
-
-pi's servers are declared in [configs/pi/mcp-adapter.json](configs/pi/mcp-adapter.json). desktop commander reads its token from `/run/secrets/desktop-commander-mcp-token` on khion. other machines need `DESKTOP_COMMANDER_MCP_TOKEN`. context7 and github connect directly to their hosted servers. set pi's github token through the masked prompt:
+pi's servers are declared in [configs/pi/mcp-adapter.json](configs/pi/mcp-adapter.json). context7 and github connect directly to their hosted servers. set pi's github token through the masked prompt:
 
 ```fish
 pi-mcp-adapter token set github

@@ -4,5 +4,5 @@ border_width = 1.0
 enabled = false
 launcher_position = "start"
 margin_edge = 10
-pinned = ["steam", "spotify", "firefox", "equibop", "zen-twilight"]
+pinned = ["steam", "spotify", "equibop", "zen-twilight"]
 show_dots = true
