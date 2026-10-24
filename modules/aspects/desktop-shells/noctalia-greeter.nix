@@ -11,7 +11,7 @@
 
     nixos = {
       imports = [ inputs.noctalia-greeter.nixosModules.default ];
-      programs.noctalia-greeter.enable = true;
+      services.displayManager.noctalia-greeter.enable = true;
       security.polkit.enable = true;
     };
   };

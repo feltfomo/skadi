@@ -21,6 +21,10 @@
   };
 
   inputs = {
+    ai-usagebar = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:akitaonrails/ai-usagebar";
+    };
     caelestia = {
       inputs = {
         nixpkgs.follows = "nixpkgs";
