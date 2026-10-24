@@ -6,8 +6,7 @@
     users.feltfomo = { };
   };
 
-  # den activates the host aspect, so feature includes go here. includes on
-  # the host entity are inert freeform metadata.
+  # keep feature selection on the aspect so the installer can list and drop it.
   den.aspects.khion = {
     includes = with den.aspects; [
       desktop-commander-mcp

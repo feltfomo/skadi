@@ -4,7 +4,7 @@
   ...
 }:
 {
-  flake-file.inputs.den.url = "github:denful/den/v0.18.0";
+  flake-file.inputs.den.url = "github:denful/den/v0.19.0";
 
   imports = [ inputs.den.flakeModule ];
 

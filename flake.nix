@@ -29,7 +29,7 @@
       url = "github:caelestia-dots/shell";
     };
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
-    den.url = "github:denful/den/v0.18.0";
+    den.url = "github:denful/den/v0.19.0";
     desktop-commander = {
       flake = false;
       url = "github:wonderwhy-er/DesktopCommanderMCP/e7dd3ab91237a4a4e2c00ad475e85c5f9f163ce9";

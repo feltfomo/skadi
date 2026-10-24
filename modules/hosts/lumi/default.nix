@@ -5,8 +5,7 @@
     users.grandpa = { };
   };
 
-  # den activates the host aspect, so feature includes go here. includes on
-  # the host entity are inert freeform metadata.
+  # keep feature selection on the aspect so the installer can list and drop it.
   den.aspects.lumi = {
     includes = with den.aspects; [
       networking
