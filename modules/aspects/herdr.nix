@@ -22,21 +22,12 @@ in
       { pkgs, lib, ... }:
       let
         herdr = herdrFor pkgs;
-        plugin = pkgs.callPackage ../../pkgs/herdr-nvim { };
         pickr = pkgs.callPackage ../../pkgs/herdr-pickr { inherit herdr; };
       in
       {
-        home = {
-          packages = [ plugin ];
-          activation = {
-            herdrNvim = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-              run ${herdr}/bin/herdr plugin link ${plugin}
-            '';
-            herdrPickr = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-              run ${herdr}/bin/herdr plugin link ${pickr}
-            '';
-          };
-        };
+        home.activation.herdrPickr = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          run ${herdr}/bin/herdr plugin link ${pickr}
+        '';
       };
     theme =
       { pkgs, ... }:
@@ -70,18 +61,6 @@ in
                     type = "plugin_action";
                     command = "javoscript.herdr-pickr.panes-all";
                     description = "find pane";
-                  }
-                  {
-                    key = "prefix+e";
-                    type = "plugin_action";
-                    command = "chmarax.herdr-nvim.toggle";
-                    description = "nvim sidebar";
-                  }
-                  {
-                    key = "prefix+o";
-                    type = "plugin_action";
-                    command = "chmarax.herdr-nvim.pick-file";
-                    description = "open file from agent output";
                   }
                 ];
                 ui = {
