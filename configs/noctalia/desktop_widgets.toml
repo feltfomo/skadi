@@ -3,6 +3,7 @@ schema_version = 2
 widget_order = [
   "desktop-widget-0000000000000001",
   "desktop-widget-0000000000000005",
+  "desktop-widget-0000000000000006",
 ]
 
 [desktop_widgets.grid]
@@ -36,3 +37,14 @@ placement_height = 1440.0
 placement_width = 2560.0
 rotation = 0.0
 type = "calendar"
+
+[desktop_widgets.widget.desktop-widget-0000000000000006]
+box_height = 192.0
+box_width = 384.0
+cx = 2302.0
+cy = 1328.0
+output = "DP-2"
+placement_height = 1440.0
+placement_width = 2560.0
+rotation = 0.0
+type = "clock"

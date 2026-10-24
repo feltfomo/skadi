@@ -1558,6 +1558,23 @@
         "type": "github"
       }
     },
+    "noctalia-community-plugins": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792784844,
+        "narHash": "sha256-n1uQOXXjIrPvDe5dXPpcCefNsQVAoEo5lVDkOPy81vU=",
+        "owner": "noctalia-dev",
+        "repo": "community-plugins",
+        "rev": "e9dec7443b8a70ab606dc72669fb122a9d668bce",
+        "type": "github"
+      },
+      "original": {
+        "owner": "noctalia-dev",
+        "repo": "community-plugins",
+        "rev": "e9dec7443b8a70ab606dc72669fb122a9d668bce",
+        "type": "github"
+      }
+    },
     "noctalia-greeter": {
       "inputs": {
         "nixpkgs": [
@@ -1710,6 +1727,7 @@
         "nixpkgs-stable": "nixpkgs-stable_2",
         "no-ai-slop": "no-ai-slop",
         "noctalia": "noctalia",
+        "noctalia-community-plugins": "noctalia-community-plugins",
         "noctalia-greeter": "noctalia-greeter",
         "pi-extensions": "pi-extensions",
         "quickshell": "quickshell_2",

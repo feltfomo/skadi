@@ -159,7 +159,16 @@ in
         }
       ];
     homeManager.imports = [ audioOpacityService ];
-    furnish.files = [
+    furnish.files = { host, pkgs, ... }: [
+      {
+        source =
+          pkgs.writeText "hyprland-shared-binds.lua"
+            (import ../../../configs/desktop/binds.nix {
+              lib = inputs.nixpkgs.lib;
+              hostName = host.name;
+            }).hyprland;
+        destination = ".config/hypr/shared-binds.lua";
+      }
       {
         source = hyprlandAutoload;
         destination = ".config/hypr/autoload.lua";
@@ -192,18 +201,19 @@ in
     theme = {
       id = "hyprland";
       output = ".config/hypr/colors.lua";
-      reload = "hyprctl reload";
+      reload = ''if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then hyprctl reload; fi'';
       renderers = {
-        caelestia = {
-          source = "${rootPath}/configs/hypr/caelestia-colors.lua";
-          placedAs = "colors.lua";
-        };
-        illogical-impulse = {
+        noctalia = {
           source = "${rootPath}/configs/hypr/colors.lua";
           sharedWith = [
+            "illogical-impulse"
             "serpantinum"
             "end4-pc"
           ];
+        };
+        caelestia = {
+          source = "${rootPath}/configs/hypr/caelestia-colors.lua";
+          placedAs = "colors.lua";
         };
       };
     };

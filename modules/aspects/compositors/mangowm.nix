@@ -59,7 +59,16 @@
         ];
       }
     ];
-    furnish.files = [
+    furnish.files = { host, pkgs, ... }: [
+      {
+        source =
+          pkgs.writeText "mango-binds.conf"
+            (import ../../../configs/desktop/binds.nix {
+              lib = inputs.nixpkgs.lib;
+              hostName = host.name;
+            }).mango;
+        destination = ".config/mango/shared-binds.conf";
+      }
       {
         destination = ".config/xdg-desktop-portal/mango-portals.conf";
         source = "${rootPath}/configs/mango/portal.conf";

@@ -1,2 +1,3 @@
-[plugins]
-enabled = []
+[plugin_settings."miguelfm/ai-triage"]
+panel_placement = "floating"
+panel_position = "center"

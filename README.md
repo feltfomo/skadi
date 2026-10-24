@@ -53,6 +53,7 @@ nix run /etc/skadi#praxis -- rebuild khion
 | [modules/users/](modules/users/)       | accounts and home manager settings                     |
 | [modules/aspects/](modules/aspects/)   | programs, services and their config file declarations  |
 | [configs/](configs/)                   | the config files themselves                            |
+| [lib/](lib/)                         | local helpers, including [shared desktop bindings](lib/bindings.md) |
 | [pkgs/](pkgs/)                         | local packages and patches                             |
 | [praxis.nix](praxis.nix)               | maintenance commands                                   |
 | [modules/flake/](modules/flake/)       | checks, formatting and the dev shell                   |

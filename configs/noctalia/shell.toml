@@ -19,6 +19,7 @@ app_grid = true
 session_search = true
 
 [shell.panel]
+control_center_position = "center"
 clipboard_placement = "floating"
 launcher_placement = "floating"
 open_near_click_launcher = true

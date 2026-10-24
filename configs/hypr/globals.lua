@@ -11,16 +11,7 @@ local function read_hostname()
 end
 
 local G = {
-	mod = "SUPER",
-	mod_alt = "SUPER + ALT",
-	terminal = "kitty",
 	hostname = read_hostname(),
-	directions = {
-		right = { arrow = "right", vim = "l" },
-		left = { arrow = "left", vim = "h" },
-		up = { arrow = "up", vim = "k" },
-		down = { arrow = "down", vim = "j" },
-	},
 	monitors = {
 		left = "DP-1",
 		right = "DP-2",

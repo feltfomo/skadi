@@ -16,14 +16,16 @@ margin_edge = 0
 margin_ends = 0
 margin_opposite_edge = 1
 radius = 0
-start = ["workspaces", "media"]
+start = ["workspaces", "media", "bar"]
+
+[widget.bar]
+type = "miguelfm/ai-triage:bar"
 
 [widget.clock]
 format = "{:%H:%M:%S}"
 
 [widget.control-center]
-custom_image = "/home/feltfomo/Downloads/nixos-customized.svg"
-custom_image_colorize = true
+custom_image = ""
 scale = 1.1500000000000001
 
 [widget.volume]

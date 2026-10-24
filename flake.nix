@@ -87,6 +87,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:noctalia-dev/noctalia";
     };
+    noctalia-community-plugins = {
+      flake = false;
+      url = "github:noctalia-dev/community-plugins/e9dec7443b8a70ab606dc72669fb122a9d668bce";
+    };
     noctalia-greeter = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:noctalia-dev/noctalia-greeter";

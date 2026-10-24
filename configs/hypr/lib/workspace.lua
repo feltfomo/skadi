@@ -1,44 +1,33 @@
-local G = require("globals")
-
 local M = {}
+local routing
 
--- each monitor owns a ten-workspace bank
-for i = 1, 10 do
-	hl.workspace_rule({ workspace = tostring(i), monitor = G.monitors.left, persistent = true })
-	hl.workspace_rule({ workspace = tostring(i + 10), monitor = G.monitors.right, persistent = true })
+function M.configure(policy)
+	routing = policy
+	for _, bank in ipairs(policy.banks) do
+		for slot = 1, bank.count do
+			hl.workspace_rule({ workspace = tostring(bank.first + slot - 1), monitor = bank.output, persistent = true })
+		end
+	end
 end
 
-function M.bind_workspace(i)
-	local key = tostring(i % 10)
-
-	-- number keys address the matching workspace bank on the active monitor
-	local function offset()
+function M.dispatch(slot, move)
+	local first = routing.first
+	if routing.selectBank == "focused-output" then
 		local monitor = hl.get_active_monitor()
-		return (monitor and monitor.name == G.monitors.right) and 10 or 0
+		for _, bank in ipairs(routing.banks) do
+			if monitor and monitor.name == bank.output then
+				first = bank.first
+				break
+			end
+		end
 	end
 
-	hl.bind(G.mod .. " + " .. key, function()
-		hl.dispatch(hl.dsp.focus({ workspace = i + offset() }))
-	end)
-
-	-- shift moves the window without following it
-	hl.bind(G.mod .. " + SHIFT + " .. key, function()
-		local workspace = hl.get_active_workspace()
-		if not workspace then
-			return
-		end
-
-		local current = workspace.id
-		hl.dispatch(hl.dsp.window.move({ workspace = i + offset() }))
-		hl.dispatch(hl.dsp.focus({ workspace = current }))
-	end)
-
-	-- ctrl moves the window and follows it
-	hl.bind(G.mod .. " + CTRL + " .. key, function()
-		local target = i + offset()
-		hl.dispatch(hl.dsp.window.move({ workspace = target }))
+	local target = first + slot - 1
+	if move then
+		hl.dispatch(hl.dsp.window.move({ workspace = target, follow = routing.moveFollows }))
+	else
 		hl.dispatch(hl.dsp.focus({ workspace = target }))
-	end)
+	end
 end
 
 return M
