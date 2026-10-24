@@ -1,6 +1,6 @@
+import argparse
 import os
 from pathlib import Path
-import sys
 import tempfile
 import time
 
@@ -67,12 +67,22 @@ def reconcile(path, defaults):
 
 
 def main():
-    executable, baseline, *arguments = sys.argv[1:]
-    defaults = tomlkit.parse(Path(baseline).read_text())
-    state_home = os.environ.get("NOCTALIA_STATE_HOME") or os.environ.get("XDG_STATE_HOME")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("executable")
+    parser.add_argument("baselines", type=Path)
+    parser.add_argument("profile", choices=("hyprland", "mangowm"))
+    parser.add_argument("arguments", nargs=argparse.REMAINDER)
+    options = parser.parse_args()
+    defaults = tomlkit.parse((options.baselines / f"{options.profile}.toml").read_text())
+    config_home = os.environ.get("XDG_CONFIG_HOME")
+    config = Path(config_home) if config_home else Path.home() / ".config"
+    state_home = os.environ.get("XDG_STATE_HOME")
     state = Path(state_home) if state_home else Path.home() / ".local/state"
+    os.environ["NOCTALIA_CONFIG_HOME"] = str(config / "noctalia/profiles" / options.profile)
+    state = state / "noctalia/profiles" / options.profile
+    os.environ["NOCTALIA_STATE_HOME"] = str(state)
     reconcile(state / "noctalia/settings.toml", defaults)
-    os.execv(executable, [executable, *arguments])
+    os.execv(options.executable, [options.executable, *options.arguments])
 
 
 if __name__ == "__main__":

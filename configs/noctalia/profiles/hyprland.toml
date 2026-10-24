@@ -1,0 +1,55 @@
+[include]
+files = ["../../../"]
+
+[bar.default]
+background_opacity = 0.64999998547136784
+
+[desktop_widgets.widget.desktop-widget-0000000000000001]
+box_height = 192.0
+box_width = 512.0
+cx = 2240.0
+cy = 1136.0
+
+[desktop_widgets.widget.desktop-widget-0000000000000001.settings]
+background_opacity = 0.65000000000000002
+background_padding = 20
+background_radius = 0
+
+[desktop_widgets.widget.desktop-widget-0000000000000005.settings]
+background_opacity = 0.65000000000000002
+background_radius = 0
+show_events = false
+
+[desktop_widgets.widget.desktop-widget-0000000000000006]
+box_width = 512.0
+cx = 2240.0
+type = "audio_visualizer"
+
+[desktop_widgets.widget.desktop-widget-0000000000000006.settings]
+background_opacity = 0.65000000000000002
+background_padding = 0
+background_radius = 0
+bands = 76
+show_wave = false
+show_when_idle = true
+
+[notification]
+background_opacity = 0.64999998547136784
+
+[osd]
+background_opacity = 0.64999998547136784
+
+[shell.panel]
+transparency_mode = "glass"
+
+[wallpaper.default]
+path = "/home/feltfomo/Wallpapers/Pictures/girl_on_balcony.jpg"
+
+[wallpaper.last]
+path = "/home/feltfomo/Wallpapers/Pictures/girl_on_balcony.jpg"
+
+[wallpaper.monitors.DP-1]
+path = "/home/feltfomo/Wallpapers/Pictures/girl_on_balcony.jpg"
+
+[wallpaper.monitors.DP-2]
+path = "/home/feltfomo/Wallpapers/Pictures/girl_on_balcony.jpg"

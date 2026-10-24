@@ -1,7 +1,9 @@
 import importlib.util
+import os
 from pathlib import Path
 import sys
 import tempfile
+from unittest.mock import patch
 
 import tomlkit
 
@@ -64,4 +66,47 @@ saved_option = true
     else:
         raise AssertionError("invalid TOML must fail without rewriting settings")
     assert target.read_text() == "invalid = ["
-print("Noctalia settings migration passed")
+with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    baselines = root / "baselines"
+    baselines.mkdir()
+    state = root / "state"
+    legacy = state / "noctalia/settings.toml"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text('[shell]\nfont_family = "Legacy"\n')
+    paths = {}
+    for profile, font in (("hyprland", "Hyprland font"), ("mangowm", "Mango font")):
+        (baselines / f"{profile}.toml").write_text(tomlkit.dumps({
+            "plugins": {"enabled": []},
+            "shell": {"font_family": font},
+        }))
+        paths[profile] = state / "noctalia/profiles" / profile / "noctalia/settings.toml"
+        paths[profile].parent.mkdir(parents=True)
+        paths[profile].write_text(tomlkit.dumps({"shell": {"font_family": font}}))
+    mango_before = paths["mangowm"].read_bytes()
+    environment = {
+        "XDG_CONFIG_HOME": str(root / "config"),
+        "XDG_STATE_HOME": str(state),
+        "NOCTALIA_CONFIG_HOME": "/stale/config",
+        "NOCTALIA_STATE_HOME": "/stale/state",
+    }
+    for index, profile in enumerate(("hyprland", "mangowm", "hyprland")):
+        argv = ["session", "/fake/noctalia", str(baselines), profile, "--debug"]
+        with (
+            patch.dict(os.environ, environment, clear=True),
+            patch.object(sys, "argv", argv),
+            patch.object(session.os, "execv") as execute,
+        ):
+            session.main()
+            execute.assert_called_once_with("/fake/noctalia", ["/fake/noctalia", "--debug"])
+            assert os.environ["NOCTALIA_CONFIG_HOME"] == str(root / "config/noctalia/profiles" / profile)
+            assert os.environ["NOCTALIA_STATE_HOME"] == str(state / "noctalia/profiles" / profile)
+            assert os.environ["XDG_CONFIG_HOME"] == environment["XDG_CONFIG_HOME"]
+            assert os.environ["XDG_STATE_HOME"] == environment["XDG_STATE_HOME"]
+        assert not tomlkit.parse(paths[profile].read_text())
+        assert legacy.read_text() == '[shell]\nfont_family = "Legacy"\n'
+        if index == 0:
+            assert paths["mangowm"].read_bytes() == mango_before
+    for path in paths.values():
+        assert len(list((path.parent / "settings-backups").iterdir())) == 1
+print("Noctalia settings migration and profile isolation passed")

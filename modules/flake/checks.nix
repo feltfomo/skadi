@@ -45,11 +45,15 @@
                   cp ${pkgs.lib.escapeShellArg entry.target.path} ${pkgs.lib.escapeShellArg ("config/" + destination)}
                 ''
               ) noctaliaFiles}
-              validation="$(${inputs.noctalia.packages.${system}.default}/bin/noctalia config validate config)"
-              printf '%s\n' "$validation"
-              if printf '%s\n' "$validation" | ${pkgs.gnugrep}/bin/grep -Eq 'unrecognized widget type|no loaded plugin with this id'; then
-                exit 1
-              fi
+              for profile in hyprland mangowm; do
+                validation="$(${
+                  inputs.noctalia.packages.${system}.default
+                }/bin/noctalia config validate "config/profiles/$profile/noctalia")"
+                printf '%s\n' "$validation"
+                if printf '%s\n' "$validation" | ${pkgs.gnugrep}/bin/grep -Eq 'unrecognized widget type|no loaded plugin with this id'; then
+                  exit 1
+                fi
+              done
               touch $out
             '';
         desktop-binds =
