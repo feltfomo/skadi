@@ -22,25 +22,6 @@ hl.bind(G.mod .. " + CTRL + T", hl.dsp.global("quickshell:wallpaperSelectorToggl
 hl.bind("Print", hl.dsp.global("quickshell:regionScreenshot"))
 hl.bind(G.mod .. " + SHIFT + S", hl.dsp.exec_cmd("hyprshot -m region --raw | satty --filename -"))
 
-hl.bind("XF86MonBrightnessUp", hl.dsp.global("quickshell:brightnessIncrease"), { locked = true, repeating = true })
-hl.bind("XF86MonBrightnessDown", hl.dsp.global("quickshell:brightnessDecrease"), { locked = true, repeating = true })
-hl.bind(
-	"XF86AudioRaiseVolume",
-	hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 2%+"),
-	{ locked = true, repeating = true }
-)
-hl.bind(
-	"XF86AudioLowerVolume",
-	hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 2%-"),
-	{ locked = true, repeating = true }
-)
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true })
-hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-hl.bind("XF86AudioNext", hl.dsp.exec_cmd("playerctl next"), { locked = true })
-hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("playerctl previous"), { locked = true })
-
 hl.bind(G.mod .. " + Q", hl.dsp.window.close())
 hl.bind(G.mod .. " + V", hl.dsp.window.float())
 hl.bind(G.mod .. " + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))

@@ -1,4 +1,4 @@
-config-file = themes/skadi.conf
+config-file = themes/reactive.conf
 
 font-family = Maple Mono NF
 font-size = 11

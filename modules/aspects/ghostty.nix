@@ -14,11 +14,11 @@
     ];
     theme = {
       id = "ghostty";
-      output = ".config/ghostty/themes/skadi.conf";
+      output = ".config/ghostty/themes/reactive.conf";
       reload = "pkill -USR2 -f '/bin/[g]hostty --gtk-single-instance=true'";
       renderers = {
         noctalia = {
-          source = "${rootPath}/configs/ghostty/themes/skadi.conf";
+          source = "${rootPath}/configs/ghostty/themes/reactive.conf";
           sharedWith = [
             "illogical-impulse"
             "serpantinum"
