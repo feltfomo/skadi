@@ -6,17 +6,19 @@
 }:
 let
   inherit (import ../../lib/bindings.nix { inherit lib; }) keys actions;
-  spotify = keys.native {
-    hyprland.exec = "pypr-client toggle spotify";
-    mango = {
-      command = "toggle_named_scratchpad";
-      arguments = [
-        "spotify"
-        "none"
-        "spotify"
-      ];
+  scratchpad =
+    name: appId: command:
+    keys.native {
+      hyprland.exec = "pypr-client toggle ${name}";
+      mango = {
+        command = "toggle_named_scratchpad";
+        arguments = [
+          appId
+          "none"
+          command
+        ];
+      };
     };
-  };
 in
 keys.define {
   workspaceRouting = {
@@ -66,7 +68,17 @@ keys.define {
     (keys.bind "SUPER + f" actions.window.maximize)
     (keys.bind "SUPER + q" actions.window.close)
     (keys.bind "SUPER + m" actions.session.quit)
-    (keys.bind "SUPER + s" spotify)
+    (keys.bind "SUPER + s" (scratchpad "spotify" "spotify" "spotify"))
+    (keys.bind "SUPER + e" (scratchpad "thunar" "thunar" "thunar"))
+    (keys.bind "SUPER + comma" (
+      scratchpad "settings" "dev.noctalia.Noctalia" "noctalia msg settings-open"
+    ))
+    (keys.bind [ "SUPER + SHIFT + comma" "SUPER + SHIFT + minus" ] (
+      actions.exec "noctalia msg volume-down"
+    ))
+    (keys.bind [ "SUPER + SHIFT + period" "SUPER + SHIFT + equal" ] (
+      actions.exec "noctalia msg volume-up"
+    ))
 
     (keys.bind {
       chord = "SUPER + SHIFT + 0";
@@ -81,6 +93,18 @@ keys.define {
   ];
 
   groups = [
+    (keys.directions {
+      modifiers = [
+        "SUPER"
+        "SHIFT"
+        "ALT"
+      ];
+      keys = [
+        "arrows"
+        "vim"
+      ];
+      action = actions.monitor.move;
+    })
     (keys.directions {
       modifiers = [
         "SUPER"

@@ -69,7 +69,7 @@ let
   fixed = {
     "window.maximize" = {
       mango = "togglemaximizescreen";
-      hyprland = ''hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle", layout_aware = true })'';
+      hyprland = "B.maximize()";
     };
     "window.fullscreen" = {
       mango = "togglefullscreen";
@@ -149,7 +149,10 @@ in
       moveToSlot = slot "workspace.move";
       selectSlot = slot "workspace.select";
     };
-    monitor.focus = direction "monitor.focus";
+    monitor = {
+      focus = direction "monitor.focus";
+      move = direction "monitor.move";
+    };
     layout.select =
       name:
       check (builtins.isString name && builtins.hasAttr name layoutNames) "unknown shared layout name" (
@@ -189,12 +192,11 @@ in
         else if kind == "window.focus" then
           if target == "mango" then "focusdir,${arg}" else "B.focus(${lua arg})"
         else if kind == "window.swap" then
-          if target == "mango" then
-            "exchange_client,${arg}"
-          else
-            "hl.dsp.window.swap({ direction = ${lua arg} })"
+          if target == "mango" then "exchange_client,${arg}" else "B.swap(${lua arg})"
         else if kind == "monitor.focus" then
           if target == "mango" then "focusmon,${arg}" else "hl.dsp.focus({ monitor = ${lua arg} })"
+        else if kind == "monitor.move" then
+          if target == "mango" then "tagmon,${arg},0" else "B.monitor_move(${lua arg})"
         else if kind == "workspace.select" || kind == "workspace.move" then
           let
             policy = routing.${target};

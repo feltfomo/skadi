@@ -7,22 +7,32 @@ engine = "fuzzel"
 center_on_fetch = true
 margin = 60
 
-[scratchpads.spotify]
-# lazy startup avoids racing spotify against pyprland during compositor startup
+[scratchpads.centered]
 lazy = true
 animation = "fromTop"
+size = "100% 70%"
+max_size = "1600px 100%"
+# A 70% height leaves 15% on either side on the configured 1440p and 1080p monitors.
+margin = 216
+
+[scratchpads.centered.monitor.eDP-1]
+margin = 162
+
+[scratchpads.spotify]
+use = "centered"
 command = "spotify"
 class = "spotify"
-size = "100% 70%"
-max_size = "1600px 100%"
-margin = 50
 
 [scratchpads.thunar]
-# thunar shares spotify's geometry and top-edge animation
-lazy = true
-animation = "fromTop"
+use = "centered"
 command = "thunar"
 class = "thunar"
-size = "100% 70%"
-max_size = "1600px 100%"
-margin = 50
+
+[scratchpads.settings]
+use = "centered"
+command = "noctalia msg settings-open"
+class = "dev.noctalia.Noctalia"
+match_by = "title"
+title = "Noctalia Settings"
+# The shell owns the settings window; the IPC command exits after opening it.
+process_tracking = false

@@ -29,6 +29,14 @@ hl.window_rule({
 	float = true,
 })
 
+-- Noctalia's IPC command reuses a shell-owned window instead of spawning a tracked process.
+hl.window_rule({
+	name = "noctalia-settings-scratchpad",
+	match = { class = "^dev.noctalia.Noctalia$", title = "^Noctalia Settings$" },
+	float = true,
+	group = "deny",
+})
+
 -- persistent class rules survive steam's transient bootstrap windows
 if G.hostname == "khion" then
 	local startup_rules = {

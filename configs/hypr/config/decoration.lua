@@ -49,6 +49,7 @@ hl.config({
 hl.curve("easeOutQuint", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })
 hl.curve("easeInOutCubic", { type = "bezier", points = { { 0.65, 0.05 }, { 0.36, 1 } } })
 hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
+hl.curve("mangoMove", { type = "bezier", points = { { 0.46, 1 }, { 0.29, 1 } } })
 
 -- shared defaults keep leaf overrides small without hiding native animation fields
 local function animation(leaf, overrides)
@@ -68,9 +69,10 @@ end
 
 animation("global")
 animation("windows", { style = "popin 87%" })
-animation("windowsIn", { style = "popin 87%" })
-animation("windowsOut", { speed = 2, style = "popin 87%" })
+animation("windowsIn", { speed = 3, style = "popin 90%" })
+animation("windowsOut", { speed = 2, style = "popin 90%" })
+animation("windowsMove", { speed = 5, bezier = "mangoMove", style = "slide" })
 animation("fadeIn", { speed = 2 })
 animation("fadeOut", { speed = 2 })
-animation("workspaces", { style = "slide" })
+animation("workspaces", { speed = 3.5, bezier = "mangoMove", style = "slide" })
 animation("layers", { speed = 3, style = "fade" })

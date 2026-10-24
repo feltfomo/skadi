@@ -210,12 +210,13 @@ Collision checks cover bindings declared through this helper. They can't inspect
 | `actions.workspace.selectSlot` | Logical slot, resolved through workspace routing |
 | `actions.scroll.columnWidth` | Width from 0.1 through 1, for scrolling layouts |
 | `actions.window.fullscreen` | Toggle layout-aware fullscreen |
-| `actions.window.maximize` | Toggle layout-aware maximization |
+| `actions.window.maximize` | Toggle full column width in Hyprland scrolling, or maximization elsewhere |
 | `actions.window.floating` | Toggle floating state |
 | `actions.session.overview` | Mango overview or Hyprland gloview |
 | `actions.session.reload` | Reload the compositor config |
 | `actions.window.resize` | Interactive mouse resize |
 | `actions.monitor.focus` | Direction to the next monitor |
+| `actions.monitor.move` | Move the focused window to the monitor in that direction and follow it, entering Hyprland scrolling columns from the crossed edge |
 | `actions.window.focus` | Direction, with Hyprland scrolling-aware focus |
 | `actions.layout.select` | `vertical-scroller`, `scroller`, `dwindle`, `monocle` or `master` |
 | `actions.window.close` | Close the focused window |

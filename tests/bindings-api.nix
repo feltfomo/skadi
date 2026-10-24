@@ -4,6 +4,8 @@ let
   fails = value: !(builtins.tryEval (builtins.deepSeq value true)).success;
   define = bindings: keys.define { inherit bindings; };
   shared = define [ (keys.bind "SUPER + t" (actions.exec "kitty")) ];
+  monitorMove = define [ (keys.bind "SUPER + SHIFT + ALT + h" (actions.monitor.move "left")) ];
+  desktop = import ../configs/desktop/binds.nix { inherit lib; };
   groups = keys.define {
     groups = [
       (keys.directions {
@@ -62,6 +64,10 @@ in
 assert builtins.length groups.bindings == 17;
 assert builtins.length alias.bindings == 2;
 assert lib.hasInfix "spawn,kitty" shared.mango;
+assert lib.hasInfix "tagmon,left,0" monitorMove.mango;
+assert lib.hasInfix "toggle_named_scratchpad,dev.noctalia.Noctalia,none,noctalia msg settings-open"
+  desktop.mango;
+assert lib.hasInfix ''B.monitor_move("left")'' monitorMove.hyprland;
 assert lib.hasInfix ''hl.dsp.exec_cmd("kitty")'' shared.hyprland;
 assert lib.hasInfix "function() hl.exec_cmd" separate.hyprland;
 assert !(lib.hasInfix "SUPER,0," separate.mango);
