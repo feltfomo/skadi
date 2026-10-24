@@ -55,7 +55,7 @@
               ];
             }
             ''
-              python3 ${../../tests/skills-bootstrap.py} ${../../scripts/bootstrap-skills.sh}
+              python3 ${../../tests/bootstrap-repos.py} ${../../scripts/bootstrap-repo.sh}
               ${pkgs.lib.concatMapStringsSep "\n" (
                 entries:
                 pkgs.lib.concatMapStringsSep "\n" (

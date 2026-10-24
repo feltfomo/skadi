@@ -1,15 +1,15 @@
 [wallpaper]
-directory = "/home/feltfomo/Wallpapers"
+directory = "/home/feltfomo/Wallpaper/Pictures"
 transition_on_startup = true
 
 [wallpaper.default]
-path = "/home/feltfomo/Wallpapers/Pictures/wallhaven-ly296l_2560x1440.png"
+path = "/home/feltfomo/Wallpaper/Pictures/wallhaven-ly296l_2560x1440.png"
 
 [wallpaper.last]
-path = "/home/feltfomo/Wallpapers/Pictures/wallhaven-ly296l_2560x1440.png"
+path = "/home/feltfomo/Wallpaper/Pictures/wallhaven-ly296l_2560x1440.png"
 
 [wallpaper.monitors.DP-1]
-path = "/home/feltfomo/Wallpapers/Pictures/wallhaven-ly296l_2560x1440.png"
+path = "/home/feltfomo/Wallpaper/Pictures/wallhaven-ly296l_2560x1440.png"
 
 [wallpaper.monitors.DP-2]
-path = "/home/feltfomo/Wallpapers/Pictures/wallhaven-ly296l_2560x1440.png"
+path = "/home/feltfomo/Wallpaper/Pictures/wallhaven-ly296l_2560x1440.png"

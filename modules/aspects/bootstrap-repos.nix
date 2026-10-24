@@ -4,73 +4,50 @@ _: {
     { pkgs, lib, ... }:
     let
       repos = {
-        "Projects/multiloader-template".url = "https://github.com/feltfomo/multiloader-template";
-        # the repo nests images under Pictures/; the destination keeps them flat.
-        "Wallpapers" = {
-          url = "https://github.com/feltfomo/Wallpapers";
-          subdir = "Pictures";
-        };
+        "Projects/lexicon" = "https://github.com/feltfomo/lexicon";
+        "Projects/odyssey" = "https://github.com/feltfomo/odyssey";
+        "Projects/furnish-coordinator" = "https://github.com/feltfomo/furnish-coordinator";
+        "Projects/axiom-nix" = "https://github.com/feltfomo/axiom-nix";
+        "Projects/illogical-impulse-shell-nix" = "https://github.com/feltfomo/illogical-impulse-shell-nix";
+        "Projects/skills" = "https://github.com/feltfomo/skills";
+        "Wallpaper" = "https://github.com/feltfomo/Wallpapers";
+      };
+      clone = pkgs.writeShellApplication {
+        name = "bootstrap-repo";
+        runtimeInputs = with pkgs; [
+          coreutils
+          openssh
+          git
+        ];
+        text = builtins.readFile ../../scripts/bootstrap-repo.sh;
       };
       bootstrap = pkgs.writeShellApplication {
         name = "bootstrap-repos";
-        runtimeInputs = [
-          pkgs.openssh
-          pkgs.git
-        ];
-        text = lib.concatStringsSep "\n" (
-          lib.mapAttrsToList (
-            rel: spec:
-            let
-              inherit (spec) url;
-              subdir = spec.subdir or null;
-            in
-            if subdir == null then
-              ''
-                dest="$HOME/${rel}"
-                if [ ! -e "$dest/.git" ]; then
-                  mkdir -p "$(dirname "$dest")"
-                  # user services can't reliably wait on the system network-online
-                  # target, so retry instead of failing early.
-                  for attempt in $(seq 1 30); do
-                    echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
-                    tmp="$(mktemp -d "$(dirname "$dest")/.bootstrap-repos.XXXXXX")"
-                    if git clone "${url}" "$tmp/repo" && mv -T "$tmp/repo" "$dest"; then
-                      rm -rf "$tmp"
-                      break
-                    fi
-                    echo "bootstrap-repos: clone failed, retrying in 10s"
-                    rm -rf "$tmp"
-                    [ ! -e "$dest" ] || break
-                    sleep 10
-                  done
-                  [ -e "$dest/.git" ] || echo "bootstrap-repos: WARN gave up on ${url}"
+        runtimeInputs = [ pkgs.coreutils ];
+        text =
+          "failed=0\n"
+          + lib.concatStringsSep "\n" (
+            lib.mapAttrsToList (rel: url: ''
+              dest="$HOME/${rel}"
+              ready=0
+              # user services cannot wait on the system's network-online target.
+              for attempt in $(seq 1 30); do
+                if ${clone}/bin/bootstrap-repo "$dest" "${url}"; then
+                  ready=1
+                  break
                 fi
-              ''
-            else
-              ''
-                dest="$HOME/${rel}"
-                # moving ${subdir} drops .git, so non-emptiness marks a completed clone.
-                if [ -z "$(ls -A "$dest" 2>/dev/null || true)" ]; then
-                  mkdir -p "$(dirname "$dest")"
-                  for attempt in $(seq 1 30); do
-                    echo "bootstrap-repos: cloning ${url} -> $dest (attempt $attempt)"
-                    tmp="$(mktemp -d "$(dirname "$dest")/.bootstrap-repos.XXXXXX")"
-                    if git clone --depth 1 "${url}" "$tmp/repo" \
-                      && [ -d "$tmp/repo/${subdir}" ] \
-                      && mv -T "$tmp/repo/${subdir}" "$dest"; then
-                      rm -rf "$tmp"
-                      break
-                    fi
-                    echo "bootstrap-repos: clone failed, retrying in 10s"
-                    rm -rf "$tmp"
-                    [ -z "$(ls -A "$dest" 2>/dev/null || true)" ] || break
-                    sleep 10
-                  done
-                  [ -n "$(ls -A "$dest" 2>/dev/null || true)" ] || echo "bootstrap-repos: WARN gave up on ${url}"
-                fi
-              ''
-          ) repos
-        );
+                [ ! -e "$dest" ] && [ ! -L "$dest" ] || break
+                [ "$attempt" -lt 30 ] || break
+                echo "bootstrap-repos: retrying ${url} in 10s"
+                sleep 10
+              done
+              if [ "$ready" -eq 0 ]; then
+                echo "bootstrap-repos: failed to prepare $dest" >&2
+                failed=1
+              fi
+            '') repos
+          )
+          + "\nexit \"$failed\"";
       };
     in
     {

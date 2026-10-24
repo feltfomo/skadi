@@ -20,8 +20,32 @@ def bootstrap(checkout, remote, success=True):
 
 with tempfile.TemporaryDirectory() as directory:
     root = pathlib.Path(directory)
+    source = root / "source"
+    git("init", source)
+    (source / "Pictures").mkdir()
+    (source / "Pictures" / "wallpaper.png").write_text("wallpaper\n")
+    git("-C", source, "add", "Pictures/wallpaper.png")
+    git(
+        "-C",
+        source,
+        "-c",
+        "user.name=Bootstrap Test",
+        "-c",
+        "user.email=bootstrap@example.invalid",
+        "commit",
+        "-m",
+        "Add wallpaper fixture",
+    )
     remote = root / "remote.git"
-    git("init", "--bare", remote)
+    git("clone", "--bare", source, remote)
+    wallpaper = root / "Wallpaper"
+    bootstrap(wallpaper, remote)
+    assert (wallpaper / ".git").is_dir()
+    assert (wallpaper / "Pictures" / "wallpaper.png").read_text() == "wallpaper\n"
+    worktree = root / "worktree"
+    git("-C", source, "worktree", "add", "--detach", worktree, "HEAD")
+    bootstrap(worktree, root / "unreachable.git")
+    assert (worktree / ".git").is_file()
     checkout = root / "Projects" / "skills"
     bootstrap(checkout, remote)
     assert (checkout / ".git").is_dir()

@@ -40,28 +40,5 @@ in
           }
         ];
     };
-    homeManager =
-      { pkgs, user, ... }:
-      let
-        bootstrap = pkgs.writeShellApplication {
-          name = "bootstrap-skills";
-          runtimeInputs = with pkgs; [
-            coreutils
-            openssh
-            git
-          ];
-          text = builtins.readFile ../../scripts/bootstrap-skills.sh;
-        };
-      in
-      {
-        systemd.user.services.bootstrap-skills = {
-          Unit.Description = "Prepare the shared skills checkout";
-          Service = {
-            Type = "oneshot";
-            ExecStart = "${bootstrap}/bin/bootstrap-skills ${checkoutFor user} git@github.com:feltfomo/skills.git";
-          };
-          Install.WantedBy = [ "default.target" ];
-        };
-      };
   };
 }
