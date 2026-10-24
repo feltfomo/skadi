@@ -1,7 +1,7 @@
 {
   inputs,
   rootPath,
-  program,
+  lexicon,
   ...
 }:
 let
@@ -98,12 +98,12 @@ in
     };
   };
 
-  den.aspects.hyprland = program {
+  den.aspects.hyprland = lexicon {
     hosts = [
       "khion"
       "lumi"
     ];
-    pkg = pkgs: pkgs.pyprland;
+    package = pkgs: pkgs.pyprland;
     nixos =
       { pkgs, ... }:
       let
@@ -113,65 +113,67 @@ in
       in
       [
         {
-          # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
-          # remove this overlay once the frontend supports these sessions upstream
-          nixpkgs.overlays = [
-            (_: prev: {
-              xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
-                postPatch = (old.postPatch or "") + ''
-                  substituteInPlace src/xdg-desktop-portal.service.in \
-                    --replace-fail \
-                      "Requisite=graphical-session.target" \
-                      "Requires=dbus.service"
-                  sed -i '/^After=graphical-session.target$/i After=dbus.service' \
-                    src/xdg-desktop-portal.service.in
-                '';
-              });
-            })
-          ];
+          value = {
+            # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
+            # remove this overlay once the frontend supports these sessions upstream
+            nixpkgs.overlays = [
+              (_: prev: {
+                xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
+                  postPatch = (old.postPatch or "") + ''
+                    substituteInPlace src/xdg-desktop-portal.service.in \
+                      --replace-fail \
+                        "Requisite=graphical-session.target" \
+                        "Requires=dbus.service"
+                    sed -i '/^After=graphical-session.target$/i After=dbus.service' \
+                      src/xdg-desktop-portal.service.in
+                  '';
+                });
+              })
+            ];
 
-          programs.hyprland = {
-            enable = true;
-            package = hyprlandPkg;
-            portalPackage =
-              inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-          };
-          # expose gloview through the system profile so the lua startup can load a stable path
-          environment.systemPackages = [ gloviewPkg ];
-          programs.ydotool.enable = true;
-          services.flatpak.enable = true;
-
-          xdg.portal = {
-            extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-            config.hyprland = {
-              default = [
-                "hyprland"
-                "gtk"
-              ];
-              "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
-              "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
-              "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+            programs.hyprland = {
+              enable = true;
+              package = hyprlandPkg;
+              portalPackage =
+                inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
             };
-          };
+            # expose gloview through the system profile so the lua startup can load a stable path
+            environment.systemPackages = [ gloviewPkg ];
+            programs.ydotool.enable = true;
+            services.flatpak.enable = true;
 
+            xdg.portal = {
+              extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+              config.hyprland = {
+                default = [
+                  "hyprland"
+                  "gtk"
+                ];
+                "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
+                "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
+                "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+              };
+            };
+
+          };
         }
       ];
-    imports = [ audioOpacityService ];
-    files = [
+    homeManager.imports = [ audioOpacityService ];
+    furnish.files = [
       {
-        src = hyprlandAutoload;
-        dest = ".config/hypr/autoload.lua";
+        source = hyprlandAutoload;
+        destination = ".config/hypr/autoload.lua";
       }
       {
-        src = "${rootPath}/configs/pypr/config.toml";
-        dest = ".config/pypr/config.toml";
+        source = "${rootPath}/configs/pypr/config.toml";
+        destination = ".config/pypr/config.toml";
       }
     ];
     # separate declarations keep nested config and library files visible to furnish
-    directories = [
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/hypr";
-        dest = ".config/hypr";
+        source = "${rootPath}/configs/hypr";
+        destination = ".config/hypr";
         exclude = [
           ".luarc.json"
           "config"
@@ -179,12 +181,12 @@ in
         ];
       }
       {
-        src = "${rootPath}/configs/hypr/config";
-        dest = ".config/hypr/config";
+        source = "${rootPath}/configs/hypr/config";
+        destination = ".config/hypr/config";
       }
       {
-        src = "${rootPath}/configs/hypr/lib";
-        dest = ".config/hypr/lib";
+        source = "${rootPath}/configs/hypr/lib";
+        destination = ".config/hypr/lib";
       }
     ];
     theme = {

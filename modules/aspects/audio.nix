@@ -1,6 +1,6 @@
-{ program, ... }:
+{ lexicon, ... }:
 {
-  den.aspects.audio = program {
+  den.aspects.audio = lexicon {
     # on for only real machines
     nixos =
       { pkgs, ... }:
@@ -10,7 +10,7 @@
             "khion"
             "lumi"
           ];
-          environment.systemPackages = [ pkgs.pavucontrol ];
+          value.environment.systemPackages = [ pkgs.pavucontrol ];
         }
       ];
   };

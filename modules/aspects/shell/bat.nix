@@ -1,7 +1,7 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 {
-  den.aspects.bat = program {
-    imports = [
+  den.aspects.bat = lexicon {
+    homeManager.imports = [
       {
         programs.bat = {
           enable = true;

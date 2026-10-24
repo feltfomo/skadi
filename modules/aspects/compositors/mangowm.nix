@@ -1,7 +1,7 @@
 {
   inputs,
   rootPath,
-  program,
+  lexicon,
   ...
 }:
 {
@@ -11,36 +11,38 @@
   };
 
   # omit the compositor closure from installer-test vms.
-  den.aspects.mangowm = program {
+  den.aspects.mangowm = lexicon {
     hosts = [
       "khion"
       "lumi"
     ];
     nixos = { pkgs, ... }: [
       {
-        imports = [ inputs.mango.nixosModules.mango ];
-        programs.mango = {
-          enable = true;
-          package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
-        };
-        # wlr must be registered as a portal, not only installed as a package.
-        # mango-portals.conf routes screencast to wlr and file dialogs to gtk.
-        xdg.portal = {
-          enable = true;
-          wlr.enable = true;
-          wlr.settings.screencast = {
-            chooser_type = "simple";
-            chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
-            max_fps = 60;
+        value = {
+          imports = [ inputs.mango.nixosModules.mango ];
+          programs.mango = {
+            enable = true;
+            package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
           };
-          extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+          # wlr must be registered as a portal, not only installed as a package.
+          # mango-portals.conf routes screencast to wlr and file dialogs to gtk.
+          xdg.portal = {
+            enable = true;
+            wlr.enable = true;
+            wlr.settings.screencast = {
+              chooser_type = "simple";
+              chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
+              max_fps = 60;
+            };
+            extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+          };
         };
       }
     ];
-    directories = [
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/mango";
-        dest = ".config/mango";
+        source = "${rootPath}/configs/mango";
+        destination = ".config/mango";
         exclude = [ "portal.conf" ];
         files = [
           {
@@ -57,10 +59,10 @@
         ];
       }
     ];
-    files = [
+    furnish.files = [
       {
-        dest = ".config/xdg-desktop-portal/mango-portals.conf";
-        src = "${rootPath}/configs/mango/portal.conf";
+        destination = ".config/xdg-desktop-portal/mango-portals.conf";
+        source = "${rootPath}/configs/mango/portal.conf";
       }
     ];
     theme = {

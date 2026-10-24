@@ -1,6 +1,6 @@
 {
   inputs,
-  program,
+  lexicon,
   ...
 }:
 {
@@ -12,8 +12,8 @@
     };
   };
 
-  den.aspects.pi = program {
-    pkg =
+  den.aspects.pi = lexicon {
+    package =
       pkgs:
       let
         pi = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi;
@@ -30,19 +30,19 @@
             --prefix PATH : ${headers}/bin
         '';
       };
-    files = [
+    furnish.files = [
       {
-        src = ../../configs/pi/AGENTS.md;
-        dest = ".pi/agent/AGENTS.md";
+        source = ../../configs/pi/AGENTS.md;
+        destination = ".pi/agent/AGENTS.md";
         onConflict = "source-wins";
       }
       {
-        src = ../../configs/pi/mcp-adapter.json;
-        dest = ".pi/agent/mcp-adapter.json";
+        source = ../../configs/pi/mcp-adapter.json;
+        destination = ".pi/agent/mcp-adapter.json";
         onConflict = "source-wins";
       }
     ];
-    imports = [
+    homeManager.imports = [
       inputs.pi-extensions.homeManagerModules.default
       (
         { config, pkgs, ... }:
@@ -59,18 +59,22 @@
             };
             session-manager.enable = true;
           };
-          home.packages = [
-            extensions
-            (pkgs.callPackage ../../pkgs/mcp-gateway-headers { })
-            pkgs.nodejs_24
-            pkgs.keyutils
-          ];
-          home.file."${extensionDir}/pi-web-access.ts".text = ''
-            export { default } from "${extensions}/node_modules/pi-web-access/dist/index.js";
-          '';
-          home.file."${extensionDir}/pi-mcp-adapter.ts".text = ''
-            export { default } from "${extensions}/node_modules/pi-mcp-adapter/index.ts";
-          '';
+          home = {
+            packages = [
+              extensions
+              (pkgs.callPackage ../../pkgs/mcp-gateway-headers { })
+              pkgs.nodejs_24
+              pkgs.keyutils
+            ];
+            file = {
+              "${extensionDir}/pi-web-access.ts".text = ''
+                export { default } from "${extensions}/node_modules/pi-web-access/dist/index.js";
+              '';
+              "${extensionDir}/pi-mcp-adapter.ts".text = ''
+                export { default } from "${extensions}/node_modules/pi-mcp-adapter/index.ts";
+              '';
+            };
+          };
         }
       )
     ];

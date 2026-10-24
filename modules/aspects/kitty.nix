@@ -1,16 +1,16 @@
 {
-  program,
+  lexicon,
   rootPath,
   ...
 }:
 {
   # kitty claims no host or user, so it is globally owned.
-  den.aspects.kitty = program {
-    pkg = pkgs: pkgs.kitty;
-    directories = [
+  den.aspects.kitty = lexicon {
+    package = pkgs: pkgs.kitty;
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/kitty";
-        dest = ".config/kitty";
+        source = "${rootPath}/configs/kitty";
+        destination = ".config/kitty";
       }
     ];
     theme = {

@@ -1,11 +1,11 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 {
-  den.aspects.cava = program {
-    pkg = pkgs: pkgs.cava;
-    directories = [
+  den.aspects.cava = lexicon {
+    package = pkgs: pkgs.cava;
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/cava";
-        dest = ".config/cava";
+        source = "${rootPath}/configs/cava";
+        destination = ".config/cava";
         files = [
           {
             names = [ "config" ];

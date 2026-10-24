@@ -1,10 +1,10 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 {
-  den.aspects.gtk-theme = program {
-    directories = [
+  den.aspects.gtk-theme = lexicon {
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/gtk";
-        dest = ".config/gtk-theme";
+        source = "${rootPath}/configs/gtk";
+        destination = ".config/gtk-theme";
       }
     ];
     theme = {

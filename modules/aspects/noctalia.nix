@@ -1,14 +1,14 @@
 {
-  program,
+  lexicon,
   rootPath,
   ...
 }:
 {
-  den.aspects.noctalia = program {
-    directories = [
+  den.aspects.noctalia = lexicon {
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/noctalia";
-        dest = ".config/noctalia";
+        source = "${rootPath}/configs/noctalia";
+        destination = ".config/noctalia";
       }
     ];
   };

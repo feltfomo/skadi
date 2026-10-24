@@ -1,12 +1,12 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 {
-  den.aspects.helix = program {
+  den.aspects.helix = lexicon {
     # evilhelix uses helix's config and runtime theme layout
-    pkg = pkgs: pkgs.evil-helix;
-    directories = [
+    package = pkgs: pkgs.evil-helix;
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/helix";
-        dest = ".config/helix";
+        source = "${rootPath}/configs/helix";
+        destination = ".config/helix";
       }
     ];
     theme = {

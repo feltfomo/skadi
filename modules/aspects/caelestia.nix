@@ -1,6 +1,6 @@
 {
   inputs,
-  program,
+  lexicon,
   rootPath,
   ...
 }:
@@ -18,8 +18,8 @@
     };
   };
 
-  den.aspects.caelestia = program {
-    imports = [
+  den.aspects.caelestia = lexicon {
+    homeManager.imports = [
       inputs.caelestia.homeManagerModules.default
       (
         { pkgs, ... }:
@@ -46,16 +46,16 @@
         }
       )
     ];
-    files = [
+    furnish.files = [
       {
-        src = "${rootPath}/configs/caelestia/shell.json";
-        dest = ".config/caelestia/shell.json";
+        source = "${rootPath}/configs/caelestia/shell.json";
+        destination = ".config/caelestia/shell.json";
         representation = "writable";
         onConflict = "source-wins";
       }
       {
-        src = "${rootPath}/configs/caelestia/cli.json";
-        dest = ".config/caelestia/cli.json";
+        source = "${rootPath}/configs/caelestia/cli.json";
+        destination = ".config/caelestia/cli.json";
         representation = "writable";
         onConflict = "source-wins";
       }

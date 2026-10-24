@@ -1,15 +1,15 @@
 {
-  program,
+  lexicon,
   rootPath,
   ...
 }:
 {
-  den.aspects.ghostty = program {
-    pkg = pkgs: pkgs.ghostty;
-    directories = [
+  den.aspects.ghostty = lexicon {
+    package = pkgs: pkgs.ghostty;
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/ghostty";
-        dest = ".config/ghostty";
+        source = "${rootPath}/configs/ghostty";
+        destination = ".config/ghostty";
       }
     ];
     theme = {

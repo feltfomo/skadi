@@ -1,6 +1,6 @@
 {
   inputs,
-  program,
+  lexicon,
   rootPath,
   ...
 }:
@@ -10,28 +10,30 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  den.aspects.dms = program {
+  den.aspects.dms = lexicon {
     hosts = [
       "khion"
       "lumi"
     ];
-    files = [
+    furnish.files = [
       {
-        src = "${rootPath}/configs/dms/settings.json";
-        dest = ".config/DankMaterialShell/settings.json";
+        source = "${rootPath}/configs/dms/settings.json";
+        destination = ".config/DankMaterialShell/settings.json";
         representation = "writable";
         onConflict = "source-wins";
       }
     ];
     nixos = _: [
       {
-        imports = [ inputs.dms.nixosModules.dank-material-shell ];
-        programs.dank-material-shell = {
-          enable = true;
-          enableCalendarEvents = false;
-          systemd = {
+        value = {
+          imports = [ inputs.dms.nixosModules.dank-material-shell ];
+          programs.dank-material-shell = {
             enable = true;
-            target = "niri.service";
+            enableCalendarEvents = false;
+            systemd = {
+              enable = true;
+              target = "niri.service";
+            };
           };
         };
       }

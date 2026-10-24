@@ -1,6 +1,6 @@
 {
   inputs,
-  program,
+  lexicon,
   rootPath,
   ...
 }:
@@ -10,46 +10,48 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  den.aspects.niri = program {
+  den.aspects.niri = lexicon {
     hosts = [
       "khion"
       "lumi"
     ];
     nixos = { pkgs, ... }: [
       {
-        imports = [ inputs.niri.nixosModules.niri ];
-        nixpkgs.overlays = [ inputs.niri.overlays.niri ];
-        programs.niri = {
-          enable = true;
-          package = pkgs.niri-unstable;
-        };
-        environment.systemPackages = [ pkgs.xwayland-satellite-unstable ];
-        services.flatpak.enable = true;
+        value = {
+          imports = [ inputs.niri.nixosModules.niri ];
+          nixpkgs.overlays = [ inputs.niri.overlays.niri ];
+          programs.niri = {
+            enable = true;
+            package = pkgs.niri-unstable;
+          };
+          environment.systemPackages = [ pkgs.xwayland-satellite-unstable ];
+          services.flatpak.enable = true;
 
-        xdg.portal = {
-          enable = true;
-          extraPortals = [
-            pkgs.xdg-desktop-portal-gnome
-            pkgs.xdg-desktop-portal-gtk
-          ];
-          config.niri = {
-            default = [
-              "gnome"
-              "gtk"
+          xdg.portal = {
+            enable = true;
+            extraPortals = [
+              pkgs.xdg-desktop-portal-gnome
+              pkgs.xdg-desktop-portal-gtk
             ];
-            "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
-            "org.freedesktop.impl.portal.ScreenCast" = [ "gnome" ];
-            "org.freedesktop.impl.portal.Screenshot" = [ "gnome" ];
-            "org.freedesktop.impl.portal.Access" = [ "gtk" ];
-            "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
+            config.niri = {
+              default = [
+                "gnome"
+                "gtk"
+              ];
+              "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+              "org.freedesktop.impl.portal.ScreenCast" = [ "gnome" ];
+              "org.freedesktop.impl.portal.Screenshot" = [ "gnome" ];
+              "org.freedesktop.impl.portal.Access" = [ "gtk" ];
+              "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
+            };
           };
         };
       }
     ];
-    directories = [
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/niri";
-        dest = ".config/niri";
+        source = "${rootPath}/configs/niri";
+        destination = ".config/niri";
       }
     ];
     theme = {

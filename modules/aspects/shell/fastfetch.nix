@@ -1,4 +1,4 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 let
   u = code: builtins.fromJSON ''"\u${code}"'';
   u2 = high: low: builtins.fromJSON ''"\u${high}\u${low}"'';
@@ -26,8 +26,8 @@ let
   );
 in
 {
-  den.aspects.fastfetch = program {
-    imports = [
+  den.aspects.fastfetch = lexicon {
+    homeManager.imports = [
       {
         programs.fastfetch = {
           enable = true;
@@ -148,10 +148,10 @@ in
         };
       }
     ];
-    files = [
+    furnish.files = [
       {
-        src = "${rootPath}/configs/fastfetch/logo.txt";
-        dest = ".config/fastfetch/logo.txt";
+        source = "${rootPath}/configs/fastfetch/logo.txt";
+        destination = ".config/fastfetch/logo.txt";
       }
     ];
   };

@@ -1,10 +1,10 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 {
-  den.aspects.btop = program {
-    directories = [
+  den.aspects.btop = lexicon {
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/btop";
-        dest = ".config/btop";
+        source = "${rootPath}/configs/btop";
+        destination = ".config/btop";
       }
     ];
     theme = {

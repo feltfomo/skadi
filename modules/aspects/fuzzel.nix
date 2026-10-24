@@ -1,11 +1,11 @@
 {
-  program,
+  lexicon,
   rootPath,
   ...
 }:
 {
-  den.aspects.fuzzel = program {
-    imports = [
+  den.aspects.fuzzel = lexicon {
+    homeManager.imports = [
       (_: {
         programs.fuzzel = {
           enable = true;
@@ -22,10 +22,10 @@
         };
       })
     ];
-    directories = [
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/fuzzel";
-        dest = ".config/fuzzel";
+        source = "${rootPath}/configs/fuzzel";
+        destination = ".config/fuzzel";
       }
     ];
     theme = {

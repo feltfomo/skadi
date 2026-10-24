@@ -1,7 +1,7 @@
-{ program, rootPath, ... }:
+{ lexicon, rootPath, ... }:
 {
-  den.aspects.qt-hm = program {
-    imports = [
+  den.aspects.qt-hm = lexicon {
+    homeManager.imports = [
       (
         { config, ... }:
         {

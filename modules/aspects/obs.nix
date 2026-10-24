@@ -1,9 +1,9 @@
-{ program, ... }: {
-  den.aspects.obs = program {
+{ lexicon, ... }: {
+  den.aspects.obs = lexicon {
     nixos = { pkgs, ... }: [
       {
         hosts = [ "khion" ];
-        programs.obs-studio = {
+        value.programs.obs-studio = {
           enable = true;
 
           plugins = with pkgs.obs-studio-plugins; [

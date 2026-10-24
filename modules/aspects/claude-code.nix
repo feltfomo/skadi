@@ -1,7 +1,7 @@
 {
   den,
   inputs,
-  program,
+  lexicon,
   ...
 }:
 {
@@ -10,11 +10,11 @@
   den.aspects.claude-code-cli = {
     includes = [ den.aspects.skills ];
   }
-  // program {
+  // lexicon {
     # the github plugin expands GITHUB_PERSONAL_ACCESS_TOKEN into its
     # Authorization header. reading the secret at launch keeps it out of
     # other shells, and hosts without the secret start without github mcp.
-    pkg =
+    package =
       pkgs:
       let
         claude = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
@@ -33,13 +33,15 @@
       {
         # khion only because lumi.yaml can only be checked and edited on lumi; add the key there before widening this
         hosts = [ "khion" ];
-        sops.secrets."github-mcp-token" = {
-          owner = "feltfomo";
-          mode = "0400";
-        };
-        skadi.provision.secrets.github-mcp-token = {
-          method = "paste";
-          prompt = "GitHub personal access token for the github MCP server";
+        value = {
+          sops.secrets."github-mcp-token" = {
+            owner = "feltfomo";
+            mode = "0400";
+          };
+          skadi.provision.secrets.github-mcp-token = {
+            method = "paste";
+            prompt = "GitHub personal access token for the github MCP server";
+          };
         };
       }
     ];

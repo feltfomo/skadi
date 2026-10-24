@@ -1,6 +1,6 @@
 {
   inputs,
-  program,
+  lexicon,
   rootPath,
   ...
 }:
@@ -32,20 +32,24 @@ in
   perSystem = { pkgs, ... }: {
     packages.serpantinum = packageFor pkgs;
   };
-  den.aspects.serpantinum = program {
+  den.aspects.serpantinum = lexicon {
     hosts = [
       "khion"
       "lumi"
     ];
-    pkg = packageFor;
-    nixos = {
-      imports = [ inputs.serpantinum.nixosModules.default ];
-      programs.serpantinum.enable = true;
-      security.polkit.enable = true;
-      services.accounts-daemon.enable = true;
-      services.upower.enable = true;
-    };
-    imports = [
+    package = packageFor;
+    nixos = [
+      {
+        value = {
+          imports = [ inputs.serpantinum.nixosModules.default ];
+          programs.serpantinum.enable = true;
+          security.polkit.enable = true;
+          services.accounts-daemon.enable = true;
+          services.upower.enable = true;
+        };
+      }
+    ];
+    homeManager.imports = [
       ({ pkgs, ... }: {
         home.packages = [
           pkgs.libpulseaudio
@@ -53,13 +57,13 @@ in
         ];
       })
     ];
-    files = [
+    furnish.files = [
       {
         # Replace the bundled display map rather than merging its disabled eDP-1.
-        src = builtins.toFile "serpantinum-settings.json" (
+        source = builtins.toFile "serpantinum-settings.json" (
           builtins.toJSON (settings // { inherit (overrides) display; })
         );
-        dest = ".config/serpantinum/settings.json";
+        destination = ".config/serpantinum/settings.json";
         representation = "writable";
         onConflict = "runtime-wins";
       }

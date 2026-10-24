@@ -1,7 +1,7 @@
 {
   den,
   inputs,
-  program,
+  lexicon,
   ...
 }:
 {
@@ -53,11 +53,11 @@
       };
   };
 
-  den.aspects.codex-skills = program {
-    directories = [
+  den.aspects.codex-skills = lexicon {
+    furnish.directories = [
       {
-        src = "${inputs.no-ai-slop}/skills/no-ai-slop";
-        dest = ".codex/skills/no-ai-slop";
+        source = "${inputs.no-ai-slop}/skills/no-ai-slop";
+        destination = ".codex/skills/no-ai-slop";
       }
     ];
   };

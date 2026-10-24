@@ -1,5 +1,5 @@
 {
-  program,
+  lexicon,
   rootPath,
   ...
 }:
@@ -7,8 +7,8 @@
   # firefox is managed by home-manager's programs.firefox so the profile
   # directory is deterministic (~/.config/mozilla/firefox/feltfomo) instead of
   # the old random ~/.config/mozilla/firefox/449sgxzm.default path.
-  den.aspects.firefox = program {
-    imports = [
+  den.aspects.firefox = lexicon {
+    homeManager.imports = [
       (
         { config, ... }:
         {

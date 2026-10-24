@@ -1,12 +1,12 @@
 {
-  program,
+  lexicon,
   rootPath,
   ...
 }:
 {
   # lazy.nvim clones plugins until the plugin list is stable enough to pin in nix.
-  den.aspects.nvim = program {
-    pkg =
+  den.aspects.nvim = lexicon {
+    package =
       pkgs:
       let
         kotlinLsp = pkgs.callPackage ../../pkgs/kotlin-lsp { };
@@ -56,10 +56,10 @@
             --set NVIM_JAVA_DEBUG_DIR "${javaDebug}/share/vscode/extensions/vscjava.vscode-java-debug/server"
         '';
       };
-    directories = [
+    furnish.directories = [
       {
-        src = "${rootPath}/configs/nvim";
-        dest = ".config/nvim";
+        source = "${rootPath}/configs/nvim";
+        destination = ".config/nvim";
       }
     ];
     theme = {
