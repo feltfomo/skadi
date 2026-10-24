@@ -1,4 +1,4 @@
-{ den, ... }: {
+_: {
   den.aspects.local-llm = {
     homeManager =
       {
@@ -146,6 +146,4 @@
         }
       );
   };
-
-  den.aspects.feltfomo.includes = [ den.aspects.local-llm ];
 }
