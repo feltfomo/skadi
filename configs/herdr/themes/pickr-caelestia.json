@@ -22,8 +22,8 @@
       "preview_border": "#{{ outlineVariant.hex }}",
       "annotation": "#{{ onSurfaceVariant.hex }}",
       "status_blocked": "#{{ error.hex }}",
-      "status_done": "#{{ term2.hex }}",
-      "status_working": "#{{ term3.hex }}",
+      "status_done": "#{{ secondary.hex }}",
+      "status_working": "#{{ tertiary.hex }}",
       "status_idle": "#{{ secondary.hex }}",
       "status_unknown": "#{{ outline.hex }}"
     }

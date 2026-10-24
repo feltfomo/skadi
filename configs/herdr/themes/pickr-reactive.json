@@ -22,8 +22,8 @@
       "preview_border": "{{ colors.outline_variant.default.hex }}",
       "annotation": "{{ colors.on_surface_variant.default.hex }}",
       "status_blocked": "{{ colors.error.default.hex }}",
-      "status_done": "{{ base16.base0b.default.hex }}",
-      "status_working": "{{ base16.base0a.default.hex }}",
+      "status_done": "{{ colors.secondary.default.hex }}",
+      "status_working": "{{ colors.tertiary.default.hex }}",
       "status_idle": "{{ colors.secondary.default.hex }}",
       "status_unknown": "{{ colors.outline.default.hex }}"
     }
