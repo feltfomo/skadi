@@ -57,6 +57,7 @@
       qt-hm
       herdr
       nvim
+      ovis
       niri
       zed
       obs
