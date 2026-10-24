@@ -1,5 +1,14 @@
 { inputs, den, ... }:
 let
+  cliFor =
+    pkgs:
+    pkgs.writeShellApplication {
+      name = "ovis";
+      runtimeInputs = [ pkgs.systemd ];
+      text = ''
+        exec ${pkgs.lib.getExe pkgs.nushell} --no-config-file "${../../scripts/ovis.nu}" "$@"
+      '';
+    };
   ovisFor =
     pkgs:
     pkgs.callPackage ../../pkgs/ovis {
@@ -10,7 +19,14 @@ let
     };
 in
 {
-  perSystem = { pkgs, ... }: { packages.ovis = ovisFor pkgs; };
+  perSystem =
+    { pkgs, ... }:
+    {
+      packages = {
+        ovis = ovisFor pkgs;
+        ovis-cli = cliFor pkgs;
+      };
+    };
 
   den.aspects.ovis = {
     includes = [ den.aspects.herdr ];
@@ -23,17 +39,21 @@ in
       }:
       let
         ovis = ovisFor pkgs;
+        cli = cliFor pkgs;
         url = "http://127.0.0.1:7317";
         launcher = pkgs.writeShellApplication {
           name = "ovis-webapp";
           text = ''
-            ${pkgs.systemd}/bin/systemctl --user start ovis.service
+            ${lib.getExe cli} on
             exec ${lib.getExe pkgs.brave-origin} --class=ovis --app=${url} "$@"
           '';
         };
       in
       {
-        home.packages = [ launcher ];
+        home.packages = [
+          launcher
+          cli
+        ];
 
         systemd.user.services.ovis = {
           Unit.Description = "Ovis local Herdr web client";
