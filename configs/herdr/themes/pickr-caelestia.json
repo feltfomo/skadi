@@ -1,0 +1,31 @@
+{
+  "theme": {
+    "name": "terminal",
+    "custom": {
+      "background": "#{{ surface.hex }}",
+      "foreground": "#{{ onSurface.hex }}",
+      "selected_background": "#{{ primaryContainer.hex }}",
+      "selected_foreground": "#{{ onPrimaryContainer.hex }}",
+      "match": "#{{ primary.hex }}",
+      "selected_match": "#{{ onPrimaryContainer.hex }}",
+      "info": "#{{ secondary.hex }}",
+      "marker": "#{{ tertiary.hex }}",
+      "prompt": "#{{ primary.hex }}",
+      "spinner": "#{{ tertiary.hex }}",
+      "pointer": "#{{ primary.hex }}",
+      "header": "#{{ onSurfaceVariant.hex }}",
+      "footer": "#{{ onSurfaceVariant.hex }}",
+      "border": "#{{ outlineVariant.hex }}",
+      "label": "#{{ secondary.hex }}",
+      "preview_background": "#{{ surface.hex }}",
+      "preview_foreground": "#{{ onSurface.hex }}",
+      "preview_border": "#{{ outlineVariant.hex }}",
+      "annotation": "#{{ onSurfaceVariant.hex }}",
+      "status_blocked": "#{{ error.hex }}",
+      "status_done": "#{{ term2.hex }}",
+      "status_working": "#{{ term3.hex }}",
+      "status_idle": "#{{ secondary.hex }}",
+      "status_unknown": "#{{ outline.hex }}"
+    }
+  }
+}

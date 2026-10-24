@@ -1,0 +1,31 @@
+{
+  "theme": {
+    "name": "terminal",
+    "custom": {
+      "background": "{{ colors.surface.default.hex }}",
+      "foreground": "{{ colors.on_surface.default.hex }}",
+      "selected_background": "{{ colors.primary_container.default.hex }}",
+      "selected_foreground": "{{ colors.on_primary_container.default.hex }}",
+      "match": "{{ colors.primary.default.hex }}",
+      "selected_match": "{{ colors.on_primary_container.default.hex }}",
+      "info": "{{ colors.secondary.default.hex }}",
+      "marker": "{{ colors.tertiary.default.hex }}",
+      "prompt": "{{ colors.primary.default.hex }}",
+      "spinner": "{{ colors.tertiary.default.hex }}",
+      "pointer": "{{ colors.primary.default.hex }}",
+      "header": "{{ colors.on_surface_variant.default.hex }}",
+      "footer": "{{ colors.on_surface_variant.default.hex }}",
+      "border": "{{ colors.outline_variant.default.hex }}",
+      "label": "{{ colors.secondary.default.hex }}",
+      "preview_background": "{{ colors.surface.default.hex }}",
+      "preview_foreground": "{{ colors.on_surface.default.hex }}",
+      "preview_border": "{{ colors.outline_variant.default.hex }}",
+      "annotation": "{{ colors.on_surface_variant.default.hex }}",
+      "status_blocked": "{{ colors.error.default.hex }}",
+      "status_done": "{{ base16.base0b.default.hex }}",
+      "status_working": "{{ base16.base0a.default.hex }}",
+      "status_idle": "{{ colors.secondary.default.hex }}",
+      "status_unknown": "{{ colors.outline.default.hex }}"
+    }
+  }
+}

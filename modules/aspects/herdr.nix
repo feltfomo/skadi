@@ -56,54 +56,74 @@ in
       in
       {
         id = "herdr";
-        output = ".config/herdr/config.toml";
-        reload = "${reload}/bin/herdr-reload-config";
-        merge = {
-          format = "toml";
-          base = {
-            onboarding = false;
-            keys.command = [
-              {
-                key = "prefix+f";
-                type = "plugin_action";
-                command = "javoscript.herdr-pickr.panes-all";
-                description = "find pane";
-              }
-              {
-                key = "prefix+e";
-                type = "plugin_action";
-                command = "chmarax.herdr-nvim.toggle";
-                description = "nvim sidebar";
-              }
-              {
-                key = "prefix+o";
-                type = "plugin_action";
-                command = "chmarax.herdr-nvim.pick-file";
-                description = "open file from agent output";
-              }
-            ];
-            ui = {
-              agent_panel_sort = "spaces";
-              toast.delivery = "herdr";
+        templates = [
+          {
+            output = ".config/herdr/config.toml";
+            reload = "${reload}/bin/herdr-reload-config";
+            merge = {
+              format = "toml";
+              base = {
+                onboarding = false;
+                keys.command = [
+                  {
+                    key = "prefix+f";
+                    type = "plugin_action";
+                    command = "javoscript.herdr-pickr.panes-all";
+                    description = "find pane";
+                  }
+                  {
+                    key = "prefix+e";
+                    type = "plugin_action";
+                    command = "chmarax.herdr-nvim.toggle";
+                    description = "nvim sidebar";
+                  }
+                  {
+                    key = "prefix+o";
+                    type = "plugin_action";
+                    command = "chmarax.herdr-nvim.pick-file";
+                    description = "open file from agent output";
+                  }
+                ];
+                ui = {
+                  agent_panel_sort = "spaces";
+                  toast.delivery = "herdr";
+                };
+                theme = {
+                  name = "kanagawa-lotus";
+                  auto_switch = false;
+                };
+              };
             };
-            theme = {
-              name = "kanagawa-lotus";
-              auto_switch = false;
+            renderers = {
+              noctalia = {
+                source = ../../configs/herdr/themes/reactive.toml;
+                sharedWith = [
+                  "illogical-impulse"
+                  "serpantinum"
+                  "end4-pc"
+                  "dms"
+                ];
+              };
+              caelestia.source = ../../configs/herdr/themes/caelestia.toml;
             };
-          };
-        };
-        renderers = {
-          noctalia = {
-            source = ../../configs/herdr/themes/reactive.toml;
-            sharedWith = [
-              "illogical-impulse"
-              "serpantinum"
-              "end4-pc"
-              "dms"
-            ];
-          };
-          caelestia.source = ../../configs/herdr/themes/caelestia.toml;
-        };
+          }
+          {
+            subId = "pickr";
+            output = ".config/herdr/plugins/config/javoscript.herdr-pickr/config.json";
+            renderers = {
+              noctalia = {
+                source = ../../configs/herdr/themes/pickr-reactive.json;
+                sharedWith = [
+                  "illogical-impulse"
+                  "serpantinum"
+                  "end4-pc"
+                  "dms"
+                ];
+              };
+              caelestia.source = ../../configs/herdr/themes/pickr-caelestia.json;
+            };
+          }
+        ];
       };
   };
 }
