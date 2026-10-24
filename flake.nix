@@ -72,6 +72,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:mangowm/mango";
     };
+    millennium = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:SteamClientHomebrew/Millennium/f7a356f6789bc7d23f44bfbcdd95c71f0385cc1a?dir=packages/nix";
+    };
     niri = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:epireyn/niri-flake";
@@ -121,6 +125,10 @@
     spicetify-nix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:Gerg-L/spicetify-nix";
+    };
+    steam-material = {
+      flake = false;
+      url = "github:kuska1/Material-Theme/32b6c127aab294c6f7c79ba7d3a12c717cc67227";
     };
     t3-code-nix.url = "github:LisaScheers/t3-code-nix";
     treefmt-nix = {

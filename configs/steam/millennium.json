@@ -1,0 +1,22 @@
+{
+  "general": {
+    "checkForMillenniumUpdates": false,
+    "checkForPluginAndThemeUpdates": false,
+    "injectCSS": true,
+    "injectJavascript": true
+  },
+  "misc": {
+    "hasShownWelcomeModal": true
+  },
+  "themes": {
+    "activeTheme": "Material-Theme",
+    "allowedScripts": true,
+    "allowedStyles": true,
+    "conditions": {
+      "Material-Theme": {
+        "Appearance": "Dark",
+        "Color": "Matugen"
+      }
+    }
+  }
+}
