@@ -12,7 +12,10 @@
           (throw "duplicate theme resource ${destination}")
           config.lexicon.furnish.declarations
         ).source.value;
-      python = pkgs.python3.withPackages (packages: [ packages.tomlkit ]);
+      python = pkgs.python3.withPackages (packages: [
+        packages.coloraide
+        packages.tomlkit
+      ]);
       compositionSources = map (entry: entry.source.value) (
         builtins.filter (
           entry: lib.hasPrefix ".config/lexicon/toml/" entry.destination

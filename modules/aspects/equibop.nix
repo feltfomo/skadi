@@ -16,6 +16,8 @@
       { pkgs, ... }:
       let
         setup = import ../../lib/theme-setup.nix { inherit pkgs; };
+        stylesheet =
+          palette: toString (pkgs.callPackage ../../configs/equibop/system24.nix { inherit palette; });
       in
       {
         id = "equibop";
@@ -23,7 +25,8 @@
         reload = "${setup}/bin/app-theme-setup equibop";
         renderers = {
           noctalia = {
-            source = ../../configs/equibop/reactive.css;
+            source = stylesheet ../../configs/equibop/reactive.css;
+            placedAs = "reactive.css";
             sharedWith = [
               "illogical-impulse"
               "serpantinum"
@@ -31,7 +34,10 @@
               "dms"
             ];
           };
-          caelestia.source = ../../configs/equibop/caelestia.css;
+          caelestia = {
+            source = stylesheet ../../configs/equibop/caelestia.css;
+            placedAs = "caelestia.css";
+          };
         };
       };
   };

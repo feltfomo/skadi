@@ -33,6 +33,28 @@
     outline-offset: 2px !important;
   }
 
+  .tabbrowser-tab .tab-audio-button {
+    --button-border-radius: var(--skadi-control-radius) !important;
+    --button-background-color-ghost: transparent !important;
+    --button-text-color-ghost: var(--skadi-text) !important;
+    --button-border-color-ghost: transparent !important;
+    --button-background-color-ghost-hover: var(--skadi-hover) !important;
+    --button-text-color-ghost-hover: var(--skadi-text) !important;
+    --button-border-color-ghost-hover: transparent !important;
+    --button-background-color-ghost-active: var(--skadi-hover) !important;
+    --button-text-color-ghost-active: var(--skadi-text) !important;
+    --button-border-color-ghost-active: var(--skadi-border-strong) !important;
+  }
+
+  .tabbrowser-tab:is([selected], [visuallyselected], [multiselected="true"]) .tab-audio-button {
+    --button-text-color-ghost: var(--skadi-selected-text) !important;
+    --button-background-color-ghost-hover: color-mix(in srgb, var(--skadi-selected-text) 12%, transparent) !important;
+    --button-text-color-ghost-hover: var(--skadi-selected-text) !important;
+    --button-background-color-ghost-active: color-mix(in srgb, var(--skadi-selected-text) 22%, transparent) !important;
+    --button-text-color-ghost-active: var(--skadi-selected-text) !important;
+    --button-border-color-ghost-active: var(--skadi-selected-text) !important;
+  }
+
   /* Essentials otherwise paint a blurred favicon beneath their selected fill. */
   .tabbrowser-tab[zen-essential="true"][visuallyselected] > .tab-stack > .tab-background {
     --zen-essential-tab-selected-bg: var(--skadi-selected) !important;

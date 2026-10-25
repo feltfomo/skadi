@@ -83,6 +83,16 @@
     border-color: var(--skadi-border) !important;
   }
 
+  tooltip {
+    appearance: none !important;
+    background: var(--skadi-panel) !important;
+    color: var(--skadi-text) !important;
+    border: 1px solid var(--skadi-border-strong) !important;
+    border-radius: var(--skadi-control-radius) !important;
+    font-family: var(--skadi-font) !important;
+    font-size: 13px !important;
+  }
+
   .dialogBox {
     background: var(--skadi-panel) !important;
     color: var(--skadi-text) !important;

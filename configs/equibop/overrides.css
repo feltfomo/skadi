@@ -1,0 +1,109 @@
+@media (forced-colors: none) {
+  :root {
+    --colors: on;
+    /* Accent and semantic fills share the same dark ink in System24. */
+    --text-0: oklch(19% 0 0);
+    --text-1: var(--skadi-eq-on-surface);
+    --text-2: var(--skadi-eq-on-surface);
+    --text-3: var(--skadi-eq-on-surface);
+    --text-4: var(--skadi-eq-on-surface-variant);
+    --text-5: var(--skadi-eq-on-surface-variant);
+    --bg-1: var(--skadi-eq-surface-container-high);
+    --bg-2: var(--skadi-eq-surface-container);
+    --bg-3: var(--skadi-eq-surface-container-low);
+    --bg-4: var(--skadi-eq-surface);
+    --accent-1: var(--skadi-eq-primary);
+    --accent-2: color-mix(in srgb, var(--skadi-eq-primary) 55%, #ffffff);
+    --accent-3: color-mix(in srgb, var(--skadi-eq-primary) 60%, #ffffff);
+    --accent-4: color-mix(in srgb, var(--skadi-eq-primary) 55%, #ffffff);
+    --accent-5: color-mix(in srgb, var(--skadi-eq-primary) 65%, #ffffff);
+    --hover: color-mix(in srgb, var(--skadi-eq-primary) 12%, transparent);
+    --active: color-mix(in srgb, var(--skadi-eq-primary) 20%, transparent);
+    --active-2: color-mix(in srgb, var(--skadi-eq-primary) 30%, transparent);
+    --border-light: var(--skadi-eq-outline-variant);
+    --border: var(--skadi-eq-outline-variant);
+    --border-hover: var(--skadi-eq-primary);
+    --button-border: var(--skadi-eq-outline-variant);
+  }
+
+  body {
+    --label-hover-color: var(--accent-1);
+  }
+}
+
+/* Pinned Midnight leaves these consumed Discord tokens as debug colors. */
+@container root style(--colors: on) {
+  body,
+  .theme-dark:not(.custom-user-profile-theme),
+  .theme-light:not(.custom-user-profile-theme) {
+    --button-outline-brand-background-hover: var(--bg-1);
+    --button-outline-brand-border-active: var(--border-hover);
+    --card-primary-pressed-bg: var(--bg-1);
+    --control-brand-foreground-new: var(--accent-1);
+    --input-border-readonly: var(--border);
+    --scrollbar-auto-scrollbar-color-thumb: var(--text-5);
+    --scrollbar-auto-scrollbar-color-track: var(--bg-4);
+    --spoiler-hidden-background: var(--bg-2);
+    --spoiler-hidden-background-hover: var(--bg-1);
+    --status-positive-text: var(--text-0);
+    --status-warning-background: var(--yellow-2);
+    --status-warning-text: var(--text-0);
+    --text-overlay-dark: var(--text-0);
+    --user-profile-activity-toolbar-background: var(--bg-3);
+    /* These native controls need contrasting ink through their pressed states. */
+    --control-critical-primary-background-default: var(--red-2);
+    --control-critical-primary-background-hover: var(--red-1);
+    --control-critical-primary-background-active: var(--red-3);
+    --control-connected-background-default: var(--green-2);
+    --control-connected-background-hover: var(--green-1);
+    --control-connected-background-active: var(--green-3);
+    --control-connected-text-default: var(--text-0);
+    --control-connected-text-hover: var(--text-0);
+    --control-connected-text-active: var(--text-0);
+    --focus-primary: var(--accent-1);
+    --border-focus: var(--accent-1);
+    --text-feedback-critical: color-mix(in oklab, var(--red-1) 35%, var(--text-1));
+    --text-feedback-positive: color-mix(in oklab, var(--green-1) 35%, var(--text-1));
+    --text-feedback-warning: color-mix(in oklab, var(--yellow-1) 35%, var(--text-1));
+    --text-feedback-info: var(--accent-1);
+    --control-critical-secondary-icon-default: var(--text-feedback-critical);
+    --control-critical-secondary-icon-hover: var(--text-feedback-critical);
+    --control-critical-secondary-icon-active: var(--text-feedback-critical);
+    --control-critical-secondary-text-default: var(--text-feedback-critical);
+    --control-critical-secondary-text-hover: var(--text-feedback-critical);
+    --control-critical-secondary-text-active: var(--text-feedback-critical);
+    --control-critical-secondary-background-active: var(--bg-1);
+  }
+
+  /* These consumers use a feedback foreground as their filled background. */
+  .colorSuccess__6e2b9 {
+    --custom-notice-background: var(--green-2);
+    --custom-notice-text: var(--text-0);
+    --custom-notice-button-hover: var(--green-1);
+  }
+
+  .botTagAI__82f07 {
+    background: var(--green-2);
+    color: var(--text-0);
+  }
+
+  .statusActive_edf95e {
+    background: var(--green-2);
+    color: var(--text-0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    --animations: off;
+    --border-hover-transition: none;
+    --list-item-transition: none;
+    --dms-icon-svg-transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --colors: off;
+  }
+}

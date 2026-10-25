@@ -8,6 +8,7 @@ import sys
 import tomllib
 
 import tomlkit
+from coloraide import Color
 
 
 contract = json.loads(Path(sys.argv[1]).read_text())
@@ -40,9 +41,14 @@ assert "project" in prompt.stdout and "1.2.3" in prompt.stdout and "main" in pro
 assert "?" in prompt.stdout and not prompt.stderr, prompt.stderr
 
 expected = {"claude-code", "zen-browser", "starship", "equibop", "codex", "obs"}
+equibop_inputs = set()
 for renderer, path in contract["registrations"].items():
     data = tomllib.loads(Path(path).read_text())
     assert expected <= data["templates"].keys(), renderer
+    equibop_template = data["templates"]["equibop"]
+    assert equibop_template["output_path"] == f"{home}/.config/equibop/themes/reactive.theme.css"
+    assert equibop_template["output_path"] not in manifest
+    equibop_inputs.add(Path(manifest[equibop_template["input_path"]]))
     assert data["templates"]["zen-browser"]["output_path"] == f"{home}/.config/zen/theme/palette.css", renderer
     for sub_id, name in [("content", "userContent.css"), ("chrome", "userChrome.css")]:
         assert data["templates"][f"zen-browser-{sub_id}"]["output_path"] == f"{home}/.config/zen/theme/{name}", renderer
@@ -52,12 +58,18 @@ for app in ["zen-browser", "claude-code", "starship", "equibop", "codex", "obs"]
     data = tomllib.loads(Path(path).read_text())
     assert data["theme"]["templates"]["user"], app
     assert f"{home}/.config/caelestia/theme-hooks/{app}" in manifest
+    if app == "equibop":
+        template = data["theme"]["templates"]["user"]["equibop"]["input_path"]
+        equibop_inputs.add(Path(manifest[template.replace("~/", f"{home}/", 1)]))
+
+equibop_caelestia = Path(manifest[f"{home}/.config/caelestia/templates/equibop-caelestia.css"])
 
 outputs = Path.cwd() / "rendered"
 outputs.mkdir()
 sources = []
-for app in ["zen-browser", "claude-code", "starship", "equibop", "codex", "obs"]:
+for app in ["zen-browser", "claude-code", "starship", "codex", "obs"]:
     sources.extend(sorted((root / "configs" / app).glob("reactive*")))
+sources.extend(sorted(equibop_inputs))
 zen_entries = [root / "configs/zen-browser/theme" / name
                for name in ["userContent.css", "userChrome.css"]]
 sources.extend(zen_entries)
@@ -163,7 +175,81 @@ def check_zen_states(content):
         check_zen_palette(content, match[1])
 
 
+def check_equibop_theme(content):
+    css = re.sub(r"/\*.*?\*/", "", content, flags=re.S)
+    assert not re.search(r"@import\b|url\(\s*['\"]?https?://", css)
+    assert '@name System24 Reactive' in content
+    assert content.count('font-family: "DM Mono"') == 6
+    assert "data:font/woff;base64," in css and "data:image/gif;base64," in css
+    assert "data:image/svg+xml;base64," in css
+    assert content.count("Copyright (c) 2025 refact0r") == 2
+    assert "Copyright 2020 The DM Mono Project Authors" in content
+    assert "SIL OPEN FONT LICENSE" in content
+    assert "--unrounding: on;" in css and "--panel-labels: on;" in css
+    definitions = dict(re.findall(r"(?m)^\s*(--[\w-]+):\s*([^;\n]+);", css))
+    compatibility = {
+        "--button-outline-brand-background-hover", "--button-outline-brand-border-active",
+        "--card-primary-pressed-bg", "--control-brand-foreground-new", "--input-border-readonly",
+        "--scrollbar-auto-scrollbar-color-thumb", "--scrollbar-auto-scrollbar-color-track",
+        "--spoiler-hidden-background", "--spoiler-hidden-background-hover", "--status-positive-text",
+        "--status-warning-background", "--status-warning-text", "--text-overlay-dark",
+        "--user-profile-activity-toolbar-background",
+    }
+    assert compatibility <= definitions.keys()
+    for token in compatibility:
+        assert definitions[token] not in {"red", "lime", "blue", "yellow", "magenta", "cyan"}, token
+
+    def color(value):
+        if value.startswith("var("):
+            return color(definitions[value[4:-1]])
+        mix = re.fullmatch(r"color-mix\(in ([\w-]+), (.+)\)", value)
+        if mix:
+            left, right = color_parts(mix[2])
+            first = re.fullmatch(r"(.+) (\d+)%", left)
+            second = re.fullmatch(r"(.+) (\d+)%", right)
+            assert first or second, value
+            weight = int(second[2]) / 100 if second else 1 - int(first[2]) / 100
+            return color(first[1] if first else left).mix(
+                color(second[1] if second else right), weight, space=mix[1], premultiplied=True)
+        return Color(value)
+
+    pairs = [(f"--bg-{background}", f"--text-{foreground}")
+             for background in range(1, 5) for foreground in range(1, 6)]
+    pairs += [(f"--accent-{index}", "--text-0") for index in range(2, 6)]
+    pairs += [(f"--{hue}-2", "--text-0") for hue in ["purple", "yellow", "green", "blue", "red"]]
+    pairs += [("--bg-4", "--accent-1"),
+              ("--status-positive-background", "--status-positive-text"),
+              ("--status-warning-background", "--status-warning-text"),
+              ("--background-brand", "--text-overlay-dark"),
+              ("--custom-notice-background", "--custom-notice-text"),
+              ("--custom-notice-button-hover", "--custom-notice-text"),
+              ("--button-outline-brand-background-hover", "--control-secondary-text-hover")]
+    for kind in ["critical-secondary", "critical-primary", "connected", "primary"]:
+        pairs += [(f"--control-{kind}-background-{state}", f"--control-{kind}-text-{state}")
+                  for state in ["default", "hover", "active"]]
+    failures = []
+    for background, foreground in pairs:
+        ratio = color(definitions[background]).contrast(color(definitions[foreground]), method="wcag21")
+        if ratio < 4.5:
+            failures.append((background, foreground, ratio))
+    for kind in ["critical", "positive", "warning", "info"]:
+        foreground = color(definitions[f"--text-feedback-{kind}"])
+        for frame in range(1, 5):
+            base = color(definitions[f"--bg-{frame}"])
+            ratio = foreground.contrast(base, method="wcag21")
+            if ratio < 4.5:
+                failures.append((kind, frame, ratio))
+            background = Color.layer([color(definitions[f"--background-feedback-{kind}"]), base], space="srgb")
+            ratio = foreground.contrast(background, method="wcag21")
+            if ratio < 4.5:
+                failures.append((kind, frame, "feedback card", ratio))
+    assert not failures, failures
+    for token in ["--spoiler-hidden-background", "--spoiler-hidden-background-hover"]:
+        assert color(definitions[token]).alpha() == 1, token
+
+
 zen_palettes = []
+equibop_palettes = []
 for mode in ["dark", "light"]:
     subprocess.run(["matugen", "color", "hex", "#89b4fa", "--mode", mode, "--config", str(path)], check=True)
     for entry in zen_entries:
@@ -184,9 +270,23 @@ for mode in ["dark", "light"]:
         if "--skadi-primary:" in content:
             check_zen_states(content)
             zen_palettes.append(content)
+        if "@name System24 Reactive" in content:
+            check_equibop_theme(content)
+            equibop_palettes.append(content)
 
 for app in ["zen-browser", "claude-code", "starship", "equibop", "codex", "obs"]:
     for source in (root / "configs" / app).glob("caelestia*"):
+        if app == "equibop":
+            for palette in equibop_palettes:
+                colors = {}
+                for role, value in re.findall(r"--skadi-eq-([\w-]+):\s*#([0-9a-fA-F]{6});", palette):
+                    parts = role.split("-")
+                    colors[parts[0] + "".join(part.title() for part in parts[1:])] = value
+                content = re.sub(r"\{\{\s*([A-Za-z0-9]+)\.hex\s*\}\}",
+                                 lambda match: colors[match[1]], equibop_caelestia.read_text())
+                assert "{{" not in content, source
+                check_equibop_theme(content)
+            continue
         if app == "zen-browser":
             for palette in zen_palettes:
                 colors = {}

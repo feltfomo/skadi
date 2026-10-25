@@ -1,56 +1,10 @@
-/**
- * @name Reactive
- */
-:root,
-.theme-dark,
-.theme-light {
-  --background-base-lowest: #{{ surfaceDim.hex }};
-  --background-base-lower: #{{ surface.hex }};
-  --background-base-low: #{{ surfaceContainerLow.hex }};
-  --background-surface-high: #{{ surfaceContainerHigh.hex }};
-  --background-surface-higher: #{{ surfaceContainerHighest.hex }};
-  --background-surface-highest: #{{ surfaceContainerHighest.hex }};
-  --background-primary: #{{ surface.hex }};
-  --background-secondary: #{{ surfaceContainerLow.hex }};
-  --background-secondary-alt: #{{ surfaceContainer.hex }};
-  --background-tertiary: #{{ surfaceDim.hex }};
-  --background-floating: #{{ surfaceContainerHigh.hex }};
-  --background-mod-subtle: #{{ surfaceContainer.hex }};
-  --background-mod-normal: #{{ surfaceContainerHigh.hex }};
-  --background-message-hover: #{{ surfaceContainer.hex }};
-  --background-mentioned: #{{ primaryContainer.hex }};
-  --background-mentioned-hover: #{{ primaryContainer.hex }};
-  --background-modifier-selected: #{{ primaryContainer.hex }};
-  --text-normal: #{{ onSurface.hex }};
-  --text-primary: #{{ onSurface.hex }};
-  --text-secondary: #{{ onSurfaceVariant.hex }};
-  --text-muted: #{{ onSurfaceVariant.hex }};
-  --text-link: #{{ primary.hex }};
-  --text-brand: #{{ primary.hex }};
-  --interactive-normal: #{{ onSurfaceVariant.hex }};
-  --interactive-hover: #{{ onSurface.hex }};
-  --interactive-active: #{{ primary.hex }};
-  --channels-default: #{{ onSurfaceVariant.hex }};
-  --channel-icon: #{{ onSurfaceVariant.hex }};
-  --header-primary: #{{ onSurface.hex }};
-  --header-secondary: #{{ onSurfaceVariant.hex }};
-  --brand-500: #{{ primary.hex }};
-  --brand-560: #{{ primary.hex }};
-  --brand-600: #{{ primaryContainer.hex }};
-  --button-filled-brand-background: #{{ primary.hex }};
-  --button-filled-brand-text: #{{ onPrimary.hex }};
-  --button-filled-brand-background-hover: #{{ primaryContainer.hex }};
-  --button-danger-background: #{{ error.hex }};
-  --button-danger-text: #{{ onError.hex }};
-  --input-background: #{{ surfaceContainer.hex }};
-  --input-text-normal: #{{ onSurface.hex }};
-  --input-placeholder-text: #{{ onSurfaceVariant.hex }};
-  --channeltextarea-background: #{{ surfaceContainer.hex }};
-  --scrollbar-thin-thumb: #{{ outline.hex }};
-  --scrollbar-thin-track: #{{ surface.hex }};
-  --scrollbar-auto-thumb: #{{ outline.hex }};
-  --scrollbar-auto-track: #{{ surface.hex }};
-  --status-danger: #{{ error.hex }};
-  --status-positive: #{{ term2.hex }};
-  --status-warning: #{{ term3.hex }};
+:root {
+  --skadi-eq-surface: #{{ surface.hex }};
+  --skadi-eq-surface-container-low: #{{ surfaceContainerLow.hex }};
+  --skadi-eq-surface-container: #{{ surfaceContainer.hex }};
+  --skadi-eq-surface-container-high: #{{ surfaceContainerHigh.hex }};
+  --skadi-eq-on-surface: #{{ onSurface.hex }};
+  --skadi-eq-on-surface-variant: #{{ onSurfaceVariant.hex }};
+  --skadi-eq-outline-variant: #{{ outlineVariant.hex }};
+  --skadi-eq-primary: #{{ primary.hex }};
 }
