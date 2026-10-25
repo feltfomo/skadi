@@ -1,0 +1,179 @@
+.share-picker {
+  font-family: "Maple Mono NF";
+  font-size: 13px;
+  color: @window_fg_color;
+  background: alpha(@window_bg_color, 0.88);
+  border: 1px solid alpha(@accent_bg_color, 0.65);
+  border-radius: 3px;
+  box-shadow: 0 8px 28px alpha(black, 0.35);
+}
+
+.share-picker .notebook,
+.share-picker .notebook > stack,
+.share-picker .notebook > header {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.share-picker .notebook > header {
+  padding: 18px 20px 0;
+}
+
+.share-picker .notebook > header tabs tab {
+  min-height: 32px;
+  margin-right: 8px;
+  padding: 0 18px;
+  background: alpha(@card_bg_color, 0.7);
+  border: 1px solid alpha(@sidebar_border_color, 0.65);
+  border-radius: 4px;
+  box-shadow: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.share-picker .tab-label {
+  color: alpha(@window_fg_color, 0.65);
+  font-weight: 600;
+}
+
+.share-picker .notebook > header tabs tab:hover {
+  background: alpha(@accent_bg_color, 0.15);
+  border-color: alpha(@accent_bg_color, 0.55);
+}
+
+.share-picker .notebook > header tabs tab:checked {
+  background: @accent_bg_color;
+  border-color: @accent_bg_color;
+}
+
+.share-picker .notebook > header tabs tab:checked .tab-label {
+  color: @accent_fg_color;
+}
+
+.share-picker .notebook > header tabs tab:focus-visible {
+  outline: 2px solid @accent_bg_color;
+  outline-offset: 3px;
+}
+
+.share-picker .page {
+  padding: 20px;
+  background: transparent;
+  border: none;
+}
+
+.share-picker flowboxchild,
+.share-picker .page button:not(.region-button) {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  box-shadow: none;
+  outline: none;
+}
+
+.share-picker .card {
+  padding: 8px;
+  background: alpha(@card_bg_color, 0.7);
+  border: 1px solid alpha(@sidebar_border_color, 0.7);
+  border-radius: 5px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.share-picker flowboxchild:hover .card,
+.share-picker button:hover > .card {
+  background: mix(@card_bg_color, @accent_bg_color, 0.08);
+  border-color: alpha(@accent_bg_color, 0.55);
+}
+
+.share-picker flowboxchild:selected .card,
+.share-picker flowboxchild:focus-visible .card,
+.share-picker button:focus-visible > .card,
+.share-picker button:active > .card {
+  background: mix(@card_bg_color, @accent_bg_color, 0.12);
+  border-color: @accent_bg_color;
+  box-shadow: inset 0 0 0 1px @accent_bg_color;
+}
+
+.share-picker .image {
+  background: alpha(@view_bg_color, 0.55);
+  border-radius: 2px;
+}
+
+.share-picker .image-label {
+  padding: 10px 4px 3px;
+  color: @window_fg_color;
+  font-size: 12px;
+}
+
+.share-picker .card-loading .image {
+  background: alpha(@accent_bg_color, 0.06);
+}
+
+.share-picker .region-button {
+  padding: 12px 24px;
+  color: @accent_fg_color;
+  background: @accent_bg_color;
+  border: 1px solid @accent_bg_color;
+  border-radius: 4px;
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.share-picker .region-button:hover {
+  background: shade(@accent_bg_color, 1.08);
+}
+
+.share-picker .region-button:focus-visible {
+  outline: 2px solid @accent_bg_color;
+  outline-offset: 3px;
+}
+
+.share-picker .region-button:disabled {
+  opacity: 0.45;
+}
+
+.share-picker .restore-button {
+  margin: 0 20px 16px;
+  padding-top: 14px;
+  color: alpha(@window_fg_color, 0.65);
+  border-top: 1px solid alpha(@sidebar_border_color, 0.65);
+}
+
+.share-picker .restore-button check {
+  min-width: 16px;
+  min-height: 16px;
+  margin-right: 8px;
+  background: alpha(@card_bg_color, 0.7);
+  border: 1px solid alpha(@sidebar_border_color, 0.8);
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.share-picker .restore-button check:checked {
+  color: @accent_fg_color;
+  background: @accent_bg_color;
+  border-color: @accent_bg_color;
+}
+
+.share-picker .restore-button:focus-visible check {
+  outline: 2px solid @accent_bg_color;
+  outline-offset: 3px;
+}
+
+.share-picker scrollbar,
+.share-picker scrollbar trough {
+  background: transparent;
+  border: none;
+}
+
+.share-picker scrollbar slider {
+  min-width: 4px;
+  min-height: 24px;
+  background: alpha(@window_fg_color, 0.25);
+  border: none;
+  border-radius: 3px;
+}
+
+.share-picker scrollbar slider:hover {
+  background: alpha(@accent_bg_color, 0.65);
+}
