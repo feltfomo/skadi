@@ -95,10 +95,6 @@ let
       mango = "reload_config";
       hyprland = ''hl.dsp.exec_cmd("hyprctl reload")'';
     };
-    "session.overview" = {
-      mango = "toggleoverview";
-      hyprland = "B.overview";
-    };
     "session.quit" = {
       mango = "quit";
       hyprland = "hl.dsp.exit()";
@@ -164,7 +160,6 @@ in
         (builtins.isInt width || builtins.isFloat width) && width >= 0.1 && width <= 1
       ) "column width must be between 0.1 and 1" (action "column-width" width);
     session = {
-      overview = action "session.overview" null;
       reload = action "session.reload" null;
       quit = action "session.quit" null;
     };

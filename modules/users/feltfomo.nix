@@ -8,10 +8,6 @@
     inputs = {
       # temporary logseq pin until nixpkgs #536292 reaches unstable
       nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
-      noctalia = {
-        url = "github:noctalia-dev/noctalia";
-        inputs.nixpkgs.follows = "nixpkgs";
-      };
       zen-browser = {
         url = "github:0xc000022070/zen-browser-flake";
         inputs = {
@@ -202,7 +198,6 @@
             ${builtins.readFile ../../scripts/sops-edit.nu}
           '')
           inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
-          inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default
           logseqPkgs.logseq
           opencode-desktop
           ayugram-desktop
@@ -237,7 +232,6 @@
           gifski
           zenity
           slurp
-          satty
           grim
           vlc
         ];

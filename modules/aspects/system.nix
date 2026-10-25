@@ -100,7 +100,6 @@
         pulseaudio
         efibootmgr
         grub2_efi
-        cliphist
         ffmpeg
         xclip
         nixd

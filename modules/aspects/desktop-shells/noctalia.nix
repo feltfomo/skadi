@@ -47,6 +47,10 @@ let
 in
 {
   flake-file.inputs = {
+    noctalia = {
+      url = "github:noctalia-dev/noctalia";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     noctalia-community-plugins = {
       url = "github:noctalia-dev/community-plugins/e9dec7443b8a70ab606dc72669fb122a9d668bce";
       flake = false;
@@ -58,11 +62,15 @@ in
   };
 
   den.aspects.noctalia = lexicon {
+    package = pkgs: import ../../../lib/noctalia-package.nix { inherit inputs pkgs; };
+    nixos = [
+      { value.services.gnome.gnome-keyring.enable = true; }
+    ];
     homeManager =
       { pkgs, ... }:
       let
         python = pkgs.python3.withPackages (packages: [ packages.tomlkit ]);
-        noctalia = inputs.noctalia.packages.${pkgs.stdenv.hostPlatform.system}.default;
+        noctalia = import ../../../lib/noctalia-package.nix { inherit inputs pkgs; };
         toml = inputs.lexicon.lib.toml { inherit pkgs; };
         declared =
           profile:
@@ -82,13 +90,14 @@ in
         session = pkgs.writeShellApplication {
           name = "noctalia-session";
           text = ''
-            exec ${python}/bin/python ${rootPath}/scripts/noctalia-session.py ${noctalia}/bin/noctalia ${baselines} "$@"
+            exec ${pkgs.systemd}/bin/systemd-cat --identifier=noctalia ${python}/bin/python ${rootPath}/scripts/noctalia-session.py ${noctalia}/bin/noctalia ${baselines} "$@"
           '';
         };
       in
       {
         home.packages = [
           inputs.ai-usagebar.packages.${pkgs.stdenv.hostPlatform.system}.default
+          pkgs.satty
           session
         ];
       };
@@ -102,15 +111,15 @@ in
     ];
     furnish.files =
       { pkgs, ... }:
-      [
+      map (profile: {
+        destination = ".config/noctalia/profiles/${profile}/noctalia/config.toml";
+        source = profileSource profile;
+      }) profiles
+      ++ [
         {
           destination = ".config/noctalia/plugin-sources.toml";
           source = pluginSource pkgs;
         }
-      ]
-      ++ map (profile: {
-        destination = ".config/noctalia/profiles/${profile}/noctalia/config.toml";
-        source = profileSource profile;
-      }) profiles;
+      ];
   };
 }

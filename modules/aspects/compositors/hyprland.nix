@@ -1,4 +1,5 @@
 {
+  den,
   inputs,
   rootPath,
   lexicon,
@@ -83,12 +84,7 @@ in
 {
   flake-file = {
     inputs = {
-      # gloview targets this compositor's plugin api and shares its exact abi.
       hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
-      gloview = {
-        url = "github:fedsfarm/gloview";
-        inputs.hyprland.follows = "hyprland";
-      };
     };
     nixConfig = {
       extra-substituters = [ "https://hyprland.cachix.org" ];
@@ -98,18 +94,21 @@ in
     };
   };
 
-  den.aspects.hyprland = lexicon {
-    hosts = [
-      "khion"
-      "lumi"
+  den.aspects.hyprland = {
+    includes = with den.aspects; [
+      gtk-theme
+      noctalia
+      wayland
+      fuzzel
+      kitty
     ];
+  }
+  // lexicon {
     package = pkgs: pkgs.pyprland;
     nixos =
       { pkgs, ... }:
       let
         hyprlandPkg = hyprlandPackage pkgs;
-        # the gloview input follows this same tagged compositor and owns its package details
-        gloviewPkg = inputs.gloview.packages.${pkgs.stdenv.hostPlatform.system}.gloview;
       in
       [
         {
@@ -135,8 +134,7 @@ in
               portalPackage =
                 inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
             };
-            # expose gloview through the system profile so the lua startup can load a stable path
-            environment.systemPackages = [ gloviewPkg ];
+            environment.systemPackages = [ pkgs.hyprland-preview-share-picker ];
             programs.ydotool.enable = true;
             services.flatpak.enable = true;
 
@@ -159,6 +157,38 @@ in
     homeManager.imports = [ audioOpacityService ];
     furnish.files = { host, pkgs, ... }: [
       {
+        destination = ".config/hyprland-preview-share-picker/config.yaml";
+        source = (pkgs.formats.yaml { }).generate "hyprland-share-picker.yaml" {
+          stylesheets = [ "style.css" ];
+          default_page = "windows";
+          window = {
+            width = 1080;
+            height = 640;
+          };
+          image = {
+            resize_size = 480;
+            widget_size = 160;
+          };
+          classes.window = "share-picker";
+          windows = {
+            min_per_row = 2;
+            max_per_row = 3;
+            spacing = 16;
+            clicks = 2;
+          };
+          outputs = {
+            show_label = true;
+            spacing = 8;
+            clicks = 2;
+          };
+          region.command = "${pkgs.lib.getExe pkgs.slurp} -f '%o@%X,%Y,%W,%H'";
+        };
+      }
+      {
+        destination = ".config/hyprland-preview-share-picker/style.css";
+        source = "${rootPath}/configs/hyprland-share-picker/style.css";
+      }
+      {
         source =
           pkgs.writeText "hyprland-shared-binds.lua"
             (import ../../../configs/desktop/binds.nix {
@@ -175,9 +205,25 @@ in
         source = "${rootPath}/configs/pypr/config.toml";
         destination = ".config/pypr/config.toml";
       }
+      {
+        destination = ".config/hypr/xdph.conf";
+        source = pkgs.writeText "hyprland-share-picker-portal.conf" ''
+          screencopy {
+            custom_picker_binary = ${pkgs.lib.getExe pkgs.hyprland-preview-share-picker}
+          }
+        '';
+      }
     ];
     # separate declarations keep nested config and library files visible to furnish
     furnish.directories = [
+      {
+        source = "${rootPath}/configs/hypr/config";
+        destination = ".config/hypr/config";
+      }
+      {
+        source = "${rootPath}/configs/hypr/lib";
+        destination = ".config/hypr/lib";
+      }
       {
         source = "${rootPath}/configs/hypr";
         destination = ".config/hypr";
@@ -186,14 +232,6 @@ in
           "config"
           "lib"
         ];
-      }
-      {
-        source = "${rootPath}/configs/hypr/config";
-        destination = ".config/hypr/config";
-      }
-      {
-        source = "${rootPath}/configs/hypr/lib";
-        destination = ".config/hypr/lib";
       }
     ];
     theme = {

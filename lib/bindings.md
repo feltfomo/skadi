@@ -212,7 +212,6 @@ Collision checks cover bindings declared through this helper. They can't inspect
 | `actions.window.fullscreen` | Toggle layout-aware fullscreen |
 | `actions.window.maximize` | Toggle full column width in Hyprland scrolling, or maximization elsewhere |
 | `actions.window.floating` | Toggle floating state |
-| `actions.session.overview` | Mango overview or Hyprland gloview |
 | `actions.session.reload` | Reload the compositor config |
 | `actions.window.resize` | Interactive mouse resize |
 | `actions.monitor.focus` | Direction to the next monitor |
@@ -227,7 +226,7 @@ Collision checks cover bindings declared through this helper. They can't inspect
 
 ## Validate a change
 
-Hyprland's generated output is a Lua module loaded by `configs/hypr/config/binds.lua`. That entry point supplies the scrolling, overview and workspace callbacks. Mango's output is included by `configs/mango/binds.conf`. Keep those entry points when editing the adapters.
+Hyprland's generated output is a Lua module loaded by `configs/hypr/config/binds.lua`. That entry point supplies the scrolling and workspace callbacks. Mango's output is included by `configs/mango/binds.conf`. Keep those entry points when editing the adapters.
 
 The compositor aspects import `configs/desktop/binds.nix` with the host name. The returned `hyprland` and `mango` strings become the generated config files. Output lines are sorted longest first. Sorting doesn't assign shortcut priority. Duplicate chords on the same target fail evaluation.
 

@@ -69,11 +69,6 @@ hl = {
 	dispatch = function(callback)
 		callback()
 	end,
-	plugin = { gloview = {
-		toggle = function()
-			last = { name = "overview" }
-		end,
-	} },
 	bind = function(chord, callback)
 		chord = chord:lower()
 		assert(not bindings[chord], "duplicate chord: " .. chord)
@@ -240,8 +235,7 @@ bindings["super + alt + h"]()
 assert(last.name == "swap" and last.options.direction == "left")
 bindings["super + h"]()
 assert(last.name == "focus")
-bindings["super + tab"]()
-assert(last.name == "overview")
+assert(bindings["super + tab"] == nil)
 bindings["super + m"]()
 assert(last.name == "exit")
 monitor = nil

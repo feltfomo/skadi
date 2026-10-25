@@ -60,7 +60,7 @@
               ) noctaliaFiles}
               for profile in hyprland mangowm; do
                 validation="$(${
-                  inputs.noctalia.packages.${system}.default
+                  import ../../lib/noctalia-package.nix { inherit inputs pkgs; }
                 }/bin/noctalia config validate "config/profiles/$profile/noctalia")"
                 printf '%s\n' "$validation"
                 if printf '%s\n' "$validation" | ${pkgs.gnugrep}/bin/grep -Eq 'unrecognized widget type|no loaded plugin with this id'; then

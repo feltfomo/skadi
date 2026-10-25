@@ -132,9 +132,4 @@ function B.workspace(number, move)
 	end
 end
 
-function B.overview()
-	-- gloview loads after the config registers its bindings.
-	hl.dispatch(hl.plugin.gloview.toggle)
-end
-
 require("shared-binds")(B)

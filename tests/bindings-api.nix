@@ -64,6 +64,8 @@ in
 assert builtins.length groups.bindings == 17;
 assert builtins.length alias.bindings == 2;
 assert lib.hasInfix "spawn,kitty" shared.mango;
+assert lib.hasInfix "bind=SUPER,Tab,toggleoverview" desktop.mango;
+assert !(lib.hasInfix ''hl.bind("SUPER + Tab"'' desktop.hyprland);
 assert lib.hasInfix "tagmon,left,0" monitorMove.mango;
 assert lib.hasInfix "toggle_named_scratchpad,dev.noctalia.Noctalia,none,noctalia msg settings-open"
   desktop.mango;

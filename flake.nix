@@ -48,10 +48,6 @@
     };
     flake-file.url = "github:denful/flake-file/v0.3.0";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    gloview = {
-      inputs.hyprland.follows = "hyprland";
-      url = "github:fedsfarm/gloview";
-    };
     home-manager = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:nix-community/home-manager";

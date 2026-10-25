@@ -559,36 +559,6 @@
         "type": "github"
       }
     },
-    "gloview": {
-      "inputs": {
-        "hyprland": [
-          "hyprland"
-        ],
-        "nixpkgs": [
-          "gloview",
-          "hyprland",
-          "nixpkgs"
-        ],
-        "systems": [
-          "gloview",
-          "hyprland",
-          "systems"
-        ]
-      },
-      "locked": {
-        "lastModified": 1792014990,
-        "narHash": "sha256-sG6YUV6Se7kNk4F6+dKRU1mmMFvfrKTwrYw3uK0SInI=",
-        "owner": "fedsfarm",
-        "repo": "gloview",
-        "rev": "f08f38e242107bc4459813b4fb4e5e8ff7916dce",
-        "type": "github"
-      },
-      "original": {
-        "owner": "fedsfarm",
-        "repo": "gloview",
-        "type": "github"
-      }
-    },
     "googleSansFlex": {
       "flake": false,
       "locked": {
@@ -1770,7 +1740,6 @@
         "elephant": "elephant",
         "flake-file": "flake-file",
         "flake-parts": "flake-parts",
-        "gloview": "gloview",
         "home-manager": "home-manager_2",
         "hyprland": "hyprland",
         "illogical-impulse": "illogical-impulse",
