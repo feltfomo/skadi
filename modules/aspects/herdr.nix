@@ -4,11 +4,7 @@
   ...
 }:
 let
-  herdrFor =
-    pkgs:
-    inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr.override {
-      zig = pkgs.zig_0_16;
-    };
+  herdrFor = pkgs: inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr;
 in
 {
   flake-file.inputs.llm-agents = {

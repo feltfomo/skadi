@@ -13,9 +13,7 @@ let
     pkgs:
     pkgs.callPackage ../../pkgs/ovis {
       bun2nixLib = (inputs.llm-agents.inputs.bun2nix.overlays.default pkgs pkgs).bun2nix;
-      herdr = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr.override {
-        zig = pkgs.zig_0_16;
-      };
+      herdr = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr;
     };
 in
 {
