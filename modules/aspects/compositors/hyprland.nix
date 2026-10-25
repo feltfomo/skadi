@@ -114,8 +114,8 @@ in
       [
         {
           value = {
-            # xdg-desktop-portal 1.22 requires a target unmanaged hyprland sessions do not start
-            # remove this overlay once the frontend supports these sessions upstream
+            # native Hyprland exports its display without starting graphical-session.target.
+            # gate portal activation on that export so lingering users cannot cache GTK-only backends before login.
             nixpkgs.overlays = [
               (_: prev: {
                 xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
@@ -123,9 +123,7 @@ in
                     substituteInPlace src/xdg-desktop-portal.service.in \
                       --replace-fail \
                         "Requisite=graphical-session.target" \
-                        "Requires=dbus.service"
-                    sed -i '/^After=graphical-session.target$/i After=dbus.service' \
-                      src/xdg-desktop-portal.service.in
+                        "ConditionEnvironment=WAYLAND_DISPLAY"
                   '';
                 });
               })

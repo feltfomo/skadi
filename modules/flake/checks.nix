@@ -26,6 +26,19 @@
     {
       # build both hosts so a broken config fails the check
       checks = inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+        portal-startup =
+          pkgs.runCommand "portal-startup-check"
+            {
+              nativeBuildInputs = [
+                pkgs.python3
+                pkgs.systemd
+              ];
+            }
+            ''
+              set -euo pipefail
+              python ${../../tests/portal-startup.py} ${inputs.self.nixosConfigurations.khion.pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal.service
+              touch "$out"
+            '';
         noctalia-config =
           pkgs.runCommand "noctalia-config-check"
             {
