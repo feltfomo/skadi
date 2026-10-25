@@ -1,0 +1,28 @@
+:root {
+  --skadi-tint: var(--skadi-primary);
+  --skadi-accent: var(--skadi-primary);
+  --skadi-accent-text: var(--skadi-on-primary);
+  --skadi-text: var(--skadi-on-surface);
+  --skadi-muted: var(--skadi-on-surface-variant);
+  --skadi-shell: color-mix(in srgb, var(--skadi-tint) 8%, var(--skadi-surface-container-low));
+  --skadi-panel: color-mix(in srgb, var(--skadi-tint) 6%, var(--skadi-surface-container));
+  --skadi-field: color-mix(in srgb, var(--skadi-tint) 4%, var(--skadi-surface-container-high));
+  --skadi-hover: color-mix(in srgb, var(--skadi-tint) 12%, var(--skadi-panel));
+  --skadi-selected: var(--skadi-accent);
+  --skadi-selected-text: var(--skadi-accent-text);
+  --skadi-border: color-mix(in srgb, var(--skadi-tint) 35%, var(--skadi-outline-variant));
+  --skadi-border-strong: color-mix(in srgb, var(--skadi-tint) 65%, var(--skadi-outline-variant));
+  --skadi-shell-material: var(--skadi-shell);
+  --skadi-panel-material: var(--skadi-panel);
+  --skadi-control-radius: 3px;
+  --skadi-panel-radius: 6px;
+  --skadi-font: "Maple Mono NF", monospace, "Noto Color Emoji";
+  --skadi-shadow: 0 8px 28px rgb(0 0 0 / 0.28);
+}
+
+@media (prefers-reduced-transparency: no-preference) {
+  :root {
+    --skadi-shell-material: color-mix(in srgb, var(--skadi-shell) 96%, transparent);
+    --skadi-panel-material: color-mix(in srgb, var(--skadi-panel) 96%, transparent);
+  }
+}

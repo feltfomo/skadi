@@ -86,7 +86,7 @@ def equibop(home, config):
 
 def zen_browser(home, config):
     theme = config / "zen/theme"
-    if not (theme / "userChrome.css").exists() or not (theme / "userContent.css").exists():
+    if not all((theme / name).exists() for name in ["userChrome.css", "userContent.css", "palette.css"]):
         return
     roots = dict.fromkeys([config / "zen", home / ".zen"])
     for root in roots:
@@ -105,12 +105,17 @@ def zen_browser(home, config):
                 css_import(profile / "chrome" / name, theme / name)
             path = profile / "user.js"
             content = read(path)
-            key = "toolkit.legacyUserProfileCustomizations.stylesheets"
-            pattern = re.compile(r'^\s*user_pref\(\s*"' + re.escape(key) + r'"\s*,[^\n]*\n?', re.M)
-            content = pattern.sub("", content)
+            preferences = {
+                "toolkit.legacyUserProfileCustomizations.stylesheets": True,
+                "zen.widget.linux.transparency": True,
+            }
+            for key in preferences:
+                pattern = re.compile(r'^\s*user_pref\(\s*"' + re.escape(key) + r'"\s*,[^\n]*\n?', re.M)
+                content = pattern.sub("", content)
             if content and not content.endswith("\n"):
                 content += "\n"
-            publish(path, content + f'user_pref("{key}", true);\n')
+            content += "".join(f'user_pref("{key}", {json.dumps(value)});\n' for key, value in preferences.items())
+            publish(path, content)
 
 
 def obs(home, config):

@@ -1,0 +1,51 @@
+@-moz-document url("about:newtab"), url("about:home"), url-prefix("about:preferences"), url("about:addons"), url("about:downloads") {
+  @media (forced-colors: none) {
+    :root {
+      font-family: var(--skadi-font) !important;
+      --background-color-canvas: var(--skadi-surface) !important;
+      --background-color-box: var(--skadi-panel) !important;
+      --text-color: var(--skadi-text) !important;
+      --text-color-deemphasized: var(--skadi-muted) !important;
+      --border-color: var(--skadi-border) !important;
+      --color-accent-primary: var(--skadi-accent) !important;
+      --color-accent-primary-hover: var(--skadi-accent) !important;
+      --color-accent-primary-active: var(--skadi-accent) !important;
+      --color-accent-primary-selected: var(--skadi-accent) !important;
+      --color-accent-primary-selected-hover: var(--skadi-accent) !important;
+      --color-accent-primary-selected-active: var(--skadi-accent) !important;
+      --color-accent-primary-selected-text: var(--skadi-accent-text) !important;
+      --button-background-color: var(--skadi-field) !important;
+      --button-text-color: var(--skadi-text) !important;
+      --button-border-color: var(--skadi-border) !important;
+      --button-background-color-hover: var(--skadi-hover) !important;
+      --button-text-color-hover: var(--skadi-text) !important;
+      --button-background-color-primary: var(--skadi-selected) !important;
+      --button-text-color-primary: var(--skadi-selected-text) !important;
+      --button-background-color-primary-hover: var(--skadi-selected) !important;
+      --button-text-color-primary-hover: var(--skadi-selected-text) !important;
+      --button-background-color-primary-active: var(--skadi-selected) !important;
+      --button-text-color-primary-active: var(--skadi-selected-text) !important;
+      --button-border-radius: var(--skadi-control-radius) !important;
+      --input-background-color: var(--skadi-field) !important;
+      --input-color: var(--skadi-text) !important;
+      --input-border-color: var(--skadi-border) !important;
+      --focus-outline-color: var(--skadi-accent) !important;
+      --in-content-page-background: var(--skadi-surface) !important;
+      --in-content-page-color: var(--skadi-text) !important;
+      --in-content-box-background: var(--skadi-panel) !important;
+      --in-content-box-border-color: var(--skadi-border) !important;
+      --in-content-primary-button-background: var(--skadi-selected) !important;
+      --in-content-primary-button-text-color: var(--skadi-selected-text) !important;
+      --in-content-button-background: var(--skadi-field) !important;
+      --in-content-button-text-color: var(--skadi-text) !important;
+      --in-content-accent-color: var(--skadi-accent) !important;
+      --in-content-link-color: var(--skadi-accent) !important;
+      --newtab-background-color: var(--skadi-surface) !important;
+      --newtab-background-color-secondary: var(--skadi-panel) !important;
+      --newtab-text-primary-color: var(--skadi-text) !important;
+      --newtab-text-secondary-color: var(--skadi-muted) !important;
+      --newtab-primary-action-background: var(--skadi-accent) !important;
+      --newtab-primary-action-color: var(--skadi-accent-text) !important;
+    }
+  }
+}

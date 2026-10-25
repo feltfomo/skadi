@@ -57,12 +57,22 @@ with tempfile.TemporaryDirectory() as directory:
     profile = config / "zen/profile with spaces"
     profile.mkdir()
     put(config / "zen/profiles.ini", '[Profile0]\nIsRelative=1\nPath=profile with spaces\n')
-    put(profile / "user.js", 'user_pref("keep.me", 42);\nuser_pref("toolkit.legacyUserProfileCustomizations.stylesheets", false);\n')
+    put(profile / "user.js", 'user_pref("keep.me", 42);\nuser_pref("zen.widget.linux.transparency", false);\nuser_pref("toolkit.legacyUserProfileCustomizations.stylesheets", false);\n')
     put(profile / "chrome/userChrome.css", ".existing { color: blue; }\n")
+    before_palette = (profile / "user.js").read_bytes()
+    setup.zen_browser(home, config)
+    assert (profile / "user.js").read_bytes() == before_palette
+    assert (profile / "chrome/userChrome.css").read_text() == ".existing { color: blue; }\n"
+    put(config / "zen/theme/palette.css")
     setup.zen_browser(home, config)
     assert 'user_pref("keep.me", 42);' in (profile / "user.js").read_text()
     assert 'stylesheets", true)' in (profile / "user.js").read_text()
+    assert (profile / "user.js").read_text().count('user_pref("zen.widget.linux.transparency", true);') == 1
+    assert 'transparency", false)' not in (profile / "user.js").read_text()
     assert ".existing { color: blue; }" in (profile / "chrome/userChrome.css").read_text()
+    for name in ["userChrome.css", "userContent.css"]:
+        imported = (config / "zen/theme" / name).as_uri()
+        assert (profile / "chrome" / name).read_text().count(f'@import url("{imported}");') == 1
 
     put(config / "obs-studio/themes/Reactive.ovt")
     obs = config / "obs-studio/user.ini"

@@ -1,0 +1,122 @@
+@media (forced-colors: none) {
+  #urlbar,
+  #searchbar {
+    --zen-toolbar-element-bg: var(--skadi-field) !important;
+    --zen-toolbar-element-bg-hover: var(--skadi-hover) !important;
+    --zen-urlbar-background: var(--skadi-panel) !important;
+    --urlbar-background-color: var(--skadi-field) !important;
+    --urlbar-background-color-focus: var(--skadi-panel) !important;
+    --toolbar-field-background-color: var(--skadi-field) !important;
+    --toolbar-field-focus-background-color: var(--skadi-panel) !important;
+    --toolbar-field-text-color: var(--skadi-text) !important;
+    --toolbar-field-text-color-focus: var(--skadi-text) !important;
+    --toolbar-field-color: var(--skadi-text) !important;
+    --toolbar-field-focus-color: var(--skadi-text) !important;
+    --toolbar-field-border-color: var(--skadi-border) !important;
+    --toolbar-field-border-color-focus: var(--skadi-accent) !important;
+    --urlbarview-background-color-hover: var(--skadi-hover) !important;
+    --urlbarview-background-color-selected: var(--skadi-selected) !important;
+    --urlbarview-text-color-selected: var(--skadi-selected-text) !important;
+    --urlbarview-text-color-secondary: var(--skadi-muted) !important;
+    --urlbarview-text-color-action: var(--skadi-accent) !important;
+    --urlbarview-separator-color: var(--skadi-border) !important;
+    --urlbar-icon-border-radius: var(--skadi-control-radius) !important;
+    --urlbar-inner-border-radius: var(--skadi-control-radius) !important;
+    color: var(--skadi-text) !important;
+  }
+
+  #urlbar .urlbar-background {
+    --zen-urlbar-background-base: var(--skadi-panel) !important;
+    --zen-urlbar-background-transparent: var(--skadi-panel-material) !important;
+    background: var(--skadi-field) !important;
+    border-radius: var(--skadi-control-radius) !important;
+    outline: 1px solid var(--skadi-border) !important;
+    outline-offset: -1px !important;
+  }
+
+  #urlbar:is([breakout-extend], [zen-floating-urlbar="true"]),
+  #urlbar:is([breakout-extend], [zen-floating-urlbar="true"]) .urlbar-background {
+    border-radius: var(--skadi-panel-radius) !important;
+  }
+
+  #urlbar:is([breakout-extend], [zen-floating-urlbar="true"]) .urlbar-background {
+    background: var(--skadi-panel-material) !important;
+    outline: 1px solid var(--skadi-border-strong) !important;
+    box-shadow: var(--skadi-shadow) !important;
+    backdrop-filter: none !important;
+  }
+
+  #urlbar[focused="true"] > .urlbar-background {
+    outline: 1px solid var(--skadi-accent) !important;
+  }
+
+  #urlbar .urlbar-input,
+  #searchbar .searchbar-textbox {
+    color: var(--skadi-text) !important;
+    caret-color: var(--skadi-accent) !important;
+  }
+
+  #urlbar .urlbar-input::selection {
+    background: var(--skadi-selected) !important;
+    color: var(--skadi-selected-text) !important;
+  }
+
+  #urlbar .urlbarView-row {
+    color: var(--skadi-text) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  #urlbar .urlbarView-url,
+  #urlbar .urlbarView-title-separator::before {
+    color: var(--skadi-muted) !important;
+  }
+
+  #urlbar .urlbarView-action {
+    color: var(--skadi-accent) !important;
+  }
+
+  #urlbar .urlbarView-row:not([selected]):hover {
+    background: var(--skadi-hover) !important;
+  }
+
+  #urlbar .urlbarView-row[selected] {
+    --zen-selected-bg: var(--skadi-selected) !important;
+    --zen-selected-color: var(--skadi-selected-text) !important;
+    background: var(--skadi-selected) !important;
+    color: var(--skadi-selected-text) !important;
+  }
+
+  #urlbar .urlbarView-row[selected] :is(.urlbarView-title, .urlbarView-url, .urlbarView-action, .urlbarView-title-separator)::before,
+  #urlbar .urlbarView-row[selected] :is(.urlbarView-title, .urlbarView-url, .urlbarView-action, .urlbarView-title-separator, .urlbarView-tail-prefix, .urlbarView-description, .urlbarView-subtitle, .urlbarView-explanation) {
+    color: var(--skadi-selected-text) !important;
+  }
+
+  /* Native selected rows force white even on nested highlighted text. */
+  #urlbar .urlbarView-row[selected] :is(.urlbarView-title, .urlbarView-url, .urlbarView-action, .urlbarView-tail-prefix, .urlbarView-description, .urlbarView-subtitle, .urlbarView-explanation) :is(strong, span) {
+    color: inherit !important;
+  }
+
+  #urlbar .urlbarView-row[selected] :is(.urlbarView-shortcutContent, .urlbarView-favicon, .urlbarView-action-favicon, .urlbarView-prettyName, .urlbarView-tabGroup) {
+    background: var(--skadi-panel) !important;
+    color: var(--skadi-text) !important;
+    fill: var(--skadi-text) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  #urlbar .urlbarView-row[selected] :is(.urlbarView-shortcutContent, .urlbarView-prettyName, .urlbarView-tabGroup) :is(span, strong) {
+    color: inherit !important;
+  }
+
+  #urlbar-label-box,
+  #urlbar-search-mode-indicator {
+    background: var(--skadi-selected) !important;
+    color: var(--skadi-selected-text) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+}
+
+@media (forced-colors: none) and (prefers-reduced-transparency: no-preference) and (-moz-pref("zen.theme.acrylic-urlbar")) {
+  :root:not([zen-no-acrylic="true"]):not(:-moz-window-inactive) #urlbar:is([breakout-extend], [zen-floating-urlbar="true"]) .urlbar-background {
+    backdrop-filter: blur(24px) !important;
+  }
+}

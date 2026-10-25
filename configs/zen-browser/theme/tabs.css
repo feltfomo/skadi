@@ -1,0 +1,55 @@
+@media (forced-colors: none) {
+  :root,
+  zen-workspace,
+  .tabbrowser-tab[zen-essential="true"] {
+    --tab-background-color-selected: var(--skadi-selected) !important;
+    --tab-background-color-hover: var(--skadi-hover) !important;
+    --tab-selected-bgcolor: var(--skadi-selected) !important;
+    --tab-selected-textcolor: var(--skadi-selected-text) !important;
+    --tab-text-color-selected: var(--skadi-selected-text) !important;
+    --tab-box-shadow-selected: inset 0 0 0 1px var(--skadi-border-strong) !important;
+  }
+
+  .tabbrowser-tab .tab-background {
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  .tabbrowser-tab:not([selected], [multiselected="true"], [visuallyselected]):hover .tab-background {
+    background: var(--skadi-hover) !important;
+  }
+
+  .tab-background:is([selected], [multiselected="true"]),
+  .tabbrowser-tab[visuallyselected] > .tab-stack > .tab-background {
+    background: var(--skadi-selected) !important;
+    box-shadow: inset 0 0 0 1px var(--skadi-border-strong) !important;
+  }
+
+  .tabbrowser-tab:is([selected], [visuallyselected], [multiselected="true"]) .tab-content {
+    color: var(--skadi-selected-text) !important;
+  }
+
+  .tabbrowser-tab[multiselected="true"]:not([selected]) .tab-background {
+    outline: 1px solid var(--skadi-accent) !important;
+    outline-offset: 2px !important;
+  }
+
+  /* Essentials otherwise paint a blurred favicon beneath their selected fill. */
+  .tabbrowser-tab[zen-essential="true"][visuallyselected] > .tab-stack > .tab-background {
+    --zen-essential-tab-selected-bg: var(--skadi-selected) !important;
+    --zen-essential-tab-selected-bg-hover: var(--skadi-selected) !important;
+  }
+
+  .tabbrowser-tab[zen-essential="true"][visuallyselected] .tab-background::after {
+    background-image: none !important;
+  }
+
+  .tabbrowser-tab[zen-essential="true"][visuallyselected] .tab-background::before {
+    background: var(--skadi-selected) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  .tabbrowser-tab:focus-visible .tab-background {
+    outline: 2px solid var(--skadi-accent) !important;
+    outline-offset: 2px !important;
+  }
+}

@@ -1,0 +1,108 @@
+@media (forced-colors: none) {
+  :root,
+  panel,
+  menupopup,
+  .dialogBox,
+  findbar {
+    --panel-background-color: var(--skadi-panel) !important;
+    --panel-text-color: var(--skadi-text) !important;
+    --panel-border-color: var(--skadi-border-strong) !important;
+    --panel-border-radius: var(--skadi-panel-radius) !important;
+    --panel-box-shadow: var(--skadi-shadow) !important;
+    --panel-separator-color: var(--skadi-border) !important;
+    --arrowpanel-background: var(--skadi-panel) !important;
+    --arrowpanel-color: var(--skadi-text) !important;
+    --arrowpanel-border-color: var(--skadi-border-strong) !important;
+    --button-background-color: var(--skadi-field) !important;
+    --button-text-color: var(--skadi-text) !important;
+    --button-border-color: var(--skadi-border) !important;
+    --button-background-color-hover: var(--skadi-hover) !important;
+    --button-text-color-hover: var(--skadi-text) !important;
+    --button-border-color-hover: var(--skadi-border-strong) !important;
+    --button-background-color-active: var(--skadi-selected) !important;
+    --button-text-color-active: var(--skadi-selected-text) !important;
+    --button-border-color-active: var(--skadi-accent) !important;
+    --button-background-color-selected: var(--skadi-selected) !important;
+    --button-text-color-selected: var(--skadi-selected-text) !important;
+    --button-border-color-selected: var(--skadi-accent) !important;
+    --button-background-color-primary: var(--skadi-selected) !important;
+    --button-text-color-primary: var(--skadi-selected-text) !important;
+    --button-border-color-primary: var(--skadi-accent) !important;
+    --button-background-color-primary-hover: var(--skadi-selected) !important;
+    --button-text-color-primary-hover: var(--skadi-selected-text) !important;
+    --button-border-color-primary-hover: var(--skadi-accent) !important;
+    --button-background-color-primary-active: var(--skadi-selected) !important;
+    --button-text-color-primary-active: var(--skadi-selected-text) !important;
+    --button-border-color-primary-active: var(--skadi-accent) !important;
+    --button-background-color-primary-selected: var(--skadi-selected) !important;
+    --button-text-color-primary-selected: var(--skadi-selected-text) !important;
+    --button-border-color-primary-selected: var(--skadi-accent) !important;
+    --button-primary-hover-bgcolor: var(--skadi-selected) !important;
+    --button-primary-active-bgcolor: var(--skadi-selected) !important;
+    --button-primary-color: var(--skadi-selected-text) !important;
+    --button-border-radius: var(--skadi-control-radius) !important;
+    --input-background-color: var(--skadi-field) !important;
+    --input-color: var(--skadi-text) !important;
+    --input-border-color: var(--skadi-border) !important;
+    --toggle-background-color: var(--skadi-field) !important;
+    --toggle-background-color-hover: var(--skadi-hover) !important;
+    --toggle-background-color-active: var(--skadi-hover) !important;
+    --toggle-background-color-pressed: var(--skadi-selected) !important;
+    --toggle-background-color-pressed-hover: var(--skadi-selected) !important;
+    --toggle-background-color-pressed-active: var(--skadi-selected) !important;
+    --toggle-border-color: var(--skadi-border) !important;
+    --toggle-border-color-hover: var(--skadi-border-strong) !important;
+    --toggle-border-color-active: var(--skadi-border-strong) !important;
+    --toggle-dot-background-color: var(--skadi-text) !important;
+    --toggle-dot-background-color-hover: var(--skadi-text) !important;
+    --toggle-dot-background-color-active: var(--skadi-text) !important;
+    --toggle-dot-background-color-on-pressed: var(--skadi-selected-text) !important;
+    --color-accent-primary: var(--skadi-accent) !important;
+    --color-accent-primary-hover: var(--skadi-accent) !important;
+    --color-accent-primary-active: var(--skadi-accent) !important;
+    --focus-outline-color: var(--skadi-accent) !important;
+  }
+
+  panel::part(content),
+  menupopup::part(content) {
+    border-color: var(--skadi-border-strong) !important;
+    border-radius: var(--skadi-panel-radius) !important;
+  }
+
+  menu:not([disabled="true"])[_moz-menuactive="true"],
+  menuitem:not([disabled="true"])[_moz-menuactive="true"],
+  .subviewbutton:not([disabled="true"]):hover,
+  .subviewbutton:not([disabled="true"]):focus-visible {
+    background: var(--skadi-hover) !important;
+    color: var(--skadi-text) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  menuseparator,
+  toolbarseparator {
+    border-color: var(--skadi-border) !important;
+  }
+
+  .dialogBox {
+    background: var(--skadi-panel) !important;
+    color: var(--skadi-text) !important;
+    border: 1px solid var(--skadi-border-strong) !important;
+    outline: none !important;
+    border-radius: var(--skadi-panel-radius) !important;
+    box-shadow: var(--skadi-shadow) !important;
+  }
+
+  findbar {
+    background: var(--skadi-panel) !important;
+    color: var(--skadi-text) !important;
+    border-color: var(--skadi-border) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  findbar .findbar-textbox:not([status="notfound"]) {
+    background: var(--skadi-field) !important;
+    color: var(--skadi-text) !important;
+    border: 1px solid var(--skadi-border) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+}

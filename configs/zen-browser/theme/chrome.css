@@ -1,0 +1,140 @@
+@media (forced-colors: none) {
+  :root {
+    --zen-border-radius: var(--skadi-panel-radius) !important;
+    --zen-webview-border-radius: var(--skadi-control-radius) !important;
+    --zen-colors-primary: var(--skadi-shell) !important;
+    --zen-colors-secondary: var(--skadi-panel) !important;
+    --zen-colors-tertiary: var(--skadi-surface) !important;
+    --zen-colors-border: var(--skadi-border) !important;
+    --zen-colors-input-bg: var(--skadi-field) !important;
+    --zen-toolbar-element-bg: var(--skadi-field) !important;
+    --zen-toolbar-element-bg-hover: var(--skadi-hover) !important;
+    --zen-input-border-color: var(--skadi-border) !important;
+    --zen-dialog-background: var(--skadi-panel) !important;
+    --zen-in-content-dialog-background: var(--skadi-panel) !important;
+    --zen-themed-toolbar-bg: var(--skadi-shell) !important;
+    --zen-themed-toolbar-bg-transparent: transparent !important;
+    --zen-navigator-toolbox-background: transparent !important;
+    --toolbar-background-color: transparent !important;
+    --toolbar-bgcolor: transparent !important;
+    --toolbox-background-color: transparent !important;
+    --toolbox-background-color-inactive: transparent !important;
+    --toolbar-text-color: var(--skadi-text) !important;
+    --toolbar-color: var(--skadi-text) !important;
+    --toolbox-text-color: var(--skadi-text) !important;
+    --toolbox-text-color-inactive: var(--skadi-muted) !important;
+    --toolbox-textcolor: var(--skadi-text) !important;
+    --toolbox-textcolor-inactive: var(--skadi-muted) !important;
+    --lwt-text-color: var(--skadi-text) !important;
+    --toolbarbutton-icon-fill: currentColor !important;
+    --toolbarbutton-background-color-hover: var(--skadi-hover) !important;
+    --toolbarbutton-background-color-active: var(--skadi-selected) !important;
+    --toolbarbutton-border-radius: var(--skadi-control-radius) !important;
+    --border-radius-medium: var(--skadi-control-radius) !important;
+    --tab-border-radius: var(--skadi-control-radius) !important;
+    --sidebar-background-color: var(--skadi-panel) !important;
+    --sidebar-text-color: var(--skadi-text) !important;
+    --input-background-color: var(--skadi-field) !important;
+    --input-color: var(--skadi-text) !important;
+    --input-border-color: var(--skadi-border) !important;
+    --input-text-background-color: var(--skadi-selected) !important;
+    --input-text-color: var(--skadi-selected-text) !important;
+    --focus-outline-color: var(--skadi-accent) !important;
+    --focus-outline-width: 2px !important;
+  }
+
+  :root:not([zen-private-window="true"]):not([zen-unsynced-window="true"]) {
+    --zen-primary-color: var(--skadi-accent) !important;
+  }
+
+  :root:-moz-window-inactive {
+    --skadi-text: var(--skadi-muted);
+  }
+
+  /* Distinct window materials keep their light/dark foreground pairs intact. */
+  :root[zen-private-window="true"] {
+    --skadi-tint: var(--skadi-tertiary);
+  }
+
+  :root[zen-unsynced-window="true"]:not([zen-private-window="true"]) {
+    --skadi-shell: color-mix(in srgb, var(--skadi-tint) 20%, var(--skadi-surface-container-low));
+    --skadi-panel: color-mix(in srgb, var(--skadi-tint) 14%, var(--skadi-surface-container));
+  }
+
+  /* Zen writes these properties on the elements during workspace changes. */
+  #zen-browser-background {
+    --zen-main-browser-background: var(--skadi-shell-material) !important;
+    --zen-main-browser-background-old: var(--skadi-shell-material) !important;
+  }
+
+  #zen-main-app-wrapper,
+  #zen-main-app-wrapper:-moz-window-inactive {
+    background: transparent !important;
+  }
+
+  #navigator-toolbox,
+  #nav-bar,
+  #PersonalToolbar,
+  #zen-sidebar-top-buttons,
+  #zen-sidebar-foot-buttons {
+    background: transparent !important;
+    color: var(--skadi-text) !important;
+  }
+
+  .zen-toolbar-background {
+    --zen-main-browser-background-toolbar: var(--skadi-panel-material) !important;
+    --zen-main-browser-background-toolbar-old: var(--skadi-panel-material) !important;
+    background: transparent !important;
+    border-radius: var(--skadi-panel-radius) !important;
+    box-shadow: var(--skadi-shadow) !important;
+  }
+
+  .zen-toolbar-background::before,
+  .zen-toolbar-background::after {
+    outline: 1px solid var(--skadi-border-strong) !important;
+    border-radius: var(--skadi-panel-radius) !important;
+  }
+
+  #navigator-toolbox,
+  #urlbar,
+  #searchbar,
+  panel,
+  menupopup,
+  .dialogBox,
+  findbar {
+    font-family: var(--skadi-font) !important;
+    font-size: 13px !important;
+  }
+
+  #sidebar-box {
+    background: var(--skadi-panel) !important;
+    color: var(--skadi-text) !important;
+    border-color: var(--skadi-border) !important;
+  }
+
+  #zen-workspaces-button,
+  .zen-current-workspace-indicator,
+  .zen-workspaces-actions,
+  #zen-media-controls-toolbar {
+    color: var(--skadi-text) !important;
+    border-radius: var(--skadi-control-radius) !important;
+  }
+
+  toolbarbutton[open="true"],
+  toolbarbutton[checked="true"],
+  toolbarbutton:not([disabled="true"]):active {
+    --toolbarbutton-icon-fill: var(--skadi-selected-text) !important;
+    color: var(--skadi-selected-text) !important;
+  }
+
+  #navigator-toolbox :is(toolbarbutton, button):focus-visible {
+    outline: 2px solid var(--skadi-accent) !important;
+    outline-offset: 2px !important;
+  }
+}
+
+@media (forced-colors: none) and (prefers-reduced-transparency: no-preference) and (-moz-pref("zen.theme.acrylic-sidebar")) {
+  :root:not([zen-no-acrylic="true"]):not(:-moz-window-inactive) .zen-toolbar-background {
+    backdrop-filter: blur(24px) !important;
+  }
+}
