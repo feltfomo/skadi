@@ -13,7 +13,7 @@
   den.aspects.codex = {
     includes = with den.aspects; [
       codex-skills
-      skills
+      agents
     ];
 
     homeManager =

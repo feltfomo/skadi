@@ -8,7 +8,7 @@
   den.aspects.claude-code.includes = [ den.aspects.claude-code-cli ];
 
   den.aspects.claude-code-cli = {
-    includes = [ den.aspects.skills ];
+    includes = [ den.aspects.agents ];
   }
   // lexicon {
     # the github plugin expands GITHUB_PERSONAL_ACCESS_TOKEN into its
