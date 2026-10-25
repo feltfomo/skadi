@@ -1,4 +1,5 @@
 config-file = themes/reactive.conf
+async-backend = epoll
 
 font-family = Maple Mono NF
 font-size = 11
