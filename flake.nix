@@ -126,9 +126,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:Gerg-L/spicetify-nix";
     };
-    steam-material = {
+    steam-aika = {
       flake = false;
-      url = "github:kuska1/Material-Theme/32b6c127aab294c6f7c79ba7d3a12c717cc67227";
+      url = "github:hatewxb/Aika/d7722137658a9f89ca8af7dfc563620b3c03a7fe";
     };
     t3-code-nix.url = "github:LisaScheers/t3-code-nix";
     treefmt-nix = {

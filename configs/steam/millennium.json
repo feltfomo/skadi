@@ -9,13 +9,13 @@
     "hasShownWelcomeModal": true
   },
   "themes": {
-    "activeTheme": "Material-Theme",
+    "activeTheme": "Aika",
     "allowedScripts": true,
     "allowedStyles": true,
     "conditions": {
-      "Material-Theme": {
-        "Appearance": "Dark",
-        "Color": "Matugen"
+      "Aika": {
+        "Color preset": "Aika",
+        "Custom colors": "no"
       }
     }
   }

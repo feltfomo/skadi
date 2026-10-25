@@ -1794,7 +1794,7 @@
         "sops-nix": "sops-nix",
         "spicetify-lucid": "spicetify-lucid",
         "spicetify-nix": "spicetify-nix",
-        "steam-material": "steam-material",
+        "steam-aika": "steam-aika",
         "t3-code-nix": "t3-code-nix",
         "treefmt-nix": "treefmt-nix_6",
         "walker": "walker",
@@ -1937,20 +1937,20 @@
         "type": "github"
       }
     },
-    "steam-material": {
+    "steam-aika": {
       "flake": false,
       "locked": {
-        "lastModified": 1792701464,
-        "narHash": "sha256-3IQAZNsKXMpBu1ecMdJzoU1EvIW19fS1yOR2MbNUlZw=",
-        "owner": "kuska1",
-        "repo": "Material-Theme",
-        "rev": "32b6c127aab294c6f7c79ba7d3a12c717cc67227",
+        "lastModified": 1792502257,
+        "narHash": "sha256-TEP47LdbVrcDidow+YZeqSwddW5KBsEg+Db/eGpuEa4=",
+        "owner": "hatewxb",
+        "repo": "Aika",
+        "rev": "d7722137658a9f89ca8af7dfc563620b3c03a7fe",
         "type": "github"
       },
       "original": {
-        "owner": "kuska1",
-        "repo": "Material-Theme",
-        "rev": "32b6c127aab294c6f7c79ba7d3a12c717cc67227",
+        "owner": "hatewxb",
+        "repo": "Aika",
+        "rev": "d7722137658a9f89ca8af7dfc563620b3c03a7fe",
         "type": "github"
       }
     },

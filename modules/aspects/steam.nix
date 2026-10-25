@@ -5,7 +5,7 @@
   ...
 }:
 let
-  themeDirectory = ".local/share/Steam/millennium/themes/Material-Theme";
+  themeDirectory = ".local/share/Steam/millennium/themes/Aika";
 in
 {
   flake-file.inputs = {
@@ -13,8 +13,8 @@ in
       url = "github:SteamClientHomebrew/Millennium/f7a356f6789bc7d23f44bfbcdd95c71f0385cc1a?dir=packages/nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    steam-material = {
-      url = "github:kuska1/Material-Theme/32b6c127aab294c6f7c79ba7d3a12c717cc67227";
+    steam-aika = {
+      url = "github:hatewxb/Aika/d7722137658a9f89ca8af7dfc563620b3c03a7fe";
       flake = false;
     };
   };
@@ -64,14 +64,14 @@ in
     furnish = {
       directories = [
         {
-          source = "${inputs.steam-material}";
+          source = "${inputs.steam-aika}";
           destination = themeDirectory;
           exclude = [
-            ".github"
             ".gitignore"
             "README.md"
-            "matugentemplate.css"
-            "css/main/colors/matugen.css"
+            "ROADMAP.md"
+            "screenshots"
+            "tools"
           ];
         }
       ];
@@ -84,23 +84,6 @@ in
           onConflict = "source-wins";
         }
       ];
-    };
-
-    theme = {
-      id = "steam";
-      output = "${themeDirectory}/css/main/colors/matugen.css";
-      renderers = {
-        noctalia = {
-          source = "${rootPath}/configs/steam/reactive.css";
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
-        };
-        caelestia.source = "${rootPath}/configs/steam/caelestia.css";
-      };
     };
   };
 }

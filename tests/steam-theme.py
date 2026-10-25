@@ -1,77 +1,71 @@
 import json
 from pathlib import Path
 import re
-import subprocess
 import sys
 import tomllib
+from urllib.parse import unquote, urlsplit
 
 
 contract = json.loads(Path(sys.argv[1]).read_text())
 skin = Path(sys.argv[2])
-caelestia = Path(sys.argv[3])
 home = contract["home"]
-output = contract["output"]
+theme_directory = contract["themeDirectory"]
 manifest = {entry["destination"]: entry for entry in contract["manifest"]}
 
-assert output not in manifest, "the renderer must own its writable output"
 assert not any("millennium" in path for path in contract["lumiManifest"])
+assert not any("Material-Theme" in path for path in manifest)
+assert f"{home}/.config/noctalia/steam.toml" not in manifest
+assert f"{home}/.config/caelestia/theme-hooks/steam" not in manifest
+assert not any("/templates/steam/" in path for path in manifest)
 settings_path = f"{home}/.config/millennium/config.json"
 assert manifest[settings_path]["representation"] == "writable"
 assert manifest[settings_path]["onConflict"] == "source-wins"
 settings = json.loads(Path(contract["settings"]).read_text())
 theme = settings["themes"]["activeTheme"]
-assert theme == "Material-Theme"
-conditions = json.loads((skin / "skin.json").read_text())["Conditions"]
+assert theme == "Aika"
+skin_config = json.loads((skin / "skin.json").read_text())
+assert skin_config["name"] == theme
+conditions = skin_config["Conditions"]
 for name, value in settings["themes"]["conditions"][theme].items():
     assert value in conditions[name]["values"], (name, value)
-assert settings["themes"]["conditions"][theme]["Color"] == "Matugen"
+    assert value == conditions[name]["default"], (name, value)
+assert settings["themes"]["conditions"][theme]["Color preset"] == "Aika"
+assert settings["themes"]["conditions"][theme]["Custom colors"] == "no"
+assert settings["general"]["injectCSS"] and settings["themes"]["allowedStyles"]
 assert settings["general"]["injectJavascript"] and settings["themes"]["allowedScripts"]
 assert not settings["general"]["checkForPluginAndThemeUpdates"]
 
 for renderer, path in contract["registrations"].items():
     registration = tomllib.loads(Path(path).read_text())
-    if renderer == "noctalia":
-        entry = registration["theme"]["templates"]["user"]["steam"]
-        actual_output = entry["output_path"].replace("~/", f"{home}/", 1)
-    else:
-        entry = registration["templates"]["steam"]
-        actual_output = entry["output_path"]
-    assert actual_output == output, (renderer, actual_output)
-    assert "post_hook" not in entry, "palette changes must not restart Steam"
-assert output.removeprefix(f"{home}/") in Path(contract["caelestiaHook"]).read_text()
+    assert "steam" not in registration.get("templates", {}), renderer
 
-required = set()
-for path in skin.rglob("*.css"):
-    required.update(re.findall(r"var\((--md-sys-color-[\w-]+)", path.read_text()))
-
-
-def check_css(text):
-    assert "{{" not in text and "<*" not in text
-    variables = dict(re.findall(r"(--md-sys-color-[\w-]+)\s*:\s*([^;]+);", text))
-    assert required <= variables.keys(), required - variables.keys()
-    assert all(re.fullmatch(r"#[\da-fA-F]{6}|rgb\(\d+,\s*\d+,\s*\d+\)", value)
-               for value in variables.values())
-    return variables
-
-
-template = Path(contract["caelestiaTemplate"]).read_text()
-for palette_path in (caelestia / "src/caelestia/data/schemes").rglob("*.txt"):
-    palette = dict(line.split() for line in palette_path.read_text().splitlines() if line)
-    rendered = re.sub(r"\{\{ (\w+)\.hex \}\}", lambda match: palette[match[1]], template)
-    check_css(rendered)
-
-config = Path("matugen.toml")
-rendered_path = Path("matugen.css").resolve()
-config.write_text(
-    '[config]\n[templates.steam]\n'
-    f'input_path = {json.dumps(contract["reactiveTemplate"])}\n'
-    f'output_path = {json.dumps(str(rendered_path))}\n'
-)
-palettes = []
-for mode, color in (("dark", "#7851a9"), ("light", "#008080")):
-    subprocess.run(["matugen", "--config", str(config), "--mode", mode, "color", "hex", color], check=True)
-    palettes.append(check_css(rendered_path.read_text()))
-assert palettes[0]["--md-sys-color-primary"] != palettes[1]["--md-sys-color-primary"]
-assert palettes[0]["--md-sys-color-surface"] != palettes[1]["--md-sys-color-surface"]
-assert not rendered_path.is_symlink()
-print("Steam registrations, writable ownership, and reactive palettes passed")
+assets = {}
+for destination, entry in manifest.items():
+    if destination.startswith(theme_directory + "/"):
+        relative = destination.removeprefix(theme_directory + "/")
+        original = skin / relative
+        assert original.is_file(), relative
+        assert Path(entry["source"]).read_bytes() == original.read_bytes(), relative
+        assets[relative] = original
+assert "skin.json" in assets
+assert skin_config["RootColors"] in assets
+assert skin_config["Steam-WebKit"] in assets
+for patch in skin_config["Patches"]:
+    for key in ("TargetCss", "TargetJs"):
+        if key in patch:
+            assert patch[key] in assets, patch[key]
+for condition in conditions.values():
+    for value in condition.get("values", {}).values():
+        for key in ("TargetCss", "TargetJs"):
+            if key in value:
+                assert value[key]["src"] in assets, value[key]["src"]
+for relative, path in assets.items():
+    if path.suffix != ".css":
+        continue
+    for match in re.finditer(r'''url\(\s*(?:"([^"]*)"|'([^']*)'|([^'"\s)]+))\s*\)''', path.read_text()):
+        url = urlsplit(match[1] or match[2] or match[3])
+        if url.scheme or url.netloc or not url.path:
+            continue
+        target = (path.parent / unquote(url.path)).resolve().relative_to(skin.resolve())
+        assert str(target) in assets, (relative, str(target))
+print("Aika defaults, theme assets, script permissions, and removal of Steam palette registrations passed")
