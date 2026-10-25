@@ -56,6 +56,7 @@
       kitty
       qt-hm
       herdr
+      lunar
       nvim
       ovis
       niri
@@ -209,7 +210,6 @@
           jetbrains.idea
           brave-origin
           appimage-run
-          lunar-client
           qbittorrent
           imagemagick
           bubblewrap
