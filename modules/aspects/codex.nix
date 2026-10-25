@@ -13,6 +13,7 @@
   den.aspects.codex = {
     includes = with den.aspects; [
       codex-skills
+      codex-theme
       agents
     ];
 
@@ -50,6 +51,41 @@
           chatgpt
           codex
         ];
+      };
+  };
+
+  den.aspects.codex-theme = lexicon {
+    homeManager =
+      { pkgs, lib, ... }:
+      let
+        setup = import ../../lib/theme-setup.nix { inherit pkgs; };
+      in
+      {
+        home.activation.codexTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          run ${setup}/bin/app-theme-setup codex
+        '';
+      };
+    theme =
+      { pkgs, ... }:
+      let
+        setup = import ../../lib/theme-setup.nix { inherit pkgs; };
+      in
+      {
+        id = "codex";
+        output = ".codex/themes/reactive.tmTheme";
+        reload = "${setup}/bin/app-theme-setup codex";
+        renderers = {
+          noctalia = {
+            source = ../../configs/codex/reactive.tmTheme;
+            sharedWith = [
+              "illogical-impulse"
+              "serpantinum"
+              "end4-pc"
+              "dms"
+            ];
+          };
+          caelestia.source = ../../configs/codex/caelestia.tmTheme;
+        };
       };
   };
 

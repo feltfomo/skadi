@@ -20,6 +20,7 @@
       docker
       tablet
       steam
+      grub
       base
     ];
 
@@ -39,20 +40,8 @@
           cores = 8;
         };
 
-        boot = {
-          # khion is zen 3, so keep the cached generic clang build.
-          kernelPackages = pkgs.linuxPackages_cachyos;
-
-          # lumi uses systemd-boot and must not inherit khion's grub configuration.
-          loader = {
-            grub = {
-              enable = true;
-              device = "nodev";
-              efiSupport = true;
-            };
-            efi.canTouchEfiVariables = true;
-          };
-        };
+        # khion is zen 3, so keep the cached generic clang build.
+        boot.kernelPackages = pkgs.linuxPackages_cachyos;
       };
   };
 }

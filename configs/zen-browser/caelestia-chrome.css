@@ -1,0 +1,35 @@
+:root {
+  --zen-primary-color: #{{ primary.hex }} !important;
+  --zen-colors-primary: #{{ surface.hex }} !important;
+  --zen-colors-secondary: #{{ surfaceContainerLow.hex }} !important;
+  --zen-colors-tertiary: #{{ surface.hex }} !important;
+  --zen-colors-border: #{{ outlineVariant.hex }} !important;
+  --zen-main-browser-background: #{{ surface.hex }} !important;
+  --zen-themed-toolbar-bg: #{{ surface.hex }} !important;
+  --zen-urlbar-background: #{{ surfaceContainer.hex }} !important;
+  --zen-colors-input-bg: #{{ surfaceContainer.hex }} !important;
+  --toolbar-bgcolor: #{{ surface.hex }} !important;
+  --toolbar-color: #{{ onSurface.hex }} !important;
+  --toolbar-field-color: #{{ onSurface.hex }} !important;
+  --toolbar-field-background-color: #{{ surfaceContainer.hex }} !important;
+  --toolbar-field-focus-background-color: #{{ surfaceContainerHigh.hex }} !important;
+  --toolbar-field-focus-color: #{{ onSurface.hex }} !important;
+  --lwt-text-color: #{{ onSurface.hex }} !important;
+  --toolbox-textcolor: #{{ onSurface.hex }} !important;
+  --arrowpanel-background: #{{ surfaceContainerHigh.hex }} !important;
+  --arrowpanel-color: #{{ onSurface.hex }} !important;
+  --arrowpanel-border-color: #{{ outlineVariant.hex }} !important;
+  --sidebar-background-color: #{{ surfaceContainerLow.hex }} !important;
+  --sidebar-text-color: #{{ onSurface.hex }} !important;
+  --tab-selected-bgcolor: #{{ primaryContainer.hex }} !important;
+  --tab-selected-textcolor: #{{ onPrimaryContainer.hex }} !important;
+  --toolbarbutton-icon-fill: #{{ onSurfaceVariant.hex }} !important;
+}
+
+#zen-browser-background {
+  --zen-main-browser-background: #{{ surface.hex }} !important;
+}
+
+.tab-background[selected] {
+  background-color: #{{ primaryContainer.hex }} !important;
+}

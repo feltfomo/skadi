@@ -1,5 +1,6 @@
 # keep the generated palette separate from user and toolkit css
 const palette_import = '@import url("reactive.css");'
+const widgets_import = '@import url("../gtk-theme/widgets.css");'
 
 # existing gtk.css files may be owned by a theme tool so update them in place
 # instead of asking home manager to replace them during activation
@@ -18,6 +19,12 @@ def ensure-import [version: string] {
     }
     $updated | save --force $css
   }
+  if $version == "gtk-3.0" {
+    let content = (open --raw $css)
+    if not ($content | str contains $widgets_import) {
+      $"($content)\n($widgets_import)\n" | save --force $css
+    }
+  }
 }
 
 ensure-import "gtk-3.0"
@@ -27,6 +34,6 @@ ensure-import "gtk-4.0"
 if (which gsettings | is-not-empty) {
   do --ignore-errors {
     ^gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-    ^gsettings set org.gnome.desktop.interface gtk-theme adw-gtk3-dark
+    ^gsettings set org.gnome.desktop.interface gtk-theme Colloid-Grey-Dark-Compact
   }
 }

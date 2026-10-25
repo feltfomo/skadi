@@ -30,6 +30,7 @@
       den.batteries.primary-user
       den.batteries.define-user
       bootstrap-repos
+      zen-browser
       claude-code
       spicetify
       superfile
@@ -41,6 +42,7 @@
       mangowm
       end4-pc
       wooting
+      equibop
       thunar
       tablet
       t3code
@@ -197,7 +199,6 @@
             #!${pkgs.nushell}/bin/nu
             ${builtins.readFile ../../scripts/sops-edit.nu}
           '')
-          inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight
           logseqPkgs.logseq
           opencode-desktop
           ayugram-desktop
@@ -224,7 +225,6 @@
           nushell
           python3
           lazygit
-          equibop
           sgdboop
           heroic
           nixfmt

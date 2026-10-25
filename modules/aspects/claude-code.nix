@@ -45,5 +45,37 @@
         };
       }
     ];
+    homeManager =
+      { pkgs, lib, ... }:
+      let
+        setup = import ../../lib/theme-setup.nix { inherit pkgs; };
+      in
+      {
+        home.activation.claudeCodeTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          run ${setup}/bin/app-theme-setup claude-code
+        '';
+      };
+    theme =
+      { pkgs, ... }:
+      let
+        setup = import ../../lib/theme-setup.nix { inherit pkgs; };
+      in
+      {
+        id = "claude-code";
+        output = ".claude/themes/reactive.json";
+        reload = "${setup}/bin/app-theme-setup claude-code";
+        renderers = {
+          noctalia = {
+            source = ../../configs/claude-code/reactive.json;
+            sharedWith = [
+              "illogical-impulse"
+              "serpantinum"
+              "end4-pc"
+              "dms"
+            ];
+          };
+          caelestia.source = ../../configs/claude-code/caelestia.json;
+        };
+      };
   };
 }

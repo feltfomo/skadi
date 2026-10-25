@@ -15,15 +15,24 @@
         gtk = {
           enable = true;
           colorScheme = "dark";
-          gtk4.theme = config.gtk.theme;
+          theme = {
+            name = "Colloid-Grey-Dark-Compact";
+            package = pkgs.colloid-gtk-theme.override {
+              themeVariants = [ "grey" ];
+              colorVariants = [ "dark" ];
+              sizeVariants = [ "compact" ];
+              tweaks = [ "rimless" ];
+            };
+          };
+          # the palette hook owns gtk4 user css and needs a writable file.
+          gtk4.theme = null;
           iconTheme = {
             name = "Papirus-Dark";
             package = pkgs.papirus-icon-theme;
           };
         };
 
-        home.packages = [ pkgs.adw-gtk3 ];
-        dconf.settings."org/gnome/desktop/interface".gtk-theme = "adw-gtk3-dark";
+        dconf.settings."org/gnome/desktop/interface".gtk-theme = config.gtk.theme.name;
 
         programs.btop = {
           enable = true;

@@ -1,0 +1,56 @@
+/**
+ * @name Reactive
+ */
+:root,
+.theme-dark,
+.theme-light {
+  --background-base-lowest: {{ colors.surface_dim.default.hex }};
+  --background-base-lower: {{ colors.surface.default.hex }};
+  --background-base-low: {{ colors.surface_container_low.default.hex }};
+  --background-surface-high: {{ colors.surface_container_high.default.hex }};
+  --background-surface-higher: {{ colors.surface_container_highest.default.hex }};
+  --background-surface-highest: {{ colors.surface_container_highest.default.hex }};
+  --background-primary: {{ colors.surface.default.hex }};
+  --background-secondary: {{ colors.surface_container_low.default.hex }};
+  --background-secondary-alt: {{ colors.surface_container.default.hex }};
+  --background-tertiary: {{ colors.surface_dim.default.hex }};
+  --background-floating: {{ colors.surface_container_high.default.hex }};
+  --background-mod-subtle: {{ colors.surface_container.default.hex }};
+  --background-mod-normal: {{ colors.surface_container_high.default.hex }};
+  --background-message-hover: {{ colors.surface_container.default.hex }};
+  --background-mentioned: {{ colors.primary_container.default.hex }};
+  --background-mentioned-hover: {{ colors.primary_container.default.hex }};
+  --background-modifier-selected: {{ colors.primary_container.default.hex }};
+  --text-normal: {{ colors.on_surface.default.hex }};
+  --text-primary: {{ colors.on_surface.default.hex }};
+  --text-secondary: {{ colors.on_surface_variant.default.hex }};
+  --text-muted: {{ colors.on_surface_variant.default.hex }};
+  --text-link: {{ colors.primary.default.hex }};
+  --text-brand: {{ colors.primary.default.hex }};
+  --interactive-normal: {{ colors.on_surface_variant.default.hex }};
+  --interactive-hover: {{ colors.on_surface.default.hex }};
+  --interactive-active: {{ colors.primary.default.hex }};
+  --channels-default: {{ colors.on_surface_variant.default.hex }};
+  --channel-icon: {{ colors.on_surface_variant.default.hex }};
+  --header-primary: {{ colors.on_surface.default.hex }};
+  --header-secondary: {{ colors.on_surface_variant.default.hex }};
+  --brand-500: {{ colors.primary.default.hex }};
+  --brand-560: {{ colors.primary.default.hex }};
+  --brand-600: {{ colors.primary_container.default.hex }};
+  --button-filled-brand-background: {{ colors.primary.default.hex }};
+  --button-filled-brand-text: {{ colors.on_primary.default.hex }};
+  --button-filled-brand-background-hover: {{ colors.primary_container.default.hex }};
+  --button-danger-background: {{ colors.error.default.hex }};
+  --button-danger-text: {{ colors.on_error.default.hex }};
+  --input-background: {{ colors.surface_container.default.hex }};
+  --input-text-normal: {{ colors.on_surface.default.hex }};
+  --input-placeholder-text: {{ colors.on_surface_variant.default.hex }};
+  --channeltextarea-background: {{ colors.surface_container.default.hex }};
+  --scrollbar-thin-thumb: {{ colors.outline.default.hex }};
+  --scrollbar-thin-track: {{ colors.surface.default.hex }};
+  --scrollbar-auto-thumb: {{ colors.outline.default.hex }};
+  --scrollbar-auto-track: {{ colors.surface.default.hex }};
+  --status-danger: {{ colors.error.default.hex }};
+  --status-positive: {{ colors.secondary.default.hex }};
+  --status-warning: {{ colors.tertiary.default.hex }};
+}

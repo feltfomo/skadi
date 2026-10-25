@@ -2,6 +2,7 @@
 {
   imports = [
     ./fastfetch.nix
+    ./starship.nix
     ./packages.nix
     ./zoxide.nix
     ./delta.nix
@@ -15,6 +16,7 @@
   den.aspects.shell = {
     includes = with den.aspects; [
       fastfetch
+      starship
       btop
       cava
       fish

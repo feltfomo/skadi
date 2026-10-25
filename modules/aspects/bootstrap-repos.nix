@@ -10,7 +10,7 @@ _: {
         "Projects/axiom-nix" = "https://github.com/feltfomo/axiom-nix";
         "Projects/illogical-impulse-shell-nix" = "https://github.com/feltfomo/illogical-impulse-shell-nix";
         "Projects/skills" = "https://github.com/feltfomo/skills";
-        "Wallpaper" = "https://github.com/feltfomo/Wallpapers";
+        "Wallpapers" = "https://github.com/feltfomo/Wallpapers";
       };
       clone = pkgs.writeShellApplication {
         name = "bootstrap-repo";
