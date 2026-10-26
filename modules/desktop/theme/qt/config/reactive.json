@@ -10,5 +10,7 @@
   "outline_variant": "{{ colors.outline_variant.default.hex }}",
   "tertiary": "{{ colors.tertiary.default.hex }}",
   "error": "{{ colors.error.default.hex }}",
+  "warning": "{{ colors.primary.default.hex | set_hue: 45 | set_saturation: 60 }}",
+  "success": "{{ colors.primary.default.hex | set_hue: 145 | set_saturation: 45 }}",
   "on_error": "{{ colors.on_error.default.hex }}"
 }

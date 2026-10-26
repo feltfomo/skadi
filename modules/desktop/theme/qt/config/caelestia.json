@@ -10,5 +10,7 @@
   "outline_variant": "#{{ outlineVariant.hex }}",
   "tertiary": "#{{ tertiary.hex }}",
   "error": "#{{ error.hex }}",
+  "warning": "#{{ term3.hex }}",
+  "success": "#{{ success.hex }}",
   "on_error": "#{{ onError.hex }}"
 }

@@ -10,5 +10,7 @@
   "outline_variant": "#42474b",
   "tertiary": "#d6bfdc",
   "error": "#ffb4ab",
+  "warning": "#e8d7a3",
+  "success": "#acdfc1",
   "on_error": "#690005"
 }

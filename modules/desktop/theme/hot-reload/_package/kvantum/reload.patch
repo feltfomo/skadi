@@ -182,3 +182,82 @@
      }
      painter->drawTiledPixmap(bounds,pixmap);
    }
+--- a/style/themeconfig/specs.h
++++ b/style/themeconfig/specs.h
+@@ -253,6 +253,8 @@
+   QString inactiveHighlightTextColor;
+   QString linkColor;
+   QString linkVisitedColor;
++  QString brightTextColor;
++  QString accentColor;
+   QString progressIndicatorTextColor;
+   QString progressInactiveIndicatorTextColor;
+ } color_spec;
+--- a/style/themeconfig/ThemeConfig.cpp
++++ b/style/themeconfig/ThemeConfig.cpp
+@@ -1112,6 +1112,12 @@
+   v = getValue(KSL("GeneralColors"),KSL("link.visited.color"));
+   r.linkVisitedColor = v.toString();
+ 
++  v = getValue(KSL("GeneralColors"),KSL("bright.text.color"));
++  r.brightTextColor = v.toString();
++
++  v = getValue(KSL("GeneralColors"),KSL("accent.color"));
++  r.accentColor = v.toString();
++
+   v = getValue(KSL("GeneralColors"),KSL("progress.indicator.text.color"));
+   r.progressIndicatorTextColor = v.toString();
+ 
+--- a/style/polishing.cpp
++++ b/style/polishing.cpp
+@@ -1379,6 +1379,15 @@
+   if (col.isValid())
+     standardPalette_.setColor(QPalette::LinkVisited,col);
+ 
++  col = getFromRGBA(cspec_.brightTextColor);
++  if (col.isValid())
++    standardPalette_.setColor(QPalette::BrightText,col);
++#if (QT_VERSION >= QT_VERSION_CHECK(6,6,0))
++  col = getFromRGBA(cspec_.accentColor);
++  if (col.isValid())
++    standardPalette_.setColor(QPalette::Accent,col);
++#endif
++
+   /* disabled text */
+   col = getFromRGBA(cspec_.disabledTextColor);
+   if (col.isValid())
+--- a/style/qt5/specs5.h
++++ b/style/qt5/specs5.h
+@@ -253,6 +253,7 @@
+   QString inactiveHighlightTextColor;
+   QString linkColor;
+   QString linkVisitedColor;
++  QString brightTextColor;
+   QString progressIndicatorTextColor;
+   QString progressInactiveIndicatorTextColor;
+ } color_spec;
+--- a/style/qt5/ThemeConfig5.cpp
++++ b/style/qt5/ThemeConfig5.cpp
+@@ -1112,6 +1112,9 @@
+   v = getValue(KSL("GeneralColors"),KSL("link.visited.color"));
+   r.linkVisitedColor = v.toString();
+ 
++  v = getValue(KSL("GeneralColors"),KSL("bright.text.color"));
++  r.brightTextColor = v.toString();
++
+   v = getValue(KSL("GeneralColors"),KSL("progress.indicator.text.color"));
+   r.progressIndicatorTextColor = v.toString();
+ 
+--- a/style/qt5/polishing5.cpp
++++ b/style/qt5/polishing5.cpp
+@@ -1323,6 +1323,10 @@
+   if (col.isValid())
+     standardPalette_.setColor(QPalette::LinkVisited,col);
+ 
++  col = getFromRGBA(cspec_.brightTextColor);
++  if (col.isValid())
++    standardPalette_.setColor(QPalette::BrightText,col);
++
+   /* disabled text */
+   col = getFromRGBA(cspec_.disabledTextColor);
+   if (col.isValid())

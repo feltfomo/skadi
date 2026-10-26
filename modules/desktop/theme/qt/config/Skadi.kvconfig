@@ -54,6 +54,8 @@ inactive.highlight.text.color=@on_primary@
 tooltip.text.color=@on_surface@
 link.color=@primary@
 link.visited.color=@tertiary@
+bright.text.color=@error@
+accent.color=@primary@
 progress.indicator.text.color=@on_primary@
 progress.inactive.indicator.text.color=@on_primary@
 
@@ -282,6 +284,7 @@ inherits=GenericFrame
 frame.element=scrollbar
 interior=true
 interior.element=scrollbar
+indicator.element=scrollbar-grip
 
 [ScrollbarTransientSlider]
 inherits=ScrollbarSlider

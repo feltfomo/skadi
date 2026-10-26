@@ -1,3 +1,4 @@
+import math
 from xml.etree import ElementTree as ET
 
 
@@ -70,6 +71,32 @@ class Artwork:
         self.rect(group, 16, 16, background, rx=3)
         self.path(group, data, color)
 
+    def blank(self, name):
+        self.rect(self.group(name), 16, 16, "none")
+
+    def dial(self, r):
+        # kvantum puts the handle centre at 0.3 of the dial width with a 0.2-wide handle, so in
+        # this 64 box the face reaches the outer handle edge and the notches use the last tenth.
+        group = self.group("dial")
+        self.rect(group, 64, 64, "none")
+        ET.SubElement(group, "circle", cx="32", cy="32", r="25.5", fill=r["field"],
+                      stroke=r["border"], **{"stroke-width": "1"})
+        group = self.group("dial-focus")
+        self.rect(group, 64, 64, "none")
+        ET.SubElement(group, "circle", cx="32", cy="32", r="25", fill="none",
+                      stroke=r["primary"], **{"stroke-width": "2"})
+        group = self.group("dial-handle")
+        ET.SubElement(group, "circle", cx="8", cy="8", r="7.5", fill=r["primary"],
+                      stroke=r["border"], **{"stroke-width": "1"})
+        group = self.group("dial-notches")
+        self.rect(group, 64, 64, "none")
+        # a non-wrapping dial sweeps 300 degrees, from 240 down to -60.
+        for step in range(11):
+            angle = math.radians(240 - step * 30)
+            x, y = math.cos(angle), -math.sin(angle)
+            self.path(group, f"M {32 + 27.5 * x:.2f} {32 + 27.5 * y:.2f} "
+                             f"L {32 + 31 * x:.2f} {32 + 31 * y:.2f}", r["border"], 1.5)
+
     def check(self, name, fill, border, mark, radio=False, tristate=False):
         group = self.group(name)
         self.rect(group, 16, 16, "none")
@@ -128,6 +155,8 @@ def svg(roles):
         # the inner ink ring remains visible when the focused control is selected.
         art.focus(f"{element}-focus", r["primary"], r["on_primary"], radius)
     art.panel("button-default", "none", r["strong_border"], 3)
+    # the strong default frame already marks the button; this blanks kvantum's corner badge.
+    art.blank("button-default-indicator")
     art.focus("focus", r["primary"], r["on_primary"], 2)
 
     arrows = {
@@ -136,6 +165,7 @@ def svg(roles):
         "left": "M 10 4 L 6 8 L 10 12",
         "right": "M 6 4 L 10 8 L 6 12",
     }
+    spin = {"plus": "M 4 8 H 12 M 8 4 V 12", "minus": "M 4 8 H 12"}
     symbols = {
         "close": "M 5 5 L 11 11 M 11 5 L 5 11",
         "maximize": "M 4.5 4.5 H 11.5 V 11.5 H 4.5 Z",
@@ -152,6 +182,10 @@ def svg(roles):
                               r["on_primary"] if state == "toggled" else ink)
                 art.indicator(f"menuitem-{direction}-{state}{inactive}", data,
                               r["on_primary"] if state in {"focused", "pressed", "toggled"} else ink)
+            # plus/minus spin boxes ask the arrow family for these symbols.
+            for symbol, data in spin.items():
+                art.indicator(f"arrow-{symbol}-{state}{inactive}", data,
+                              r["on_primary"] if state == "toggled" else ink)
             for direction, data in {"plus": arrows["right"], "minus": arrows["down"]}.items():
                 name = f"tree-{direction}-{state}{inactive}"
                 art.indicator(name, data, r["on_primary"] if state == "pressed" else ink)
@@ -167,7 +201,6 @@ def svg(roles):
             art.indicator(f"sizegrip-{state}{inactive}", "M 5 12 L 12 5 M 9 12 L 12 9", ink)
             art.indicator(f"splitter-{state}{inactive}", "M 8 4 V 5 M 8 8 V 9 M 8 12 V 13",
                           r["border"])
-            art.indicator(f"slider-tick-{state}{inactive}", "M 8 4 V 12", r["border"])
             for prefix in ("", "menu-", "item-"):
                 for kind in ("checkbox", "radio"):
                     for check_state in ("", "checked-", "tristate-"):
@@ -188,6 +221,13 @@ def svg(roles):
                         ("toggledPressed", r["selected_pressed"])]:
         for inactive in ("", "-inactive"):
             art.indicator(f"tab-close-{state}{inactive}", symbols["close"], r["on_primary"], fill)
+    for state in STATES:
+        # scrollbar sliders stay plain; without these kvantum paints its default grip on them.
+        art.blank(f"scrollbar-grip-{state}")
+    # kvantum asks for <slider interior>-tick-normal and stretches it over a 5x1 strip, so it is a
+    # solid bar; the -inactive request falls back to it.
+    art.rect(art.group("groove-tick-normal"), 5, 1, r["strong_border"])
+    art.dial(r)
     art.indicator("toolbar-handle", "M 6 4 V 12 M 10 4 V 12", r["border"])
     art.indicator("toolbar-separator", "M 8 2 V 14", r["border"], "none")
     art.indicator("menuitem-separator", "M 1 8 H 15", r["border"], "none")

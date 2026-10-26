@@ -13,7 +13,7 @@
         }:
         let
           theme = pkgs.skadi-qt-theme;
-          publish = "${theme}/bin/skadi-qt-theme --palette ${lib.escapeShellArg "${config.xdg.configHome}/qt-theme/palette.json"} --config-home ${lib.escapeShellArg config.xdg.configHome}";
+          publish = "${theme}/bin/skadi-qt-theme --palette ${lib.escapeShellArg "${config.xdg.configHome}/qt-theme/palette.json"} --config-home ${lib.escapeShellArg config.xdg.configHome} --data-home ${lib.escapeShellArg config.xdg.dataHome}";
           appearance = {
             color_scheme_path = "${config.xdg.configHome}/qt5ct/colors/reactive.conf";
             custom_palette = true;
@@ -63,7 +63,7 @@
       {
         id = "qt";
         output = ".config/qt-theme/palette.json";
-        reload = ''${theme}/bin/skadi-qt-theme --palette "$HOME/.config/qt-theme/palette.json" --config-home "$HOME/.config"'';
+        reload = ''${theme}/bin/skadi-qt-theme --palette "$HOME/.config/qt-theme/palette.json" --config-home "$HOME/.config" --data-home "$HOME/.local/share"'';
         renderers = {
           noctalia = {
             source = ./config/reactive.json;
