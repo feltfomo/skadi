@@ -1,0 +1,76 @@
+// info bars map their four message types onto palette containers. GtkInfoBar
+// only ever sets .info, .warning, .question and .error.
+@use "sass:map";
+@use "../gtk";
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+$_types: (
+  info: (bg: secondary_container, fg: on_secondary_container),
+  question: (bg: tertiary_container, fg: on_tertiary_container),
+  warning: (bg: warning_container, fg: on_warning_container),
+  error: (bg: error_container, fg: on_error_container),
+);
+
+infobar {
+  border-style: none;
+  background-image: none;
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+}
+
+infobar > revealer > box {
+  padding: m.$space-2 m.$space-3;
+  @include mixins.spacing(m.$space-3);
+  border-bottom: m.$border solid mat.c(border);
+}
+
+infobar.action > revealer > box:hover {
+  background-color: mat.c(hover);
+}
+
+@each $type, $pair in $_types {
+  $bg: map.get($pair, bg);
+  $fg: map.get($pair, fg);
+
+  infobar.#{$type},
+  infobar.#{$type} > revealer > box {
+    background-color: mat.c($bg);
+    color: mat.c($fg);
+  }
+
+  infobar.#{$type}:backdrop,
+  infobar.#{$type} > revealer > box:backdrop {
+    background-color: mat.c($bg);
+    color: mat.c($fg);
+  }
+
+  infobar.#{$type} label,
+  infobar.#{$type} image {
+    color: inherit;
+  }
+
+  infobar.#{$type} button {
+    @include states.states(states.on-fill-role($fg), $on: null);
+  }
+
+  infobar.#{$type} selection {
+    background-color: mat.c($fg);
+    color: mat.c($bg);
+  }
+
+  infobar.action.#{$type} > revealer > box:hover {
+    background-color: gtk.mix(mat.c($bg), mat.c($fg), 0.12);
+  }
+}
+
+@if target.is(4) {
+  infobar .close {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0;
+  }
+}

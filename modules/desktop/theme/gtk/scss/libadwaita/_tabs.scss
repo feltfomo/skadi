@@ -1,0 +1,173 @@
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+tabbar tab {
+  min-height: m.$control-height;
+  padding: 2px m.$space-1;
+  margin: 0 1px;
+  border: m.$border solid transparent;
+  border-radius: m.$radius-small;
+  @include states.states(states.$tab, $on: ":selected");
+  @include mixins.on-accent-content(":selected");
+}
+
+tabbar tab:checked {
+  background-color: mat.c(primary);
+  color: mat.c(on_primary);
+}
+
+tabbar tabbox {
+  padding: 0;
+}
+
+tabbar tabbox > separator {
+  margin: m.$space-2 0;
+  background-color: mat.c(border);
+}
+
+tabbar tabbox > separator.hidden {
+  background-color: transparent;
+}
+
+tabbar tabbox.single-tab tab {
+  margin: 0;
+}
+
+tabbar tabbox > revealer > indicator {
+  min-width: 2px;
+  margin: m.$space-1 0;
+  background-color: mat.c(tertiary);
+}
+
+// pinned tabs: the tertiary family marks them as a different kind of tab.
+tabbar tab.pinned,
+tabbox > tabboxchild > tab.pinned {
+  min-width: m.$control-height;
+}
+
+tabbar tab .tab-unpin-icon,
+tabthumbnail .tab-unpin-icon {
+  color: mat.c(tertiary);
+}
+
+tabbar tab .tab-title {
+  padding: 0 m.$space-1;
+}
+
+tabbar tab .tab-indicator,
+tabbar tab .tab-close-button {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0;
+}
+
+tabbar tab:drop(active),
+tabbox > tabboxchild:drop(active) {
+  background-color: mat.c(drop);
+  box-shadow: inset 0 0 0 m.$focus-width mat.c(tertiary);
+}
+
+tabview,
+tabview > widget {
+  background-color: mat.c(shell);
+}
+
+dnd tab {
+  border: m.$border solid mat.c(tertiary);
+  border-radius: m.$radius-small;
+  background-color: mat.c(tertiary_container);
+  color: mat.c(on_tertiary_container);
+  box-shadow: m.$shadow-floating-offset mat.c(shadow);
+}
+
+taboverview > .overview {
+  background-color: mat.c(well);
+  color: mat.c(on_surface);
+}
+
+taboverview > .overview .new-tab-button {
+  margin: m.$space-4;
+  @include states.states(states.$suggested, $on: null);
+}
+
+tabgrid {
+  padding: m.$space-3;
+}
+
+tabgrid > tabgridchild .card,
+tabthumbnail .card {
+  background-color: mat.c(panel);
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-card;
+  box-shadow: none;
+}
+
+tabthumbnail {
+  border-radius: m.$radius-card;
+  padding: m.$space-1;
+}
+
+tabthumbnail > box {
+  border-spacing: m.$space-1;
+}
+
+tabthumbnail:hover .card {
+  border-color: mat.c(border_strong);
+}
+
+tabthumbnail:selected .card,
+tabthumbnail:checked .card {
+  border-color: mat.c(primary);
+  box-shadow: 0 0 0 m.$border mat.c(primary);
+}
+
+tabthumbnail.pinned .card {
+  border-color: mat.c(tertiary);
+}
+
+tabthumbnail .card picture {
+  border-radius: m.$radius-card-inner;
+}
+
+tabthumbnail .icon-title-box {
+  border-spacing: m.$space-1;
+  padding: 0 m.$space-1;
+}
+
+tabthumbnail button,
+tabthumbnail button.image-button {
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+  margin: m.$space-1;
+  border-radius: 9999px;
+  @include states.states(states.$flat, $on: null);
+  background-color: mat.c(osd);
+}
+
+tabthumbnail button > image {
+  color: mat.c(on_surface);
+}
+
+tabthumbnail .needs-attention > widget {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 9999px;
+  background-color: mat.c(secondary);
+}
+
+tabbutton {
+  @include states.states(states.$flat, $on: null);
+}
+
+tabbutton label,
+tabbutton label.small {
+  font-size: 9px;
+  font-weight: bold;
+}
+
+tabbutton .needs-attention {
+  color: mat.c(secondary);
+}

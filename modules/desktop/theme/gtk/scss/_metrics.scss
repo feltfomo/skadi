@@ -1,0 +1,30 @@
+$space-1: 4px;
+$space-2: 8px;
+$space-3: 12px;
+$space-4: 16px;
+
+$radius-small: 3px;
+$radius-card: 5px;
+$radius-floating: 6px;
+// children of a 5px card sit inside its 1px border.
+$radius-card-inner: 4px;
+
+$border: 1px;
+$focus-width: 2px;
+// inset, so scrolled windows and allocation clips never cut the ring off.
+$focus-offset: -3px;
+
+$control-height: 24px;
+$row-height: 32px;
+$bar-height: 32px;
+
+$font-family: "Maple Mono NF", monospace, "Noto Color Emoji";
+$font-size: 13px;
+
+$transition-duration: 150ms;
+$transition: background-color $transition-duration ease-out,
+  border-color $transition-duration ease-out,
+  color $transition-duration ease-out,
+  outline-color $transition-duration ease-out;
+
+$shadow-floating-offset: 0 8px 28px;

@@ -1,0 +1,218 @@
+// sidebars sit on the same shell material as the header bar so a sidebar and
+// toolbar read as one continuous frame.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+.sidebar,
+.sidebar .view,
+.sidebar list,
+.navigation-sidebar,
+placessidebar,
+placessidebar list,
+stacksidebar,
+stacksidebar list {
+  background-color: mat.c(shell);
+  color: mat.c(on_surface);
+  border: 0 solid mat.c(border);
+}
+
+.sidebar:not(separator):dir(ltr),
+.sidebar.left {
+  border-right-width: m.$border;
+}
+
+.sidebar:not(separator):dir(rtl),
+.sidebar.right {
+  border-left-width: m.$border;
+  border-right-width: 0;
+}
+
+.sidebar row,
+.navigation-sidebar > row,
+.navigation-sidebar row,
+placessidebar row,
+stacksidebar row {
+  min-height: m.$control-height;
+  margin: 1px m.$space-1;
+  padding: m.$space-1 m.$space-2;
+  border-radius: m.$radius-small;
+  @include states.states(states.$row, $on: ":selected");
+  @include mixins.on-accent-content(":selected");
+}
+
+.navigation-sidebar > row:first-child,
+.sidebar row:first-child {
+  margin-top: m.$space-1;
+}
+
+.navigation-sidebar separator,
+placessidebar separator {
+  margin: m.$space-1 m.$space-2;
+}
+
+placessidebar > viewport.frame {
+  border-style: none;
+}
+
+placessidebar row > revealer {
+  padding: 0;
+}
+
+placessidebar row image.sidebar-icon {
+  color: mat.c(on_surface_variant);
+}
+
+placessidebar row image.sidebar-icon:dir(ltr) {
+  padding-right: m.$space-2;
+}
+
+placessidebar row image.sidebar-icon:dir(rtl) {
+  padding-left: m.$space-2;
+}
+
+placessidebar row label.sidebar-label:dir(ltr) {
+  padding-right: 2px;
+}
+
+placessidebar row label.sidebar-label:dir(rtl) {
+  padding-left: 2px;
+}
+
+placessidebar row:selected image.sidebar-icon {
+  color: inherit;
+}
+
+// "New bookmark" drop row while dragging a folder: the drop role.
+placessidebar row.sidebar-new-bookmark-row {
+  color: mat.c(tertiary);
+}
+
+placessidebar row.sidebar-placeholder-row {
+  min-height: 2px;
+  padding: 0;
+  background-color: mat.c(tertiary);
+}
+
+placessidebar row:drop(active):not(:disabled) {
+  background-color: mat.c(drop);
+  box-shadow: inset 0 0 0 m.$focus-width mat.c(tertiary);
+}
+
+placessidebar row button.sidebar-button {
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+}
+
+stacksidebar row > label {
+  padding: 0 m.$space-1;
+}
+
+// needs-attention marks use the secondary role so they're noticeable but
+// don't read as selected. a static underline rather than upstream's animated
+// dot keeps it identical in both toolkits.
+stacksidebar row.needs-attention > label,
+stackswitcher > button.needs-attention > label,
+stackswitcher > button.needs-attention > image,
+stackswitcher button.needs-attention label,
+stackswitcher button.needs-attention image {
+  box-shadow: inset 0 -2px mat.c(secondary);
+}
+
+stacksidebar row:selected.needs-attention > label {
+  box-shadow: inset 0 -2px mat.c(on_primary);
+}
+
+stackswitcher > button,
+stackswitcher button,
+.stack-switcher > button {
+  @include states.states(states.$button);
+}
+
+stackswitcher > button.text-button,
+stackswitcher button.text-button {
+  min-width: 80px;
+}
+
+stackswitcher > button.circular,
+stackswitcher button.circular,
+stackswitcher.circular > button {
+  min-width: m.$control-height;
+  border-radius: 9999px;
+  padding: 0;
+}
+
+// assistant step list: the current step is the accent text.
+assistant .sidebar,
+window.assistant .sidebar {
+  padding: m.$space-1 0;
+  border-right: m.$border solid mat.c(border);
+}
+
+assistant .sidebar label,
+window.assistant .sidebar > label {
+  padding: m.$space-1 m.$space-3;
+  color: mat.c(on_surface_variant);
+}
+
+assistant .sidebar label.highlight,
+window.assistant .sidebar > label.highlight {
+  background-color: mat.c(primary);
+  color: mat.c(on_primary);
+  border-radius: m.$radius-small;
+  margin: 0 m.$space-1;
+}
+
+assistant.csd .sidebar,
+window.assistant.csd .sidebar {
+  border-top-style: none;
+}
+
+// pane handles: a hairline that thickens to the strong border on hover.
+paned > separator {
+  min-width: 1px;
+  min-height: 1px;
+  -gtk-icon-source: none;
+  border-style: none;
+  background-image: none;
+  background-color: mat.c(border);
+  transition: background-color m.$transition-duration ease-out;
+}
+
+paned > separator:hover {
+  background-color: mat.c(border_strong);
+}
+
+paned > separator:backdrop {
+  background-color: mat.c(border);
+}
+
+paned > separator.wide {
+  min-width: 5px;
+  min-height: 5px;
+  background-color: mat.c(panel);
+  border: 0 solid mat.c(border);
+}
+
+paned.horizontal > separator.wide {
+  border-left-width: m.$border;
+  border-right-width: m.$border;
+}
+
+paned.vertical > separator.wide {
+  border-top-width: m.$border;
+  border-bottom-width: m.$border;
+}
+
+paned.horizontal > separator {
+  margin: 0;
+}
+
+paned .sidebar.left,
+paned .sidebar.right,
+paned .sidebar {
+  border-style: none;
+}

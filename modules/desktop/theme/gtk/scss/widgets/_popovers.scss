@@ -1,0 +1,150 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+@if target.is(4) {
+  // gtk4 popovers: the outer node is a transparent shell; contents carries
+  // the floating material and arrow continues it.
+  popover.background {
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  popover > contents,
+  popover.background > contents {
+    padding: m.$space-1;
+    @include mixins.floating;
+  }
+
+  popover > arrow,
+  popover.background > arrow {
+    background-color: mat.c(panel);
+    border: m.$border solid mat.c(border_strong);
+  }
+
+  popover.menu > contents {
+    padding: m.$space-1;
+    min-width: 160px;
+  }
+
+  .osd popover.background > contents,
+  popover.background.osd > contents {
+    background-color: mat.c(osd);
+  }
+
+  .osd popover.background > arrow,
+  popover.background.osd > arrow {
+    background-color: mat.c(osd);
+  }
+
+  popover.background.magnifier > contents {
+    padding: 0;
+    border-radius: m.$radius-floating;
+  }
+
+  popover.background.magnifier > arrow {
+    background-color: transparent;
+    border-color: transparent;
+  }
+
+  magnifier {
+    background-color: mat.c(well);
+  }
+
+  popover.background.touch-selection > contents,
+  popover.background.magnifier > contents button,
+  popover.background.touch-selection > contents button {
+    background-color: mat.c(osd);
+  }
+} @else {
+  popover,
+  popover.background {
+    padding: m.$space-2;
+    @include mixins.floating;
+  }
+
+  popover.background.menu,
+  popover.background.menu > box {
+    padding: m.$space-1;
+  }
+
+  popover.background.osd,
+  .csd popover.background.osd {
+    background-color: mat.c(osd);
+  }
+
+  popover.background.magnifier,
+  .csd popover.background.magnifier {
+    padding: 0;
+    background-color: mat.c(well);
+  }
+
+  popover.background.touch-selection,
+  .csd popover.background.touch-selection {
+    background-color: mat.c(osd);
+  }
+}
+
+popover.background.magnifier button,
+popover.background.touch-selection button {
+  @include states.states(states.$flat, $on: null);
+}
+
+popover.background.magnifier button.flat {
+  border-style: none;
+}
+
+popover:backdrop,
+popover.background:backdrop {
+  color: mat.c(on_surface);
+}
+
+// tooltips: raised panel, normal text, 1px strong border, small corners. the
+// font comes from the base root rule.
+tooltip,
+tooltip.background {
+  padding: m.$space-1 m.$space-2;
+  @include mixins.floating($radius: m.$radius-small);
+}
+
+tooltip * {
+  background-color: transparent;
+  color: inherit;
+}
+
+@if target.is(4) {
+  tooltip > box {
+    @include mixins.spacing(m.$space-1);
+  }
+
+  tooltip.csd {
+    box-shadow: m.$shadow-floating-offset mat.c(shadow);
+  }
+}
+
+cursor-handle {
+  min-width: 20px;
+  min-height: 24px;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
+  border-style: none;
+  color: mat.c(primary);
+}
+
+cursor-handle.top,
+cursor-handle.bottom {
+  @include mixins.icon(dot);
+}
+
+cursor-handle.insertion-cursor {
+  @include mixins.icon(dot);
+}
+
+.insertion-cursor {
+  color: mat.c(primary);
+}

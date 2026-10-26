@@ -1,0 +1,263 @@
+// boxed lists, preference rows and cards: the Noctalia settings look, cards on
+// the frame with hairline separators and restrained selection.
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+.card,
+list.boxed-list,
+.boxed-list,
+.boxed-list-separate > row {
+  @include mixins.card;
+}
+
+.card.activatable,
+button.card {
+  @include states.states(states.$button, $on: null);
+  border-radius: m.$radius-card;
+}
+
+.boxed-list-separate > row {
+  margin-bottom: m.$space-2;
+}
+
+.boxed-list > row,
+.boxed-list-separate > row,
+list.content > row {
+  min-height: m.$row-height + 8px;
+  padding: 0;
+  border-radius: 0;
+  @include states.states(states.$row, $on: ":selected");
+  @include mixins.on-accent-content(":selected");
+}
+
+.boxed-list > row:not(:last-child) {
+  border-bottom: m.$border solid mat.c(border);
+}
+
+.boxed-list > row:not(.activatable):hover,
+.boxed-list-separate > row:not(.activatable):hover {
+  background-color: transparent;
+}
+
+.boxed-list > row:first-child {
+  border-top-left-radius: m.$radius-card-inner;
+  border-top-right-radius: m.$radius-card-inner;
+}
+
+.boxed-list > row:last-child {
+  border-bottom-left-radius: m.$radius-card-inner;
+  border-bottom-right-radius: m.$radius-card-inner;
+}
+
+.boxed-list-separate > row {
+  border-radius: m.$radius-card;
+}
+
+row.activatable.has-open-popup {
+  background-color: mat.c(pressed);
+}
+
+// row anatomy shared by action, entry, spin, combo and expander rows.
+row > box.header {
+  padding: m.$space-2 m.$space-3;
+  border-spacing: m.$space-3;
+  min-height: m.$row-height;
+}
+
+row .title-box {
+  border-spacing: 2px;
+}
+
+row .prefixes,
+row .suffixes {
+  border-spacing: m.$space-2;
+}
+
+// settings-style hierarchy from the Noctalia reference: a weighted title over
+// a regular-weight description.
+row > box.header > box.title,
+row .title-box {
+  font-weight: normal;
+}
+
+row .title {
+  color: inherit;
+  font-weight: bold;
+}
+
+row .subtitle {
+  font-size: 11px;
+  font-weight: normal;
+}
+
+row.property .subtitle {
+  font-size: m.$font-size;
+  color: mat.c(on_surface);
+}
+
+row.property .title {
+  font-size: 11px;
+  font-weight: normal;
+  color: mat.c(on_surface_variant);
+}
+
+row.property.monospace .subtitle,
+row.monospace .subtitle {
+  font-family: monospace;
+}
+
+// entry rows: the row is the field; the editable area keeps the row padding.
+row.entry {
+  @include states.states(states.$row, $on: null, $focus: within);
+}
+
+row.entry > box.header > .editable-area {
+  border-spacing: m.$space-2;
+}
+
+row.entry .edit-icon,
+row.entry .indicator {
+  color: mat.c(on_surface_variant);
+}
+
+row.entry .apply-button {
+  min-width: m.$control-height;
+  min-height: m.$control-height;
+  padding: 0;
+  @include states.states(states.$suggested, $on: null);
+}
+
+row.entry.focused,
+row.spin.focused {
+  box-shadow: inset 0 0 0 m.$focus-width mat.c(primary);
+}
+
+row.entry text,
+row.entry .entry {
+  background-color: transparent;
+  border-style: none;
+  padding: 0;
+}
+
+row.entry label.separator,
+row.entry .separator {
+  color: mat.c(border_strong);
+}
+
+row.entry.error,
+row.spin.error {
+  box-shadow: inset 0 0 0 m.$border mat.c(error);
+}
+
+row.entry.warning,
+row.spin.warning {
+  box-shadow: inset 0 0 0 m.$border mat.c(warning);
+}
+
+row.entry.success,
+row.spin.success {
+  box-shadow: inset 0 0 0 m.$border mat.c(success);
+}
+
+row.spin spinbutton {
+  background-color: transparent;
+  border-style: none;
+}
+
+row.combo image.dropdown-arrow,
+row .dropdown-arrow {
+  @include mixins.icon(down);
+  color: mat.c(on_surface_variant);
+}
+
+row.combo popover > contents .combo-searchbar,
+.combo-searchbar {
+  margin: m.$space-1;
+}
+
+row.combo listview.inline {
+  background-color: transparent;
+}
+
+// button rows: centered text action, accent or error when asked.
+row.button > box {
+  padding: m.$space-2 m.$space-3;
+  border-spacing: m.$space-2;
+}
+
+row.button .title {
+  font-weight: bold;
+}
+
+row.button > box > .icon {
+  color: inherit;
+}
+
+row.button.suggested-action {
+  color: mat.c(primary);
+}
+
+row.button.destructive-action {
+  color: mat.c(error);
+}
+
+// expander rows nest a list that sits on the well, one step deeper.
+row.expander {
+  background-color: transparent;
+  padding: 0;
+}
+
+row.expander list.nested {
+  background-color: mat.c(well);
+  border-top: m.$border solid mat.c(border);
+}
+
+row.expander list.nested > row {
+  min-height: m.$row-height + 8px;
+  border-bottom: m.$border solid mat.c(border);
+}
+
+row.expander list.nested > row:last-child {
+  border-bottom-style: none;
+}
+
+row.expander image.expander-row-arrow,
+.expander-row-arrow {
+  @include mixins.icon(down);
+  color: mat.c(on_surface_variant);
+}
+
+row.expander:checked image.expander-row-arrow {
+  @include mixins.icon(up);
+}
+
+row.shortcut-row .shortcuts,
+.shortcut-row .shortcuts {
+  border-spacing: m.$space-1;
+}
+
+preferencesgroup > box {
+  border-spacing: m.$space-2;
+}
+
+preferencesgroup > box > box.header,
+preferencesgroup .header {
+  margin-bottom: m.$space-1;
+  padding: 0 m.$space-1;
+}
+
+preferencesgroup .header .title,
+preferencesgroup > box box.labels .heading {
+  font-weight: bold;
+}
+
+preferencesgroup > box > box.single-line {
+  min-height: m.$control-height;
+}
+
+preferencespage > scrolledwindow > viewport > clamp > box {
+  margin: m.$space-4 m.$space-3;
+  border-spacing: m.$space-4 + m.$space-2;
+}

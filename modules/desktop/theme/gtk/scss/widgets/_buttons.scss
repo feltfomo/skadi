@@ -1,0 +1,282 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+button {
+  min-height: m.$control-height;
+  min-width: 16px;
+  padding: m.$space-1 m.$space-2;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  // libadwaita bolds button labels; compact chrome keeps regular weight.
+  font-weight: normal;
+  @include states.states(states.$button);
+
+  label,
+  image {
+    color: inherit;
+  }
+
+  &.image-button {
+    min-width: m.$control-height;
+    padding: m.$space-1;
+  }
+
+  &.text-button.image-button,
+  &.image-text-button {
+    padding: m.$space-1 m.$space-2;
+  }
+
+  &.flat,
+  &.link,
+  &.sidebar-button {
+    @include states.states(states.$flat);
+  }
+
+  &.link {
+    padding: 0;
+    min-height: 0;
+  }
+
+  &.suggested-action {
+    @include states.states(states.$suggested);
+  }
+
+  &.destructive-action {
+    @include states.states(states.$destructive);
+  }
+
+  &.circular {
+    border-radius: 9999px;
+    min-width: m.$control-height;
+    padding: m.$space-1;
+  }
+
+  // window and toolbar toggles that open a popup keep the pressed look while
+  // it is open.
+  &.has-open-popup {
+    background-color: mat.c(pressed);
+  }
+
+  &.font label,
+  &.file label {
+    padding: 0 m.$space-1;
+  }
+
+  &.color {
+    padding: m.$space-1;
+
+    colorswatch {
+      border-radius: 2px;
+      min-width: 16px;
+      min-height: 16px;
+    }
+  }
+}
+
+@if target.is(3) {
+  toolbutton > button {
+    @include states.states(states.$flat);
+  }
+
+  // gtk3 menu-style flat buttons inside menus (popover model buttons
+  // rendered as .menuitem.button.flat).
+  .menuitem.button.flat {
+    @include states.states(states.$menuitem, $on: null);
+  }
+}
+
+@if target.is(4) {
+  button.pill {
+    border-radius: 9999px;
+    padding: m.$space-2 m.$space-4 * 2;
+  }
+
+  button.opaque {
+    @include states.states(states.$chip);
+  }
+
+  // libadwaita's flat-in-headerbar default reads as text; raised restores the
+  // frame where an app asks for it.
+  button.raised {
+    @include states.states(states.$button);
+  }
+
+  button.arrow-button > box {
+    @include mixins.spacing(m.$space-1);
+  }
+
+  buttoncontent > box {
+    @include mixins.spacing(m.$space-2);
+  }
+
+  buttoncontent > box > label {
+    font-weight: normal;
+  }
+
+  menubutton > button,
+  dropdown > button,
+  colorbutton > button,
+  fontbutton > button,
+  appchooserbutton > button,
+  scalebutton > button {
+    min-height: m.$control-height;
+  }
+
+  menubutton.flat > button,
+  menubutton.image-button.flat > button,
+  scalebutton > button.flat {
+    @include states.states(states.$flat);
+  }
+
+  menubutton.suggested-action > button {
+    @include states.states(states.$suggested);
+  }
+
+  menubutton.circular > button {
+    border-radius: 9999px;
+  }
+
+  menubutton > button > box > arrow,
+  menubutton arrow.none {
+    @include mixins.icon(down);
+    @include mixins.icon-size;
+  }
+
+  menubutton arrow.none {
+    -gtk-icon-source: none;
+    min-width: 0;
+  }
+
+  splitbutton {
+    border-radius: m.$radius-small;
+
+    > button,
+    > menubutton > button {
+      @include states.states(states.$button);
+    }
+
+    > button {
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    > menubutton > button {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+      border-left-width: 0;
+      padding: m.$space-1;
+    }
+
+    > separator {
+      background-color: transparent;
+    }
+
+    &.flat > button,
+    &.flat > menubutton > button {
+      @include states.states(states.$flat);
+    }
+
+    &.suggested-action > button,
+    &.suggested-action > menubutton > button {
+      @include states.states(states.$suggested);
+    }
+
+    &.destructive-action > button,
+    &.destructive-action > menubutton > button {
+      @include states.states(states.$destructive);
+    }
+
+    &.opaque > button,
+    &.opaque > menubutton > button {
+      @include states.states(states.$chip);
+    }
+
+    &.image-button > button,
+    &.image-text-button > button,
+    &.text-button.image-button > button {
+      padding: m.$space-1 m.$space-2;
+    }
+  }
+}
+
+// combo boxes and drop downs read as buttons with a chevron.
+combobox arrow,
+dropdown arrow,
+dropdown > button > box > arrow,
+combobox > box > button > box > arrow {
+  @include mixins.icon(down);
+  @include mixins.icon-size;
+}
+
+combobox > box > button.combo,
+dropdown > button {
+  padding: m.$space-1 m.$space-2;
+}
+
+combobox entry.combo,
+.combo entry {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+@if target.is(4) {
+  dropdown > popover.menu listview > row {
+    min-height: m.$control-height;
+  }
+
+  .dropdown-searchbar {
+    padding: m.$space-1;
+    border-bottom: m.$border solid mat.c(border);
+  }
+}
+
+// linked groups: inner corners square, one shared hairline between members.
+$_linked-children: "> button, > entry, > spinbutton, > combobox > box > button.combo, > combobox > box > entry";
+@if target.is(4) {
+  $_linked-children: "#{$_linked-children}, > menubutton > button, > dropdown > button, > colorbutton > button, > fontbutton > button, > appchooserbutton > button";
+}
+
+.linked:not(.vertical) {
+  #{$_linked-children} {
+    border-radius: 0;
+    border-right-width: 0;
+  }
+
+  > :first-child,
+  > :first-child > button,
+  > :first-child > box > button.combo {
+    border-top-left-radius: m.$radius-small;
+    border-bottom-left-radius: m.$radius-small;
+  }
+
+  > :last-child,
+  > :last-child > button,
+  > :last-child > box > button.combo {
+    border-top-right-radius: m.$radius-small;
+    border-bottom-right-radius: m.$radius-small;
+    border-right-width: m.$border;
+  }
+}
+
+.linked.vertical {
+  #{$_linked-children} {
+    border-radius: 0;
+    border-bottom-width: 0;
+  }
+
+  > :first-child,
+  > :first-child > button {
+    border-top-left-radius: m.$radius-small;
+    border-top-right-radius: m.$radius-small;
+  }
+
+  > :last-child,
+  > :last-child > button {
+    border-bottom-left-radius: m.$radius-small;
+    border-bottom-right-radius: m.$radius-small;
+    border-bottom-width: m.$border;
+  }
+}

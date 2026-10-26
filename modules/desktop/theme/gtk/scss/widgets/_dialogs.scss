@@ -1,0 +1,370 @@
+// stock dialogs and their composite widgets: message dialogs, file and color
+// choosers, print and about dialogs, the emoji chooser.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+window.dialog,
+messagedialog,
+dialog {
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+}
+
+.dialog-action-area,
+.dialog-action-box {
+  padding: m.$space-2;
+  @include mixins.spacing(m.$space-2);
+}
+
+.dialog-action-box {
+  border-top: m.$border solid mat.c(border);
+}
+
+@if target.is(3) {
+  messagedialog .titlebar {
+    min-height: 20px;
+    background-color: transparent;
+    border-style: none;
+  }
+
+  messagedialog .dialog-action-area button {
+    min-height: 32px;
+  }
+
+  messagedialog.csd.background {
+    border-radius: m.$radius-floating;
+  }
+
+  messagedialog.csd .dialog-action-area button {
+    padding: m.$space-2;
+  }
+} @else {
+  window.dialog.message .titlebar {
+    min-height: 20px;
+    background-color: transparent;
+    border-style: none;
+  }
+
+  window.dialog.message box.dialog-vbox.vertical {
+    @include mixins.spacing(m.$space-2);
+  }
+
+  window.dialog.message label.title {
+    font-weight: 800;
+    font-size: 15px;
+  }
+
+  window.dialog.message.csd.background {
+    border-radius: m.$radius-floating;
+  }
+
+  window.dialog.message.csd .dialog-action-area button {
+    min-height: 32px;
+    padding: m.$space-2;
+  }
+
+  .dialog-vbox {
+    @include mixins.spacing(m.$space-2);
+  }
+
+  window.aboutdialog image.large-icons {
+    -gtk-icon-size: 128px;
+  }
+}
+
+// file chooser.
+filechooser {
+  background-color: mat.c(shell);
+}
+
+filechooser .dialog-action-box {
+  border-top: m.$border solid mat.c(border);
+}
+
+filechooser #pathbarbox {
+  padding: m.$space-1 m.$space-2;
+  border-bottom: m.$border solid mat.c(border);
+  background-color: mat.c(shell);
+}
+
+filechooser .search-bar {
+  border-bottom: m.$border solid mat.c(border);
+}
+
+filechooserbutton > button,
+filechooserbutton button {
+  @include states.states(states.$button);
+}
+
+// gtk3 path bar: a linked row of crumb buttons; gtk4 has a real pathbar node.
+$_pathbar: ".path-bar";
+@if target.is(4) {
+  $_pathbar: "pathbar";
+}
+
+#{$_pathbar} button {
+  padding: m.$space-1 m.$space-2;
+  @include states.states(states.$button);
+}
+
+#{$_pathbar} button.text-button,
+#{$_pathbar} button.image-button {
+  min-width: 0;
+}
+
+#{$_pathbar} button.image-button {
+  padding: m.$space-1;
+}
+
+#{$_pathbar} button.text-button.image-button label {
+  padding: 0 m.$space-1;
+}
+
+#{$_pathbar} button label,
+#{$_pathbar} button image {
+  color: inherit;
+}
+
+#{$_pathbar} button.slider-button {
+  padding: m.$space-1 2px;
+  min-width: 16px;
+}
+
+@if target.is(3) {
+  filechooser .path-bar.linked > button {
+    border-radius: 0;
+  }
+
+  filechooser .path-bar.linked > button:first-child {
+    border-top-left-radius: m.$radius-small;
+    border-bottom-left-radius: m.$radius-small;
+  }
+
+  filechooser .path-bar.linked > button:last-child {
+    border-top-right-radius: m.$radius-small;
+    border-bottom-right-radius: m.$radius-small;
+  }
+} @else {
+  pathbar scrolledwindow undershoot.left,
+  pathbar scrolledwindow undershoot.right {
+    box-shadow: none;
+  }
+
+  filechooser gridview child {
+    padding: m.$space-2;
+  }
+}
+
+// other locations / network places view.
+placesview .server-list-button > image {
+  @include mixins.icon(down);
+}
+
+placesview .server-list-button:checked > image {
+  @include mixins.icon(up);
+}
+
+placesview row.activatable:hover {
+  background-color: mat.c(hover);
+}
+
+placesview > actionbar > revealer > box > label,
+placesview > actionbar > revealer > box > box {
+  @include mixins.spacing(m.$space-2);
+}
+
+// color chooser swatches: the color is the content, so the frame stays thin
+// and the checkmark picks a contrasting palette text color.
+colorswatch,
+colorswatch#add-color-button {
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 0;
+  outline-offset: -2px;
+}
+
+colorswatch > overlay,
+colorswatch overlay {
+  border: m.$border solid mat.c(border);
+  border-radius: 0;
+}
+
+colorswatch:hover > overlay,
+colorswatch:hover overlay {
+  border-color: mat.c(border_strong);
+}
+
+colorswatch:selected > overlay,
+colorswatch:selected overlay {
+  box-shadow: inset 0 0 0 m.$focus-width mat.c(primary);
+}
+
+colorswatch.light > overlay,
+colorswatch.light overlay {
+  color: mat.c(on_primary);
+}
+
+colorswatch.dark > overlay,
+colorswatch.dark overlay {
+  color: mat.c(on_surface);
+}
+
+colorswatch.top,
+colorswatch.top > overlay {
+  border-top-left-radius: m.$radius-small;
+  border-top-right-radius: m.$radius-small;
+}
+
+colorswatch.bottom,
+colorswatch.bottom > overlay {
+  border-bottom-left-radius: m.$radius-small;
+  border-bottom-right-radius: m.$radius-small;
+}
+
+colorswatch.left,
+colorswatch.left > overlay,
+colorswatch:first-child:not(.top),
+colorswatch:first-child:not(.top) > overlay {
+  border-top-left-radius: m.$radius-small;
+  border-bottom-left-radius: m.$radius-small;
+}
+
+colorswatch.right,
+colorswatch.right > overlay,
+colorswatch:last-child:not(.bottom),
+colorswatch:last-child:not(.bottom) > overlay {
+  border-top-right-radius: m.$radius-small;
+  border-bottom-right-radius: m.$radius-small;
+}
+
+colorswatch#add-color-button > overlay,
+colorswatch#add-color-button overlay {
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+}
+
+colorswatch#add-color-button:hover > overlay,
+colorswatch#add-color-button:hover overlay {
+  background-color: mat.c(hover);
+}
+
+colorswatch#editor-color-sample,
+colorswatch#editor-color-sample > overlay {
+  border-radius: m.$radius-small;
+}
+
+row colorswatch {
+  min-width: 16px;
+  min-height: 16px;
+}
+
+colorchooser .popover.osd {
+  border-radius: m.$radius-floating;
+}
+
+@if target.is(4) {
+  plane {
+    min-width: 200px;
+    min-height: 200px;
+    border-radius: m.$radius-small;
+    outline-offset: -2px;
+  }
+
+  plane#{target.focus-visible()} {
+    outline: m.$focus-width solid mat.c(primary);
+  }
+
+  // print dialog page preview.
+  window.dialog.print .drawing,
+  window.print drawing,
+  window.dialog.print .dialog-action-box {
+    background-color: mat.c(well);
+  }
+
+  window.print paper,
+  window.dialog.print page-thumbnail {
+    border: m.$border solid mat.c(border);
+    background-color: mat.c(field);
+  }
+
+  window.dialog.print page-thumbnail label {
+    color: mat.c(on_surface_variant);
+  }
+} @else {
+  printdialog paper {
+    border: m.$border solid mat.c(border);
+    background-color: mat.c(field);
+    color: mat.c(on_surface);
+  }
+
+  printdialog .dialog-action-box {
+    padding: m.$space-2;
+  }
+}
+
+// emoji chooser.
+popover.emoji-picker > contents,
+popover.emoji-picker {
+  padding: 0;
+}
+
+.emoji-searchbar,
+popover.emoji-picker entry.search {
+  margin: m.$space-1;
+}
+
+.emoji-toolbar {
+  padding: m.$space-1;
+  border-top: m.$border solid mat.c(border);
+}
+
+.emoji-section {
+  border-color: transparent;
+}
+
+.emoji-section > label,
+.emoji-section label {
+  color: mat.c(on_surface_variant);
+  font-weight: bold;
+  padding: m.$space-1;
+}
+
+button.emoji-section {
+  @include states.states(states.$flat);
+}
+
+.emoji,
+emoji {
+  font-size: 20px;
+  padding: m.$space-1;
+  border-radius: m.$radius-small;
+  @include states.states(states.$flat, $on: null);
+}
+
+popover.emoji-completion > contents,
+.emoji-completion {
+  padding: m.$space-1;
+}
+
+emoji-completion-row,
+.emoji-completion-row {
+  min-height: m.$control-height;
+  padding: m.$space-1 m.$space-2;
+  border-radius: m.$radius-small;
+  @include states.states(states.$menuitem, $on: null);
+}
+
+emoji-completion-row > box,
+.emoji-completion-row > box {
+  @include mixins.spacing(m.$space-2);
+}
+
+@if target.is(4) {
+  .entry-completion > contents,
+  popover.entry-completion > contents {
+    padding: m.$space-1;
+  }
+}

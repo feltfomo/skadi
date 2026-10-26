@@ -1,0 +1,184 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+menubar,
+.menubar {
+  padding: 0 m.$space-1;
+  @include mixins.bar;
+  border-bottom: m.$border solid mat.c(border);
+}
+
+menubar > menuitem,
+.menubar > menuitem,
+menubar > item {
+  min-height: 20px;
+  padding: m.$space-1 m.$space-2;
+  border-radius: m.$radius-small;
+  @include states.states(states.$tab, $on: ":selected");
+}
+
+menubar:backdrop,
+.menubar:backdrop {
+  color: mat.c(on_surface_variant);
+}
+
+// gtk3 menus are their own toplevels. gtk4 builds menus from popovers and
+// puts `.menu`/`.context-menu` on the popover shell, which must stay
+// transparent, so these forms are gtk3 only.
+@if target.is(3) {
+  menu,
+  .menu,
+  .context-menu {
+    margin: 0;
+    padding: m.$space-1;
+    @include mixins.floating;
+  }
+}
+
+menu menuitem,
+.menu menuitem,
+.context-menu menuitem,
+menuitem {
+  min-height: m.$control-height;
+  min-width: 40px;
+  padding: m.$space-1 m.$space-2;
+  border-radius: m.$radius-small;
+  @include states.states(states.$menuitem, $on: null);
+}
+
+menuitem label,
+menuitem image,
+menuitem arrow,
+modelbutton label,
+modelbutton image,
+modelbutton arrow {
+  color: inherit;
+}
+
+menuitem:disabled label,
+modelbutton:disabled label {
+  color: mat.c(disabled);
+}
+
+menuitem accelerator,
+modelbutton accelerator,
+menu accelerator {
+  color: mat.c(on_surface_variant);
+}
+
+menuitem:hover accelerator,
+modelbutton:hover accelerator,
+modelbutton:selected accelerator {
+  color: mat.c(on_accent_dim);
+}
+
+menuitem arrow,
+modelbutton arrow {
+  min-width: 16px;
+  min-height: 16px;
+  @include mixins.icon(right);
+}
+
+menuitem arrow:dir(rtl),
+modelbutton arrow:dir(rtl) {
+  @include mixins.icon(left);
+}
+
+menu separator,
+.menu separator,
+.context-menu separator {
+  margin: m.$space-1;
+}
+
+menu > arrow {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 2px;
+  background-color: mat.c(panel);
+  border-radius: m.$radius-small;
+}
+
+menu > arrow.top {
+  @include mixins.icon(up);
+}
+
+menu > arrow.bottom {
+  @include mixins.icon(down);
+}
+
+menu > arrow:hover {
+  background-color: mat.c(hover);
+}
+
+menu > arrow:disabled {
+  color: transparent;
+  background-color: transparent;
+}
+
+modelbutton {
+  min-height: m.$control-height;
+  min-width: 40px;
+  padding: m.$space-1 m.$space-2;
+  border-radius: m.$radius-small;
+  @include states.states(states.$menuitem, $on: null);
+}
+
+// keyboard navigation in popover menus sets :selected on the item.
+modelbutton:selected {
+  background-color: mat.c(primary);
+  color: mat.c(on_primary);
+}
+
+modelbutton:selected:active {
+  background-color: mat.c(accent_pressed);
+}
+
+@if target.is(4) {
+  popover.menu box.inline-buttons,
+  popover.menu box.circular-buttons {
+    padding: m.$space-1 m.$space-2;
+    @include mixins.spacing(m.$space-1);
+  }
+
+  popover.menu box.inline-buttons button.image-button.model,
+  popover.menu box.circular-buttons button.circular.image-button.model {
+    @include states.states(states.$flat, $on: null);
+  }
+
+  popover.menu box.circular-buttons button.circular.image-button.model {
+    min-width: 32px;
+    min-height: 32px;
+    border: m.$border solid mat.c(border);
+    border-radius: 9999px;
+  }
+
+  popover.menu list,
+  popover.menu listview {
+    background-color: transparent;
+  }
+
+  popover.menu list > row,
+  popover.menu listview > row {
+    border-radius: m.$radius-small;
+  }
+
+  popover.menu .title,
+  popover.menu label.title {
+    font-weight: bold;
+    padding: m.$space-1 m.$space-2;
+    color: mat.c(on_surface_variant);
+  }
+
+  // nested submenus slide inside the same popover.
+  popover.menu > contents > stack > box > modelbutton.title,
+  popover.menu modelbutton.title {
+    font-weight: bold;
+  }
+
+  menubar > item popover.menu.background > contents {
+    border-top-left-radius: 0;
+  }
+}

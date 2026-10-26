@@ -1,0 +1,240 @@
+// scales, progress bars and level bars. troughs are the deepest well so the
+// filled part reads as content, not chrome.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+scale {
+  min-width: 16px;
+  min-height: 16px;
+  padding: m.$space-2;
+  color: mat.c(on_surface);
+}
+
+scale trough,
+progressbar trough,
+levelbar trough {
+  min-height: 4px;
+  min-width: 4px;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  background-image: none;
+  background-color: mat.c(well);
+  box-shadow: none;
+}
+
+scale trough:disabled,
+progressbar trough:disabled,
+levelbar trough:disabled {
+  border-color: mat.c(border_faint);
+}
+
+scale highlight,
+scale fill,
+progressbar progress {
+  min-height: 4px;
+  min-width: 4px;
+  border: 0;
+  border-radius: 2px;
+  background-image: none;
+  background-color: mat.c(primary);
+  box-shadow: none;
+  transition: background-color m.$transition-duration ease-out;
+}
+
+// the fill behind the highlight marks buffered/secondary progress.
+scale fill {
+  background-color: mat.c(secondary_container);
+}
+
+scale highlight:backdrop,
+progressbar progress:backdrop {
+  background-color: mat.c(accent_disabled);
+}
+
+scale:disabled highlight,
+scale highlight:disabled,
+scale:disabled fill,
+progressbar:disabled progress,
+progressbar progress:disabled {
+  background-color: mat.c(disabled);
+}
+
+scale slider {
+  min-height: 14px;
+  min-width: 14px;
+  margin: -6px;
+  border: m.$border solid mat.c(border_strong);
+  border-radius: m.$radius-small;
+  @include states.states(states.$suggested, $on: null, $focus: none);
+}
+
+// the scale, not the knob, owns keyboard focus; ring the knob anyway since
+// it's the part the arrows move.
+scale#{target.focus-visible()} slider {
+  outline-color: mat.c(on_primary);
+  outline-width: m.$focus-width;
+  outline-offset: -3px;
+}
+
+scale.fine-tune slider {
+  background-color: mat.c(accent_pressed);
+}
+
+scale.fine-tune.horizontal {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+scale.fine-tune.vertical {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+// marked scales point the knob toward the marks side with an asymmetric
+// corner, keeping edges square.
+scale.marks-before:not(.marks-after) slider,
+scale.marks-after:not(.marks-before) slider {
+  border-radius: m.$radius-small;
+}
+
+scale.horizontal.marks-before:not(.marks-after) slider {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+scale.horizontal.marks-after:not(.marks-before) slider {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+scale.vertical.marks-before:not(.marks-after) slider {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+scale.vertical.marks-after:not(.marks-before) slider {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+scale marks,
+scale value {
+  color: mat.c(on_surface_variant);
+}
+
+scale marks indicator,
+scale mark indicator {
+  background-color: mat.c(border_strong);
+  min-height: 4px;
+  min-width: 1px;
+}
+
+scale value {
+  padding: 0 m.$space-1;
+}
+
+// color chooser hue/alpha sliders: the trough is the gradient, so only frame
+// it.
+scale.color trough {
+  border-color: mat.c(border_strong);
+  background-color: transparent;
+}
+
+scale.color highlight,
+scale.color fill {
+  background-color: transparent;
+}
+
+progressbar {
+  color: mat.c(on_surface_variant);
+  font-size: 11px;
+}
+
+progressbar text {
+  color: mat.c(on_surface_variant);
+  padding: m.$space-1;
+}
+
+progressbar.horizontal trough,
+progressbar.horizontal progress {
+  min-height: 6px;
+}
+
+progressbar.vertical trough,
+progressbar.vertical progress {
+  min-width: 6px;
+}
+
+progressbar.osd {
+  min-width: 3px;
+  min-height: 3px;
+  background-color: transparent;
+}
+
+progressbar.osd trough {
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  min-height: 3px;
+}
+
+progressbar.osd progress {
+  border-radius: 0;
+  min-height: 3px;
+}
+
+levelbar block {
+  min-width: 12px;
+  min-height: 6px;
+  border: 0;
+  border-radius: 2px;
+  background-color: mat.c(primary);
+}
+
+levelbar.horizontal.discrete block {
+  margin: 0 1px;
+  min-width: 24px;
+}
+
+levelbar.vertical.discrete block {
+  margin: 1px 0;
+  min-height: 24px;
+}
+
+levelbar block.empty {
+  background-color: transparent;
+}
+
+levelbar block.low {
+  background-color: mat.c(warning);
+}
+
+levelbar block.high,
+levelbar block.full {
+  background-color: mat.c(success);
+}
+
+levelbar:disabled block {
+  background-color: mat.c(disabled);
+}
+
+levelbar:disabled block.empty {
+  background-color: transparent;
+}
+
+.osd scale trough,
+.osd progressbar trough {
+  background-color: mat.c(osd);
+}
+
+// volume button popup: a compact vertical scale with its +/- buttons.
+.scale-popup button.flat {
+  min-width: m.$control-height;
+}
+
+.scale-popup scale {
+  min-height: 128px;
+}

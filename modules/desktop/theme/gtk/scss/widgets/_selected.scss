@@ -1,0 +1,83 @@
+// controls living inside a selected row or checked tab. they keep the
+// selection context: transparent idle, the selection's text color, and a
+// 12%/22% tint of that color on hover/press composited over the fill. this is
+// the fix for the "dark square in a pale selected tab" defect in the brief.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+
+$_contexts: "row:selected, flowboxchild:selected, notebook > header > tabs > tab:checked, menubar > menuitem:selected";
+@if target.is(4) {
+  $_contexts: "#{$_contexts}, gridview > child:selected, listview > row:selected, columnview > listview > row:selected, tabbar tab:selected, tabbar tab:checked, menubar > item:selected, calendar > grid > label:selected";
+}
+
+#{$_contexts} {
+  button {
+    @include states.states(states.$on-accent);
+  }
+
+  button.flat,
+  button.image-button,
+  button.circular,
+  button.sidebar-button,
+  button.titlebutton {
+    @include states.states(states.$on-accent-flat);
+  }
+
+  // indicators invert: outline in the selection's text color, checked fills
+  // with it.
+  check,
+  radio,
+  switch {
+    border-color: mat.c(on_primary);
+    background-color: transparent;
+    color: mat.c(on_primary);
+  }
+
+  check:checked,
+  radio:checked,
+  check:indeterminate,
+  radio:indeterminate,
+  switch:checked {
+    background-color: mat.c(on_primary);
+    color: mat.c(primary);
+  }
+
+  switch > slider,
+  switch slider {
+    background-color: mat.c(on_primary);
+  }
+
+  switch:checked > slider,
+  switch:checked slider {
+    background-color: mat.c(primary);
+  }
+
+  entry {
+    border-color: mat.c(on_accent_border);
+  }
+
+  progressbar progress,
+  scale highlight,
+  levelbar block {
+    background-color: mat.c(on_primary);
+  }
+
+  progressbar trough,
+  scale trough,
+  levelbar trough {
+    background-color: mat.c(on_accent_hover);
+    border-color: mat.c(on_accent_border);
+  }
+
+  spinner {
+    color: mat.c(on_primary);
+  }
+
+  .accent,
+  label:link,
+  label:visited {
+    color: mat.c(on_primary);
+  }
+}

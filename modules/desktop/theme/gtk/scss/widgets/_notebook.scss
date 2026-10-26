@@ -1,0 +1,120 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+notebook,
+notebook > stack:not(:only-child) {
+  background-image: none;
+  background-color: mat.c(shell);
+  color: mat.c(on_surface);
+}
+
+notebook.frame {
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+}
+
+notebook > header {
+  padding: m.$space-1;
+  background-image: none;
+  background-color: mat.c(shell);
+  border: 0 solid mat.c(border);
+  box-shadow: none;
+}
+
+notebook > header.top {
+  border-bottom-width: m.$border;
+}
+
+notebook > header.bottom {
+  border-top-width: m.$border;
+}
+
+notebook > header.left {
+  border-right-width: m.$border;
+}
+
+notebook > header.right {
+  border-left-width: m.$border;
+}
+
+notebook > header > tabs > tab {
+  min-height: m.$control-height;
+  min-width: 24px;
+  padding: m.$space-1 m.$space-2;
+  border: m.$border solid transparent;
+  border-radius: m.$radius-small;
+  @include states.states(states.$tab);
+  @include mixins.on-accent-content(":checked");
+}
+
+notebook > header.top > tabs > tab,
+notebook > header.bottom > tabs > tab {
+  margin: 0 1px;
+}
+
+notebook > header.left > tabs > tab,
+notebook > header.right > tabs > tab {
+  margin: 1px 0;
+}
+
+// reorderable tabs show a handle-like edge while dragging.
+notebook > header > tabs > tab.reorderable-page {
+  border-color: transparent;
+}
+
+notebook > header > tabs > tab.reorderable-page:hover {
+  border-color: mat.c(border);
+}
+
+notebook > header > tabs > tab.reorderable-page:checked {
+  border-color: mat.c(primary);
+}
+
+notebook > header > tabs > tab button.flat {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0;
+  margin: 0 -2px 0 m.$space-1;
+}
+
+notebook > header > tabs > arrow {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 2px;
+  border-radius: m.$radius-small;
+  @include states.states(states.$flat, $on: null);
+}
+
+notebook > header.top > tabs > arrow.up,
+notebook > header.bottom > tabs > arrow.up {
+  @include mixins.icon(left);
+}
+
+notebook > header.top > tabs > arrow.down,
+notebook > header.bottom > tabs > arrow.down {
+  @include mixins.icon(right);
+}
+
+notebook > header.left > tabs > arrow.up,
+notebook > header.right > tabs > arrow.up {
+  @include mixins.icon(up);
+}
+
+notebook > header.left > tabs > arrow.down,
+notebook > header.right > tabs > arrow.down {
+  @include mixins.icon(down);
+}
+
+@if target.is(4) {
+  notebook > header > tabs > arrow.arrow-button > box {
+    @include mixins.spacing(0);
+  }
+
+  notebook#{target.focus-visible()} > header > tabs > tab:checked {
+    outline: m.$focus-width solid mat.c(on_primary);
+    outline-offset: m.$focus-offset;
+  }
+}

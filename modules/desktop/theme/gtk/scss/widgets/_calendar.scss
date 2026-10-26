@@ -1,0 +1,103 @@
+// gtk3 draws calendar days itself and themes them through states and classes
+// on the single calendar node; gtk4 builds a real header/grid tree.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+calendar {
+  padding: m.$space-1;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+}
+
+calendar:disabled {
+  color: mat.c(disabled);
+}
+
+@if target.is(3) {
+  calendar:selected {
+    background-color: mat.c(primary);
+    color: mat.c(on_primary);
+    border-radius: m.$radius-small;
+  }
+
+  calendar:hover {
+    color: mat.c(on_surface);
+  }
+
+  calendar:backdrop {
+    color: mat.c(on_surface_variant);
+  }
+
+  calendar:indeterminate {
+    color: mat.c(disabled);
+  }
+
+  calendar.highlight {
+    color: mat.c(on_surface_variant);
+    font-weight: bold;
+  }
+
+  calendar.header {
+    border-style: none none solid;
+    border-bottom: m.$border solid mat.c(border);
+    border-radius: 0;
+  }
+
+  calendar.button {
+    color: mat.c(on_surface_variant);
+  }
+
+  calendar.button:hover {
+    color: mat.c(on_surface);
+  }
+
+  calendar.button:disabled {
+    color: transparent;
+  }
+} @else {
+  calendar > header {
+    border-bottom: m.$border solid mat.c(border);
+    padding-bottom: m.$space-1;
+  }
+
+  calendar > header > button {
+    @include states.states(states.$flat, $on: null);
+  }
+
+  calendar > grid {
+    padding: m.$space-1;
+  }
+
+  calendar > grid > label.day-name,
+  calendar > grid > label.week-number {
+    color: mat.c(on_surface_variant);
+    font-weight: bold;
+  }
+
+  calendar > grid > label.day-number {
+    min-width: 24px;
+    min-height: 24px;
+    padding: 2px;
+    border-radius: m.$radius-small;
+    @include states.states(states.$row, $on: ":selected");
+  }
+
+  calendar > grid > label.day-number.other-month {
+    color: mat.c(disabled);
+  }
+
+  // today: the accent edge, so it stays distinct from the selected day.
+  calendar > grid > label.today {
+    box-shadow: inset 0 0 0 m.$border mat.c(primary);
+    font-weight: bold;
+  }
+
+  calendar > grid > label.today:selected {
+    box-shadow: none;
+  }
+}

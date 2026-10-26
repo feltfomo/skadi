@@ -1,0 +1,244 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../mixins";
+
+* {
+  -gtk-icon-shadow: none;
+  text-shadow: none;
+  -gtk-secondary-caret-color: mat.c(primary);
+  @if target.is(3) {
+    // gtk3 paints this only through gtk_render_focus, which already checks
+    // that focus is visible, so one global ring covers every widget that
+    // draws focus. widgets on accent fills recolor it in their recipes.
+    outline-color: mat.c(primary);
+    outline-style: solid;
+    outline-width: m.$focus-width;
+    outline-offset: m.$focus-offset;
+  } @else {
+    outline: 0 solid transparent;
+    outline-offset: m.$focus-offset;
+  }
+}
+
+// font sits on the roots and inherits, so an app's own font rule on a text
+// view or document still wins.
+window,
+tooltip,
+popover,
+menu,
+.background {
+  @include mixins.chrome-font;
+}
+
+window.background,
+.background {
+  background-color: mat.c(shell);
+  color: mat.c(on_surface);
+}
+
+.content-view {
+  background-color: mat.c(shell);
+}
+
+separator {
+  background-color: mat.c(border);
+  min-width: 1px;
+  min-height: 1px;
+}
+
+separator.horizontal {
+  min-width: 0;
+}
+
+separator.vertical {
+  min-height: 0;
+}
+
+separator.spacer {
+  background-color: transparent;
+}
+
+frame > border,
+.frame {
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  box-shadow: none;
+}
+
+frame > border:backdrop,
+.frame:backdrop {
+  border-color: mat.c(border);
+}
+
+frame.flat > border,
+.frame.flat {
+  border-color: transparent;
+}
+
+viewport {
+  background-color: transparent;
+}
+
+scrolledwindow > overshoot,
+scrolledwindow > undershoot,
+scrolledwindow overshoot,
+scrolledwindow undershoot {
+  background-image: none;
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+scrolledwindow > junction,
+junction {
+  background-color: mat.c(shell);
+  border: 0 solid mat.c(border);
+}
+
+scrolledwindow.frame > junction {
+  border-width: 1px 0 0 1px;
+}
+
+// links: primary, visited ones take the tertiary role so history reads at a
+// glance without inventing a new hue.
+label:link,
+button.link,
+button.link label,
+link {
+  color: mat.c(primary);
+}
+
+label:visited,
+button.link:visited,
+button.link:visited label,
+link:visited {
+  color: mat.c(tertiary);
+}
+
+label:link:hover,
+button.link:hover label,
+link:hover {
+  text-decoration-line: underline;
+}
+
+label:disabled,
+image:disabled {
+  color: mat.c(disabled);
+}
+
+// text selection is the same primary/on-primary pair as row selection, so
+// selected text never looks like a different kind of state.
+selection,
+entry selection,
+label selection,
+text selection,
+textview text selection {
+  background-color: mat.c(primary);
+  color: mat.c(on_primary);
+}
+
+selection:backdrop,
+entry selection:backdrop,
+label selection:backdrop,
+text selection:backdrop {
+  background-color: mat.c(accent_disabled);
+  color: mat.c(on_primary);
+}
+
+label.error,
+.error {
+  color: mat.c(error);
+}
+
+label.warning,
+.warning {
+  color: mat.c(warning);
+}
+
+label.success,
+.success {
+  color: mat.c(success);
+}
+
+.accent {
+  color: mat.c(primary);
+}
+
+rubberband,
+.rubberband,
+flowbox rubberband,
+treeview.view rubberband,
+.content-view rubberband {
+  border: m.$border solid mat.c(primary);
+  background-color: mat.c(rubberband);
+  border-radius: 0;
+}
+
+// drag-and-drop targets use the tertiary family everywhere, so a drop zone
+// never looks like a selection.
+*:drop(active) {
+  outline: m.$focus-width solid mat.c(tertiary);
+  outline-offset: -2px;
+}
+
+textview,
+textview > text,
+textview text {
+  background-color: mat.c(well);
+  color: mat.c(on_surface);
+  caret-color: mat.c(on_surface);
+}
+
+textview:disabled,
+textview text:disabled {
+  color: mat.c(disabled);
+}
+
+textview border {
+  background-color: mat.c(panel);
+  color: mat.c(on_surface_variant);
+}
+
+@if target.is(3) {
+  .icon-dropshadow {
+    -gtk-icon-shadow: 0 1px 12px mat.c(shade), 0 1px 3px mat.c(shadow);
+  }
+
+  .lowres-icon {
+    -gtk-icon-shadow: 0 1px 2px mat.c(shadow);
+  }
+} @else {
+  .icon-dropshadow {
+    -gtk-icon-filter: drop-shadow(0 1px 12px mat.c(shade)) drop-shadow(0 1px 3px mat.c(shadow));
+  }
+
+  .lowres-icon {
+    -gtk-icon-filter: drop-shadow(0 1px 2px mat.c(shadow));
+  }
+
+  .large-icons {
+    -gtk-icon-size: 32px;
+  }
+
+  .normal-icons {
+    -gtk-icon-size: 16px;
+  }
+
+  picture,
+  video {
+    background-color: transparent;
+  }
+
+  video {
+    background-color: mat.c(well);
+  }
+
+  video image.osd {
+    min-width: 64px;
+    min-height: 64px;
+    border-radius: 32px;
+    background-color: mat.c(osd);
+    color: mat.c(on_surface);
+  }
+}

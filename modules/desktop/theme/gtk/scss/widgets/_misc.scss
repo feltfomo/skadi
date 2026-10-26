@@ -1,0 +1,193 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+@keyframes spin {
+  to {
+    -gtk-icon-transform: rotate(1turn);
+  }
+}
+
+spinner {
+  min-width: 16px;
+  min-height: 16px;
+  background: none;
+  opacity: 0;
+  color: mat.c(primary);
+  -gtk-icon-source: -gtk-icontheme("process-working-symbolic");
+}
+
+spinner:checked {
+  opacity: 1;
+  animation: spin 1s linear infinite;
+}
+
+spinner:checked:disabled {
+  opacity: 0.5;
+}
+
+spinner:backdrop {
+  color: mat.c(on_surface_variant);
+}
+
+expander title > arrow,
+expander-widget > box > title > expander {
+  min-width: 16px;
+  min-height: 16px;
+  color: mat.c(on_surface_variant);
+  @include mixins.icon(right);
+}
+
+expander title > arrow:dir(rtl),
+expander-widget > box > title > expander:dir(rtl) {
+  @include mixins.icon(left);
+}
+
+expander title > arrow:checked,
+expander-widget > box > title > expander:checked {
+  @include mixins.icon(down);
+}
+
+expander title > arrow:hover,
+expander-widget > box > title:hover > expander {
+  color: mat.c(on_surface);
+}
+
+expander title > arrow:disabled,
+expander-widget > box > title > expander:disabled {
+  color: mat.c(disabled);
+}
+
+expander title,
+expander-widget > box > title {
+  border-radius: m.$radius-small;
+  @include states.states(states.$flat, $on: null, $transition: false);
+  border-style: none;
+}
+
+// keyboard shortcut labels: keycaps are chips.
+.keycap {
+  min-width: 16px;
+  min-height: 20px;
+  padding: 0 m.$space-1;
+  border: m.$border solid mat.c(border);
+  border-bottom-width: 2px;
+  border-radius: m.$radius-small;
+  background-color: mat.c(secondary_container);
+  color: mat.c(on_secondary_container);
+  font-size: 11px;
+}
+
+shortcut > .keycap,
+shortcut .keycap {
+  margin: 0 1px;
+}
+
+shortcut#{target.focus-visible()} {
+  outline: m.$focus-width solid mat.c(primary);
+}
+
+shortcuts-section {
+  margin: m.$space-3;
+}
+
+.shortcuts-search-results {
+  margin: m.$space-3;
+}
+
+// generic icon/tile buttons (GtkIconView-like tiles in some file managers).
+.tile {
+  border-radius: m.$radius-small;
+}
+
+.tile:active {
+  background-color: mat.c(pressed);
+}
+
+.tile:selected {
+  background-color: mat.c(primary);
+  color: mat.c(on_primary);
+}
+
+.tile:disabled {
+  color: mat.c(disabled);
+}
+
+.tile:backdrop {
+  color: mat.c(on_surface);
+}
+
+// selection checks drawn over thumbnails.
+.content-view.check,
+.content-view .check {
+  color: mat.c(on_primary);
+  background-color: mat.c(primary);
+  border-radius: m.$radius-small;
+}
+
+@if target.is(3) {
+  // legacy class-based states some gtk3 apps (and gtkstyle Qt) still use.
+  .button {
+    @include states.states(states.$button);
+  }
+
+  .menuitem {
+    @include states.states(states.$menuitem, $on: null);
+  }
+
+  .gtkstyle-fallback {
+    background-color: mat.c(shell);
+    color: mat.c(on_surface);
+  }
+
+  .gtkstyle-fallback:hover {
+    background-color: mat.c(hover);
+  }
+
+  .gtkstyle-fallback:active {
+    background-color: mat.c(pressed);
+  }
+
+  .gtkstyle-fallback:selected {
+    background-color: mat.c(primary);
+    color: mat.c(on_primary);
+  }
+
+  .gtkstyle-fallback:disabled {
+    color: mat.c(disabled);
+  }
+
+  .magnifier {
+    background-color: mat.c(well);
+  }
+
+  .touch-selection {
+    background-color: mat.c(osd);
+    color: mat.c(on_surface);
+  }
+} @else {
+  dnd {
+    color: mat.c(on_surface);
+  }
+
+  cover,
+  coverflow cover {
+    background-color: mat.c(panel);
+    border: m.$border solid mat.c(border);
+  }
+
+  .drawing {
+    background-color: mat.c(well);
+  }
+}
+
+// terminals (VTE) read padding and default colors from the theme. the deepest
+// surface keeps scrollback distinct from the app chrome around it.
+vte-terminal,
+terminal-window vte-terminal {
+  background-color: mat.c(well);
+  color: mat.c(on_surface);
+  padding: m.$space-1;
+}

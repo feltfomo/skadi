@@ -1,0 +1,47 @@
+// gtk4 reads system contrast and motion preferences through @media (4.20+);
+// gtk3 has no @media, so these exist only in the gtk4 build.
+@use "../target";
+@use "../materials" as mat;
+
+@if target.is(4) {
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none;
+    }
+
+    spinner:checked {
+      animation: none;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    * {
+      outline-color: mat.c(on_surface);
+    }
+
+    button,
+    entry,
+    spinbutton,
+    check,
+    radio,
+    switch,
+    frame > border,
+    .frame,
+    popover > contents,
+    tooltip {
+      border-color: mat.c(on_surface);
+    }
+
+    row:selected,
+    button:checked,
+    button.suggested-action {
+      border-color: mat.c(on_primary);
+    }
+
+    .dim-label,
+    .dimmed,
+    .subtitle {
+      color: mat.c(on_surface);
+    }
+  }
+}

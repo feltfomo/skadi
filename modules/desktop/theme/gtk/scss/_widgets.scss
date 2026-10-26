@@ -1,0 +1,22 @@
+// order matters only where two partials style the same node with equal
+// specificity; base first, containers before the things nested in them.
+@use "widgets/base";
+@use "widgets/typography";
+@use "widgets/buttons";
+@use "widgets/entries";
+@use "widgets/checks";
+@use "widgets/ranges";
+@use "widgets/scrolling";
+@use "widgets/views";
+@use "widgets/sidebars";
+@use "widgets/notebook";
+@use "widgets/windows";
+@use "widgets/toolbars";
+@use "widgets/menus";
+@use "widgets/popovers";
+@use "widgets/infobar";
+@use "widgets/calendar";
+@use "widgets/dialogs";
+@use "widgets/misc";
+@use "widgets/selected";
+@use "widgets/accessibility";

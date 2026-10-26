@@ -1,0 +1,89 @@
+@use "sass:list";
+@use "../gtk";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+
+avatar {
+  border-radius: 9999px;
+  font-weight: bold;
+  background-color: mat.c(secondary_container);
+  color: mat.c(on_secondary_container);
+}
+
+avatar.contrasted {
+  background-color: mat.c(on_surface_variant);
+  color: mat.c(surface);
+}
+
+avatar.image {
+  background-color: transparent;
+}
+
+// libadwaita picks one of 14 avatar colors from a hash of the name. rotating
+// through palette containers keeps avatars distinct while staying on palette.
+$_avatar-pairs: (
+  (secondary_container, on_secondary_container),
+  (tertiary_container, on_tertiary_container),
+  (primary, on_primary),
+  (secondary, on_secondary),
+  (tertiary, on_tertiary),
+  (error_container, on_error_container),
+  (warning_container, on_warning_container),
+);
+
+@for $i from 1 through 14 {
+  $pair: list.nth($_avatar-pairs, ($i - 1) % list.length($_avatar-pairs) + 1);
+  // the second round of seven sits on a darker shade so neighbours differ.
+  $bg: mat.c(list.nth($pair, 1));
+  @if $i > list.length($_avatar-pairs) {
+    $bg: gtk.mix($bg, mat.c(surface), 0.25);
+  }
+
+  avatar.color#{$i} {
+    background-color: $bg;
+    color: mat.c(list.nth($pair, 2));
+  }
+}
+
+// development builds keep their visible indicator: tertiary stripe.
+window.devel headerbar,
+window.devel toolbarview > .top-bar {
+  box-shadow: inset 0 -2px mat.c(tertiary);
+}
+
+shortcut-label {
+  border-spacing: m.$space-1;
+}
+
+dialog.shortcuts .navigation-box {
+  padding: m.$space-2;
+}
+
+dialog.shortcuts .navigation-box > button {
+  @include states.states(states.$flat, $on: null);
+}
+
+dialog.shortcuts .shortcut-row .title-box > .subtitle {
+  color: mat.c(on_surface_variant);
+}
+
+.osd row.activatable:hover,
+.osd list.boxed-list > row.activatable:hover {
+  background-color: mat.c(hover);
+}
+
+.osd .card,
+.osd list.boxed-list {
+  background-color: mat.c(osd);
+}
+
+.osd link,
+.osd button.link {
+  color: mat.c(primary);
+}
+
+.osd link:visited,
+.osd button.link:visited {
+  color: mat.c(tertiary);
+}

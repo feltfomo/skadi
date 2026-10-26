@@ -1,0 +1,142 @@
+// view switchers, toggle groups and the badges they carry.
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+viewswitcher {
+  border-spacing: 2px;
+}
+
+viewswitcher button.toggle {
+  padding: m.$space-1 m.$space-2;
+  border-radius: m.$radius-small;
+  @include states.states(states.$tab);
+  @include mixins.on-accent-content(":checked");
+}
+
+viewswitcher button.toggle > stack > box.wide {
+  border-spacing: m.$space-2;
+}
+
+viewswitcher button.toggle > stack > box.narrow {
+  border-spacing: 2px;
+}
+
+viewswitcher button.toggle > stack > box.narrow > label {
+  font-size: 11px;
+}
+
+viewswitcher.narrow button.toggle {
+  padding: 2px m.$space-1;
+}
+
+viewswitcherbar actionbar > revealer > box {
+  padding: m.$space-1;
+}
+
+viewswitchertitle viewswitcher {
+  margin: 0 m.$space-2;
+}
+
+viewswitchertitle windowtitle {
+  padding: 0;
+}
+
+// badges: the secondary family; needs-attention flips to the filled secondary.
+indicatorbin > indicator,
+indicatorbin > mask {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 9999px;
+  background-color: mat.c(secondary);
+}
+
+indicatorbin.needs-attention > indicator {
+  background-color: mat.c(secondary);
+}
+
+indicatorbin.badge > indicator,
+indicatorbin.badge > mask {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0 m.$space-1;
+}
+
+indicatorbin.badge > indicator {
+  background-color: mat.c(secondary_container);
+  color: mat.c(on_secondary_container);
+}
+
+indicatorbin.badge > indicator > label {
+  font-size: 9px;
+  font-weight: bold;
+}
+
+indicatorbin.badge.needs-attention > indicator {
+  background-color: mat.c(secondary);
+}
+
+indicatorbin.badge.needs-attention > indicator > label {
+  color: mat.c(on_secondary);
+}
+
+// toggle groups: the Noctalia segmented control. pale accent for the active
+// segment, hairline separators between the rest.
+toggle-group {
+  padding: 2px;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  background-color: mat.c(panel);
+  border-spacing: 2px;
+}
+
+toggle-group > toggle {
+  min-height: 20px;
+  padding: 2px m.$space-2;
+  border-radius: 2px;
+  @include states.states(states.$tab);
+}
+
+toggle-group > toggle.image-button {
+  padding: 2px m.$space-1;
+}
+
+toggle-group > toggle.image-text-button > buttoncontent > box > label,
+toggle-group > toggle.text-button > label {
+  font-weight: normal;
+}
+
+toggle-group > separator {
+  margin: m.$space-1 0;
+  background-color: mat.c(border);
+}
+
+toggle-group > separator.hidden {
+  background-color: transparent;
+}
+
+toggle-group.flat {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+toggle-group.round,
+toggle-group.round > toggle {
+  border-radius: 9999px;
+}
+
+toggle-group.osd,
+.osd toggle-group {
+  background-color: mat.c(osd);
+}
+
+inline-view-switcher > toggle-group.labels > toggle,
+inline-view-switcher > toggle-group.icons > toggle,
+inline-view-switcher > toggle-group.both > toggle {
+  min-height: 20px;
+}
+
+inline-view-switcher > toggle-group > toggle > widget > indicatorbin > label {
+  padding: 0 m.$space-1;
+}

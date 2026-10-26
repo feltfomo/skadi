@@ -1,0 +1,171 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+checkbutton,
+radiobutton {
+  min-height: m.$control-height;
+  padding: 2px;
+  border-radius: m.$radius-small;
+  @if target.is(4) {
+    @include mixins.spacing(m.$space-1);
+    outline: 0 solid transparent;
+    outline-offset: -2px;
+  }
+}
+
+checkbutton#{target.focus-visible()},
+radiobutton#{target.focus-visible()} {
+  outline-color: mat.c(primary);
+  outline-width: m.$focus-width;
+}
+
+checkbutton > label,
+radiobutton > label {
+  padding: 0 m.$space-1;
+}
+
+checkbutton:disabled > label,
+radiobutton:disabled > label {
+  color: mat.c(disabled);
+}
+
+check,
+radio {
+  min-height: 16px;
+  min-width: 16px;
+  margin: 2px;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  -gtk-icon-source: none;
+  @include states.states(states.$indicator, $focus: none);
+  @if target.is(4) {
+    -gtk-icon-size: 14px;
+  }
+}
+
+// checked/indeterminate share the accent fill; the glyph says which.
+check:indeterminate,
+radio:indeterminate {
+  background-color: mat.c(primary);
+  border-color: mat.c(primary);
+  color: mat.c(on_primary);
+}
+
+check:indeterminate:disabled,
+radio:indeterminate:disabled {
+  background-color: mat.c(accent_disabled);
+  border-color: mat.c(accent_disabled);
+}
+
+radio {
+  border-radius: 9999px;
+}
+
+check:checked {
+  @include mixins.icon(check);
+}
+
+radio:checked {
+  @include mixins.icon(dot);
+}
+
+check:indeterminate,
+radio:indeterminate {
+  @include mixins.icon(dash);
+}
+
+// menu checks and radios sit flush with the label.
+menuitem check,
+menuitem radio,
+modelbutton check,
+modelbutton radio {
+  margin: 0 m.$space-1 0 0;
+}
+
+menuitem check:dir(rtl),
+menuitem radio:dir(rtl),
+modelbutton check:dir(rtl),
+modelbutton radio:dir(rtl) {
+  margin: 0 0 0 m.$space-1;
+}
+
+// switch: square-ish track, the knob is the only moving part.
+switch {
+  min-width: 40px;
+  min-height: 20px;
+  padding: 2px;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  @include states.states(states.$indicator);
+
+  > slider,
+  slider {
+    min-width: 16px;
+    min-height: 16px;
+    margin: 0;
+    border: 0;
+    border-radius: 2px;
+    background-image: none;
+    background-color: mat.c(on_surface_variant);
+    box-shadow: none;
+    transition: background-color m.$transition-duration ease-out;
+  }
+
+  &:hover > slider,
+  &:hover slider {
+    background-color: mat.c(on_surface);
+  }
+
+  &:checked > slider,
+  &:checked slider {
+    background-color: mat.c(on_primary);
+  }
+
+  &:disabled > slider,
+  &:disabled slider {
+    background-color: mat.c(disabled);
+  }
+
+  &:checked:disabled > slider,
+  &:checked:disabled slider {
+    background-color: mat.c(on_primary);
+  }
+
+  // the on/off glyphs are noise at this size.
+  > image,
+  image {
+    color: transparent;
+    -gtk-icon-source: none;
+  }
+}
+
+// libadwaita selection-mode checks (grids of selectable items) are round and
+// larger so they read over thumbnails.
+@if target.is(4) {
+  checkbutton.selection-mode {
+    border-radius: 9999px;
+  }
+
+  checkbutton.selection-mode > check {
+    min-width: 20px;
+    min-height: 20px;
+    border-radius: 9999px;
+  }
+
+  checkbutton.grouped > check {
+    border-radius: 9999px;
+  }
+}
+
+.osd check,
+.osd radio {
+  background-color: mat.c(osd);
+}
+
+.osd check:checked,
+.osd radio:checked {
+  background-color: mat.c(primary);
+}

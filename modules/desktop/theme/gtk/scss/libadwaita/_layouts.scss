@@ -1,0 +1,131 @@
+// split views, navigation views and AdwSidebar. one continuous shell material
+// across sidebar and bars; the content pane is the same frame, divided by a
+// hairline rather than a second tint.
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+.sidebar-pane,
+.content-pane {
+  background-color: mat.c(shell);
+  color: mat.c(on_surface);
+}
+
+.sidebar-pane:backdrop,
+.content-pane:backdrop {
+  background-color: mat.c(shell);
+}
+
+.sidebar-pane:dir(ltr),
+.sidebar-pane.start:dir(ltr) {
+  border-right: m.$border solid mat.c(border);
+}
+
+.sidebar-pane:dir(rtl),
+.sidebar-pane.start:dir(rtl) {
+  border-left: m.$border solid mat.c(border);
+}
+
+.sidebar-pane.end:dir(ltr) {
+  border-right-style: none;
+  border-left: m.$border solid mat.c(border);
+}
+
+.sidebar-pane.end:dir(rtl) {
+  border-left-style: none;
+  border-right: m.$border solid mat.c(border);
+}
+
+overlay-split-view > border {
+  min-width: 1px;
+  min-height: 1px;
+  background-color: mat.c(border);
+}
+
+overlay-split-view > shadow,
+overlay-split-view > shadow.left,
+overlay-split-view > shadow.right,
+overlay-split-view > shadow.up,
+overlay-split-view > shadow.down {
+  min-width: 8px;
+  min-height: 8px;
+  background-image: none;
+  background-color: transparent;
+}
+
+overlay-split-view > shadow.left {
+  box-shadow: inset 1px 0 mat.c(shade);
+}
+
+overlay-split-view > shadow.right {
+  box-shadow: inset -1px 0 mat.c(shade);
+}
+
+overlay-split-view > shadow.up {
+  box-shadow: inset 0 1px mat.c(shade);
+}
+
+overlay-split-view > shadow.down {
+  box-shadow: inset 0 -1px mat.c(shade);
+}
+
+navigation-view,
+navigation-view > widget {
+  background-color: mat.c(shell);
+}
+
+// AdwSidebar (1.9) and the view-switcher sidebar reuse navigation-sidebar rows.
+sidebar,
+view-switcher-sidebar {
+  background-color: mat.c(shell);
+}
+
+sidebar .navigation-sidebar > row > box,
+view-switcher-sidebar .navigation-sidebar > row > box {
+  border-spacing: m.$space-2;
+}
+
+sidebar .navigation-sidebar > row > box > .icon {
+  color: mat.c(on_surface_variant);
+}
+
+sidebar .navigation-sidebar > row:selected > box > .icon {
+  color: inherit;
+}
+
+sidebar list.content .arrow,
+sidebar .arrow {
+  @include mixins.icon(right);
+  color: mat.c(on_surface_variant);
+}
+
+view-switcher-sidebar .dot,
+.navigation-sidebar .dot {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 9999px;
+  background-color: mat.c(secondary);
+}
+
+.navigation-sidebar > .header > .heading,
+.navigation-sidebar > .header.first > .heading,
+.navigation-sidebar > listview.header > header {
+  padding: m.$space-2 m.$space-3 m.$space-1;
+  font-size: 11px;
+  font-weight: bold;
+  color: mat.c(on_surface_variant);
+}
+
+.navigation-sidebar > .header > separator {
+  margin: m.$space-1 m.$space-2;
+}
+
+clamp {
+  background-color: transparent;
+}
+
+carouselindicatordots,
+carouselindicatorlines {
+  color: mat.c(primary);
+}

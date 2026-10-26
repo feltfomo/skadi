@@ -1,0 +1,359 @@
+// header bars, title buttons and window frames. hyprland already applies
+// window opacity and blur here, so frames stay opaque and shadows restrained.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+headerbar,
+.titlebar:not(headerbar) {
+  min-height: m.$bar-height;
+  padding: m.$space-1 m.$space-2;
+  border: 0 solid mat.c(border);
+  border-bottom-width: m.$border;
+  @include mixins.bar;
+}
+
+headerbar:backdrop,
+.titlebar:backdrop {
+  background-color: mat.c(shell);
+  color: mat.c(on_surface_variant);
+}
+
+headerbar .title,
+.titlebar .title {
+  font-weight: bold;
+  padding: 0 m.$space-3;
+}
+
+headerbar .subtitle,
+.titlebar .subtitle {
+  font-size: 11px;
+  color: mat.c(on_surface_variant);
+  padding: 0 m.$space-3;
+}
+
+headerbar:backdrop .title {
+  color: mat.c(on_surface_variant);
+}
+
+// bar buttons are flat; plain type selectors keep the specificity low so
+// state classes like .suggested-action and .close still win below.
+headerbar button {
+  @include states.states(states.$flat);
+}
+
+headerbar .linked > button,
+headerbar stackswitcher button {
+  @include states.states(states.$button);
+}
+
+headerbar button.suggested-action {
+  @include states.states(states.$suggested);
+}
+
+headerbar button.destructive-action {
+  @include states.states(states.$destructive);
+}
+
+// gtk4 stack switchers are toggle buttons too, so only menu buttons get the
+// pressed look while their popup is open; switchers keep the accent fill.
+$popup-toggle: "headerbar button.toggle:checked";
+@if target.is(4) {
+  $popup-toggle: "headerbar menubutton > button.toggle:checked";
+}
+
+#{$popup-toggle} {
+  background-color: mat.c(pressed);
+  color: mat.c(on_surface);
+  border-color: mat.c(border_strong);
+}
+
+headerbar separator {
+  background-color: transparent;
+  min-width: m.$space-1;
+}
+
+headerbar switch {
+  margin: m.$space-1 0;
+}
+
+headerbar entry,
+headerbar spinbutton {
+  margin: 0;
+}
+
+headerbar.titlebar headerbar:not(.titlebar) {
+  border-bottom-width: 0;
+}
+
+window separator + headerbar,
+window stack headerbar {
+  border-bottom-width: m.$border;
+}
+
+// maximized, fullscreen and tiled windows lose the rounded frame.
+window.maximized headerbar,
+window.fullscreen headerbar,
+window.tiled headerbar,
+window.tiled-top headerbar,
+window.tiled-bottom headerbar,
+window.tiled-left headerbar,
+window.tiled-right headerbar,
+window.solid-csd headerbar,
+.maximized headerbar,
+.fullscreen headerbar,
+.tiled headerbar,
+.tiled-top headerbar,
+.tiled-bottom headerbar,
+.tiled-left headerbar,
+.tiled-right headerbar,
+.solid-csd headerbar {
+  border-radius: 0;
+}
+
+// development builds keep a visible indicator: a tertiary stripe under the
+// title bar.
+window.devel headerbar.titlebar,
+window.devel .titlebar {
+  box-shadow: inset 0 -2px mat.c(tertiary);
+}
+
+// gtk3 selection mode (e.g. file managers picking items) is a distinct window
+// mode, so it takes the tertiary container instead of the accent.
+headerbar.selection-mode,
+.selection-mode headerbar {
+  background-color: mat.c(tertiary_container);
+  color: mat.c(on_tertiary_container);
+  border-color: mat.c(tertiary);
+
+  label,
+  .subtitle,
+  .title {
+    color: mat.c(on_tertiary_container);
+  }
+
+  button {
+    @include states.states(states.on-fill-role(on_tertiary_container));
+  }
+
+  button.suggested-action {
+    background-color: mat.c(tertiary);
+    border-color: mat.c(tertiary);
+    color: mat.c(on_tertiary);
+  }
+
+  button.suggested-action:hover {
+    background-color: mat.c(on_tertiary_container);
+    color: mat.c(tertiary_container);
+  }
+
+  .selection-menu {
+    padding: m.$space-1 m.$space-2;
+  }
+
+  .selection-menu arrow,
+  .selection-menu .arrow {
+    @include mixins.icon(down);
+  }
+}
+
+// title buttons stay flat; close turns to the error pair on hover so it is
+// recognisable without a permanent red dot.
+button.titlebutton,
+windowcontrols > button {
+  min-width: 20px;
+  min-height: 20px;
+  padding: 2px;
+  margin: 0 2px;
+  border-radius: m.$radius-small;
+  @include states.states(states.$flat, $on: null);
+}
+
+button.titlebutton.close:hover,
+windowcontrols > button.close:hover {
+  background-color: mat.c(error);
+  color: mat.c(on_error);
+}
+
+button.titlebutton.close:active,
+windowcontrols > button.close:active {
+  background-color: mat.c(error_pressed);
+  color: mat.c(on_error);
+}
+
+headerbar.default-decoration {
+  min-height: 24px;
+  padding: 2px m.$space-1;
+}
+
+headerbar.default-decoration button.titlebutton,
+headerbar.default-decoration windowcontrols button {
+  min-width: 16px;
+  min-height: 16px;
+  margin: 0;
+  padding: 2px;
+}
+
+@if target.is(4) {
+  headerbar > windowhandle > box {
+    @include mixins.spacing(m.$space-1);
+  }
+
+  headerbar > windowhandle > box > box.start,
+  headerbar > windowhandle > box > box.end {
+    @include mixins.spacing(m.$space-1);
+  }
+
+  windowcontrols {
+    @include mixins.spacing(2px);
+  }
+
+  // libadwaita paints a round tinted disc behind each control icon; the
+  // button itself carries the state here.
+  windowcontrols > button > image {
+    background-color: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  windowcontrols.start > image.icon {
+    margin: 0 m.$space-1;
+  }
+
+  windowhandle {
+    background-color: transparent;
+  }
+
+  headerbar menubutton > button,
+  headerbar dropdown > button {
+    @include states.states(states.$flat);
+  }
+
+  headerbar progressbar > trough,
+  headerbar scale > trough {
+    background-color: mat.c(field);
+  }
+
+  headerbar.default-decoration windowcontrols menubutton button {
+    min-height: 16px;
+  }
+
+  // gtk4 has no decoration node; the window itself carries frame and shadow.
+  window.csd {
+    border-radius: m.$radius-floating m.$radius-floating 0 0;
+    box-shadow: m.$shadow-floating-offset mat.c(shadow), 0 0 0 m.$border mat.c(border);
+    outline: 0 solid transparent;
+  }
+
+  window.csd:backdrop {
+    box-shadow: 0 4px 16px mat.c(shade), 0 0 0 m.$border mat.c(border);
+  }
+
+  window.csd.popup,
+  window.csd.dialog.message {
+    border-radius: m.$radius-floating;
+  }
+
+  window.solid-csd {
+    box-shadow: inset 0 0 0 m.$border mat.c(border);
+  }
+
+  window.maximized,
+  window.fullscreen,
+  window.tiled,
+  window.tiled-top,
+  window.tiled-bottom,
+  window.tiled-left,
+  window.tiled-right {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  window.ssd {
+    box-shadow: none;
+  }
+
+  window.popup {
+    background-color: transparent;
+  }
+} @else {
+  decoration {
+    border-radius: m.$radius-floating m.$radius-floating 0 0;
+    border: 0;
+    box-shadow: m.$shadow-floating-offset mat.c(shadow), 0 0 0 m.$border mat.c(border);
+    margin: m.$space-2;
+  }
+
+  decoration:backdrop {
+    box-shadow: 0 4px 16px mat.c(shade), 0 0 0 m.$border mat.c(border);
+  }
+
+  .maximized decoration,
+  .fullscreen decoration,
+  .tiled decoration,
+  .tiled-top decoration,
+  .tiled-bottom decoration,
+  .tiled-left decoration,
+  .tiled-right decoration {
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+  }
+
+  .popup decoration {
+    box-shadow: none;
+  }
+
+  .csd.popup decoration,
+  menubar .csd.popup decoration,
+  .menubar .csd.popup decoration {
+    border-radius: m.$radius-floating;
+    box-shadow: m.$shadow-floating-offset mat.c(shadow), 0 0 0 m.$border mat.c(border_strong);
+  }
+
+  .ssd decoration {
+    box-shadow: 0 0 0 m.$border mat.c(border);
+  }
+
+  .ssd.maximized decoration {
+    box-shadow: none;
+  }
+
+  .solid-csd decoration {
+    margin: 0;
+    padding: 4px;
+    background-color: mat.c(border);
+    border: m.$border solid mat.c(border);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  tooltip.csd decoration,
+  tooltip decoration {
+    background-color: transparent;
+    box-shadow: none;
+  }
+
+  messagedialog.csd decoration {
+    border-radius: m.$radius-floating;
+  }
+
+  window.csd > .titlebar:not(headerbar) {
+    padding: 0;
+    background-color: transparent;
+    border-style: none;
+    box-shadow: none;
+  }
+
+  .default-decoration.titlebar {
+    min-height: 24px;
+  }
+}
+
+window.csd > .titlebar,
+window.csd > headerbar {
+  border-top-left-radius: m.$radius-floating;
+  border-top-right-radius: m.$radius-floating;
+}

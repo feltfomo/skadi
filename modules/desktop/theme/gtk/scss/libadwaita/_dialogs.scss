@@ -1,0 +1,164 @@
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+dialog-host > dialog.background,
+dialog-host > dialog.view {
+  background-color: transparent;
+}
+
+dialog-host > dialog.background sheet,
+floating-sheet > sheet {
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+  border-radius: m.$radius-floating;
+  box-shadow: m.$shadow-floating-offset mat.c(shadow), 0 0 0 m.$border mat.c(border_strong);
+}
+
+floating-sheet > dimming,
+bottom-sheet > dimming,
+overlay-split-view > dimming {
+  background-color: mat.c(shade);
+}
+
+window.dialog-window,
+dialog.dialog-window {
+  background-color: mat.c(panel);
+}
+
+// alert dialogs: compact message area, responses on a hairline-topped row.
+dialog.alert sheet {
+  border-radius: m.$radius-floating;
+}
+
+dialog.alert .message-area {
+  padding: m.$space-4 m.$space-4 m.$space-3;
+  border-spacing: m.$space-3;
+}
+
+dialog.alert .message-area.has-heading.has-body {
+  border-spacing: m.$space-2;
+}
+
+dialog.alert .message-area > .child {
+  margin-top: m.$space-2;
+}
+
+dialog.alert .heading-bin .heading,
+dialog.alert .message-area .title-2 {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+dialog.alert .body-scrolled-window {
+  background-color: transparent;
+}
+
+dialog.alert .response-area {
+  padding: m.$space-3;
+  border-spacing: m.$space-2;
+  border-top: m.$border solid mat.c(border);
+}
+
+dialog.alert .response-area > button {
+  min-height: 32px;
+}
+
+dialog.alert.short .message-area {
+  padding: m.$space-3;
+}
+
+dialog.alert.short .response-area {
+  padding: m.$space-2;
+}
+
+.messagedialog,
+.messagedialog .response-area {
+  background-color: mat.c(panel);
+}
+
+.messagedialog .response-area > button {
+  min-height: 32px;
+}
+
+dialog.about .main-page > viewport > clamp > box {
+  margin: m.$space-4 m.$space-3;
+  border-spacing: m.$space-3;
+}
+
+dialog.about .main-page .app-version {
+  padding: 2px m.$space-2;
+  border-radius: m.$radius-small;
+  background-color: mat.c(secondary_container);
+  color: mat.c(on_secondary_container);
+}
+
+dialog.about .subpage > viewport > clamp > box,
+dialog.about .subpage > clamp > textview {
+  margin: m.$space-3;
+}
+
+dialog.about .subpage > clamp > textview {
+  background-color: transparent;
+}
+
+// bottom sheets slide up on narrow windows.
+bottom-sheet > sheet {
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+  border-top-left-radius: m.$radius-floating;
+  border-top-right-radius: m.$radius-floating;
+  box-shadow: 0 -4px 16px mat.c(shade);
+}
+
+bottom-sheet > sheet > outline {
+  border-top-left-radius: m.$radius-floating;
+  border-top-right-radius: m.$radius-floating;
+  box-shadow: inset 0 m.$border mat.c(border_strong);
+}
+
+bottom-sheet > sheet.flush-left,
+bottom-sheet > sheet.flush-left > outline {
+  border-top-left-radius: 0;
+}
+
+bottom-sheet > sheet.flush-right,
+bottom-sheet > sheet.flush-right > outline {
+  border-top-right-radius: 0;
+}
+
+bottom-sheet > sheet.bottom-bar {
+  background-color: mat.c(shell);
+}
+
+bottom-sheet > sheet.bottom-bar.hidden {
+  box-shadow: none;
+}
+
+bottom-sheet > sheet > stack > widget > drag-handle,
+drag-handle {
+  min-width: 32px;
+  min-height: 4px;
+  margin: m.$space-2;
+  border-radius: 9999px;
+  background-color: mat.c(border_strong);
+}
+
+bottom-sheet > sheet > stack > button {
+  @include states.states(states.$flat, $on: null);
+  border-radius: 0;
+}
+
+bottom-sheet > sheet > stack > button.inert:hover,
+bottom-sheet > sheet > stack > button.inert:active {
+  background-color: transparent;
+}
+
+bottom-sheet > sheet.has-drag-handle toolbarview .top-bar > windowhandle {
+  padding-top: m.$space-2;
+}
+
+.bottom-sheet {
+  background-color: mat.c(panel);
+}

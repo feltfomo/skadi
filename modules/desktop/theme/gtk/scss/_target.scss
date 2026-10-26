@@ -1,0 +1,25 @@
+// entry points configure this with `@use "target" with ($gtk: 3)` before any
+// other module loads it, so every partial sees the same toolkit version.
+$gtk: 4 !default;
+
+@function is($version) {
+  @return $gtk == $version;
+}
+
+// gtk3 parses `:focus-visible` as `:focus` plus a descendant node named
+// `-visible` without a warning, and has no `:focus-within`. gtk3 only paints
+// outlines through gtk_render_focus, which already checks visible focus, so
+// plain `:focus` behaves like `:focus-visible` there.
+@function focus-visible() {
+  @if $gtk == 3 {
+    @return ":focus";
+  }
+  @return ":focus-visible";
+}
+
+@function focus-within() {
+  @if $gtk == 3 {
+    @return ":focus";
+  }
+  @return ":focus-within";
+}

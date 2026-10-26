@@ -1,0 +1,81 @@
+@use "gtk";
+@use "target";
+@use "metrics" as m;
+@use "materials" as mat;
+
+@mixin chrome-font {
+  font-family: m.$font-family;
+  font-size: m.$font-size;
+}
+
+// floating surfaces (menus, popovers, tooltips, toasts) share one material and
+// one restrained shadow so stacked popups don't darken each other.
+@mixin floating($radius: m.$radius-floating, $shadow: true) {
+  background-image: none;
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+  border: m.$border solid mat.c(border_strong);
+  border-radius: $radius;
+  @if $shadow {
+    box-shadow: m.$shadow-floating-offset mat.c(shadow);
+  } @else {
+    box-shadow: none;
+  }
+}
+
+@mixin card {
+  background-image: none;
+  background-color: mat.c(panel);
+  color: mat.c(on_surface);
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-card;
+  box-shadow: none;
+}
+
+@mixin bar {
+  background-image: none;
+  background-color: mat.c(shell);
+  color: mat.c(on_surface);
+  box-shadow: none;
+}
+
+// gtk3 has no border-spacing; its boxes take spacing from the widget.
+@mixin spacing($value) {
+  @if target.is(4) {
+    border-spacing: $value;
+  }
+}
+
+@mixin icon($name) {
+  -gtk-icon-source: -gtk-recolor(url("assets/#{$name}-symbolic.svg"));
+}
+
+@mixin icon-size($size: 16px) {
+  min-width: $size;
+  min-height: $size;
+  @if target.is(4) {
+    -gtk-icon-size: $size;
+  }
+}
+
+// labels and icons inside a filled (selected/checked) row follow the fill
+// instead of their own idle colors.
+@mixin on-accent-content($on) {
+  &#{$on} {
+    label,
+    image {
+      color: inherit;
+    }
+
+    .dim-label,
+    .subtitle {
+      color: mat.c(on_accent_dim);
+    }
+
+    @if target.is(4) {
+      .dimmed {
+        color: mat.c(on_accent_dim);
+      }
+    }
+  }
+}

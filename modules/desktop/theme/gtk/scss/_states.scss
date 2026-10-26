@@ -1,0 +1,308 @@
+// one state machine for every interactive widget. a recipe is a map from state
+// to declarations; `states()` refuses a recipe that leaves a state out, so a
+// widget can't ship without, say, a backdrop or disabled look.
+//
+// state maps use short keys: bg, fg, border, outline, shadow. values are
+// material or role names, or raw GTK expressions from the gtk module.
+@use "sass:list";
+@use "sass:map";
+@use "sass:meta";
+@use "gtk";
+@use "target";
+@use "metrics" as m;
+@use "materials" as mat;
+
+$base-states: (idle, hover, active, backdrop, disabled, focus, drop);
+$on-states: (on, on-hover, on-active, on-backdrop, on-disabled, on-focus);
+
+$_props: (
+  bg: background-color,
+  fg: color,
+  border: border-color,
+  outline: outline-color,
+  shadow: box-shadow,
+);
+
+$drop: (bg: drop, border: tertiary, outline: tertiary);
+
+$button: (
+  idle: (bg: panel, fg: on_surface, border: border),
+  hover: (bg: hover, border: border_strong),
+  active: (bg: pressed, border: border_strong),
+  backdrop: (fg: on_surface_variant),
+  disabled: (bg: panel, fg: disabled, border: border_faint),
+  focus: (outline: primary),
+  drop: $drop,
+  on: (bg: primary, fg: on_primary, border: primary),
+  on-hover: (bg: accent_hover, border: accent_hover),
+  on-active: (bg: accent_pressed, border: accent_pressed),
+  on-backdrop: (fg: on_primary),
+  on-disabled: (bg: accent_disabled, fg: on_primary, border: accent_disabled),
+  on-focus: (outline: on_primary),
+);
+
+$flat: map.merge($button, (
+  idle: (bg: transparent, fg: on_surface, border: transparent),
+  hover: (bg: hover, border: transparent),
+  active: (bg: pressed, border: transparent),
+  disabled: (bg: transparent, fg: disabled, border: transparent),
+));
+
+// steppers and segment buttons glued to a field: flat, but keep the hairline
+// that separates them from the text.
+$stepper: map.merge($flat, (
+  idle: (bg: transparent, fg: on_surface, border: border),
+  hover: (bg: hover),
+  active: (bg: pressed),
+  disabled: (bg: transparent, fg: disabled, border: border),
+));
+
+$suggested: (
+  idle: (bg: primary, fg: on_primary, border: primary),
+  hover: (bg: accent_hover, border: accent_hover),
+  active: (bg: accent_pressed, border: accent_pressed),
+  backdrop: (fg: on_primary),
+  disabled: (bg: accent_disabled, fg: on_primary, border: accent_disabled),
+  focus: (outline: on_primary),
+  drop: $drop,
+  on: (bg: accent_pressed, fg: on_primary, border: accent_pressed),
+  on-hover: (bg: accent_pressed),
+  on-active: (bg: accent_pressed),
+  on-backdrop: (fg: on_primary),
+  on-disabled: (bg: accent_disabled, fg: on_primary),
+  on-focus: (outline: on_primary),
+);
+
+$destructive: (
+  idle: (bg: error, fg: on_error, border: error),
+  hover: (bg: error_hover, border: error_hover),
+  active: (bg: error_pressed, border: error_pressed),
+  backdrop: (fg: on_error),
+  disabled: (bg: error_disabled, fg: on_error, border: error_disabled),
+  focus: (outline: on_error),
+  drop: $drop,
+  on: (bg: error_pressed, fg: on_error, border: error_pressed),
+  on-hover: (bg: error_pressed),
+  on-active: (bg: error_pressed),
+  on-backdrop: (fg: on_error),
+  on-disabled: (bg: error_disabled, fg: on_error),
+  on-focus: (outline: on_error),
+);
+
+// chips, badges and tags: the secondary family, so they read as "related to
+// the accent" without competing with real selections.
+$chip: (
+  idle: (bg: secondary_container, fg: on_secondary_container, border: transparent),
+  hover: (bg: secondary_hover),
+  active: (bg: secondary_hover, border: secondary),
+  backdrop: (),
+  disabled: (bg: panel, fg: disabled),
+  focus: (outline: secondary),
+  drop: $drop,
+  on: (bg: secondary, fg: on_secondary, border: secondary),
+  on-hover: (bg: secondary),
+  on-active: (bg: secondary),
+  on-backdrop: (),
+  on-disabled: (bg: panel, fg: disabled),
+  on-focus: (outline: on_secondary),
+);
+
+$row: (
+  idle: (bg: transparent, fg: on_surface),
+  hover: (bg: hover),
+  active: (bg: pressed),
+  backdrop: (),
+  disabled: (bg: transparent, fg: disabled),
+  focus: (outline: primary),
+  drop: $drop,
+  on: (bg: primary, fg: on_primary),
+  on-hover: (bg: accent_hover),
+  on-active: (bg: accent_pressed),
+  on-backdrop: (bg: primary, fg: on_primary),
+  on-disabled: (bg: accent_disabled, fg: on_primary),
+  on-focus: (outline: on_primary),
+);
+
+$tab: (
+  idle: (bg: transparent, fg: on_surface_variant, border: transparent),
+  hover: (bg: hover, fg: on_surface),
+  active: (bg: pressed, fg: on_surface),
+  backdrop: (),
+  disabled: (fg: disabled),
+  focus: (outline: primary),
+  drop: $drop,
+  on: (bg: primary, fg: on_primary, border: primary),
+  on-hover: (bg: accent_hover, border: accent_hover),
+  on-active: (bg: accent_pressed, border: accent_pressed),
+  on-backdrop: (fg: on_primary),
+  on-disabled: (bg: accent_disabled, fg: on_primary, border: accent_disabled),
+  on-focus: (outline: on_primary),
+);
+
+// menus highlight the hovered item with the accent because hover is also the
+// keyboard cursor there; a 12% tint would hide where the cursor is.
+$menuitem: (
+  idle: (bg: transparent, fg: on_surface),
+  hover: (bg: primary, fg: on_primary),
+  active: (bg: accent_pressed, fg: on_primary),
+  backdrop: (),
+  disabled: (bg: transparent, fg: disabled),
+  focus: (outline: primary),
+  drop: $drop,
+);
+
+$field: (
+  idle: (bg: field, fg: on_surface, border: border),
+  hover: (border: border_strong),
+  active: (),
+  // fields stay fully readable when the window is inactive.
+  backdrop: (fg: on_surface),
+  disabled: (bg: panel, fg: disabled, border: border_faint),
+  // gtk3 entries never call gtk_render_focus, so the border carries focus
+  // there; gtk4 adds the ring on top.
+  focus: (border: primary, outline: primary),
+  drop: $drop,
+);
+
+$indicator: (
+  idle: (bg: field, fg: on_surface, border: border),
+  hover: (bg: hover, border: border_strong),
+  active: (bg: pressed, border: border_strong),
+  backdrop: (),
+  disabled: (bg: panel, fg: disabled, border: border_faint),
+  // the focus ring belongs to the owning checkbutton/switch, not the box.
+  focus: (),
+  drop: $drop,
+  on: (bg: primary, fg: on_primary, border: primary),
+  on-hover: (bg: accent_hover, border: accent_hover),
+  on-active: (bg: accent_pressed, border: accent_pressed),
+  on-backdrop: (fg: on_primary),
+  on-disabled: (bg: accent_disabled, fg: on_primary, border: accent_disabled),
+  on-focus: (),
+);
+
+// controls that sit on a filled background (a selected row, a checked tab, an
+// infobar). they keep the fill's text color and composite a tint of it.
+@function on-fill($fg, $hover, $pressed, $edge, $dim) {
+  @return (
+    idle: (bg: transparent, fg: $fg, border: $edge),
+    hover: (bg: $hover, fg: $fg),
+    active: (bg: $pressed, fg: $fg),
+    backdrop: (fg: $fg),
+    disabled: (bg: transparent, fg: $dim, border: transparent),
+    focus: (outline: $fg),
+    drop: $drop,
+    on: (bg: $pressed, fg: $fg, border: $edge),
+    on-hover: (bg: $pressed),
+    on-active: (bg: $pressed),
+    on-backdrop: (fg: $fg),
+    on-disabled: (bg: transparent, fg: $dim),
+    on-focus: (outline: $fg),
+  );
+}
+
+@function on-fill-role($fg-role) {
+  $fg: mat.c($fg-role);
+  @return on-fill($fg, gtk.alpha($fg, 0.12), gtk.alpha($fg, 0.22), gtk.alpha($fg, 0.35), gtk.alpha($fg, 0.55));
+}
+
+$on-accent: on-fill(on_primary, on_accent_hover, on_accent_pressed, on_accent_border, on_accent_dim);
+$on-accent-flat: map.merge($on-accent, (idle: (bg: transparent, fg: on_primary, border: transparent)));
+
+@mixin _apply($map) {
+  @each $key, $value in $map {
+    @if not map.has-key($_props, $key) {
+      @error "unknown state key `#{$key}`";
+    }
+    #{map.get($_props, $key)}: mat.resolve($value);
+  }
+}
+
+@mixin _block($selector, $map) {
+  @if list.length($map) > 0 {
+    &#{$selector} {
+      @include _apply($map);
+    }
+  }
+}
+
+@function _check($recipe, $with-on) {
+  @if meta.type-of($recipe) != "map" {
+    @error "recipe must be a map";
+  }
+  $required: $base-states;
+  @if $with-on {
+    $required: list.join($required, $on-states);
+  }
+  @each $state in $required {
+    @if not map.has-key($recipe, $state) {
+      @error "recipe is missing state `#{$state}`";
+    }
+  }
+  @return $recipe;
+}
+
+// $on: the pseudo-class that means "this is the selected one" for the widget
+// (:checked for toggles, :selected for rows), or null for widgets that have
+// no on state.
+// $focus: visible (keyboard ring), within (fields whose text child takes
+// focus in gtk4), or none when an ancestor draws the ring.
+@mixin states($recipe, $on: ":checked", $focus: visible, $transition: true) {
+  $recipe: _check($recipe, $on != null);
+  $focus-pseudo: target.focus-visible();
+  @if $focus == within {
+    $focus-pseudo: target.focus-within();
+  }
+
+  background-image: none;
+  @include _apply(map.get($recipe, idle));
+  @if map.get(map.get($recipe, idle), shadow) == null {
+    box-shadow: none;
+  }
+  @if $transition {
+    transition: m.$transition;
+  }
+  // gtk3 keeps the global `*` outline and only paints it where focus is
+  // visible; gtk4 paints any outline, so it starts hidden.
+  @if target.is(4) and $focus != none {
+    outline: 0 solid transparent;
+    outline-offset: m.$focus-offset;
+  }
+
+  @include _block(":backdrop", map.get($recipe, backdrop));
+  @include _block(":hover", map.get($recipe, hover));
+  @if list.length(map.get($recipe, active)) > 0 {
+    &:active {
+      @include _apply(map.get($recipe, active));
+    }
+    @if target.is(4) {
+      &.keyboard-activating {
+        @include _apply(map.get($recipe, active));
+      }
+    }
+  }
+  @if $on {
+    @include _block($on, map.get($recipe, on));
+    @include _block("#{$on}:backdrop", map.get($recipe, on-backdrop));
+    @include _block("#{$on}:hover", map.get($recipe, on-hover));
+    @include _block("#{$on}:active", map.get($recipe, on-active));
+  }
+  @include _block(":disabled", map.get($recipe, disabled));
+  @if $on {
+    @include _block("#{$on}:disabled", map.get($recipe, on-disabled));
+  }
+  &:drop(active) {
+    @include _apply(map.get($recipe, drop));
+  }
+  @if $focus != none {
+    &#{$focus-pseudo} {
+      outline-width: m.$focus-width;
+      @include _apply(map.get($recipe, focus));
+    }
+    @if $on and list.length(map.get($recipe, on-focus)) > 0 {
+      &#{$on}#{$focus-pseudo} {
+        @include _apply(map.get($recipe, on-focus));
+      }
+    }
+  }
+}

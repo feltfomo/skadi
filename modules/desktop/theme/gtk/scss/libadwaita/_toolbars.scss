@@ -1,0 +1,98 @@
+// AdwToolbarView and AdwHeaderBar: top and bottom bars share the shell
+// material with the content's sidebar, separated by hairlines.
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+toolbarview > .top-bar,
+toolbarview > .bottom-bar {
+  @include mixins.bar;
+}
+
+toolbarview > .top-bar headerbar,
+toolbarview > .bottom-bar headerbar {
+  border-bottom-style: none;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+toolbarview > .top-bar.raised,
+toolbarview > .top-bar.border {
+  border-bottom: m.$border solid mat.c(border);
+  box-shadow: none;
+}
+
+toolbarview > .bottom-bar.raised,
+toolbarview > .bottom-bar.border {
+  border-top: m.$border solid mat.c(border);
+  box-shadow: none;
+}
+
+toolbarview > .top-bar.raised.border,
+toolbarview > .bottom-bar.raised.border {
+  box-shadow: none;
+}
+
+toolbarview > .bottom-bar actionbar > revealer > box,
+toolbarview > .top-bar searchbar > revealer > box,
+toolbarview > .bottom-bar searchbar > revealer > box {
+  background-color: transparent;
+  border-style: none;
+}
+
+toolbarview > .top-bar .collapse-spacing headerbar,
+toolbarview > .bottom-bar .collapse-spacing headerbar {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+// flat header bars (adaptive previews, dialogs) drop the frame entirely.
+headerbar.flat,
+headerbar.adaptive-mode-flat {
+  background-color: transparent;
+  border-bottom-style: none;
+}
+
+windowtitle {
+  padding: 0 m.$space-3;
+}
+
+windowtitle .title {
+  font-weight: bold;
+}
+
+windowtitle .subtitle {
+  font-size: 11px;
+  color: mat.c(on_surface_variant);
+}
+
+windowtitle:backdrop .title {
+  color: mat.c(on_surface_variant);
+}
+
+tabbar .box {
+  @include mixins.bar;
+  min-height: m.$bar-height;
+  padding: 2px m.$space-1;
+  border-bottom: m.$border solid mat.c(border);
+}
+
+tabbar.inline .box {
+  background-color: transparent;
+  border-bottom-style: none;
+}
+
+tabbar .start-action,
+tabbar .end-action {
+  padding: 0 m.$space-1;
+}
+
+tabbar .start-action > button,
+tabbar .end-action > button {
+  @include states.states(states.$flat);
+}
+
+toolbarview.inline > .top-bar {
+  background-color: transparent;
+}

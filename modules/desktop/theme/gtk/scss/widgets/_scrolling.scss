@@ -1,0 +1,229 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../mixins";
+
+scrollbar {
+  background-image: none;
+  background-color: mat.c(shell);
+  border: 0 solid mat.c(border);
+  padding: 2px;
+  box-shadow: none;
+  transition: background-color m.$transition-duration ease-out;
+}
+
+scrollbar.vertical.right,
+scrollbar.vertical:not(.left) {
+  border-left-width: m.$border;
+}
+
+scrollbar.vertical.left {
+  border-right-width: m.$border;
+}
+
+scrollbar.horizontal.bottom,
+scrollbar.horizontal:not(.top) {
+  border-top-width: m.$border;
+}
+
+scrollbar.horizontal.top {
+  border-bottom-width: m.$border;
+}
+
+scrollbar trough {
+  min-width: 6px;
+  min-height: 6px;
+  margin: 0;
+  border: 0;
+  background-color: transparent;
+}
+
+scrollbar slider {
+  min-width: 6px;
+  min-height: 6px;
+  margin: 0;
+  border: m.$border solid transparent;
+  border-radius: m.$radius-small;
+  background-image: none;
+  background-color: mat.c(border_strong);
+  box-shadow: none;
+  transition: background-color m.$transition-duration ease-out;
+}
+
+scrollbar.horizontal slider {
+  min-width: 32px;
+}
+
+scrollbar.vertical slider {
+  min-height: 32px;
+}
+
+scrollbar slider:hover {
+  background-color: mat.c(on_surface_variant);
+}
+
+scrollbar slider:active {
+  background-color: mat.c(primary);
+}
+
+scrollbar:backdrop slider {
+  background-color: mat.c(border);
+}
+
+scrollbar:disabled slider,
+scrollbar slider:disabled {
+  background-color: mat.c(border_faint);
+}
+
+// shift-drag fine tuning: the slider narrows so the precision mode is visible.
+scrollbar.fine-tune slider {
+  background-color: mat.c(accent_pressed);
+}
+
+scrollbar.fine-tune.horizontal slider {
+  min-height: 4px;
+}
+
+scrollbar.fine-tune.vertical slider {
+  min-width: 4px;
+}
+
+@if target.is(4) {
+  // adwaita's -8px thumb margins assume its 8px border; with 1px borders they
+  // produce negative sizes.
+  scrollbar > range > trough,
+  scrollbar > range > trough > slider {
+    margin: 0;
+  }
+
+  scrollbar > range.fine-tune > trough > slider {
+    background-color: mat.c(accent_pressed);
+  }
+}
+
+// overlay scrollbars collapse to a hairline until the pointer comes near.
+scrollbar.overlay-indicator {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+scrollbar.overlay-indicator:not(.dragging):not(.hovering) {
+  padding: 0;
+}
+
+scrollbar.overlay-indicator:not(.dragging):not(.hovering) slider {
+  min-width: 3px;
+  min-height: 3px;
+  margin: 2px;
+  border: 0;
+  background-color: mat.c(border_strong);
+}
+
+scrollbar.overlay-indicator:not(.dragging):not(.hovering).horizontal slider {
+  min-width: 32px;
+}
+
+scrollbar.overlay-indicator:not(.dragging):not(.hovering).vertical slider {
+  min-height: 32px;
+}
+
+scrollbar.overlay-indicator:not(.dragging):not(.hovering) button {
+  min-width: 0;
+  min-height: 0;
+  -gtk-icon-source: none;
+  border-color: transparent;
+  background-color: transparent;
+}
+
+scrollbar.overlay-indicator.hovering,
+scrollbar.overlay-indicator.dragging {
+  background-color: mat.c(shell);
+  border-color: mat.c(border);
+}
+
+scrollbar.overlay-indicator.dragging slider {
+  background-color: mat.c(primary);
+}
+
+scrollbar button {
+  min-width: 12px;
+  min-height: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  color: mat.c(on_surface_variant);
+  box-shadow: none;
+}
+
+scrollbar button:hover {
+  color: mat.c(on_surface);
+}
+
+scrollbar button:active {
+  color: mat.c(primary);
+}
+
+scrollbar button:disabled {
+  color: mat.c(disabled);
+}
+
+scrollbar.vertical button.up {
+  @include mixins.icon(up);
+}
+
+scrollbar.vertical button.down {
+  @include mixins.icon(down);
+}
+
+scrollbar.horizontal button.up {
+  @include mixins.icon(left);
+}
+
+scrollbar.horizontal button.down {
+  @include mixins.icon(right);
+}
+
+treeview ~ scrollbar.vertical {
+  border-top: m.$border solid mat.c(border);
+  margin-top: -1px;
+}
+
+// scroll edge hints: a hairline instead of Adwaita's dashed gradient.
+undershoot.top {
+  box-shadow: inset 0 1px mat.c(border);
+}
+
+undershoot.bottom {
+  box-shadow: inset 0 -1px mat.c(border);
+}
+
+undershoot.left {
+  box-shadow: inset 1px 0 mat.c(border);
+}
+
+undershoot.right {
+  box-shadow: inset -1px 0 mat.c(border);
+}
+
+@if target.is(4) {
+  .undershoot-top scrolledwindow > undershoot.top,
+  scrolledwindow.undershoot-top > undershoot.top {
+    box-shadow: inset 0 1px mat.c(border);
+  }
+
+  .undershoot-bottom scrolledwindow > undershoot.bottom,
+  scrolledwindow.undershoot-bottom > undershoot.bottom {
+    box-shadow: inset 0 -1px mat.c(border);
+  }
+
+  .undershoot-start scrolledwindow > undershoot.left,
+  scrolledwindow.undershoot-start > undershoot.left {
+    box-shadow: inset 1px 0 mat.c(border);
+  }
+
+  .undershoot-end scrolledwindow > undershoot.right,
+  scrolledwindow.undershoot-end > undershoot.right {
+    box-shadow: inset -1px 0 mat.c(border);
+  }
+}

@@ -1,0 +1,103 @@
+// material recipes, emitted as runtime @define-color so they follow every
+// palette swap. mix(a, b, t) in GTK is a*(1-t) + b*t, so "8% primary +
+// surface-container-low" is mix(container_low, primary, 0.08).
+@use "sass:list";
+@use "sass:map";
+@use "gtk";
+@use "palette";
+
+$recipes: ();
+
+@function _p($role) {
+  @return palette.role($role);
+}
+
+// materials may only build on materials defined above them, which keeps the
+// emitted @define-color list in dependency order for readers.
+@function _m($name) {
+  @if not map.has-key($recipes, $name) {
+    @error "material `#{$name}` used before it is defined";
+  }
+  @return gtk.ref("skadi_#{$name}");
+}
+
+// the palette has no yellow or green. these keyword anchors give warning and
+// success their hue; every rendered value is still mixed toward palette text
+// or containers so contrast follows dark and light mode. the structural fix is
+// a matugen custom color pair in the reactive templates.
+$warning-hue: goldenrod;
+$success-hue: mediumseagreen;
+
+// surfaces, from the brief's Zen table. `well` is the deepest layer (text
+// views, troughs); `raised` is for floating things that sit over panels.
+$recipes: map.merge($recipes, (
+  shell: gtk.mix(_p(surface_container_low), _p(primary), 0.08),
+  panel: gtk.mix(_p(surface_container), _p(primary), 0.06),
+  field: gtk.mix(_p(surface_container_high), _p(primary), 0.04),
+  well: gtk.mix(_p(surface), _p(primary), 0.04),
+));
+$recipes: map.merge($recipes, (
+  raised: gtk.mix(_p(surface_container_high), _p(primary), 0.06),
+  hover: gtk.mix(_m(panel), _p(primary), 0.12),
+  pressed: gtk.mix(_m(panel), _p(primary), 0.22),
+  border: gtk.mix(_p(outline_variant), _p(primary), 0.35),
+  border_strong: gtk.mix(_p(outline_variant), _p(primary), 0.65),
+  disabled: gtk.mix(_m(panel), _p(on_surface_variant), 0.55),
+));
+$recipes: map.merge($recipes, (
+  border_faint: gtk.alpha(_m(border), 0.5),
+  accent_hover: gtk.mix(_p(primary), _p(on_primary), 0.12),
+  accent_pressed: gtk.mix(_p(primary), _p(on_primary), 0.22),
+  accent_disabled: gtk.mix(_m(panel), _p(primary), 0.45),
+  // controls inside a selected row tint with the selection's own text color,
+  // composited over the selection, never a dark square from the app frame.
+  on_accent_hover: gtk.alpha(_p(on_primary), 0.12),
+  on_accent_pressed: gtk.alpha(_p(on_primary), 0.22),
+  on_accent_border: gtk.alpha(_p(on_primary), 0.35),
+  on_accent_dim: gtk.mix(_p(on_primary), _p(primary), 0.3),
+  error_hover: gtk.mix(_p(error), _p(on_error), 0.12),
+  error_pressed: gtk.mix(_p(error), _p(on_error), 0.22),
+  error_disabled: gtk.mix(_m(panel), _p(error), 0.45),
+  secondary_hover: gtk.mix(_p(secondary_container), _p(on_secondary_container), 0.12),
+  rubberband: gtk.alpha(_p(primary), 0.18),
+  drop: gtk.alpha(_p(tertiary_container), 0.45),
+));
+$recipes: map.merge($recipes, (
+  warning: gtk.mix(_p(on_surface), $warning-hue, 0.65),
+  warning_container: gtk.mix(_p(surface_container_high), $warning-hue, 0.28),
+  on_warning_container: gtk.mix(_p(on_surface), $warning-hue, 0.2),
+  success: gtk.mix(_p(on_surface), $success-hue, 0.65),
+  success_container: gtk.mix(_p(surface_container_high), $success-hue, 0.28),
+  on_success_container: gtk.mix(_p(on_surface), $success-hue, 0.2),
+  // shade() scales lightness, so a light surface turns charcoal and a dark one
+  // near black: a dark, palette-tinted shadow in both modes without black.
+  shadow: gtk.alpha(gtk.shade(_p(surface), 0.2), 0.28),
+  shade: gtk.alpha(gtk.shade(_p(surface), 0.2), 0.12),
+  osd: gtk.alpha(gtk.mix(_p(surface), _p(primary), 0.06), 0.9),
+));
+
+$names: map.keys($recipes);
+
+@function c($name) {
+  @if list.index(palette.$roles, $name) {
+    @return palette.role($name);
+  }
+  @if map.has-key($recipes, $name) {
+    @return gtk.ref("skadi_#{$name}");
+  }
+  @error "unknown color `#{$name}`; use a palette role or a material";
+}
+
+// resolves either a material/role name or an already-built GTK expression.
+@function resolve($value) {
+  @if $value == null or gtk.is-raw($value) {
+    @return $value;
+  }
+  @return c($value);
+}
+
+@mixin define-all {
+  @each $name, $value in $recipes {
+    @define-color skadi_#{$name} #{$value};
+  }
+}

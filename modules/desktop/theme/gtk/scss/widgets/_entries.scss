@@ -1,0 +1,207 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+entry,
+spinbutton:not(.vertical),
+spinbutton.vertical > text,
+spinbutton.vertical > entry {
+  min-height: m.$control-height;
+  padding: m.$space-1 m.$space-2;
+  border: m.$border solid mat.c(border);
+  border-radius: m.$radius-small;
+  caret-color: mat.c(on_surface);
+  @include states.states(states.$field, $on: null, $focus: within);
+}
+
+@if target.is(3) {
+  // gtk3 spinbutton is itself an entry; the vertical variant stacks buttons
+  // around an inner entry that carries the field look instead.
+  spinbutton.vertical {
+    padding: 0;
+    border: 0;
+    background-color: transparent;
+  }
+
+  spinbutton.vertical > entry {
+    border-radius: 0;
+    min-width: 32px;
+  }
+}
+
+@if target.is(4) {
+  spinbutton.vertical {
+    background-color: transparent;
+  }
+
+  spinbutton.vertical > text {
+    border-radius: 0;
+    min-width: 32px;
+  }
+
+  entry > text,
+  spinbutton > text {
+    background-color: transparent;
+    border: 0;
+    padding: 0;
+    min-height: 0;
+  }
+
+  entry > text > placeholder,
+  spinbutton > text > placeholder {
+    color: mat.c(on_surface_variant);
+  }
+
+  entry > text > block-cursor {
+    background-color: mat.c(on_surface);
+    color: mat.c(field);
+  }
+
+  entry.password image.caps-lock-indicator {
+    color: mat.c(warning);
+  }
+
+  // inline editable labels look like plain text until edited.
+  editablelabel > stack > text {
+    background-color: mat.c(field);
+    border: m.$border solid mat.c(border_strong);
+    border-radius: m.$radius-small;
+    padding: 0 m.$space-1;
+  }
+
+  editablelabel.editing {
+    outline: m.$focus-width solid mat.c(primary);
+  }
+}
+
+entry image {
+  color: mat.c(on_surface_variant);
+  min-width: 16px;
+  min-height: 16px;
+}
+
+entry image.left {
+  margin-right: m.$space-1;
+}
+
+entry image.right {
+  margin-left: m.$space-1;
+}
+
+entry image:hover {
+  color: mat.c(on_surface);
+}
+
+entry.flat,
+entry.flat:focus,
+entry.flat:backdrop {
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+entry.error,
+spinbutton.error {
+  border-color: mat.c(error);
+}
+
+entry.warning,
+spinbutton.warning {
+  border-color: mat.c(warning);
+}
+
+entry.success,
+spinbutton.success {
+  border-color: mat.c(success);
+}
+
+// progress inside an entry (downloads, loading) runs along the bottom edge.
+entry progress,
+entry > progress {
+  margin: 0 -2px -1px;
+  background-image: none;
+  background-color: transparent;
+  border: 0 solid mat.c(primary);
+  border-bottom-width: 2px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+// tags in token entries use the chip (secondary) family.
+.entry-tag {
+  margin: 0 m.$space-1;
+  padding: 0 m.$space-1;
+  border-radius: m.$radius-small;
+  @include states.states(states.$chip, $on: null, $focus: none);
+}
+
+.entry-tag button {
+  padding: 0;
+  min-height: 0;
+  min-width: 0;
+  border: 0;
+  background-color: transparent;
+  color: inherit;
+}
+
+// spin buttons: fields with square, borderless steppers at the edge.
+spinbutton:not(.vertical) {
+  padding: 0;
+
+  @if target.is(4) {
+    > text {
+      padding: 0 m.$space-2;
+    }
+  } @else {
+    padding-left: m.$space-2;
+  }
+
+  > button,
+  > button.image-button.up,
+  > button.image-button.down {
+    min-height: 0;
+    min-width: 20px;
+    padding: 0 m.$space-1;
+    margin: 0;
+    border: 0 solid mat.c(border);
+    border-left-width: m.$border;
+    border-radius: 0;
+    @include states.states(states.$stepper, $on: null);
+  }
+
+  > button:last-child {
+    border-top-right-radius: m.$radius-small;
+    border-bottom-right-radius: m.$radius-small;
+  }
+}
+
+spinbutton.vertical > button {
+  min-height: 20px;
+  padding: 0;
+  border-radius: 0;
+}
+
+spinbutton.vertical > button.up {
+  border-top-left-radius: m.$radius-small;
+  border-top-right-radius: m.$radius-small;
+  border-bottom-width: 0;
+}
+
+spinbutton.vertical > button.down {
+  border-bottom-left-radius: m.$radius-small;
+  border-bottom-right-radius: m.$radius-small;
+  border-top-width: 0;
+}
+
+// search entries reuse the field but stay compact in bars.
+searchbar entry,
+headerbar entry {
+  min-width: 160px;
+}
+
+.osd entry,
+.osd spinbutton {
+  background-color: mat.c(osd);
+}

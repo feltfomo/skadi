@@ -1,0 +1,39 @@
+// GTK's own color functions, emitted verbatim. sass has built-in mix() and
+// alpha() that would try to evaluate these at compile time, and it can't parse
+// `@name` references at all, so every runtime expression is built as an
+// unquoted string and resolved by GTK when the style is computed. that keeps
+// the palette swappable at runtime (reactive.css redefines @skadi_*).
+@use "sass:math";
+@use "sass:meta";
+@use "sass:string";
+
+@function ref($name) {
+  @return string.unquote("@#{$name}");
+}
+
+@function _num($value) {
+  @if meta.type-of($value) != "number" or not math.is-unitless($value) {
+    @error "gtk color factors are unitless numbers, got #{$value}";
+  }
+  @return $value;
+}
+
+@function mix($a, $b, $amount) {
+  @return string.unquote("mix(#{$a}, #{$b}, #{_num($amount)})");
+}
+
+@function alpha($color, $amount) {
+  @return string.unquote("alpha(#{$color}, #{_num($amount)})");
+}
+
+@function shade($color, $factor) {
+  @return string.unquote("shade(#{$color}, #{_num($factor)})");
+}
+
+// a raw value is anything already in GTK form: a reference, a function call
+// or a CSS keyword. recipes mix raw values with material names.
+@function is-raw($value) {
+  $text: "#{$value}";
+  @return string.index($text, "@") != null or string.index($text, "(") != null or
+    $text == "transparent" or $text == "currentColor" or $text == "inherit" or $text == "none";
+}

@@ -1,0 +1,353 @@
+// content views: lists, grids, tree views, icon views and column views. they
+// share the row recipe, so hover, selection and selected-hover always match.
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+.view,
+list,
+listview,
+gridview,
+columnview,
+treeview.view,
+iconview,
+flowbox {
+  background-color: mat.c(shell);
+  color: mat.c(on_surface);
+}
+
+.view:disabled,
+list:disabled,
+listview:disabled,
+gridview:disabled,
+treeview.view:disabled,
+iconview:disabled {
+  color: mat.c(disabled);
+}
+
+list > row,
+listview > row,
+flowbox > flowboxchild,
+gridview > child {
+  border-radius: m.$radius-small;
+  padding: m.$space-1;
+  @include states.states(states.$row, $on: ":selected");
+  @include mixins.on-accent-content(":selected");
+}
+
+list > row,
+listview > row {
+  min-height: m.$control-height;
+}
+
+// non-activatable rows only get the selection, not a hover tint, so static
+// lists don't flicker under the pointer.
+list > row:not(.activatable):not(:selected):hover,
+listview > row:not(.activatable):not(:selected):hover {
+  background-color: transparent;
+}
+
+list.separators > row:not(:last-child),
+listview.separators > row:not(:last-child) {
+  border-bottom: m.$border solid mat.c(border);
+  border-radius: 0;
+}
+
+// rich lists: taller rows with more breathing room (settings-style).
+list.rich-list > row,
+listview.rich-list > row {
+  min-height: m.$row-height;
+  padding: m.$space-2 m.$space-3;
+}
+
+list.rich-list > row > box,
+listview.rich-list > row > box {
+  @include mixins.spacing(m.$space-3);
+}
+
+// gtk3 tree and icon views carry row state on the view node itself; cell
+// renderers add classes to it while drawing.
+treeview.view,
+iconview {
+  @include states.states(states.$row, $on: ":selected", $transition: false);
+}
+
+iconview:checked {
+  background-color: mat.c(pressed);
+}
+
+iconview.content-view.check {
+  @include mixins.icon(check);
+}
+
+iconview text,
+iconview text selection {
+  color: inherit;
+}
+
+treeview.view {
+  border-left-color: mat.c(border);
+  border-top-color: mat.c(border);
+}
+
+treeview.view.separator {
+  min-height: 2px;
+  color: mat.c(border);
+}
+
+treeview.view.expander {
+  min-width: 16px;
+  min-height: 16px;
+  color: mat.c(on_surface_variant);
+  @include mixins.icon(right);
+}
+
+treeview.view.expander:dir(rtl) {
+  @include mixins.icon(left);
+}
+
+treeview.view.expander:checked {
+  @include mixins.icon(down);
+}
+
+treeview.view.expander:hover {
+  color: mat.c(on_surface);
+}
+
+treeview.view.expander:selected {
+  color: mat.c(on_accent_dim);
+}
+
+treeview.view.progressbar {
+  background-image: none;
+  background-color: mat.c(primary);
+  border: m.$border solid mat.c(primary);
+  border-radius: 2px;
+  color: mat.c(on_primary);
+}
+
+treeview.view.progressbar:selected {
+  background-color: mat.c(on_primary);
+  border-color: mat.c(on_primary);
+  color: mat.c(primary);
+}
+
+treeview.view.trough {
+  background-color: mat.c(well);
+  border: m.$border solid mat.c(border);
+  border-radius: 2px;
+}
+
+treeview.view.trough:selected {
+  background-color: mat.c(on_accent_pressed);
+  border-color: mat.c(on_accent_border);
+}
+
+// drop indicators between rows: the tertiary drop role, as a line.
+treeview.view.after {
+  border-top: m.$focus-width solid mat.c(tertiary);
+}
+
+treeview.view.before {
+  border-bottom: m.$focus-width solid mat.c(tertiary);
+}
+
+treeview.view.after,
+treeview.view.before {
+  background-color: mat.c(drop);
+}
+
+treeview.view header button,
+treeview.view > header > button,
+columnview > header > button,
+columnview.view > header > button {
+  min-height: m.$control-height;
+  padding: 0 m.$space-2;
+  border: 0 solid mat.c(border);
+  border-right-width: m.$border;
+  border-bottom-width: m.$border;
+  border-radius: 0;
+  font-weight: bold;
+  @include states.states(states.$flat, $on: null);
+}
+
+treeview.view header button:last-child,
+columnview > header > button:last-child {
+  border-right-width: 0;
+}
+
+treeview.view button.dnd,
+treeview.view header.button.dnd,
+columnview.view button.dnd,
+columnview.view header.button.dnd {
+  background-color: mat.c(tertiary_container);
+  color: mat.c(on_tertiary_container);
+  border: m.$border solid mat.c(tertiary);
+  border-radius: 0;
+}
+
+treeview.view acceleditor > label,
+columnview.view acceleditor > label {
+  background-color: mat.c(primary);
+  color: mat.c(on_primary);
+}
+
+// in-place editing: a field floating over the row.
+treeview entry,
+treeview entry.flat,
+treeview spinbutton {
+  min-height: 0;
+  padding: 0 m.$space-1;
+  border: m.$border solid mat.c(primary);
+  border-radius: 0;
+  background-color: mat.c(field);
+}
+
+treeview.view check,
+treeview.view radio {
+  border-color: mat.c(border_strong);
+}
+
+treeview.view check:selected,
+treeview.view radio:selected {
+  border-color: mat.c(on_primary);
+}
+
+@if target.is(4) {
+  treeview spinbutton > text {
+    padding: 0;
+  }
+
+  treeview.view > dndtarget.after,
+  columnview.view > dndtarget.after,
+  iconview > dndtarget.after {
+    border-top: m.$focus-width solid mat.c(tertiary);
+  }
+
+  treeview.view > dndtarget.before,
+  columnview.view > dndtarget.before,
+  iconview > dndtarget.before {
+    border-bottom: m.$focus-width solid mat.c(tertiary);
+  }
+
+  sort-indicator {
+    min-width: 16px;
+    min-height: 16px;
+    color: mat.c(on_surface_variant);
+  }
+
+  sort-indicator.ascending {
+    @include mixins.icon(up);
+  }
+
+  sort-indicator.descending {
+    @include mixins.icon(down);
+  }
+
+  columnview > listview > row {
+    padding: 0;
+  }
+
+  columnview > listview > row > cell {
+    padding: m.$space-1 m.$space-2;
+  }
+
+  columnview.column-separators > listview > row > cell:not(:first-child) {
+    border-left: m.$border solid mat.c(border);
+  }
+
+  columnview.data-table > listview > row > cell {
+    padding: 2px m.$space-2;
+  }
+
+  columnview.complex > listview > row > cell {
+    padding: m.$space-2 m.$space-3;
+  }
+
+  columnview > listview.separators > row:not(:last-child) {
+    border-bottom: m.$border solid mat.c(border);
+  }
+
+  columnview row cell editablelabel.editing text selection {
+    background-color: mat.c(primary);
+    color: mat.c(on_primary);
+  }
+
+  treeexpander {
+    @include mixins.spacing(m.$space-1);
+  }
+
+  treeexpander > expander,
+  treeexpander expander {
+    min-width: 16px;
+    min-height: 16px;
+    color: mat.c(on_surface_variant);
+    @include mixins.icon(right);
+  }
+
+  treeexpander > expander:dir(rtl) {
+    @include mixins.icon(left);
+  }
+
+  treeexpander > expander:checked {
+    @include mixins.icon(down);
+  }
+
+  indent {
+    min-width: 16px;
+  }
+
+  list > row.expander,
+  listview > row.expander {
+    padding: 0;
+  }
+
+  list > row .row-header,
+  listview > header,
+  .row-header {
+    color: mat.c(on_surface_variant);
+    font-size: 11px;
+    font-weight: bold;
+    padding: m.$space-2 m.$space-2 m.$space-1;
+  }
+
+  gridview > child {
+    padding: m.$space-2;
+  }
+
+  gridview > child.activatable:hover {
+    background-color: mat.c(hover);
+  }
+
+  gridview > rubberband,
+  columnview.view > rubberband,
+  flowbox > rubberband,
+  treeview.view > rubberband,
+  .content-view > rubberband {
+    border: m.$border solid mat.c(primary);
+    background-color: mat.c(rubberband);
+  }
+
+  iconview > dndtarget {
+    outline: m.$focus-width solid mat.c(tertiary);
+  }
+
+  filethumbnail image,
+  filechooser gridview child filethumbnail image {
+    border-radius: m.$radius-small;
+  }
+
+  filelistcell {
+    padding: 0;
+  }
+}
+
+// content-view grids (file managers) highlight the item, not the whole row.
+.content-view .tile {
+  margin: 2px;
+  padding: m.$space-1;
+  border-radius: m.$radius-small;
+  @include states.states(states.$row, $on: ":selected");
+}

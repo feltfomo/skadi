@@ -1,0 +1,227 @@
+@use "../target";
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+toolbar,
+.toolbar,
+actionbar > revealer > box,
+searchbar > revealer > box,
+.inline-toolbar,
+.location-bar,
+statusbar {
+  @include mixins.bar;
+  border: 0 solid mat.c(border);
+}
+
+toolbar,
+.toolbar {
+  padding: m.$space-1;
+  @include mixins.spacing(m.$space-1);
+}
+
+toolbar.horizontal separator,
+.toolbar.horizontal > separator {
+  margin: m.$space-1 2px;
+}
+
+toolbar.vertical separator,
+.toolbar.vertical > separator {
+  margin: 2px m.$space-1;
+}
+
+toolbar:backdrop,
+.toolbar:backdrop,
+statusbar:backdrop {
+  color: mat.c(on_surface_variant);
+}
+
+// the app's primary toolbar continues the header bar material.
+.primary-toolbar,
+toolbar.primary-toolbar {
+  border-bottom-width: m.$border;
+}
+
+.inline-toolbar {
+  padding: m.$space-1;
+  border-width: 0 m.$border m.$border;
+  border-radius: 0 0 m.$radius-small m.$radius-small;
+}
+
+.inline-toolbar toolbutton > button.flat,
+toolbar.inline-toolbar toolbutton > button.flat {
+  min-width: 20px;
+}
+
+actionbar > revealer > box {
+  min-height: m.$bar-height;
+  padding: m.$space-1 m.$space-2;
+  border-top-width: m.$border;
+}
+
+searchbar > revealer > box {
+  padding: m.$space-1 m.$space-2;
+  border-bottom-width: m.$border;
+}
+
+searchbar > revealer > box .close {
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+}
+
+.location-bar {
+  padding: m.$space-1 m.$space-2;
+  border-bottom-width: m.$border;
+}
+
+statusbar {
+  padding: 2px m.$space-2;
+  border-top-width: m.$border;
+  color: mat.c(on_surface_variant);
+  font-size: 11px;
+}
+
+@if target.is(4) {
+  .toolbar > button,
+  .toolbar > menubutton > button,
+  .toolbar > dropdown > button,
+  .toolbar > colorbutton > button,
+  .toolbar > fontbutton > button,
+  .toolbar > scalebutton > button,
+  .toolbar > appchooserbutton > button,
+  .toolbar > combobox > box > button,
+  actionbar > revealer > box > button,
+  actionbar > revealer > box > menubutton > button,
+  actionbar > revealer > box > box > button {
+    @include states.states(states.$flat);
+  }
+
+  .toolbar > button.suggested-action,
+  actionbar > revealer > box > button.suggested-action {
+    @include states.states(states.$suggested);
+  }
+
+  .toolbar > button.destructive-action,
+  actionbar > revealer > box > button.destructive-action {
+    @include states.states(states.$destructive);
+  }
+
+  actionbar > revealer > box > box.start,
+  actionbar > revealer > box > box.end {
+    @include mixins.spacing(m.$space-1);
+  }
+
+  popover.background > contents > .toolbar {
+    background-color: transparent;
+  }
+} @else {
+  toolbar toolbutton > button,
+  toolbar > * > button {
+    @include states.states(states.$flat);
+  }
+
+  popover.background > toolbar {
+    background-color: transparent;
+  }
+}
+
+// OSD: the floating overlay look for media controls and image viewers.
+.osd,
+toolbar.osd,
+.toolbar.osd {
+  background-image: none;
+  background-color: mat.c(osd);
+  color: mat.c(on_surface);
+  border: m.$border solid mat.c(border_strong);
+  border-radius: m.$radius-floating;
+  box-shadow: none;
+}
+
+toolbar.osd,
+.toolbar.osd {
+  padding: m.$space-2;
+}
+
+toolbar.osd.left,
+toolbar.osd.right,
+toolbar.osd.top,
+toolbar.osd.bottom,
+.toolbar.osd.left,
+.toolbar.osd.right,
+.toolbar.osd.top,
+.toolbar.osd.bottom {
+  border-radius: 0;
+}
+
+.osd toolbar,
+.osd .toolbar {
+  background-color: transparent;
+  border-style: none;
+}
+
+.osd button,
+button.osd {
+  @include states.states(states.$flat);
+}
+
+button.osd {
+  background-color: mat.c(osd);
+  border-color: mat.c(border_strong);
+}
+
+button.osd.image-button {
+  min-width: 32px;
+  min-height: 32px;
+  padding: m.$space-1;
+}
+
+.osd button.suggested-action {
+  @include states.states(states.$suggested);
+}
+
+.osd button.destructive-action {
+  @include states.states(states.$destructive);
+}
+
+.osd .scale-popup button.flat {
+  border-style: none;
+}
+
+// in-app notifications are gtk3's toasts: same raised material.
+.app-notification {
+  background-image: none;
+  background-color: mat.c(raised);
+  color: mat.c(on_surface);
+  border: m.$border solid mat.c(border_strong);
+  border-radius: m.$radius-floating;
+  padding: m.$space-2 m.$space-3;
+  margin: m.$space-2;
+  box-shadow: m.$shadow-floating-offset mat.c(shadow);
+}
+
+.app-notification border {
+  border-style: none;
+}
+
+.app-notification button {
+  @include states.states(states.$button);
+}
+
+.app-notification button.flat {
+  @include states.states(states.$flat);
+}
+
+.app-notification.frame,
+.app-notification.frame border {
+  border-color: mat.c(border_strong);
+}
+
+.app-notification.frame button {
+  margin: 0 m.$space-1;
+}
+
+.app-notification:backdrop {
+  color: mat.c(on_surface_variant);
+}

@@ -1,0 +1,93 @@
+// toasts, banners and status pages: feedback surfaces use palette containers.
+@use "../metrics" as m;
+@use "../materials" as mat;
+@use "../states";
+@use "../mixins";
+
+toast {
+  margin: m.$space-3;
+  padding: m.$space-1 m.$space-1 m.$space-1 m.$space-3;
+  border-spacing: m.$space-2;
+  border: m.$border solid mat.c(border_strong);
+  border-radius: m.$radius-floating;
+  background-color: mat.c(raised);
+  color: mat.c(on_surface);
+  box-shadow: m.$shadow-floating-offset mat.c(shadow);
+}
+
+toast > widget {
+  margin: 0 m.$space-1;
+}
+
+toast button {
+  @include states.states(states.$flat);
+}
+
+toast button.suggested-action,
+toast button.text-button {
+  color: mat.c(primary);
+}
+
+// banners are informational, so the secondary container: visible but never
+// mistaken for an error or a selection.
+banner > revealer > widget {
+  padding: m.$space-1 m.$space-3;
+  border-spacing: m.$space-3;
+  background-color: mat.c(secondary_container);
+  color: mat.c(on_secondary_container);
+  border-bottom: m.$border solid mat.c(border);
+}
+
+banner > revealer > widget:backdrop {
+  background-color: mat.c(secondary_container);
+}
+
+banner > revealer > widget:backdrop > label,
+banner > revealer > widget:backdrop > button {
+  color: mat.c(on_secondary_container);
+}
+
+banner > revealer > widget > button {
+  @include states.states(states.on-fill-role(on_secondary_container));
+}
+
+banner > revealer > widget > button.suggested-action {
+  @include states.states(states.$chip, $on: null);
+}
+
+statuspage > scrolledwindow > viewport > box {
+  margin: m.$space-4 * 2 m.$space-3;
+  border-spacing: m.$space-4 + m.$space-2;
+}
+
+statuspage > scrolledwindow > viewport > box > clamp > box {
+  border-spacing: m.$space-3;
+}
+
+statuspage > scrolledwindow > viewport > box > clamp > box > .icon {
+  -gtk-icon-size: 96px;
+  color: mat.c(on_surface_variant);
+  margin-bottom: m.$space-3;
+}
+
+statuspage > scrolledwindow > viewport > box > clamp > box > .title {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+statuspage.compact > scrolledwindow > viewport > box {
+  margin: m.$space-4 m.$space-3;
+}
+
+statuspage.compact > scrolledwindow > viewport > box > clamp > box > .icon {
+  -gtk-icon-size: 48px;
+}
+
+statuspage.compact > scrolledwindow > viewport > box > clamp > box > .title {
+  font-size: 15px;
+}
+
+statuspage.spinner > scrolledwindow > viewport > box > clamp > box > .icon {
+  -gtk-icon-size: 32px;
+  color: mat.c(primary);
+}

@@ -1,0 +1,22 @@
+// role names only. the values live in palette-dark.css / palette-light.css and
+// in the reactive templates, which all define exactly these 21 names; this
+// list lets a typo fail the build instead of becoming a silent unresolved
+// color at runtime.
+@use "sass:list";
+@use "gtk";
+
+$roles: (
+  primary, on_primary,
+  surface, surface_container_low, surface_container, surface_container_high,
+  on_surface, on_surface_variant, outline_variant,
+  error, on_error, error_container, on_error_container,
+  secondary, on_secondary, secondary_container, on_secondary_container,
+  tertiary, on_tertiary, tertiary_container, on_tertiary_container
+);
+
+@function role($name) {
+  @if not list.index($roles, $name) {
+    @error "unknown palette role `#{$name}`";
+  }
+  @return gtk.ref("skadi_#{$name}");
+}
