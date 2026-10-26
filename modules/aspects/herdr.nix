@@ -31,13 +31,17 @@ in
         herdr = herdrFor pkgs;
         reload = pkgs.writeShellApplication {
           name = "herdr-reload-config";
+          # each named session runs its own server; plain reload-config only reaches the default one.
           text = ''
-            status="$(${herdr}/bin/herdr status server --json | ${pkgs.jq}/bin/jq -er '.status')"
-            case "$status" in
-              running) exec ${herdr}/bin/herdr server reload-config ;;
-              not_running) ;;
-              *) printf 'Unexpected Herdr server status: %s\n' "$status" >&2; exit 1 ;;
-            esac
+            ${herdr}/bin/herdr session list --json \
+              | ${pkgs.jq}/bin/jq -er '.sessions[] | select(.running) | [.default, .name] | @tsv' \
+              | while IFS=$'\t' read -r default name; do
+                  if [ "$default" = true ]; then
+                    ${herdr}/bin/herdr server reload-config
+                  else
+                    ${herdr}/bin/herdr --session "$name" server reload-config
+                  fi
+                done
           '';
         };
       in
