@@ -31,7 +31,8 @@ stdenv.mkDerivation {
   installPhase = ''
     set -euo pipefail
     runHook preInstall
-    install -Dm755 gtk+-3.0/libskadi-palette-reload.so "$out/lib/gtk-3.0/modules/libskadi-palette-reload.so"
+    # gtk 2 also reads GTK_MODULES and searches GTK_PATH/modules; only gtk 3 searches 3.0.0/modules.
+    install -Dm755 gtk+-3.0/libskadi-palette-reload.so "$out/lib/gtk-3.0/3.0.0/modules/libskadi-palette-reload.so"
     # gtk 4 finds this through GTK_PATH, which NixOS points at every profile's lib/gtk-4.0.
     install -Dm755 gtk4/libskadi-palette-reload.so "$out/lib/gtk-4.0/4.0.0/immodules/libskadi-palette-reload.so"
     runHook postInstall

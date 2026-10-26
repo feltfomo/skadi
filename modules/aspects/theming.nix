@@ -1,16 +1,23 @@
 {
   den.aspects.theming = {
-    nixos = {
-      # the overlay must leave gtk4 stock: overriding it rebuilds every gtk 4 consumer from source.
-      # tests/desktop-themes.py enforces this.
-      nixpkgs.overlays = [ (import ../../pkgs/theme-hot-reload/overlay.nix) ];
-      # system desktop entries launch outside home manager's environment.
-      # qt-hm selects kvantum and publishes the matching qtct palette.
-      qt = {
-        enable = true;
-        platformTheme = "qt5ct";
+    nixos =
+      { pkgs, ... }:
+      {
+        # the overlay must leave gtk4 stock: overriding it rebuilds every gtk 4 consumer from source.
+        # tests/desktop-themes.py enforces this.
+        nixpkgs.overlays = [ (import ../../pkgs/theme-hot-reload/overlay.nix) ];
+        # both toolkits find the reload module through GTK_PATH: gtk 4 scans its immodules directory,
+        # and gtk 3 loads GTK_MODULES by name. gtk 3 ignores gtk-modules from settings.ini at startup,
+        # so the session variable is the only startup hook that works on wayland.
+        environment.systemPackages = [ pkgs.skadi-gtk-reload ];
+        environment.sessionVariables.GTK_MODULES = [ "skadi-palette-reload" ];
+        # system desktop entries launch outside home manager's environment.
+        # qt-hm selects kvantum and publishes the matching qtct palette.
+        qt = {
+          enable = true;
+          platformTheme = "qt5ct";
+        };
       };
-    };
 
     homeManager =
       { pkgs, config, ... }:

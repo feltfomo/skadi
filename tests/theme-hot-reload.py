@@ -35,10 +35,11 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 os.environ["QT_SCALE_FACTOR"] = "1"
 os.environ["GSK_RENDERER"] = "cairo"
 gtk_module = "libskadi-palette-reload.so"
-if args.gtk_reload and args.toolkit == "gtk" and args.version == "3.0":
-    os.environ["GTK_MODULES"] = str(args.gtk_reload / "lib/gtk-3.0/modules" / gtk_module)
-if args.gtk_reload and args.toolkit == "gtk" and args.version == "4.0":
-    os.environ["GTK_PATH"] = str(args.gtk_reload / "lib/gtk-4.0")
+if args.gtk_reload and args.toolkit == "gtk":
+    # load the module the way the session does: by name through GTK_PATH, not by store path.
+    os.environ["GTK_PATH"] = str(args.gtk_reload / f"lib/gtk-{args.version}")
+    if args.version == "3.0":
+        os.environ["GTK_MODULES"] = "skadi-palette-reload"
 os.environ["XDG_DATA_DIRS"] = str(args.gtk_theme / "share") + ":" + os.environ.get("XDG_DATA_DIRS", "")
 
 

@@ -37,16 +37,16 @@
             inherit (config.boot.loader.grub) splashImage theme;
           };
           gtkTheme = config.home-manager.users.feltfomo.gtk.theme.name;
-          gtk3Modules = config.home-manager.users.feltfomo.gtk.gtk3.extraConfig.gtk-modules;
-          gtk4 = {
-            stock = toString pkgs.gtk4;
-            configured = toString inputs.self.nixosConfigurations.khion.pkgs.gtk4;
-            # mapping every home package here would make the check realize the whole profile.
-            reloadModules = map (package: "${package}/lib/gtk-4.0/4.0.0/immodules/libskadi-palette-reload.so") (
+          gtkReload = {
+            gtkModules = config.environment.sessionVariables.GTK_MODULES;
+            # mapping every system package here would make the check realize the whole system.
+            packages = map toString (
               builtins.filter (
                 package: lib.getName package == "skadi-gtk-palette-reload"
-              ) config.home-manager.users.feltfomo.home.packages
+              ) config.environment.systemPackages
             );
+            stockGtk4 = toString pkgs.gtk4;
+            configuredGtk4 = toString inputs.self.nixosConfigurations.khion.pkgs.gtk4;
           };
           qtStyle = config.home-manager.users.feltfomo.qt.style.name;
           qtTheme = config.home-manager.users.feltfomo.qt.kvantum.settings.General.theme;
