@@ -1,0 +1,166 @@
+* {
+  -gtk-icon-shadow: none;
+  text-shadow: none;
+  outline-color: @skadi_border_strong;
+  outline-style: solid;
+  outline-width: 0;
+  outline-offset: 2px;
+}
+
+window.background,
+.background {
+  background-color: @skadi_shell;
+  color: @skadi_on_surface;
+}
+
+button,
+entry,
+spinbutton,
+combobox,
+menubar,
+menu,
+popover,
+tooltip,
+headerbar,
+toolbar,
+notebook > header,
+.sidebar,
+.navigation-sidebar,
+statusbar {
+  font-family: "Maple Mono NF", monospace, "Noto Color Emoji";
+  font-size: 13px;
+}
+
+headerbar,
+toolbar,
+menubar,
+actionbar,
+searchbar {
+  background-image: none;
+  background-color: @skadi_shell;
+  color: @skadi_on_surface;
+  box-shadow: none;
+  border: 0 solid @skadi_border;
+}
+
+headerbar,
+toolbar,
+menubar {
+  padding: 4px;
+}
+
+headerbar,
+actionbar,
+searchbar {
+  min-height: 32px;
+}
+
+headerbar {
+  border-bottom-width: 1px;
+}
+
+headerbar .title {
+  font-weight: bold;
+}
+
+headerbar .subtitle,
+.dim-label,
+.dimmed,
+label.subtitle,
+statusbar {
+  color: @skadi_on_surface_variant;
+}
+
+headerbar:backdrop,
+toolbar:backdrop,
+menubar:backdrop {
+  color: @skadi_on_surface_variant;
+}
+
+decoration {
+  border: 1px solid @skadi_border;
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  margin: 8px;
+}
+
+.maximized decoration,
+.fullscreen decoration,
+.tiled decoration {
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
+separator {
+  background-color: @skadi_border;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+separator.horizontal {
+  min-width: 0;
+}
+
+separator.vertical {
+  min-height: 0;
+}
+
+frame > border,
+.frame {
+  border: 1px solid @skadi_border;
+  border-radius: 3px;
+}
+
+scrolledwindow > overshoot,
+scrolledwindow > undershoot {
+  background-image: none;
+  background-color: transparent;
+  border: 0;
+}
+
+paned > separator {
+  min-width: 1px;
+  min-height: 1px;
+  background-image: none;
+  background-color: @skadi_border;
+}
+
+paned > separator:hover {
+  background-color: @skadi_border_strong;
+}
+
+label:link,
+button.link,
+button.link label {
+  color: @skadi_primary;
+}
+
+label:visited,
+button.link:visited,
+button.link:visited label {
+  color: @skadi_tertiary;
+}
+
+label.error {
+  color: @skadi_error;
+}
+
+label.warning {
+  color: @warning_color;
+}
+
+label.success {
+  color: @success_color;
+}
+
+rubberband,
+.rubberband {
+  border: 1px solid @skadi_primary;
+  background-color: alpha(@skadi_primary, 0.18);
+}
+
+*:drop(active) {
+  outline: 2px solid @skadi_primary;
+  outline-offset: -2px;
+}

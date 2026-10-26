@@ -1,0 +1,35 @@
+button:focus,
+entry:focus,
+spinbutton:focus,
+checkbutton:focus,
+radiobutton:focus,
+switch:focus,
+scale:focus,
+row:focus,
+iconview.view:focus,
+treeview.view:focus,
+notebook > header > tabs > tab:focus,
+expander title:focus {
+  outline-width: 2px;
+}
+
+button:checked:focus,
+button.suggested-action:focus,
+row:selected:focus,
+notebook > header > tabs > tab:checked:focus {
+  outline-color: @skadi_on_primary;
+  outline-offset: -3px;
+}
+
+menuitem check,
+menuitem radio {
+  margin: 0 4px 0 0;
+}
+
+popover.background {
+  padding: 8px;
+}
+
+switch image {
+  color: transparent;
+}

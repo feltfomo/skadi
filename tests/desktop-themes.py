@@ -19,7 +19,9 @@ theme = Path(contract["boot"]["theme"])
 assert contract["boot"]["splashImage"] == str(theme / "background.jpg")
 assert 'desktop-image: "background.jpg"' in (theme / "theme.txt").read_text()
 assert (theme / "icons/nixos.png").is_file()
-assert contract["gtkTheme"] == "Colloid-Grey-Dark-Compact"
+assert contract["gtkTheme"] == "Skadi"
+assert contract["qtStyle"] == "kvantum"
+assert contract["qtTheme"] == "Skadi"
 assert contract["starship"]
 assert not any("obs-studio/themes/Reactive" in path for path in contract["lumiManifest"])
 
@@ -40,11 +42,19 @@ prompt = subprocess.run(["starship", "prompt", "--path", str(project)],
 assert "project" in prompt.stdout and "1.2.3" in prompt.stdout and "main" in prompt.stdout, (prompt.stdout, prompt.stderr)
 assert "?" in prompt.stdout and not prompt.stderr, prompt.stderr
 
-expected = {"claude-code", "zen-browser", "starship", "equibop", "codex", "obs"}
+expected = {"claude-code", "zen-browser", "starship", "equibop", "codex", "obs",
+            "gtk-gtk3", "gtk-gtk4", "qt"}
 equibop_inputs = set()
 for renderer, path in contract["registrations"].items():
     data = tomllib.loads(Path(path).read_text())
     assert expected <= data["templates"].keys(), renderer
+    assert not {"qt-qt5ct", "qt-qt6ct"} & data["templates"].keys(), renderer
+    for name, relative in [("gtk-gtk3", "gtk-3.0/reactive.css"),
+                           ("gtk-gtk4", "gtk-4.0/reactive.css"),
+                           ("qt", "qt-theme/palette.json")]:
+        destination = f"{home}/.config/{relative}"
+        assert data["templates"][name]["output_path"] == destination, renderer
+        assert destination not in manifest, (renderer, destination)
     equibop_template = data["templates"]["equibop"]
     assert equibop_template["output_path"] == f"{home}/.config/equibop/themes/reactive.theme.css"
     assert equibop_template["output_path"] not in manifest

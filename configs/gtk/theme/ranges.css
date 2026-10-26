@@ -1,0 +1,200 @@
+scale {
+  min-width: 16px;
+  min-height: 16px;
+  padding: 8px;
+  color: @skadi_on_surface;
+}
+
+scale trough,
+progressbar trough,
+levelbar trough {
+  min-height: 4px;
+  min-width: 4px;
+  border: 1px solid @skadi_border;
+  border-radius: 3px;
+  background-image: none;
+  background-color: @skadi_field;
+  box-shadow: none;
+}
+
+scale trough highlight,
+scale trough fill,
+progressbar progress,
+levelbar block.filled {
+  min-height: 4px;
+  min-width: 4px;
+  border: 0;
+  border-radius: 2px;
+  background-image: none;
+  background-color: @skadi_primary;
+  color: @skadi_on_primary;
+  box-shadow: none;
+}
+
+scale slider {
+  min-height: 14px;
+  min-width: 14px;
+  margin: -6px;
+  border: 1px solid @skadi_border_strong;
+  border-radius: 3px;
+  background-image: none;
+  background-color: @skadi_primary;
+  box-shadow: none;
+}
+
+scale slider:hover {
+  background-color: mix(@skadi_primary, @skadi_on_primary, 0.12);
+}
+
+scale slider:active {
+  background-color: mix(@skadi_primary, @skadi_on_primary, 0.22);
+}
+
+scale:disabled slider,
+scale:disabled highlight,
+progressbar:disabled progress {
+  background-color: @skadi_disabled;
+}
+
+scale marks {
+  color: @skadi_on_surface_variant;
+}
+
+scale marks indicator {
+  background-color: @skadi_border;
+  min-height: 4px;
+  min-width: 1px;
+}
+
+scale value,
+progressbar text {
+  color: @skadi_on_surface_variant;
+  padding: 4px;
+}
+
+progressbar.horizontal trough {
+  min-height: 6px;
+}
+
+progressbar.vertical trough {
+  min-width: 6px;
+}
+
+levelbar block {
+  min-width: 12px;
+  min-height: 6px;
+  margin: 1px;
+  border: 0;
+  border-radius: 2px;
+}
+
+levelbar block.empty {
+  background-color: @skadi_field;
+}
+
+levelbar block.low {
+  background-color: @warning_bg_color;
+}
+
+levelbar block.high,
+levelbar block.full {
+  background-color: @success_bg_color;
+}
+
+scrollbar {
+  background-image: none;
+  background-color: @skadi_shell;
+  border: 0;
+  padding: 2px;
+}
+
+scrollbar trough {
+  min-width: 8px;
+  min-height: 8px;
+  border: 0;
+  background-color: transparent;
+}
+
+scrollbar slider {
+  min-width: 6px;
+  min-height: 6px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background-image: none;
+  background-color: alpha(@skadi_on_surface_variant, 0.5);
+  box-shadow: none;
+}
+
+scrollbar.horizontal slider {
+  min-width: 32px;
+}
+
+scrollbar.vertical slider {
+  min-height: 32px;
+}
+
+scrollbar slider:hover {
+  background-color: @skadi_on_surface_variant;
+}
+
+scrollbar slider:active {
+  background-color: @skadi_primary;
+}
+
+scrollbar:disabled slider {
+  background-color: @skadi_disabled;
+}
+
+scrollbar.overlay-indicator:not(.hovering):not(.dragging) {
+  background-color: transparent;
+  padding: 0;
+}
+
+scrollbar.overlay-indicator:not(.hovering):not(.dragging) slider {
+  min-width: 3px;
+  min-height: 3px;
+  background-color: alpha(@skadi_on_surface_variant, 0.4);
+}
+
+scrollbar button {
+  min-width: 12px;
+  min-height: 12px;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+}
+
+scrollbar.vertical button.up {
+  -gtk-icon-source: -gtk-recolor(url("assets/up-symbolic.svg"));
+}
+
+scrollbar.vertical button.down {
+  -gtk-icon-source: -gtk-recolor(url("assets/down-symbolic.svg"));
+}
+
+scrollbar.horizontal button.up {
+  -gtk-icon-source: -gtk-recolor(url("assets/left-symbolic.svg"));
+}
+
+scrollbar.horizontal button.down {
+  -gtk-icon-source: -gtk-recolor(url("assets/right-symbolic.svg"));
+}
+
+@keyframes skadi-spin {
+  to { -gtk-icon-transform: rotate(1turn); }
+}
+
+spinner {
+  min-width: 16px;
+  min-height: 16px;
+  color: @skadi_primary;
+  -gtk-icon-source: -gtk-icontheme("process-working-symbolic");
+}
+
+spinner:checked {
+  animation: skadi-spin 1s linear infinite;
+}
+
+spinner:disabled {
+  color: @skadi_disabled;
+}

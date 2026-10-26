@@ -1,0 +1,14 @@
+{
+  "primary": "#b0cadb",
+  "on_primary": "#1a3340",
+  "surface": "#121314",
+  "surface_container_low": "#1b1c1d",
+  "surface_container": "#1f2021",
+  "surface_container_high": "#292a2b",
+  "on_surface": "#e3e2e3",
+  "on_surface_variant": "#c2c7cb",
+  "outline_variant": "#42474b",
+  "tertiary": "#d6bfdc",
+  "error": "#ffb4ab",
+  "on_error": "#690005"
+}

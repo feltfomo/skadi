@@ -1,70 +1,83 @@
-{ lexicon, rootPath, ... }:
+{ lexicon, ... }:
 {
   den.aspects.qt-hm = lexicon {
     homeManager.imports = [
       (
-        { config, ... }:
         {
+          config,
+          lib,
+          pkgs,
+          ...
+        }:
+        let
+          theme = pkgs.callPackage ../../pkgs/skadi-qt-theme { };
+          publish = "${theme}/bin/skadi-qt-theme --palette ${lib.escapeShellArg "${config.xdg.configHome}/qt-theme/palette.json"} --config-home ${lib.escapeShellArg config.xdg.configHome}";
+          appearance = {
+            color_scheme_path = "${config.xdg.configHome}/qt5ct/colors/reactive.conf";
+            custom_palette = true;
+            icon_theme = config.gtk.iconTheme.name;
+            style = "kvantum";
+          };
+          fonts = {
+            general = ''"Maple Mono NF,10,-1,5,50,0,0,0,0,0,0,0,0,0,0,1"'';
+            fixed = ''"Maple Mono NF,10,-1,5,50,0,0,0,0,0,0,0,0,0,0,1"'';
+          };
+        in
+        {
+          home.packages = [ theme ];
+          home.activation.skadiQtTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+            run ${publish}
+          '';
+
           qt = {
             enable = true;
             platformTheme.name = "qtct";
-
-            qt5ctSettings.Appearance = {
-              color_scheme_path = "${config.home.homeDirectory}/.config/qt5ct/colors/reactive.conf";
-              custom_palette = true;
-              icon_theme = config.gtk.iconTheme.name;
-              style = "Fusion";
+            style.name = "kvantum";
+            kvantum = {
+              enable = true;
+              settings.General.theme = "Skadi";
             };
 
-            qt6ctSettings.Appearance = {
-              color_scheme_path = "${config.home.homeDirectory}/.config/qt6ct/colors/reactive.conf";
-              custom_palette = true;
-              icon_theme = config.gtk.iconTheme.name;
-              style = "Fusion";
+            qt5ctSettings = {
+              Appearance = appearance;
+              Fonts = fonts;
+            };
+            qt6ctSettings = {
+              Appearance = appearance // {
+                color_scheme_path = "${config.xdg.configHome}/qt6ct/colors/reactive.conf";
+              };
+              Fonts = fonts;
             };
           };
         }
       )
     ];
 
-    theme = {
-      id = "qt";
-      templates = [
-        {
-          subId = "qt5ct";
-          output = ".config/qt5ct/colors/reactive.conf";
-          placedAs = "qt5ct.conf";
-          renderers = {
-            noctalia = {
-              source = "${rootPath}/configs/qt/reactive.conf";
-              sharedWith = [
-                "illogical-impulse"
-                "serpantinum"
-                "end4-pc"
-                "dms"
-              ];
-            };
-            caelestia.source = "${rootPath}/configs/qt/caelestia.conf";
+    theme =
+      { pkgs, ... }:
+      let
+        theme = pkgs.callPackage ../../pkgs/skadi-qt-theme { };
+      in
+      {
+        id = "qt";
+        output = ".config/qt-theme/palette.json";
+        reload = ''${theme}/bin/skadi-qt-theme --palette "$HOME/.config/qt-theme/palette.json" --config-home "$HOME/.config"'';
+        renderers = {
+          noctalia = {
+            source = ../../configs/qt/reactive.json;
+            placedAs = "qt.json";
+            sharedWith = [
+              "illogical-impulse"
+              "serpantinum"
+              "end4-pc"
+              "dms"
+            ];
           };
-        }
-        {
-          subId = "qt6ct";
-          output = ".config/qt6ct/colors/reactive.conf";
-          placedAs = "qt6ct.conf";
-          renderers = {
-            noctalia = {
-              source = "${rootPath}/configs/qt/reactive.conf";
-              sharedWith = [
-                "illogical-impulse"
-                "serpantinum"
-                "end4-pc"
-                "dms"
-              ];
-            };
-            caelestia.source = "${rootPath}/configs/qt/caelestia.conf";
+          caelestia = {
+            source = ../../configs/qt/caelestia.json;
+            placedAs = "qt.json";
           };
-        }
-      ];
-    };
+        };
+      };
   };
 }

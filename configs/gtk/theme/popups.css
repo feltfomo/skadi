@@ -1,0 +1,118 @@
+menu,
+.context-menu,
+popover.background,
+popover > contents {
+  padding: 4px;
+  border: 1px solid @skadi_border_strong;
+  border-radius: 6px;
+  background-image: none;
+  background-color: @skadi_panel;
+  color: @skadi_on_surface;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+popover arrow {
+  background-color: @skadi_panel;
+  border-color: @skadi_border_strong;
+}
+
+menuitem,
+modelbutton {
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background-color: transparent;
+  color: @skadi_on_surface;
+}
+
+menuitem:hover,
+modelbutton:hover {
+  background-color: @skadi_primary;
+  color: @skadi_on_primary;
+}
+
+menuitem:disabled,
+modelbutton:disabled {
+  color: @skadi_disabled;
+}
+
+menuitem:hover label,
+menuitem:hover image,
+modelbutton:hover label,
+modelbutton:hover image {
+  color: @skadi_on_primary;
+}
+
+menuitem arrow,
+modelbutton arrow {
+  min-width: 16px;
+  min-height: 16px;
+  -gtk-icon-source: -gtk-recolor(url("assets/right-symbolic.svg"));
+}
+
+menuitem arrow:dir(rtl),
+modelbutton arrow:dir(rtl) {
+  -gtk-icon-source: -gtk-recolor(url("assets/left-symbolic.svg"));
+}
+
+menu separator {
+  margin: 4px;
+}
+
+menu accelerator,
+modelbutton accelerator {
+  color: @skadi_on_surface_variant;
+}
+
+menuitem:hover accelerator,
+modelbutton:hover accelerator {
+  color: @skadi_on_primary;
+}
+
+tooltip,
+tooltip.background {
+  padding: 4px 8px;
+  border: 1px solid @skadi_border_strong;
+  border-radius: 3px;
+  background-image: none;
+  background-color: @skadi_panel;
+  color: @skadi_on_surface;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+tooltip label {
+  color: inherit;
+}
+
+infobar {
+  padding: 8px;
+  border: 0;
+  background-color: @skadi_panel;
+  color: @skadi_on_surface;
+}
+
+infobar.error {
+  background-color: @error_bg_color;
+  color: @error_fg_color;
+}
+
+infobar.warning {
+  background-color: @warning_bg_color;
+  color: @warning_fg_color;
+}
+
+infobar.success {
+  background-color: @success_bg_color;
+  color: @success_fg_color;
+}
+
+messagedialog .dialog-action-area {
+  padding: 8px;
+}
+
+window.dialog,
+messagedialog {
+  background-color: @skadi_panel;
+  color: @skadi_on_surface;
+}

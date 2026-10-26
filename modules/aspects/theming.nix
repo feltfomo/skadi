@@ -2,7 +2,7 @@
   den.aspects.theming = {
     nixos = {
       # system desktop entries launch outside home manager's environment.
-      # qt-hm selects fusion so qtct can apply noctalia's generated palette.
+      # qt-hm selects kvantum and publishes the matching qtct palette.
       qt = {
         enable = true;
         platformTheme = "qt5ct";
@@ -14,15 +14,10 @@
       {
         gtk = {
           enable = true;
-          colorScheme = "dark";
+          colorScheme = null;
           theme = {
-            name = "Colloid-Grey-Dark-Compact";
-            package = pkgs.colloid-gtk-theme.override {
-              themeVariants = [ "grey" ];
-              colorVariants = [ "dark" ];
-              sizeVariants = [ "compact" ];
-              tweaks = [ "rimless" ];
-            };
+            name = "Skadi";
+            package = pkgs.callPackage ../../pkgs/skadi-gtk-theme { };
           };
           # the palette hook owns gtk4 user css and needs a writable file.
           gtk4.theme = null;

@@ -1,0 +1,14 @@
+{
+  "primary": "#{{ primary.hex }}",
+  "on_primary": "#{{ onPrimary.hex }}",
+  "surface": "#{{ surface.hex }}",
+  "surface_container_low": "#{{ surfaceContainerLow.hex }}",
+  "surface_container": "#{{ surfaceContainer.hex }}",
+  "surface_container_high": "#{{ surfaceContainerHigh.hex }}",
+  "on_surface": "#{{ onSurface.hex }}",
+  "on_surface_variant": "#{{ onSurfaceVariant.hex }}",
+  "outline_variant": "#{{ outlineVariant.hex }}",
+  "tertiary": "#{{ tertiary.hex }}",
+  "error": "#{{ error.hex }}",
+  "on_error": "#{{ onError.hex }}"
+}
