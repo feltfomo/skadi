@@ -2,7 +2,7 @@
 
 my nixos config for khion, my nvidia desktop, and lumi, my laptop. both track nixos-unstable and use lix.
 
-hyprland, niri and mango are configured for both machines. lumi also has gnome and a separate `grandpa` account without admin access. the desktop configs live in [configs/](configs/), with app settings and color templates alongside them.
+hyprland, niri and mango are configured for both machines. lumi also has gnome and a separate `grandpa` account without admin access. each feature keeps its config files and color templates next to its module under [modules/](modules/).
 
 both machines use luks-encrypted btrfs. the root resets to a blank snapshot at boot, while `/home`, `/nix` and `/persist` survive. system services declare the state they need to keep in their aspects.
 
@@ -24,7 +24,7 @@ praxis uses `/etc/skadi` even when run from another directory.
 | `praxis flake update`         | update all flake inputs and the Wooting background service |
 | `praxis update wooting`       | update just the Wooting background service                 |
 
-`nfu` is the fish abbreviation for `praxis flake update`. plain `nix flake update` skips Wooting, which has its own [version and hash](pkgs/wooting-bg-service/release.json).
+`nfu` is the fish abbreviation for `praxis flake update`. plain `nix flake update` skips Wooting, which has its own [version and hash](modules/hardware/wooting/_package/release.json).
 
 to preview a rebuild or pass a dry switch through to `nh`:
 
@@ -47,17 +47,19 @@ nix run /etc/skadi#praxis -- rebuild khion
 
 ## editing the config
 
-| path                                   | what's there                                           |
-| -------------------------------------- | ------------------------------------------------------ |
-| [modules/hosts/](modules/hosts/)       | each machine's aspects, hardware, disks and bootloader |
-| [modules/users/](modules/users/)       | accounts and home manager settings                     |
-| [modules/aspects/](modules/aspects/)   | programs, services and their config file declarations  |
-| [configs/](configs/)                   | the config files themselves                            |
-| [lib/](lib/)                         | local helpers, including [shared desktop bindings](lib/bindings.md) |
-| [pkgs/](pkgs/)                         | local packages and patches                             |
-| [praxis.nix](praxis.nix)               | maintenance commands                                   |
-| [modules/flake/](modules/flake/)       | checks, formatting and the dev shell                   |
-| [scripts/](scripts/), [tests/](tests/) | maintenance scripts and the VM installer harness        |
+| path                                                       | what's there                                                       |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| [modules/hosts/](modules/hosts/)                           | each machine's aspects, hardware, disks and bootloader             |
+| [modules/users/](modules/users/)                           | accounts and home manager settings                                 |
+| `modules/<area>/`                                          | features, each a single module or a folder with its files          |
+| [modules/desktop/bindings/](modules/desktop/bindings/)     | [shared desktop bindings](modules/desktop/bindings/bindings.md)    |
+| [modules/installer/](modules/installer/)                   | the installer iso, skadi-install and the vm test harness           |
+| [modules/flake/](modules/flake/)                           | inputs, checks, formatting, the dev shell and `skadi.packages`     |
+| [praxis.nix](praxis.nix)                                   | maintenance commands                                               |
+
+the areas are `ai`, `browsers`, `desktop`, `dev`, `editors`, `gaming`, `hardware`, `media`, `shell`, `social`, `system` and `terminals`. a feature folder keeps the files it deploys in `config/`, because furnish copies whole directories into the home and would otherwise ship the module too.
+
+every `.nix` file under `modules/` is imported as a module, except paths containing `/_`. put package recipes, host hardware and other plain nix files there. to share a package or value between features, publish it through `skadi.packages` or another `skadi.*` option instead of importing across feature folders.
 
 `flake.nix` is generated. change input declarations in the relevant module, then run `praxis gen`. [outputs.nix](outputs.nix) sets up module imports and the shared helpers from [lexicon](https://github.com/feltfomo/lexicon).
 
@@ -79,7 +81,7 @@ flash `result/iso/*.iso` in raw mode, then boot it. use `nmtui` if you need wifi
 skadi-install khion
 ```
 
-this erases the target disk. the installer clones skadi from github when it runs, prompts for passwords and service secrets, and installs the system with a checkout at `/etc/skadi`. building a local iso doesn't pin the config it will install. the installer is in [scripts/skadi-install.sh](scripts/skadi-install.sh).
+this erases the target disk. the installer clones skadi from github when it runs, prompts for passwords and service secrets, and installs the system with a checkout at `/etc/skadi`. building a local iso doesn't pin the config it will install. the installer is in [modules/installer/skadi-install.sh](modules/installer/skadi-install.sh).
 
 `--drop gpu-nvidia,steam` omits selected top-level aspects for that installation. it doesn't edit the host's aspect list. don't run the installer or disko on a running skadi system.
 
@@ -121,7 +123,7 @@ nix store diff-closures /run/current-system ./result
 
 ## remote tools
 
-pi's servers are declared in [configs/pi/mcp-adapter.json](configs/pi/mcp-adapter.json). context7 and github connect directly to their hosted servers. set pi's github token through the masked prompt:
+pi's servers are declared in [modules/ai/pi/config/mcp-adapter.json](modules/ai/pi/config/mcp-adapter.json). context7 and github connect directly to their hosted servers. set pi's github token through the masked prompt:
 
 ```fish
 pi-mcp-adapter token set github

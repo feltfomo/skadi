@@ -1,0 +1,5 @@
+{
+  "workspace": {
+    "library": ["/etc/skadi/modules/desktop/compositors/hyprland/config/"]
+  }
+}

@@ -8,3 +8,4 @@ target/
 *.fd
 ovmf*
 .notion-sync
+__pycache__/

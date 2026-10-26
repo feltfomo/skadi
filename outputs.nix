@@ -8,7 +8,6 @@ inputs.flake-parts.lib.mkFlake { inherit inputs; } (
     imports = [ (inputs.import-tree ./modules) ];
     systems = [ "x86_64-linux" ];
     _module.args = {
-      rootPath = ./.;
       lexicon = inputs.lexicon.lib.lexicon.forDen { inherit den; };
       furnishRuntime = inputs.lexicon.lib.furnishRuntime { };
       inherit denApi;

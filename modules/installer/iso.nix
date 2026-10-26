@@ -21,7 +21,7 @@
         nix = config.nix.package;
       };
 
-      # skadi-install lives in scripts/skadi-install.sh, baked into the iso as a command.
+      # skadi-install lives in skadi-install.sh beside this module, baked into the iso as a command.
       skadi-install = pkgs.writeShellApplication {
         name = "skadi-install";
         runtimeInputs = [
@@ -41,7 +41,7 @@
           age
           jq
         ]);
-        text = builtins.readFile ../../scripts/skadi-install.sh;
+        text = builtins.readFile ./skadi-install.sh;
       };
     in
     {

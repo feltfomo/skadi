@@ -191,13 +191,13 @@
               jdk21
               jdk17
               jdk25
-              pkgs.graalvm-oracle-21
+              graalvm-oracle-21
               graalvmPackages.graalvm-ce
             ];
           })
           (pkgs.writeScriptBin "sops-edit" ''
             #!${pkgs.nushell}/bin/nu
-            ${builtins.readFile ../../scripts/sops-edit.nu}
+            ${builtins.readFile ../system/sops/sops-edit.nu}
           '')
           logseqPkgs.logseq
           opencode-desktop
