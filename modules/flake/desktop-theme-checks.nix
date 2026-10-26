@@ -21,10 +21,12 @@
           entry: lib.hasPrefix ".config/lexicon/toml/" entry.destination
         ) config.lexicon.furnish.declarations
       );
+      nativeThemePkgs = pkgs.extend (import ../../pkgs/theme-hot-reload/overlay.nix);
       nativeThemePython = pkgs.python3.withPackages (packages: [
         packages.pygobject3
         packages.pycairo
         packages.pyqt6
+        packages.pyqt5
       ]);
       gtkTheme = pkgs.callPackage ../../pkgs/skadi-gtk-theme { };
       qtTheme = pkgs.callPackage ../../pkgs/skadi-qt-theme { };
@@ -35,6 +37,17 @@
             inherit (config.boot.loader.grub) splashImage theme;
           };
           gtkTheme = config.home-manager.users.feltfomo.gtk.theme.name;
+          gtk3Modules = config.home-manager.users.feltfomo.gtk.gtk3.extraConfig.gtk-modules;
+          gtk4 = {
+            stock = toString pkgs.gtk4;
+            configured = toString inputs.self.nixosConfigurations.khion.pkgs.gtk4;
+            # mapping every home package here would make the check realize the whole profile.
+            reloadModules = map (package: "${package}/lib/gtk-4.0/4.0.0/immodules/libskadi-palette-reload.so") (
+              builtins.filter (
+                package: lib.getName package == "skadi-gtk-palette-reload"
+              ) config.home-manager.users.feltfomo.home.packages
+            );
+          };
           qtStyle = config.home-manager.users.feltfomo.qt.style.name;
           qtTheme = config.home-manager.users.feltfomo.qt.kvantum.settings.General.theme;
           starship = config.home-manager.users.feltfomo.programs.starship.enable;
@@ -68,6 +81,7 @@
                 pkgs.xvfb-run
                 pkgs.matugen
                 pkgs.dbus
+                pkgs.nushell
               ];
               GDK_PIXBUF_MODULE_FILE = "${pkgs.librsvg}/${pkgs.gdk-pixbuf.binaryDir}/loaders.cache";
               GSETTINGS_SCHEMA_DIR = "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}/glib-2.0/schemas";
@@ -90,7 +104,16 @@
               dbus-run-session --config-file=${pkgs.dbus}/share/dbus-1/session.conf -- \
                 xvfb-run -a -s "-screen 0 1280x1024x24" \
                 python ${../../tests/native-themes.py} ${../..} ${gtkTheme} ${qtTheme} "$out" \
-                ${pkgs.qt6Packages.qtstyleplugin-kvantum}/${pkgs.qt6Packages.qtbase.qtPluginPrefix}
+                ${nativeThemePkgs.qt6Packages.qtstyleplugin-kvantum}/${pkgs.qt6Packages.qtbase.qtPluginPrefix}
+              dbus-run-session --config-file=${pkgs.dbus}/share/dbus-1/session.conf -- \
+                xvfb-run -a -s "-screen 0 1280x1024x24" \
+                nu ${../../tests/theme-hot-reload.nu} ${../..} ${gtkTheme} ${qtTheme} \
+                ${nativeThemePkgs.skadi-gtk-reload} \
+                ${nativeThemePkgs.libsForQt5.qtstyleplugin-kvantum}/${pkgs.qt5.qtbase.qtPluginPrefix} \
+                ${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.qtPluginPrefix} \
+                ${nativeThemePkgs.qt6Packages.qtstyleplugin-kvantum}/${pkgs.qt6Packages.qtbase.qtPluginPrefix} \
+                ${pkgs.qt6Packages.qtbase}/${pkgs.qt6Packages.qtbase.qtPluginPrefix} \
+                "$out/hot-reload"
             '';
         desktop-themes =
           pkgs.runCommand "desktop-themes-check"

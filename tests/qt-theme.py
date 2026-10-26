@@ -22,6 +22,11 @@ renderer = QtSvg.QSvgRenderer(str(theme / "Skadi.svg"))
 assert renderer.isValid(), theme
 config = configparser.ConfigParser(interpolation=None)
 config.read(theme / "Skadi.kvconfig")
+for path in [theme / "Skadi.kvconfig", *(config_home / f"qt{version}ct/colors/reactive.conf"
+                                       for version in [5, 6])]:
+    settings = QtCore.QSettings(str(path), QtCore.QSettings.Format.IniFormat)
+    assert settings.allKeys(), path
+    assert settings.status() == QtCore.QSettings.Status.NoError, (path, settings.status())
 assert app.palette().color(QtGui.QPalette.ColorRole.Window).name() == config["GeneralColors"]["window.color"]
 assert config["GeneralColors"]["progress.indicator.text.color"] == config["GeneralColors"]["highlight.text.color"]
 

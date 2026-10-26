@@ -1,6 +1,9 @@
 {
   den.aspects.theming = {
     nixos = {
+      # the overlay must leave gtk4 stock: overriding it rebuilds every gtk 4 consumer from source.
+      # tests/desktop-themes.py enforces this.
+      nixpkgs.overlays = [ (import ../../pkgs/theme-hot-reload/overlay.nix) ];
       # system desktop entries launch outside home manager's environment.
       # qt-hm selects kvantum and publishes the matching qtct palette.
       qt = {

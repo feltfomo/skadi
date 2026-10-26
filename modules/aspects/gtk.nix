@@ -7,6 +7,9 @@
         theme = pkgs.callPackage ../../pkgs/skadi-gtk-theme { };
       in
       {
+        gtk.gtk3.extraConfig.gtk-modules = "${pkgs.skadi-gtk-reload}/lib/gtk-3.0/modules/libskadi-palette-reload.so";
+        # gtk 4 has no gtk-modules setting; it finds the module through the profile's GTK_PATH.
+        home.packages = [ pkgs.skadi-gtk-reload ];
         home.activation.skadiGtkTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           run ${theme}/bin/skadi-gtk-apply
         '';

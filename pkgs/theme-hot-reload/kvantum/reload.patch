@@ -1,0 +1,184 @@
+--- a/style/Kvantum.cpp
++++ b/style/Kvantum.cpp
+@@ -23,6 +23,7 @@
+ #include <QSettings>
+ #include <QTimer>
+ #include <QSvgRenderer>
++#include <QPixmapCache>
+ #include <QApplication>
+ #include <QToolBar>
+ #include <QMainWindow>
+@@ -339,23 +340,7 @@
+     }
+   }
+ 
+-  // decide about view-item colors once for all
+-  hasInactiveSelItemCol_ = toggledItemHasContrast_ = false;
+-  if (!tspec_.no_inactiveness)
+-  {
+-    const label_spec lspec = getLabelSpec(KSL("ItemView"));
+-    QColor toggleInactiveCol = getFromRGBA(lspec.toggleInactiveColor);
+-    if (toggleInactiveCol.isValid())
+-    {
+-      QColor toggleActiveCol = getFromRGBA(lspec.toggleColor);
+-      if (toggleActiveCol.isValid() && toggleActiveCol != toggleInactiveCol)
+-      {
+-        hasInactiveSelItemCol_ = true;
+-        if (enoughContrast(toggleActiveCol, getFromRGBA(lspec.pressColor)))
+-          toggledItemHasContrast_ = true;
+-      }
+-    }
+-  }
++  updatePaletteContrast();
+ 
+   itsWindowManager_ = nullptr;
+   blurHelper_ = nullptr;
+@@ -384,10 +369,13 @@
+   }
+ 
+   cachedOption_ = nullptr;
++  watchPalette(theme, useDark);
+ }
+ 
+ Style::~Style()
+ {
++  for (const QString &key : patternCacheKeys_)
++    QPixmapCache::remove(key);
+   if (cachedOption_)
+   {
+     delete cachedOption_;
+@@ -17055,3 +17043,5 @@
+ }
+ 
+ }
++
++#include "palette-reload.h"
+--- a/style/Kvantum.h
++++ b/style/Kvantum.h
+@@ -449,6 +449,11 @@
+     void removeAnimation(QObject *animation); // For transient scrollbars
+ 
+   private:
++    void watchPalette(const QString &theme, bool useDark);
++    bool reloadPalette(const QString &config, const QByteArray &svg);
++    void updatePaletteContrast();
++    mutable QSet<QString> patternCacheKeys_;
++    quint64 paletteRevision_ = 0;
+     QSvgRenderer *defaultRndr_, *themeRndr_;
+     ThemeConfig *defaultSettings_, *themeSettings_, *settings_;
+ 
+--- a/style/rendering.cpp
++++ b/style/rendering.cpp
+@@ -120,9 +120,9 @@
+ 
+     int width = hsize > 0 ? hsize : bounds.width();
+     int height = vsize > 0 ? vsize : bounds.height();
+-    QString str = QString("%1-%2-%3").arg(_element)
+-                                     .arg(QString().setNum(width))
+-                                     .arg(QString().setNum(height));
++    QString str = QString("kvantum-%1-%2-%3-%4-%5")
++                    .arg(static_cast<qulonglong>(reinterpret_cast<quintptr>(this)))
++                    .arg(paletteRevision_).arg(_element).arg(width).arg(height);
+     QPixmap pixmap;
+     if (!QPixmapCache::find(str, &pixmap))
+     {
+@@ -133,6 +133,7 @@
+       renderer->render(&p,_element);
+       p.end();
+       QPixmapCache::insert(str, pixmap);
++      patternCacheKeys_.insert(str);
+     }
+     painter->drawTiledPixmap(bounds,pixmap);
+   }
+--- a/style/qt5/Kvantum5.cpp
++++ b/style/qt5/Kvantum5.cpp
+@@ -23,6 +23,7 @@
+ #include <QSettings>
+ #include <QTimer>
+ #include <QSvgRenderer>
++#include <QPixmapCache>
+ #include <QApplication>
+ #include <QToolBar>
+ #include <QMainWindow>
+@@ -322,23 +323,7 @@
+     }
+   }
+ 
+-  // decide about view-item colors once for all
+-  hasInactiveSelItemCol_ = toggledItemHasContrast_ = false;
+-  if (!tspec_.no_inactiveness)
+-  {
+-    const label_spec lspec = getLabelSpec(QStringLiteral("ItemView"));
+-    QColor toggleInactiveCol = getFromRGBA(lspec.toggleInactiveColor);
+-    if (toggleInactiveCol.isValid())
+-    {
+-      QColor toggleActiveCol = getFromRGBA(lspec.toggleColor);
+-      if (toggleActiveCol.isValid() && toggleActiveCol != toggleInactiveCol)
+-      {
+-        hasInactiveSelItemCol_ = true;
+-        if (enoughContrast(toggleActiveCol, getFromRGBA(lspec.pressColor)))
+-          toggledItemHasContrast_ = true;
+-      }
+-    }
+-  }
++  updatePaletteContrast();
+ 
+   itsWindowManager_ = nullptr;
+   blurHelper_ = nullptr;
+@@ -367,10 +352,13 @@
+   }
+ 
+   cachedOption_ = nullptr;
++  watchPalette(theme, useDark);
+ }
+ 
+ Style::~Style()
+ {
++  for (const QString &key : patternCacheKeys_)
++    QPixmapCache::remove(key);
+   if (cachedOption_)
+   {
+     delete cachedOption_;
+@@ -16904,3 +16892,5 @@
+ }
+ 
+ }
++
++#include "../palette-reload.h"
+--- a/style/qt5/Kvantum5.h
++++ b/style/qt5/Kvantum5.h
+@@ -449,6 +449,11 @@
+     void removeAnimation(QObject *animation); // For transient scrollbars
+ 
+   private:
++    void watchPalette(const QString &theme, bool useDark);
++    bool reloadPalette(const QString &config, const QByteArray &svg);
++    void updatePaletteContrast();
++    mutable QSet<QString> patternCacheKeys_;
++    quint64 paletteRevision_ = 0;
+     QSvgRenderer *defaultRndr_, *themeRndr_;
+     ThemeConfig *defaultSettings_, *themeSettings_, *settings_;
+ 
+--- a/style/qt5/rendering5.cpp
++++ b/style/qt5/rendering5.cpp
+@@ -120,9 +120,9 @@
+ 
+     int width = hsize > 0 ? hsize : bounds.width();
+     int height = vsize > 0 ? vsize : bounds.height();
+-    QString str = QString("%1-%2-%3").arg(_element)
+-                                     .arg(QString().setNum(width))
+-                                     .arg(QString().setNum(height));
++    QString str = QString("kvantum-%1-%2-%3-%4-%5")
++                    .arg(static_cast<qulonglong>(reinterpret_cast<quintptr>(this)))
++                    .arg(paletteRevision_).arg(_element).arg(width).arg(height);
+     QPixmap pixmap;
+     if (!QPixmapCache::find(str, &pixmap))
+     {
+@@ -133,6 +133,7 @@
+       renderer->render(&p,_element);
+       p.end();
+       QPixmapCache::insert(str, pixmap);
++      patternCacheKeys_.insert(str);
+     }
+     painter->drawTiledPixmap(bounds,pixmap);
+   }

@@ -39,6 +39,12 @@ entry text > placeholder {
   color: @skadi_on_surface_variant;
 }
 
+/* adwaita's -8px thumb margins assume its 8px border; with our 1px border they give negative sizes. */
+scrollbar > range > trough,
+scrollbar > range > trough > slider {
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   spinner:checked {
     animation: none;

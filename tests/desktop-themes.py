@@ -20,6 +20,13 @@ assert contract["boot"]["splashImage"] == str(theme / "background.jpg")
 assert 'desktop-image: "background.jpg"' in (theme / "theme.txt").read_text()
 assert (theme / "icons/nixos.png").is_file()
 assert contract["gtkTheme"] == "Skadi"
+gtk_modules = contract["gtk3Modules"].split(":")
+assert any(Path(module).name == "libskadi-palette-reload.so" and Path(module).is_file()
+           for module in gtk_modules), gtk_modules
+gtk4 = contract["gtk4"]
+assert gtk4["configured"] == gtk4["stock"], "GTK4 must not invalidate upstream application builds"
+assert len(gtk4["reloadModules"]) == 1, gtk4["reloadModules"]
+assert Path(gtk4["reloadModules"][0]).is_file(), "GTK4 palette reload module is not in the user profile"
 assert contract["qtStyle"] == "kvantum"
 assert contract["qtTheme"] == "Skadi"
 assert contract["starship"]
