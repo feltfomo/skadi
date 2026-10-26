@@ -1,4 +1,5 @@
 {
+  config,
   lexicon,
   inputs,
   ...
@@ -30,12 +31,7 @@
             renderers = {
               noctalia = {
                 source = ./config/reactive-palette.css;
-                sharedWith = [
-                  "illogical-impulse"
-                  "serpantinum"
-                  "end4-pc"
-                  "dms"
-                ];
+                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
               };
               caelestia.source = ./config/caelestia-palette.css;
             };
@@ -46,13 +42,7 @@
             reload = "${setup}/bin/app-theme-setup zen-browser";
             renderers.noctalia = {
               source = ./config/theme/userContent.css;
-              sharedWith = [
-                "illogical-impulse"
-                "serpantinum"
-                "caelestia"
-                "end4-pc"
-                "dms"
-              ];
+              sharedWith = config.skadi.theme.noctaliaCompatibleRenderers ++ [ "caelestia" ];
             };
           }
           {
@@ -61,13 +51,7 @@
             reload = "${setup}/bin/app-theme-setup zen-browser";
             renderers.noctalia = {
               source = ./config/theme/userChrome.css;
-              sharedWith = [
-                "illogical-impulse"
-                "serpantinum"
-                "caelestia"
-                "end4-pc"
-                "dms"
-              ];
+              sharedWith = config.skadi.theme.noctaliaCompatibleRenderers ++ [ "caelestia" ];
             };
           }
         ];

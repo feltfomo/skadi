@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   den.aspects.zed = lexicon {
     homeManager.programs.zed-editor = {
@@ -27,12 +27,7 @@
       renderers = {
         noctalia = {
           source = ./config/themes/reactive.json;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
         };
         caelestia = {
           source = ./config/themes/caelestia.json;

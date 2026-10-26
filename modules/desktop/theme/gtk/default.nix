@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   skadi.packages.skadi-gtk-theme = ./_package.nix;
 
@@ -28,12 +28,7 @@
             renderers = {
               noctalia = {
                 source = ./config/reactive-gtk3.css;
-                sharedWith = [
-                  "illogical-impulse"
-                  "serpantinum"
-                  "end4-pc"
-                  "dms"
-                ];
+                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
               };
               caelestia.source = ./config/caelestia-gtk3.css;
             };
@@ -46,12 +41,7 @@
             renderers = {
               noctalia = {
                 source = ./config/reactive-gtk4.css;
-                sharedWith = [
-                  "illogical-impulse"
-                  "serpantinum"
-                  "end4-pc"
-                  "dms"
-                ];
+                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
               };
               caelestia.source = ./config/caelestia-gtk4.css;
             };

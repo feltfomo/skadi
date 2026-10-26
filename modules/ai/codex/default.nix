@@ -1,4 +1,5 @@
 {
+  config,
   den,
   inputs,
   lexicon,
@@ -77,12 +78,7 @@
         renderers = {
           noctalia = {
             source = ./config/reactive.tmTheme;
-            sharedWith = [
-              "illogical-impulse"
-              "serpantinum"
-              "end4-pc"
-              "dms"
-            ];
+            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
           };
           caelestia.source = ./config/caelestia.tmTheme;
         };

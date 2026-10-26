@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   skadi.packages.skadi-qt-theme = ./_package.nix;
 
@@ -68,12 +68,7 @@
           noctalia = {
             source = ./config/reactive.json;
             placedAs = "qt.json";
-            sharedWith = [
-              "illogical-impulse"
-              "serpantinum"
-              "end4-pc"
-              "dms"
-            ];
+            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
           };
           caelestia = {
             source = ./config/caelestia.json;

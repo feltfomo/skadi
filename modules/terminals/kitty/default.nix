@@ -1,4 +1,5 @@
 {
+  config,
   lexicon,
   ...
 }:
@@ -19,12 +20,7 @@
       renderers = {
         noctalia = {
           source = ./config/themes/reactive.conf;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
         };
         caelestia.source = ./config/themes/caelestia.conf;
       };

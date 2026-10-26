@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   den.aspects.equibop = lexicon {
     package = pkgs: pkgs.equibop;
@@ -26,12 +26,7 @@
           noctalia = {
             source = stylesheet ./config/reactive.css;
             placedAs = "reactive.css";
-            sharedWith = [
-              "illogical-impulse"
-              "serpantinum"
-              "end4-pc"
-              "dms"
-            ];
+            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
           };
           caelestia = {
             source = stylesheet ./config/caelestia.css;

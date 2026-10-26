@@ -1,4 +1,5 @@
 {
+  config,
   lexicon,
   inputs,
   ...
@@ -76,12 +77,7 @@ in
             renderers = {
               noctalia = {
                 source = ./config/themes/reactive.toml;
-                sharedWith = [
-                  "illogical-impulse"
-                  "serpantinum"
-                  "end4-pc"
-                  "dms"
-                ];
+                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
               };
               caelestia.source = ./config/themes/caelestia.toml;
             };
@@ -92,12 +88,7 @@ in
             renderers = {
               noctalia = {
                 source = ./config/themes/pickr-reactive.json;
-                sharedWith = [
-                  "illogical-impulse"
-                  "serpantinum"
-                  "end4-pc"
-                  "dms"
-                ];
+                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
               };
               caelestia.source = ./config/themes/pickr-caelestia.json;
             };

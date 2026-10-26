@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   den.aspects.cava = lexicon {
     package = pkgs: pkgs.cava;
@@ -22,12 +22,7 @@
       renderers = {
         noctalia = {
           source = ./config/reactive.ini;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
         };
         caelestia.source = ./config/caelestia.ini;
       };

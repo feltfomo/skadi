@@ -1,4 +1,5 @@
 {
+  config,
   lexicon,
   ...
 }:
@@ -36,12 +37,7 @@
           renderers = {
             noctalia = {
               source = ./config/chrome/userChrome.css;
-              sharedWith = [
-                "illogical-impulse"
-                "serpantinum"
-                "end4-pc"
-                "dms"
-              ];
+              sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
             };
             caelestia = {
               source = ./config/chrome/caelestia-userChrome.css;
@@ -55,12 +51,7 @@
           renderers = {
             noctalia = {
               source = ./config/chrome/userContent.css;
-              sharedWith = [
-                "illogical-impulse"
-                "serpantinum"
-                "end4-pc"
-                "dms"
-              ];
+              sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
             };
             caelestia = {
               source = ./config/chrome/caelestia-userContent.css;

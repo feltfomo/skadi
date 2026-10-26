@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   den.aspects.btop = lexicon {
     furnish.directories = [
@@ -14,12 +14,7 @@
       renderers = {
         noctalia = {
           source = ./config/reactive.theme;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
         };
         caelestia.source = ./config/caelestia.theme;
       };

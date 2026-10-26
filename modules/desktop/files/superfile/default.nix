@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   den.aspects.superfile = lexicon {
     homeManager.programs.superfile = {
@@ -11,12 +11,7 @@
       renderers = {
         noctalia = {
           source = ./config/reactive.toml;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
         };
         caelestia.source = ./config/caelestia.toml;
       };

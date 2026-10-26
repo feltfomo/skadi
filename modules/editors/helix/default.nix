@@ -1,4 +1,4 @@
-{ lexicon, ... }:
+{ config, lexicon, ... }:
 {
   den.aspects.helix = lexicon {
     # evilhelix uses helix's config and runtime theme layout
@@ -15,12 +15,7 @@
       renderers = {
         noctalia = {
           source = ./config/reactive.toml;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-            "dms"
-          ];
+          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
         };
         caelestia.source = ./config/caelestia.toml;
       };
