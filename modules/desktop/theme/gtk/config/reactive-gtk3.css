@@ -11,6 +11,8 @@
 @define-color skadi_on_error {{ colors.on_error.default.hex }};
 @define-color skadi_error_container {{ colors.error_container.default.hex }};
 @define-color skadi_on_error_container {{ colors.on_error_container.default.hex }};
+@define-color skadi_warning {{ colors.primary.default.hex | set_hue: 45 | set_saturation: 60 }};
+@define-color skadi_success {{ colors.primary.default.hex | set_hue: 145 | set_saturation: 45 }};
 @define-color skadi_secondary {{ colors.secondary.default.hex }};
 @define-color skadi_on_secondary {{ colors.on_secondary.default.hex }};
 @define-color skadi_secondary_container {{ colors.secondary_container.default.hex }};

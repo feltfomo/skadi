@@ -10,6 +10,8 @@
 @define-color skadi_error #ffb4ab;
 @define-color skadi_on_error #690005;
 @define-color skadi_error_container #93000a;
+@define-color skadi_warning #e8d7a3;
+@define-color skadi_success #acdfc1;
 @define-color skadi_on_error_container #ffdad6;
 @define-color skadi_secondary #b9c8d1;
 @define-color skadi_on_secondary #24333b;

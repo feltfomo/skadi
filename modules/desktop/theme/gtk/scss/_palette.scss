@@ -1,7 +1,9 @@
 // role names only. the values live in palette-dark.css / palette-light.css and
-// in the reactive templates, which all define exactly these 21 names; this
+// in the reactive templates, which all define exactly these 23 names; this
 // list lets a typo fail the build instead of becoming a silent unresolved
-// color at runtime.
+// color at runtime. material palettes have no warning or success role, so the
+// templates shift primary to a fixed amber and green hue: they keep the
+// palette's lightness, and with it their contrast, in both modes.
 @use "sass:list";
 @use "gtk";
 
@@ -10,6 +12,7 @@ $roles: (
   surface, surface_container_low, surface_container, surface_container_high,
   on_surface, on_surface_variant, outline_variant,
   error, on_error, error_container, on_error_container,
+  warning, success,
   secondary, on_secondary, secondary_container, on_secondary_container,
   tertiary, on_tertiary, tertiary_container, on_tertiary_container
 );

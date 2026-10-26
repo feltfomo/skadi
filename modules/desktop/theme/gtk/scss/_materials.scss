@@ -21,13 +21,6 @@ $recipes: ();
   @return gtk.ref("skadi_#{$name}");
 }
 
-// the palette has no yellow or green. these keyword anchors give warning and
-// success their hue; every rendered value is still mixed toward palette text
-// or containers so contrast follows dark and light mode. the structural fix is
-// a matugen custom color pair in the reactive templates.
-$warning-hue: goldenrod;
-$success-hue: mediumseagreen;
-
 // surfaces, from the brief's Zen table. `well` is the deepest layer (text
 // views, troughs); `raised` is for floating things that sit over panels.
 $recipes: map.merge($recipes, (
@@ -63,12 +56,10 @@ $recipes: map.merge($recipes, (
   drop: gtk.alpha(_p(tertiary_container), 0.45),
 ));
 $recipes: map.merge($recipes, (
-  warning: gtk.mix(_p(on_surface), $warning-hue, 0.65),
-  warning_container: gtk.mix(_p(surface_container_high), $warning-hue, 0.28),
-  on_warning_container: gtk.mix(_p(on_surface), $warning-hue, 0.2),
-  success: gtk.mix(_p(on_surface), $success-hue, 0.65),
-  success_container: gtk.mix(_p(surface_container_high), $success-hue, 0.28),
-  on_success_container: gtk.mix(_p(on_surface), $success-hue, 0.2),
+  warning_container: gtk.mix(_p(surface_container_high), _p(warning), 0.28),
+  on_warning_container: gtk.mix(_p(on_surface), _p(warning), 0.2),
+  success_container: gtk.mix(_p(surface_container_high), _p(success), 0.28),
+  on_success_container: gtk.mix(_p(on_surface), _p(success), 0.2),
   // shade() scales lightness, so a light surface turns charcoal and a dark one
   // near black: a dark, palette-tinted shadow in both modes without black.
   shadow: gtk.alpha(gtk.shade(_p(surface), 0.2), 0.28),

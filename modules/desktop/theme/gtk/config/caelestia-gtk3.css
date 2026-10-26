@@ -11,6 +11,8 @@
 @define-color skadi_on_error #{{ onError.hex }};
 @define-color skadi_error_container #{{ errorContainer.hex }};
 @define-color skadi_on_error_container #{{ onErrorContainer.hex }};
+@define-color skadi_warning #{{ term3.hex }};
+@define-color skadi_success #{{ success.hex }};
 @define-color skadi_secondary #{{ secondary.hex }};
 @define-color skadi_on_secondary #{{ onSecondary.hex }};
 @define-color skadi_secondary_container #{{ secondaryContainer.hex }};
