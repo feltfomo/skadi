@@ -6,12 +6,15 @@
 {
   den.aspects.ghostty = lexicon {
     package = pkgs: pkgs.ghostty;
-    furnish.directories = [
-      {
-        source = ./config;
-        destination = ".config/ghostty";
-      }
-    ];
+    furnish = {
+      users = [ "feltfomo" ];
+      directories = [
+        {
+          source = ./config;
+          destination = ".config/ghostty";
+        }
+      ];
+    };
     theme =
       { pkgs, ... }:
       let
@@ -25,6 +28,7 @@
         };
       in
       {
+        users = [ "feltfomo" ];
         id = "ghostty";
         output = ".config/ghostty/themes/reactive.conf";
         reload = "${reload}/bin/ghostty-reload-theme";

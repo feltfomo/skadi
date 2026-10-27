@@ -109,6 +109,7 @@ in
       { pkgs, ... }:
       let
         hyprlandPkg = hyprlandPackage pkgs;
+        hyprlandPkgs = inputs.hyprland.inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system};
       in
       [
         {
@@ -133,6 +134,10 @@ in
               package = hyprlandPkg;
               portalPackage =
                 inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+            };
+            hardware.graphics = {
+              package = hyprlandPkgs.mesa;
+              package32 = hyprlandPkgs.pkgsi686Linux.mesa;
             };
             environment.systemPackages = [ pkgs.hyprland-preview-share-picker ];
             programs.ydotool.enable = true;

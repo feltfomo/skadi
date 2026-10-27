@@ -8,12 +8,19 @@
   # keep feature selection on the aspect so the installer can list and drop it.
   den.aspects.lumi = {
     includes = with den.aspects; [
+      silent-sddm
       networking
+      tailscale
       wayland
+      plasma
       tablet
-      gnome
       base
     ];
+
+    nixos.skadi.silent-sddm.preferredSessions = {
+      feltfomo = "Hyprland";
+      grandpa = "Plasma (Wayland)";
+    };
 
     # disko's nixos module must sit with the disko.devices it enables
     nixos.imports = [

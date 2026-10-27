@@ -1,0 +1,134 @@
+diff --git a/src/cli/machine.rs b/src/cli/machine.rs
+index 2459805..cdd6d56 100644
+--- a/src/cli/machine.rs
++++ b/src/cli/machine.rs
+@@ -9,6 +9,7 @@ use crate::client::endpoint::{EndpointCatalog, ProfileId, MAX_LABEL_BYTES};
+ 
+ const HELP: &str = "Usage:
+   herdr machine list [--json]
++  herdr machine state-dir
+   herdr machine status [<label-or-id>] [--json]
+   herdr machine reconnect <label-or-id>
+   herdr machine add <ssh-target> [--label <label>] [--remote-session <name>]
+@@ -37,6 +38,7 @@ struct MachineListRow<'a> {
+ pub(super) fn run_machine_command(args: &[String]) -> std::io::Result<i32> {
+     match args.first().map(String::as_str) {
+         Some("list") => list(&args[1..]),
++        Some("state-dir") => state_dir(&args[1..], &mut std::io::stdout().lock()),
+         Some("status") => status(&args[1..]),
+         Some("reconnect") => reconnect(&args[1..]),
+         Some("add") => add(&args[1..]),
+@@ -55,6 +57,15 @@ pub(super) fn run_machine_command(args: &[String]) -> std::io::Result<i32> {
+     }
+ }
+ 
++fn state_dir(args: &[String], output: &mut impl std::io::Write) -> std::io::Result<i32> {
++    if !args.is_empty() {
++        eprintln!("usage: herdr machine state-dir");
++        return Ok(2);
++    }
++    writeln!(output, "{}", crate::config::client_state_dir().display())?;
++    Ok(0)
++}
++
+ fn list(args: &[String]) -> std::io::Result<i32> {
+     let json = match args {
+         [] => false,
+diff --git a/src/cli/spec/machine.rs b/src/cli/spec/machine.rs
+index dc4eefa..8c36ee0 100644
+--- a/src/cli/spec/machine.rs
++++ b/src/cli/spec/machine.rs
+@@ -10,6 +10,7 @@ pub(super) fn command() -> Command {
+                 .about("List saved SSH machines")
+                 .arg(json_flag()),
+         )
++        .subcommand(Command::new("state-dir").about("Print the client machine state directory"))
+         .subcommand(
+             Command::new("status")
+                 .about("Check saved machines without prompting for authentication")
+diff --git a/src/client/endpoint/catalog.rs b/src/client/endpoint/catalog.rs
+index b1812ce..529c75f 100644
+--- a/src/client/endpoint/catalog.rs
++++ b/src/client/endpoint/catalog.rs
+@@ -371,15 +371,11 @@ pub(super) fn store_private_json(
+ }
+ 
+ pub(crate) fn catalog_path() -> PathBuf {
+-    crate::config::state_dir()
+-        .join("client")
+-        .join("endpoints.json")
++    crate::config::client_state_dir().join("endpoints.json")
+ }
+ 
+ fn selection_path() -> PathBuf {
+-    crate::config::state_dir()
+-        .join("client")
+-        .join("endpoint-selection.json")
++    crate::config::client_state_dir().join("endpoint-selection.json")
+ }
+ 
+ #[cfg(test)]
+diff --git a/src/client/endpoint/ssh_metadata.rs b/src/client/endpoint/ssh_metadata.rs
+index bc8dffd..2c9b640 100644
+--- a/src/client/endpoint/ssh_metadata.rs
++++ b/src/client/endpoint/ssh_metadata.rs
+@@ -53,8 +53,8 @@ impl SshMetadataCache {
+         let id = ProfileId::parse(profile_id)
+             .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+         Ok(Self {
+-            path: crate::config::state_dir()
+-                .join("client/ssh-metadata")
++            path: crate::config::client_state_dir()
++                .join("ssh-metadata")
+                 .join(format!("{id}.json")),
+             target: target.to_owned(),
+             session: session.to_owned(),
+diff --git a/src/config.rs b/src/config.rs
+index 925423d..81611bb 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -12,7 +12,7 @@ mod write;
+ 
+ pub use self::{
+     io::{
+-        config_diagnostic_summary, config_dir, config_path, load_live_config,
++        client_state_dir, config_diagnostic_summary, config_dir, config_path, load_live_config,
+         remove_keybinding_config_sections, remove_section_key, state_dir, upsert_section_bool,
+         upsert_section_value,
+     },
+@@ -54,6 +54,7 @@ pub(crate) use self::{
+ pub(crate) use self::{keybinds::CommandKeybindType, model::KeysConfig};
+ 
+ pub const CONFIG_PATH_ENV_VAR: &str = "HERDR_CONFIG_PATH";
++pub const CLIENT_STATE_DIR_ENV_VAR: &str = "HERDR_CLIENT_STATE_DIR";
+ 
+ pub(crate) fn is_keybinding_config_diagnostic(diagnostic: &str) -> bool {
+     if diagnostic.starts_with("config parse error:") || diagnostic.starts_with("config read error:")
+diff --git a/src/config/io.rs b/src/config/io.rs
+index 110d431..91a813b 100644
+--- a/src/config/io.rs
++++ b/src/config/io.rs
+@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
+ 
+ use tracing::warn;
+ 
+-use super::{model::LoadedConfig, Config, CONFIG_PATH_ENV_VAR};
++use super::{model::LoadedConfig, Config, CLIENT_STATE_DIR_ENV_VAR, CONFIG_PATH_ENV_VAR};
+ 
+ const KNOWN_TOP_LEVEL_CONFIG_KEYS: &[&str] = &[
+     "advanced",
+@@ -41,6 +41,14 @@ pub fn state_dir() -> PathBuf {
+     platform_state_dir()
+ }
+ 
++// explicit connected clients keep their machine metadata out of ordinary windows.
++pub fn client_state_dir() -> PathBuf {
++    std::env::var_os(CLIENT_STATE_DIR_ENV_VAR)
++        .filter(|directory| !directory.is_empty())
++        .map(PathBuf::from)
++        .unwrap_or_else(|| state_dir().join("client"))
++}
++
+ #[cfg(windows)]
+ fn platform_config_dir() -> PathBuf {
+     if let Ok(dir) = std::env::var("APPDATA") {

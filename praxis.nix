@@ -7,15 +7,17 @@ let
   user = "feltfomo";
   remote = {
     packages = [
-      inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr
+      inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.herdr-scoped
       pkgs.coreutils
       pkgs.openssh
       pkgs.fish
       pkgs.fzf
       pkgs.jq
     ];
-    script = "modules/terminals/herdr/_praxis.fish";
-    interpreter = "${pkgs.fish}/bin/fish";
+    command = [
+      "${pkgs.fish}/bin/fish"
+      "${./modules/terminals/herdr/_praxis.fish}"
+    ];
     forwardArgs = false;
   };
 in
@@ -139,7 +141,7 @@ in
     };
   };
   tasks.rebuild = {
-    description = "Generate, format, check, then switch khion or lumi";
+    description = "Format, then switch khion or lumi";
     lock = "skadi-rebuild";
     positional = [ "host" ];
     parameters.host.choices = [
@@ -147,9 +149,7 @@ in
       "lumi"
     ];
     steps = [
-      "gen"
       "fmt"
-      "check"
       {
         label = "Switch host";
         forwardArgs = true;

@@ -48,6 +48,10 @@
     };
     flake-file.url = "github:denful/flake-file/v0.3.0";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    herdr-source = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:herdrdev/herdr/2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01";
+    };
     home-manager = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:nix-community/home-manager";
@@ -109,6 +113,10 @@
     serpantinum = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:ilyamiro/serpantinum/9861a84d8a798dfd520102912db507773dc18971";
+    };
+    silent-sddm = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:uiriansan/SilentSDDM";
     };
     sops-nix = {
       inputs.nixpkgs.follows = "nixpkgs";

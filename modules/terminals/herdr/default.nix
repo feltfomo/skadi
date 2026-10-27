@@ -5,13 +5,26 @@
   ...
 }:
 let
-  herdrFor = pkgs: inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.herdr;
+  herdrFor = pkgs: inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.herdr-scoped;
 in
 {
   flake-file.inputs.llm-agents = {
     url = "github:numtide/llm-agents.nix";
     inputs.nixpkgs.follows = "nixpkgs";
   };
+
+  flake-file.inputs.herdr-source = {
+    url = "github:herdrdev/herdr/2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  perSystem =
+    { system, ... }:
+    {
+      packages.herdr-scoped = inputs.herdr-source.packages.${system}.default.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ ./client-state.patch ];
+      });
+    };
 
   den.aspects.herdr = lexicon {
     package = herdrFor;

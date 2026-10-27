@@ -1,10 +1,12 @@
+{ den, ... }:
 {
   den.aspects.gnome = {
+    includes = [ den.aspects.gdm ];
+
     nixos =
       { pkgs, ... }:
       {
         services = {
-          displayManager.gdm.enable = true;
           desktopManager.gnome.enable = true;
           # enable flatpak here because gnome supplies its xdg portal.
           flatpak.enable = true;

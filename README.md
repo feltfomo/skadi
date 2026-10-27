@@ -2,7 +2,7 @@
 
 my nixos config for khion, my nvidia desktop, and lumi, my laptop. both track nixos-unstable and use lix.
 
-hyprland, niri and mango are configured for both machines. lumi also has gnome and a separate `grandpa` account without admin access. each feature keeps its config files and color templates next to its module under [modules/](modules/).
+hyprland, niri and mango are configured for both machines. lumi uses silentsddm for login and has a separate `grandpa` account with plasma and no admin access. each feature keeps its config files and color templates next to its module under [modules/](modules/).
 
 both machines use luks-encrypted btrfs. the root resets to a blank snapshot at boot, while `/home`, `/nix` and `/persist` survive. system services declare the state they need to keep in their aspects.
 
@@ -12,7 +12,7 @@ both machines use luks-encrypted btrfs. the root resets to a blank snapshot at b
 praxis rebuild khion
 ```
 
-use `lumi` on the laptop. this regenerates `flake.nix`, formats the repo and runs the checks, including builds of both machines. it asks before switching the local system. it doesn't deploy over ssh.
+use `lumi` on the laptop. this formats the repo, then asks before running the selected host's den wrapper to build and switch through `nh os`. it doesn't deploy over ssh. generation and full flake checks are separate commands.
 
 praxis uses `/etc/skadi` even when run from another directory.
 
@@ -20,6 +20,7 @@ praxis uses `/etc/skadi` even when run from another directory.
 | ----------------------------- | ---------------------------------------------------------- |
 | `praxis check`                | build both machines and run the repo checks                |
 | `praxis fmt`                  | format the repo                                            |
+| `praxis gen`                  | regenerate flake.nix from the module declarations           |
 | `praxis update input lexicon` | update one flake input                                     |
 | `praxis flake update`         | update all flake inputs and the Wooting background service |
 | `praxis update wooting`       | update just the Wooting background service                 |
@@ -33,7 +34,7 @@ praxis --plain plan rebuild khion
 praxis rebuild khion -- --dry
 ```
 
-the dry switch still runs generation, formatting and checks. `praxis list` and `praxis help rebuild` show the other options.
+the dry switch formats the repo, then lets `nh` build and preview the selected host without activating it. `praxis list` and `praxis help rebuild` show the other options.
 
 if praxis isn't installed yet, enter the dev shell or run it through nix:
 
@@ -61,7 +62,11 @@ praxis herdr new khion research
 
 the picker checks again after selection that the session is running. `new` creates and opens a named session, after checking that the name is unused, including by stopped sessions. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved.
 
-SSH uses your existing keys and Tailscale hostnames. the destination must be awake and reachable. normal attach commands check for running sessions; only `new` intentionally starts a new session.
+each explicit connection opens a local Herdr client with the chosen remote session selected and Local still available in the sidebar. it keeps its saved machines and selection in a separate directory for that destination and session under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. ordinary Herdr windows keep their existing machines and selection. connections reuse their saved profile and preserve any machines you add inside that connection window.
+
+SSH uses your existing keys and Tailscale hostnames. the destination must be awake and reachable. normal attach commands check for running sessions; only `new` intentionally starts a new session. if a remote session was deleted but its connection profile remains, `new` asks you to choose another name or recreate it through Herdr directly.
+
+the connection helper requires the scoped Herdr binary supplied by praxis. after updating these declarations, use a fresh `nix run /etc/skadi#praxis -- herdr khion` invocation or rebuild. an older binary fails before changing saved machines.
 
 ## editing the config
 
@@ -84,6 +89,14 @@ every `.nix` file under `modules/` is imported as a module, except paths contain
 after changing `praxis.nix`, use a fresh dev shell or `nix run /etc/skadi#praxis` to try it. the installed command keeps its old declarations until the next activation.
 
 when adding a system service, declare any state it needs across reboots in `persistence.directories` or `persistence.files`. `/home` already persists, so it doesn't need those declarations.
+
+## lumi's plasma account
+
+`grandpa` gets chrome and stock ghostty through nix and installs other apps from discover's per-user flathub source. chrome stays installed across rebuilds and isn't managed by discover. the launcher lists chrome, files, discover, settings, and apps or website shortcuts added under that account.
+
+plasma starts in Breeze Dark with Papirus Dark icons, 12-point text and a 48-pixel Windows-style cursor. the cursor size stays adjustable in settings. initial files are copied only when absent. the palette and cursor are applied once, so later changes through settings remain writable and survive rebuilds. browser data and user flatpaks persist with `/home`.
+
+gnome, gdm and plain sddm remain available as aspects. lumi selects plasma and silentsddm; adding a desktop's module to the repository doesn't enable it.
 
 ## installation
 

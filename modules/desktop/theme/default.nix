@@ -10,12 +10,8 @@
         # so the session variable is the only startup hook that works on wayland.
         environment.systemPackages = [ pkgs.skadi-gtk-reload ];
         environment.sessionVariables.GTK_MODULES = [ "skadi-palette-reload" ];
-        # system desktop entries launch outside home manager's environment.
-        # qt-hm selects kvantum and publishes the matching qtct palette.
-        qt = {
-          enable = true;
-          platformTheme = "qt5ct";
-        };
+        # keep plugin discovery global; each account selects its own Qt theme.
+        qt.enable = true;
       };
 
     homeManager =

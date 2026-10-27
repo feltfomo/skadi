@@ -1,3 +1,13 @@
+function matching_profile --argument-names target session
+    command jq --slurp --compact-output --arg target "$target" --arg session "$session" '
+    if length != 1 or (.[0] | type) != "array" then error("invalid Herdr machine response") else .[0] end |
+    if any(.[]; type != "object" or (.id | type) != "string" or (.id | test("^[0-9a-f]{32}$") | not) or
+        (.target | type) != "string" or (.session | type) != "string" or (.enabled | type) != "boolean") then
+        error("invalid Herdr machine record")
+    else map(select(.target == $target and .session == $session)) end |
+    if length > 1 then error("multiple saved machines match this connection") else .[0] end'
+end
+
 function session_names --argument-names target mode
     set --local payload (command ssh -o ConnectTimeout=10 -o ConnectionAttempts=1 -- "$target" 'herdr session list --json')
     or return $status
@@ -43,10 +53,9 @@ if test "$mode" = new
         printf 'Session %s already exists on %s; use Herdr directly to attach or resume it.\n' "$selected" "$argv[3]" >&2
         exit 1
     end
-    exec herdr --remote "$target" --session "$selected"
 end
 
-if test (count $sessions) -eq 0
+if test "$mode" != new; and test (count $sessions) -eq 0
     printf 'No running Herdr sessions on %s.\n' "$argv[3]" >&2
     exit 1
 end
@@ -56,7 +65,7 @@ if test "$mode" = list
     exit 0
 end
 
-if test -z "$selected"
+if test "$mode" = attach; and test -z "$selected"
     if not isatty stdin; or not isatty stdout
         printf '%s\n' 'The session picker needs a terminal; use praxis herdr sessions to list sessions.' >&2
         exit 1
@@ -76,9 +85,76 @@ if test -z "$selected"
     or exit $status
 end
 
-if not contains -- "$selected" $sessions
+if test "$mode" = attach; and not contains -- "$selected" $sessions
     printf 'No running session named %s on %s.\n' "$selected" "$argv[3]" >&2
     exit 1
 end
 
-exec herdr --remote "$target" --session "$selected"
+set --local state_root "$HOME/.local/state"
+if set --query XDG_STATE_HOME; and test -n "$XDG_STATE_HOME"
+    set state_root "$XDG_STATE_HOME"
+end
+if not string match --quiet '/*' -- "$state_root"
+    printf '%s\n' 'Herdr connection state needs an absolute XDG_STATE_HOME.' >&2
+    exit 1
+end
+set --local connection_hash (printf '%s\0%s' "$target" "$selected" | command sha256sum | string split --fields 1 ' ')
+or exit $status
+set --local state_dir "$state_root/herdr/connections/$connection_hash"
+set --local actual_dir (command env HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine state-dir)
+if test "$status" -ne 0; or test (count $actual_dir) -ne 1; or test "$actual_dir" != "$state_dir"
+    printf '%s\n' 'This Herdr binary cannot isolate connection state. Use a fresh nix run /etc/skadi#praxis invocation or rebuild before connecting.' >&2
+    exit 1
+end
+
+set --local selection_file "$state_dir/endpoint-selection.json"
+if test -L "$selection_file"; or begin
+        test -e "$selection_file"; and not command jq --exit-status --slurp '
+            length == 1 and (.[0] |
+                type == "object" and (keys - ["version", "selected_profile"] | length == 0) and
+                .version == 1 and (.selected_profile == null or
+                    (.selected_profile | type == "string" and test("^[0-9a-f]{32}$"))))
+        ' "$selection_file" >/dev/null
+    end
+    printf '%s\n' 'Unsupported Herdr connection selection state; leaving the saved machines unchanged.' >&2
+    exit 1
+end
+
+set --local catalog (command env HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine list --json)
+or exit $status
+set --local profile (printf '%s\n' $catalog | matching_profile "$target" "$selected")
+or exit $status
+
+if test "$mode" = new; and test "$profile" != null
+    printf 'A saved connection already uses %s on %s, but the remote session is gone. Choose another new name or recreate that session in Herdr directly.\n' "$selected" "$argv[3]" >&2
+    exit 1
+end
+
+if test "$profile" = null
+    command env HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine add "$target" --remote-session "$selected"
+    or exit $status
+    set catalog (command env HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine list --json)
+    or exit $status
+    set profile (printf '%s\n' $catalog | matching_profile "$target" "$selected")
+    or exit $status
+end
+if test "$profile" = null
+    printf '%s\n' 'The saved Herdr connection was not found after setup.' >&2
+    exit 1
+end
+set --local profile_id (printf '%s\n' "$profile" | command jq --exit-status --raw-output '.id | select(type == "string" and test("^[0-9a-f]{32}$"))')
+or exit $status
+if test (printf '%s\n' "$profile" | command jq --raw-output '.enabled') = false
+    command env HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine enable "$profile_id"
+    or exit $status
+end
+
+command mkdir -p -- "$state_dir"
+or exit $status
+set --local selection_tmp (command mktemp "$state_dir/.endpoint-selection.XXXXXXXXXX")
+or exit $status
+command jq --null-input --arg id "$profile_id" '{version: 1, selected_profile: $id}' >"$selection_tmp"
+or exit $status
+command mv --no-target-directory -- "$selection_tmp" "$selection_file"
+or exit $status
+exec env HERDR_CLIENT_STATE_DIR="$state_dir" herdr
