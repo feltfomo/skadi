@@ -1,5 +1,8 @@
 {
   den.aspects.fish.homeManager = { pkgs, ... }: {
+    # greetd reads .profile before starting the desktop, even when the login shell is fish.
+    programs.bash.enable = true;
+
     programs.fish = {
       enable = true;
 
