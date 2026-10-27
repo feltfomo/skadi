@@ -118,28 +118,19 @@ if not string match --quiet '/*' -- "$state_root"
     printf '%s\n' 'Herdr connection state needs an absolute XDG_STATE_HOME.' >&2
     exit 1
 end
-set --local connection_hash (printf '%s\0%s\0%s\0%s' fleet-v1 "$local_machine" "$target" "$selected" | command sha256sum | string split --fields 1 ' ')
+set --local connection_hash (printf '%s\0%s\0%s\0%s' fleet-v2 "$local_machine" "$target" "$selected" | command sha256sum | string split --fields 1 ' ')
 or exit $status
 set --local state_dir "$state_root/herdr/connections/$connection_hash"
 set --local actual_dir (command env -u HERDR_FLEET_CONFIG HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine state-dir 2>/dev/null)
 set --local probe_status $status
 set --local fleet_version (command env -u HERDR_FLEET_CONFIG HERDR_CLIENT_STATE_DIR="$state_dir" herdr machine fleet-version 2>/dev/null)
 set --local fleet_status $status
-if test "$probe_status" -ne 0; or test (count $actual_dir) -ne 1; or test "$actual_dir" != "$state_dir"; or test "$fleet_status" -ne 0; or test (count $fleet_version) -ne 1; or test "$fleet_version" != 1
+if test "$probe_status" -ne 0; or test (count $actual_dir) -ne 1; or test "$actual_dir" != "$state_dir"; or test "$fleet_status" -ne 0; or test (count $fleet_version) -ne 1; or test "$fleet_version" != 2
     printf '%s\n' 'This Herdr binary cannot open combined machine windows. Use a fresh nix run /etc/skadi#praxis invocation or rebuild before connecting.' >&2
     exit 1
 end
 
-set --local origin_session default
-if test "$machine" = "$local_machine"
-    set origin_session "$selected"
-else if set --query HERDR_SESSION; and test -n "$HERDR_SESSION"
-    set --local local_sessions (session_names "" "$local_machine" "$local_machine" attach)
-    or exit $status
-    if contains -- "$HERDR_SESSION" $local_sessions
-        set origin_session "$HERDR_SESSION"
-    end
-end
+set --local origin_session "$selected"
 
 set --local config_file "$state_dir/fleet.json"
 if test -L "$config_file"; or begin
@@ -151,9 +142,10 @@ if test -L "$config_file"; or begin
             def machine: type == "object" and keys == ["id", "label", "target"] and
                 (.id | identifier) and (.label | type == "string" and length > 0 and length <= 128 and
                 (explode | all(. >= 32 and . != 127))) and (.target | target);
-            length == 1 and (.[0] | type == "object" and .version == 1 and
+            length == 1 and (.[0] | type == "object" and .version == 2 and
                 keys == ["local_machine", "machines", "origin_session", "selected", "version"] and
                 (.local_machine | identifier) and (.origin_session | session) and
+                (.origin_session == .selected.session) and
                 (.selected | type == "object" and keys == ["machine", "session"] and
                     (.machine | identifier) and (.session | session)) and
                 (.machines | type == "array" and length > 0 and length <= 8 and all(.[]; machine) and
@@ -177,7 +169,7 @@ set --local temporary (command mktemp "$state_dir/.fleet.XXXXXXXXXX")
 or exit $status
 command jq --null-input --arg local "$local_machine" --arg origin "$origin_session" \
     --arg machine "$machine" --arg session "$selected" --argjson machines "$machines" \
-    '{version: 1, local_machine: $local, origin_session: $origin,
+    '{version: 2, local_machine: $local, origin_session: $origin,
       selected: {machine: $machine, session: $session},
       machines: ($machines | map(if .id == $local then .target = null else . end))}' >"$temporary"
 or exit $status

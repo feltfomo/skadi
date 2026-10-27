@@ -60,9 +60,11 @@ praxis herdr new khion research
 
 `machines` lists khion and lumi without probing them. `sessions` lists running sessions on the chosen machine. `praxis herdr khion` opens a picker; Esc cancels. a session name skips the picker but must still be running. use `lumi` for the laptop. selecting the machine you are already using connects locally, without SSH.
 
-each connection window groups spaces by machine, then session. "This device" uses local connections; the other machine uses SSH over Tailscale. both groups discover sessions in the background, including stopped sessions, without starting them. an offline machine does not block the local terminal. the agents panel defaults to this space; its scope control also offers this machine and all machines.
+`praxis herdr khion skadi` opens only the `skadi` session. each machine contributes its own spaces from that session; other sessions are never attached or shown. the sidebar is a tree of machines and their spaces. "This device" uses local IPC, while the other machine uses SSH over Tailscale. an offline machine does not block the local terminal. the agents panel defaults to this space; this machine and all machines also stay within `skadi`.
 
 `new` creates and opens a named session after checking that the name is unused, including by stopped sessions. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved. creating a space inside the window uses the selected session; it does not silently create one on another machine.
+
+opening a peer connection also opens the same-named local session for local editing. it does not reuse the session of the terminal that launched the command. attaching to this device requires the selected session to be running.
 
 connection windows keep their sidebar preferences under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. ordinary Herdr windows keep their existing sidebar and saved machines. the combined view only discovers the configured khion and lumi machines.
 

@@ -9,22 +9,27 @@ diff --git a/src/cli/machine.rs b/src/cli/machine.rs
    herdr machine status [<label-or-id>] [--json]
    herdr machine reconnect <label-or-id>
    herdr machine add <ssh-target> [--label <label>] [--remote-session <name>]
-@@ -38,6 +39,11 @@
+@@ -38,6 +39,8 @@
  pub(super) fn run_machine_command(args: &[String]) -> std::io::Result<i32> {
      match args.first().map(String::as_str) {
          Some("list") => list(&args[1..]),
-+        Some("fleet-version") if args.len() == 1 => {
-+            println!("1");
-+            Ok(0)
-+        }
++        Some("fleet-version") => fleet_version(&args[1..], &mut std::io::stdout().lock()),
 +        Some("fleet-create") => fleet_create(&args[1..]),
          Some("state-dir") => state_dir(&args[1..], &mut std::io::stdout().lock()),
          Some("status") => status(&args[1..]),
          Some("reconnect") => reconnect(&args[1..]),
-@@ -55,6 +61,34 @@
+@@ -55,6 +58,42 @@
              Ok(2)
          }
      }
++}
++
++fn fleet_version(args: &[String], output: &mut impl std::io::Write) -> std::io::Result<i32> {
++    if !args.is_empty() {
++        return Ok(2);
++    }
++    writeln!(output, "2")?;
++    Ok(0)
 +}
 +
 +fn parse_fleet_create_args(args: &[String]) -> Result<(&str, &str), String> {
@@ -361,7 +366,7 @@ diff --git a/src/client/fleet.rs b/src/client/fleet.rs
 new file mode 100644
 --- /dev/null
 +++ b/src/client/fleet.rs
-@@ -0,0 +1,602 @@
+@@ -0,0 +1,583 @@
 +//! Client-owned machine/session discovery and presentation for explicitly combined windows.
 +
 +use std::collections::{BTreeMap, HashSet};
@@ -441,11 +446,14 @@ new file mode 100644
 +    }
 +
 +    pub fn validate(&self) -> Result<(), String> {
-+        if self.version != 1 || self.machines.is_empty() || self.machines.len() > 8 {
++        if self.version != 2 || self.machines.is_empty() || self.machines.len() > 8 {
 +            return Err("unsupported fleet version or machine count".into());
 +        }
 +        crate::session::validate_name(&self.origin_session)?;
 +        crate::session::validate_name(&self.selected.session)?;
++        if self.origin_session != self.selected.session {
++            return Err("combined windows require one session name across machines".into());
++        }
 +        let mut ids = HashSet::new();
 +        let mut local = 0;
 +        for machine in &self.machines {
@@ -568,8 +576,6 @@ new file mode 100644
 +    scope: AgentScope,
 +    #[serde(default)]
 +    collapsed: HashSet<String>,
-+    #[serde(default)]
-+    collapsed_sessions: HashSet<String>,
 +    selected: Option<Selection>,
 +}
 +
@@ -580,7 +586,6 @@ new file mode 100644
 +    pub sessions: BTreeMap<ClientEndpointId, Session>,
 +    pub scope: AgentScope,
 +    pub collapsed: HashSet<String>,
-+    pub collapsed_sessions: HashSet<String>,
 +    pub selected: Selection,
 +    preference_path: Option<PathBuf>,
 +}
@@ -644,9 +649,6 @@ new file mode 100644
 +            collapsed: preferences
 +                .as_ref()
 +                .map_or_else(HashSet::new, |p| p.collapsed.clone()),
-+            collapsed_sessions: preferences
-+                .as_ref()
-+                .map_or_else(HashSet::new, |p| p.collapsed_sessions.clone()),
 +            preference_path: None,
 +            selected: config.selected.clone(),
 +            config,
@@ -658,15 +660,6 @@ new file mode 100644
 +                .iter()
 +                .any(|machine| &machine.id == id)
 +        });
-+        state.collapsed_sessions.retain(|key| {
-+            key == "local"
-+                || key
-+                    .strip_prefix("session:")
-+                    .is_some_and(|id| ProfileId::parse(id).is_ok())
-+        });
-+        if state.collapsed_sessions.len() > MAX_SESSIONS * 8 + 2 {
-+            state.collapsed_sessions.clear();
-+        }
 +        let local = state
 +            .config
 +            .machines
@@ -679,6 +672,9 @@ new file mode 100644
 +    }
 +
 +    fn insert_session(&mut self, machine: &Machine, name: String, running: bool) {
++        if name != self.config.selected.session {
++            return;
++        }
 +        let endpoint = self.config.endpoint_id(&machine.id, &name);
 +        let transport = match &machine.target {
 +            Some(target) => Transport::Ssh(SavedSshEndpoint {
@@ -731,13 +727,15 @@ new file mode 100644
 +                    .endpoint_id(&self.selected.machine, &self.selected.session);
 +                let names = sessions
 +                    .iter()
++                    .filter(|session| session.name == self.config.selected.session)
 +                    .map(|session| session.name.as_str())
 +                    .collect::<HashSet<_>>();
 +                self.sessions.retain(|endpoint, session| {
-+                    session.machine != machine.id
-+                        || endpoint.is_local()
-+                        || endpoint == &selected
-+                        || names.contains(session.name.as_str())
++                    session.name == self.config.selected.session
++                        && (session.machine != machine.id
++                            || endpoint.is_local()
++                            || endpoint == &selected
++                            || names.contains(session.name.as_str()))
 +                });
 +                for session in self
 +                    .sessions
@@ -752,17 +750,6 @@ new file mode 100644
 +                    self.insert_session(&machine, session.name, session.running);
 +                }
 +            }
-+        }
-+        if self
-+            .machines
-+            .iter()
-+            .all(|machine| machine.discovered && machine.error.is_none())
-+        {
-+            self.collapsed_sessions.retain(|key| {
-+                self.sessions
-+                    .keys()
-+                    .any(|endpoint| endpoint.storage_key() == *key)
-+            });
 +        }
 +        true
 +    }
@@ -805,7 +792,6 @@ new file mode 100644
 +            version: 1,
 +            scope: self.scope,
 +            collapsed: self.collapsed.clone(),
-+            collapsed_sessions: self.collapsed_sessions.clone(),
 +            selected: Some(self.selected.clone()),
 +        };
 +        if let Ok(bytes) = serde_json::to_vec(&prefs) {
@@ -986,7 +972,18 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
  mod frame_output;
  #[cfg(test)]
  mod frame_output_tests;
-@@ -194,12 +195,23 @@
+@@ -172,6 +173,10 @@
+     (reuse || delta || scroll).then(|| protocol::surface_reuse::Decoder::new(delta, scroll))
+ }
+ 
++pub(crate) fn validate_fleet_configuration() -> io::Result<()> {
++    fleet::Config::load().map(|_| ()).map_err(io::Error::other)
++}
++
+ fn run_client_with_mode(
+     attach_request: Option<(String, bool)>,
+     attach_escape: Option<AttachEscapeState>,
+@@ -194,12 +199,23 @@
          } else {
              crate::config::config_diagnostic_summary(&loaded_config.diagnostics)
          };
@@ -1013,7 +1010,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
      });
      let mouse_capture = loaded_config.config.ui.mouse_capture;
      let mouse_scroll_lines = loaded_config.config.ui.mouse_scroll_lines();
-@@ -213,6 +225,7 @@
+@@ -213,6 +229,7 @@
          .as_ref()
          .is_some_and(shell::ClientShellConfig::uses_endpoint_keybindings);
      let mut loop_config = ClientLoopConfig {
@@ -1021,7 +1018,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
          sound_config: loaded_config.config.ui.sound,
          mouse_scroll_lines,
          redraw_on_focus_gained,
-@@ -240,7 +253,7 @@
+@@ -240,7 +257,7 @@
      } else {
          endpoint::EndpointCatalog::default()
      };
@@ -1030,7 +1027,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
  
      let initial_stream = match crate::ipc::connect_local_stream(&socket_path) {
          Ok(stream) => Some(stream),
-@@ -403,11 +416,8 @@
+@@ -403,11 +420,8 @@
  
  // This guards server-supplied paths only. Client-owned temporary files generated
  // from received graphics bytes remain usable for remote endpoints.
@@ -1044,7 +1041,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
  }
  
  #[cfg(unix)]
-@@ -448,6 +458,7 @@
+@@ -448,6 +462,7 @@
  ) -> Result<(), ClientError> {
      #[cfg(windows)]
      let _ = config.mouse_scroll_lines;
@@ -1052,7 +1049,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
      let draw_host_cursor = attach_escape.is_none() && should_draw_host_cursor(config.host_cursor);
      let is_remote_client = is_remote_client_process();
      let local_unavailable = initial.is_none();
-@@ -492,12 +503,16 @@
+@@ -492,12 +507,16 @@
          detached_process_children: Vec::new(),
          shell: config.shell_config.map(shell::ClientShellState::new),
      };
@@ -1071,7 +1068,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
          shell.set_endpoint_methods_for(
              &endpoint::ClientEndpointId::Local,
              initial
-@@ -620,7 +635,8 @@
+@@ -620,7 +639,8 @@
          let negotiation = endpoint::EndpointNegotiation::new(
              handshake.endpoint_methods.unwrap_or_default(),
              handshake.endpoint_capabilities.unwrap_or_default(),
@@ -1081,7 +1078,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
          let surface_decoder = negotiated_surface_decoder(&negotiation);
          let transport = start_endpoint_transport(
              stream,
-@@ -639,8 +655,14 @@
+@@ -639,8 +659,14 @@
      } else {
          endpoint::EndpointRegistry::empty()
      };
@@ -1098,7 +1095,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
      if federated {
          supervisors.add_local(
              client_socket_path(),
-@@ -663,7 +685,10 @@
+@@ -663,7 +689,10 @@
      let mut pending_activation: Option<endpoint::PendingEndpointActivation> = None;
      let mut scheduled_activation = None;
      let mut pending_catalog: Option<Result<Vec<endpoint::SavedSshEndpoint>, String>> = None;
@@ -1110,7 +1107,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
          catalog_reload::watch_profiles(event_tx.clone(), should_quit.clone());
      }
  
-@@ -677,7 +702,23 @@
+@@ -677,7 +706,23 @@
      let mut stdin_open = true;
      while !should_quit.load(Ordering::Acquire) {
          if pending_activation.is_none() {
@@ -1134,7 +1131,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
                  match reload {
                      Ok(profiles) => {
                          let now = std::time::Instant::now();
-@@ -714,33 +755,7 @@
+@@ -714,33 +759,7 @@
                              profiles,
                              now,
                          );
@@ -1169,7 +1166,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
                      }
                      Err(error) => {
                          warn!(%error, "saved machines could not be reloaded; keeping current connections");
-@@ -751,6 +766,33 @@
+@@ -751,6 +770,33 @@
                          }
                      }
                  }
@@ -1203,7 +1200,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
                  apply_client_shell_input_source_changes(&mut state, &mut prefix_input_source);
                  if let Some(shell) = state.shell.as_mut() {
                      let cleanup = shell.take_pending_graphics_cleanup();
-@@ -765,6 +807,7 @@
+@@ -765,6 +811,7 @@
                  }
              }
          }
@@ -1211,7 +1208,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
          if let Some(shell) = state.shell.as_ref() {
              supervisors.spawn_due(
                  std::time::Instant::now(),
-@@ -825,6 +868,9 @@
+@@ -825,6 +872,9 @@
  
          match event {
              ClientLoopEvent::EndpointCatalog(reload) => pending_catalog = Some(reload),
@@ -1221,7 +1218,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
              #[cfg(unix)]
              ClientLoopEvent::StdinInput(data) => {
                  let image_bridge_active = endpoint_accepts_local_images(
-@@ -1405,11 +1451,18 @@
+@@ -1405,11 +1455,18 @@
                  target,
                  force,
              } => {
@@ -1245,7 +1242,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
                  }
                  begin_endpoint_activation(
                      &mut state,
-@@ -1635,8 +1688,14 @@
+@@ -1635,8 +1692,14 @@
                      } => {
                          // Never interpret an SSH server's filesystem path on this host,
                          // including legacy peers that send files without negotiation.
@@ -1262,7 +1259,7 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
                              write_stream.send_to(
                                  &endpoint_id,
                                  &ClientMessage::GraphicsTransmissionResult {
-@@ -2185,11 +2244,22 @@
+@@ -2185,11 +2248,22 @@
                                  continue;
                              }
                          }
@@ -1289,6 +1286,17 @@ diff --git a/src/client/mod.rs b/src/client/mod.rs
                              });
                          let activation_ready = state.shell.as_ref().is_some_and(|shell| {
                              shell.endpoint_has_snapshot(&selected_endpoint)
+diff --git a/src/client/shell.rs b/src/client/shell.rs
+--- a/src/client/shell.rs
++++ b/src/client/shell.rs
+@@ -16,6 +16,7 @@
+ mod endpoint_notices;
+ mod endpoint_sidebar;
+ mod endpoints;
++mod fleet_tree;
+ pub(super) use endpoints::*;
+ mod global_menu;
+ mod graphics;
 diff --git a/src/client/shell/aggregate_navigation.rs b/src/client/shell/aggregate_navigation.rs
 --- a/src/client/shell/aggregate_navigation.rs
 +++ b/src/client/shell/aggregate_navigation.rs
@@ -1524,57 +1532,80 @@ diff --git a/src/client/shell/endpoint_agents.rs b/src/client/shell/endpoint_age
 diff --git a/src/client/shell/endpoint_navigation.rs b/src/client/shell/endpoint_navigation.rs
 --- a/src/client/shell/endpoint_navigation.rs
 +++ b/src/client/shell/endpoint_navigation.rs
-@@ -47,6 +47,21 @@
+@@ -47,6 +47,32 @@
          point: (u16, u16),
          outcome: &mut ClientShellInput,
      ) -> bool {
-+        if let Some((_, machine)) = self
++        if let Some(hit) = self
 +            .hits
 +            .fleet_machines
 +            .iter()
-+            .find(|(rect, _)| super::contains(*rect, point))
++            .find(|hit| super::contains(hit.rect, point))
 +        {
-+            if let Some(fleet) = self.fleet.as_mut() {
-+                if !fleet.collapsed.remove(machine) {
-+                    fleet.collapsed.insert(machine.clone());
++            let collapse = super::contains(hit.collapse_toggle, point);
++            let machine = hit.machine_id.clone();
++            let endpoint = hit.endpoint_id.clone();
++            if collapse {
++                if let Some(fleet) = self.fleet.as_mut() {
++                    if !fleet.collapsed.remove(&machine) {
++                        fleet.collapsed.insert(machine);
++                    }
++                    fleet.persist();
 +                }
-+                fleet.persist();
-+                outcome.repaint = true;
++            } else if let Some(endpoint) = endpoint {
++                self.activate_endpoint(endpoint, outcome);
++            } else {
++                self.receive_endpoint_unavailable(
++                    "This machine has no running copy of this session".into(),
++                );
 +            }
++            outcome.repaint = true;
 +            return true;
 +        }
          let Some(hit) = self
              .hits
              .machines
-@@ -61,8 +76,16 @@
-             if !self.collapsed_endpoints.remove(&endpoint_id) {
+@@ -62,7 +88,7 @@
                  self.collapsed_endpoints.insert(endpoint_id.clone());
              }
-+            if let Some(fleet) = self.fleet.as_mut() {
-+                fleet.collapsed_sessions = self
-+                    .collapsed_endpoints
-+                    .iter()
-+                    .map(ClientEndpointId::storage_key)
-+                    .collect();
-+                fleet.persist();
-+            }
              outcome.repaint = true;
 -            if !collapse_toggle && endpoint_id.is_local() {
 +            if !collapse_toggle && (self.fleet.is_some() || endpoint_id.is_local()) {
                  self.activate_endpoint(endpoint_id, outcome);
              }
          } else if endpoint_id.is_local() || self.endpoint_is_online(&endpoint_id) {
-@@ -239,7 +262,8 @@
+@@ -225,6 +251,15 @@
+         false
+     }
+ 
++    pub(super) fn reveal_fleet_endpoint(&mut self, endpoint: &ClientEndpointId) {
++        if let Some(fleet) = self.fleet.as_mut() {
++            let machine = fleet.machine_for(endpoint).map(str::to_owned);
++            if machine.is_some_and(|machine| fleet.collapsed.remove(&machine)) {
++                fleet.persist();
++            }
++        }
++    }
++
+     pub(super) fn activate_endpoint(
+         &mut self,
+         endpoint_id: ClientEndpointId,
+@@ -239,7 +274,9 @@
              outcome.repaint = true;
              return false;
          }
 -        if (endpoint_id.is_local() && (self.multi_endpoint_active() || !online))
++        self.reveal_fleet_endpoint(&endpoint_id);
 +        if self.fleet.is_some()
 +            || (endpoint_id.is_local() && (self.multi_endpoint_active() || !online))
              || endpoint_id != self.active_endpoint_id
          {
              outcome.actions.push(ClientShellAction::ActivateEndpoint {
-@@ -272,6 +296,7 @@
+@@ -269,9 +306,11 @@
+             outcome.repaint = true;
+             return false;
+         }
++        self.reveal_fleet_endpoint(&endpoint_id);
          // Local can still be displayed while a remote activation is pending.
          // Route explicit selections through the runtime so they can cancel that handoff.
          if endpoint_id == self.active_endpoint_id
@@ -1596,112 +1627,156 @@ diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_si
      let palette = &config.palette;
      super::render::render_sidebar_background(buffer, area, palette);
      let (workspace_area, divider_y, detail_area) = super::sidebar::collapsed_sidebar_sections(area);
-@@ -267,6 +271,7 @@
+@@ -253,12 +257,15 @@
+         crate::ui::expanded_sidebar_sections(area, state.sidebar_section_split);
+     hits.sidebar_section_divider =
+         crate::ui::sidebar_section_divider_rect(area, state.sidebar_section_split);
++    let heading = state
++        .fleet
++        .map(|fleet| format!(" {} · machines", fleet.config.selected.session));
+     put_text(
+         buffer,
+         workspace_area.x,
+         workspace_area.y,
+         workspace_area.width,
+-        " machines",
++        heading.as_deref().unwrap_or(" machines"),
+         Style::default()
+             .fg(palette.overlay0)
+             .add_modifier(Modifier::BOLD),
+@@ -267,29 +274,54 @@
      let empty_collapsed_groups = HashSet::new();
  
      enum Row {
-+        Machine(usize),
++        Machine {
++            machine: usize,
++            endpoint: Option<usize>,
++        },
          Endpoint(usize),
          Workspace {
              endpoint: usize,
-@@ -274,7 +279,24 @@
+             entry: WorkspaceEntry,
++            branch: Option<super::fleet_tree::Branch>,
          },
      }
      let mut rows = Vec::new();
-+    let mut previous_machine = None;
-     for (endpoint_index, endpoint) in state.endpoints.iter().enumerate() {
-+        if let Some(fleet) = state.fleet {
-+            let machine = fleet.machine_for(&endpoint.endpoint_id);
-+            if previous_machine != machine {
-+                if let Some(index) = fleet
-+                    .machines
-+                    .iter()
-+                    .position(|m| Some(m.machine.id.as_str()) == machine)
-+                {
-+                    rows.push(Row::Machine(index));
+-    for (endpoint_index, endpoint) in state.endpoints.iter().enumerate() {
+-        rows.push(Row::Endpoint(endpoint_index));
+-        if state.collapsed_endpoints.contains(&endpoint.endpoint_id) {
+-            continue;
+-        }
+-        if let Some(snapshot) = endpoint.snapshot.as_deref() {
+-            let collapsed_groups = collapsed_groups_for_endpoint(state, &endpoint.endpoint_id)
+-                .unwrap_or(&empty_collapsed_groups);
+-            rows.extend(
+-                super::sidebar::workspace_entries(snapshot, collapsed_groups)
+-                    .into_iter()
+-                    .map(|entry| Row::Workspace {
+-                        endpoint: endpoint_index,
+-                        entry,
+-                    }),
+-            );
++    if let Some(fleet) = state.fleet {
++        super::fleet_tree::rows(state, fleet, |row| {
++            rows.push(match row {
++                super::fleet_tree::Row::Machine { machine, endpoint } => {
++                    Row::Machine { machine, endpoint }
 +                }
-+                previous_machine = machine;
-+            }
-+            if machine.is_some_and(|machine| fleet.collapsed.contains(machine)) {
++                super::fleet_tree::Row::Workspace {
++                    endpoint,
++                    entry,
++                    branch,
++                } => Row::Workspace {
++                    endpoint,
++                    entry,
++                    branch: Some(branch),
++                },
++            })
++        });
++    } else {
++        for (endpoint_index, endpoint) in state.endpoints.iter().enumerate() {
++            rows.push(Row::Endpoint(endpoint_index));
++            if state.collapsed_endpoints.contains(&endpoint.endpoint_id) {
 +                continue;
 +            }
-+        }
-         rows.push(Row::Endpoint(endpoint_index));
-         if state.collapsed_endpoints.contains(&endpoint.endpoint_id) {
-             continue;
-@@ -292,6 +314,17 @@
-             );
++            if let Some(snapshot) = endpoint.snapshot.as_deref() {
++                let collapsed_groups = collapsed_groups_for_endpoint(state, &endpoint.endpoint_id)
++                    .unwrap_or(&empty_collapsed_groups);
++                rows.extend(
++                    super::sidebar::workspace_entries(snapshot, collapsed_groups)
++                        .into_iter()
++                        .map(|entry| Row::Workspace {
++                            endpoint: endpoint_index,
++                            entry,
++                            branch: None,
++                        }),
++                );
++            }
          }
      }
-+    if let Some(fleet) = state.fleet {
-+        for (index, machine) in fleet.machines.iter().enumerate() {
-+            if !fleet
-+                .sessions
-+                .values()
-+                .any(|session| session.machine == machine.machine.id)
-+            {
-+                rows.push(Row::Machine(index));
-+            }
-+        }
-+    }
      let body = Rect::new(
-         workspace_area.x,
-         workspace_area.y.saturating_add(WORKSPACE_HEADER_ROWS),
-@@ -304,7 +337,7 @@
+@@ -304,8 +336,10 @@
      let row_heights = rows
          .iter()
          .map(|row| match row {
 -            Row::Endpoint(_) => 1,
-+            Row::Machine(_) | Row::Endpoint(_) => 1,
-             Row::Workspace { endpoint, entry } => {
+-            Row::Workspace { endpoint, entry } => {
++            Row::Machine { .. } | Row::Endpoint(_) => 1,
++            Row::Workspace {
++                endpoint, entry, ..
++            } => {
                  let endpoint = &state.endpoints[*endpoint];
                  let collapsed_groups = collapsed_groups_for_endpoint(state, &endpoint.endpoint_id)
-@@ -372,7 +405,7 @@
+                     .unwrap_or(&empty_collapsed_groups);
+@@ -343,8 +377,15 @@
+                 Some(Row::Workspace {
+                     endpoint: next_endpoint,
+                     entry,
++                    ..
+                 }),
+             ) if endpoint == next_endpoint => u16::from(!entry.indented) * config.spaces.row_gap,
++            (
++                Row::Workspace {
++                    branch: Some(_), ..
++                },
++                _,
++            ) => 1,
+             _ => 0,
+         })
+         .collect::<Vec<_>>();
+@@ -352,7 +393,9 @@
+     let reveal_focus = !body.is_empty() && std::mem::take(state.reveal_focused_workspace);
+     if reveal_navigation || reveal_focus {
+         let selected_row = rows.iter().position(|row| match row {
+-            Row::Workspace { endpoint, entry } => {
++            Row::Workspace {
++                endpoint, entry, ..
++            } => {
+                 let endpoint = &state.endpoints[*endpoint];
+                 endpoint
+                     .snapshot
+@@ -372,7 +415,7 @@
                          }
                      })
              }
 -            Row::Endpoint(_) => false,
-+            Row::Machine(_) | Row::Endpoint(_) => false,
++            Row::Machine { .. } | Row::Endpoint(_) => false,
          });
          if let Some(selected_row) = selected_row {
              *state.workspace_scroll = super::scroll::list_scroll_start_to_reveal(
-@@ -400,12 +433,54 @@
+@@ -400,18 +443,37 @@
      let mut y = body.y;
      for (row_index, row) in rows.iter().enumerate().skip(*state.workspace_scroll) {
          match row {
-+            Row::Machine(index) => {
++            Row::Machine { machine, endpoint } => {
 +                if y >= body.bottom() {
 +                    break;
 +                }
 +                if let Some(fleet) = state.fleet {
-+                    let machine = &fleet.machines[*index];
 +                    let rect = Rect::new(body.x, y, content_width, 1);
-+                    let marker = if fleet.collapsed.contains(&machine.machine.id) {
-+                        "▸"
-+                    } else {
-+                        "▾"
-+                    };
-+                    let local = machine.machine.id == fleet.config.local_machine;
-+                    let status = if local {
-+                        " · This device"
-+                    } else if machine.error.is_some() {
-+                        " · offline"
-+                    } else if !machine.discovered {
-+                        " · discovering"
-+                    } else {
-+                        ""
-+                    };
-+                    put_text(
-+                        buffer,
-+                        rect.x,
-+                        rect.y,
-+                        rect.width,
-+                        &format!("{marker} {}{status}", machine.machine.label),
-+                        Style::default()
-+                            .fg(palette.text)
-+                            .add_modifier(Modifier::BOLD),
-+                    );
-+                    hits.fleet_machines.push((rect, machine.machine.id.clone()));
++                    hits.fleet_machines.push(super::fleet_tree::render_machine(
++                        buffer, rect, *machine, *endpoint, state, fleet, palette,
++                    ));
 +                }
 +                y = y.saturating_add(1);
 +            }
@@ -1721,7 +1796,111 @@ diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_si
                  let collapsed = state.collapsed_endpoints.contains(&endpoint.endpoint_id);
                  let marker = if collapsed { "▸" } else { "▾" };
                  let status_badge = render_endpoint_row(
-@@ -563,6 +638,23 @@
+                     buffer,
+                     rect,
+                     marker,
++                    &endpoint.label,
+                     endpoint,
+                     collapsed && &endpoint.endpoint_id == state.active_endpoint_id,
+                     state.machine_diagnostics,
+@@ -432,7 +494,11 @@
+                     .saturating_add(1)
+                     .saturating_add(gaps.get(row_index).copied().unwrap_or(0));
+             }
+-            Row::Workspace { endpoint, entry } => {
++            Row::Workspace {
++                endpoint,
++                entry,
++                branch,
++            } => {
+                 let endpoint = &state.endpoints[*endpoint];
+                 let Some(snapshot) = endpoint.snapshot.as_deref() else {
+                     continue;
+@@ -458,12 +524,24 @@
+                     break;
+                 }
+                 let rect = Rect::new(body.x, y, content_width, height);
+-                let nested = Rect::new(
+-                    rect.x.saturating_add(2),
+-                    rect.y,
+-                    rect.width.saturating_sub(2),
+-                    rect.height,
+-                );
++                let nested = if let Some(branch) = branch {
++                    super::fleet_tree::render_branch(
++                        buffer,
++                        rect,
++                        entry,
++                        *branch,
++                        gaps.get(row_index).copied().unwrap_or(0),
++                        body.bottom(),
++                        palette,
++                    )
++                } else {
++                    Rect::new(
++                        rect.x.saturating_add(2),
++                        rect.y,
++                        rect.width.saturating_sub(2),
++                        rect.height,
++                    )
++                };
+                 let endpoint_active = &endpoint.endpoint_id == state.active_endpoint_id;
+                 let selected = state.selected_workspace_id.is_some_and(|target| {
+                     target.matches(&endpoint.endpoint_id, &workspace.workspace_id)
+@@ -478,7 +556,9 @@
+                     endpoint_active && workspace.focused,
+                     selected,
+                     state.selected_workspace_id.is_some(),
+-                    false,
++                    branch.is_some()
++                        && endpoint_active
++                        && state.dragged_workspace_id == Some(workspace.workspace_id.as_str()),
+                     palette,
+                 );
+                 if endpoint.status != ClientEndpointStatus::Online {
+@@ -489,16 +569,32 @@
+                             .add_modifier(Modifier::DIM),
+                     );
+                 }
+-                let group_toggle = super::sidebar::render_parent_group_toggle(
+-                    buffer,
+-                    rect,
+-                    snapshot,
+-                    entry.index,
+-                    collapsed_groups,
+-                    palette,
+-                );
++                let hit_rect = if branch.is_some() { nested } else { rect };
++                if branch.is_some() && !hit_rect.is_empty() {
++                    let end = rect
++                        .bottom()
++                        .saturating_add(gaps.get(row_index).copied().unwrap_or(0))
++                        .min(body.bottom());
++                    hits.fleet_workspace_regions
++                        .push(super::fleet_tree::WorkspaceRegion {
++                            rect: Rect::new(rect.x, rect.y, rect.width, end.saturating_sub(rect.y)),
++                            endpoint_id: endpoint.endpoint_id.clone(),
++                        });
++                }
++                let group_toggle = if hit_rect.is_empty() {
++                    None
++                } else {
++                    super::sidebar::render_parent_group_toggle(
++                        buffer,
++                        hit_rect,
++                        snapshot,
++                        entry.index,
++                        collapsed_groups,
++                        palette,
++                    )
++                };
+                 hits.workspaces.push(WorkspaceHit {
+-                    rect,
++                    rect: hit_rect,
+                     endpoint_id: endpoint.endpoint_id.clone(),
+                     workspace_id: workspace.workspace_id.clone(),
+                     indented: entry.indented,
+@@ -563,6 +659,23 @@
          state.agent_scroll,
          hits,
      );
@@ -1745,7 +1924,7 @@ diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_si
      hits.sidebar_toggle = Rect::new(
          area.right().saturating_sub(2),
          area.bottom().saturating_sub(1),
-@@ -579,12 +671,16 @@
+@@ -579,18 +692,23 @@
      );
  }
  
@@ -1762,8 +1941,16 @@ diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_si
 +        .to_owned()
  }
  
- fn render_endpoint_row(
-@@ -599,7 +695,10 @@
+-fn render_endpoint_row(
++pub(super) fn render_endpoint_row(
+     buffer: &mut Buffer,
+     rect: Rect,
+     marker: &str,
++    label: &str,
+     endpoint: &ClientShellEndpoint,
+     highlighted: bool,
+     auth: &super::machine_diagnostics::MachineDiagnostics,
+@@ -599,7 +717,10 @@
      if highlighted {
          buffer.set_style(rect, Style::default().bg(palette.active_row_bg));
      }
@@ -1775,6 +1962,15 @@ diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_si
      let state = if endpoint.status == ClientEndpointStatus::Online {
          ""
      } else {
+@@ -622,7 +743,7 @@
+         rect.x,
+         rect.y,
+         rect.width.saturating_sub(signal_width.saturating_add(1)),
+-        &format!(" {marker} {}", endpoint.label),
++        &format!(" {marker} {label}"),
+         Style::default()
+             .fg(
+                 if matches!(endpoint.status, ClientEndpointStatus::Disabled) {
 diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
 --- a/src/client/shell/endpoints.rs
 +++ b/src/client/shell/endpoints.rs
@@ -1795,7 +1991,7 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
  }
  
  pub(super) struct MachineHit {
-@@ -43,7 +46,129 @@
+@@ -43,7 +46,122 @@
      },
  }
  
@@ -1853,13 +2049,6 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
 +                endpoint.fleet_label = Some(fleet.label(&session.endpoint));
 +                if !session.running && !session.endpoint.is_local() {
 +                    endpoint.status = ClientEndpointStatus::Disabled;
-+                }
-+                if fleet
-+                    .collapsed_sessions
-+                    .contains(&endpoint.endpoint_id.storage_key())
-+                {
-+                    self.collapsed_endpoints
-+                        .insert(endpoint.endpoint_id.clone());
 +                }
 +                self.endpoints.push(endpoint);
 +            }
@@ -1925,7 +2114,7 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
      pub(crate) fn set_endpoint_catalog(&mut self, profiles: &[SavedSshEndpoint]) {
          let mut next = Vec::with_capacity(profiles.len().saturating_add(1));
          let local = self
-@@ -65,6 +190,7 @@
+@@ -65,6 +183,7 @@
              next.push(ClientShellEndpoint {
                  endpoint_id,
                  label: profile.label.clone(),
@@ -1933,7 +2122,7 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
                  status: previous.map_or(
                      if profile.enabled {
                          ClientEndpointStatus::Connecting
-@@ -88,6 +214,8 @@
+@@ -88,6 +207,8 @@
                  agent_view_projection_supported: previous
                      .is_some_and(|endpoint| endpoint.agent_view_projection_supported),
                  methods: previous.and_then(|endpoint| endpoint.methods.clone()),
@@ -1942,7 +2131,7 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
              });
          }
  
-@@ -475,7 +603,7 @@
+@@ -475,7 +596,7 @@
      }
  
      pub(crate) fn multi_endpoint_active(&self) -> bool {
@@ -1951,7 +2140,7 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
      }
  
      #[cfg(test)]
-@@ -733,6 +861,7 @@
+@@ -733,6 +854,7 @@
      ClientShellEndpoint {
          endpoint_id: ClientEndpointId::Local,
          label: "Local".into(),
@@ -1959,7 +2148,7 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
          status: ClientEndpointStatus::Online,
          snapshot: None,
          snapshot_generation: None,
-@@ -742,5 +871,7 @@
+@@ -742,5 +864,7 @@
          pending_agent_view_projection: None,
          agent_view_projection_supported: false,
          methods: None,
@@ -1967,6 +2156,199 @@ diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
 +        agent_group: None,
      }
  }
+diff --git a/src/client/shell/fleet_tree.rs b/src/client/shell/fleet_tree.rs
+new file mode 100644
+--- /dev/null
++++ b/src/client/shell/fleet_tree.rs
+@@ -0,0 +1,188 @@
++use super::render::{display_width, put_right_text, put_text, ShellRenderState};
++use super::*;
++
++pub(super) struct FleetMachineHit {
++    pub(super) rect: Rect,
++    pub(super) collapse_toggle: Rect,
++    pub(super) status_badge: Rect,
++    pub(super) machine_id: String,
++    pub(super) endpoint_id: Option<ClientEndpointId>,
++}
++
++pub(super) struct WorkspaceRegion {
++    pub(super) rect: Rect,
++    pub(super) endpoint_id: ClientEndpointId,
++}
++
++#[derive(Clone, Copy)]
++pub(super) struct Branch {
++    pub(super) last_root: bool,
++}
++
++pub(super) enum Row {
++    Machine {
++        machine: usize,
++        endpoint: Option<usize>,
++    },
++    Workspace {
++        endpoint: usize,
++        entry: WorkspaceEntry,
++        branch: Branch,
++    },
++}
++
++pub(super) fn rows(
++    state: &ShellRenderState<'_>,
++    fleet: &crate::client::fleet::State,
++    mut emit: impl FnMut(Row),
++) {
++    let empty = HashSet::new();
++    for (machine, group) in fleet.machines.iter().enumerate() {
++        let endpoint = state.endpoints.iter().position(|endpoint| {
++            fleet.machine_for(&endpoint.endpoint_id) == Some(group.machine.id.as_str())
++        });
++        emit(Row::Machine { machine, endpoint });
++        if fleet.collapsed.contains(&group.machine.id) {
++            continue;
++        }
++        let Some(index) = endpoint else {
++            continue;
++        };
++        let endpoint = &state.endpoints[index];
++        let Some(snapshot) = endpoint.snapshot.as_deref() else {
++            continue;
++        };
++        let collapsed = if endpoint.endpoint_id.is_local() {
++            state.collapsed_groups
++        } else {
++            state
++                .remote_collapsed_groups
++                .get(&endpoint.endpoint_id)
++                .unwrap_or(&empty)
++        };
++        let entries = super::sidebar::workspace_entries(snapshot, collapsed);
++        let last_root = entries.iter().rposition(|entry| !entry.indented);
++        let mut branch = Branch { last_root: false };
++        for (position, entry) in entries.into_iter().enumerate() {
++            if !entry.indented {
++                branch.last_root = Some(position) == last_root;
++            }
++            emit(Row::Workspace {
++                endpoint: index,
++                entry,
++                branch,
++            });
++        }
++    }
++}
++
++pub(super) fn render_machine(
++    buffer: &mut Buffer,
++    rect: Rect,
++    machine: usize,
++    endpoint: Option<usize>,
++    state: &ShellRenderState<'_>,
++    fleet: &crate::client::fleet::State,
++    palette: &Palette,
++) -> FleetMachineHit {
++    let group = &fleet.machines[machine];
++    let collapsed = fleet.collapsed.contains(&group.machine.id);
++    let marker = if collapsed { "▸" } else { "▾" };
++    let label = if group.machine.id == fleet.config.local_machine {
++        format!("{} · This device", group.machine.label)
++    } else {
++        group.machine.label.clone()
++    };
++    let endpoint = endpoint.map(|index| &state.endpoints[index]);
++    let status_badge = if let Some(endpoint) = endpoint {
++        super::endpoint_sidebar::render_endpoint_row(
++            buffer,
++            rect,
++            marker,
++            &label,
++            endpoint,
++            &endpoint.endpoint_id == state.active_endpoint_id,
++            state.machine_diagnostics,
++            palette,
++        )
++    } else {
++        let signal = if group.error.is_some() {
++            "offline"
++        } else if !group.discovered {
++            "discovering"
++        } else {
++            "not running"
++        };
++        let signal_width = display_width(signal).min(rect.width);
++        put_text(
++            buffer,
++            rect.x,
++            rect.y,
++            rect.width.saturating_sub(signal_width.saturating_add(1)),
++            &format!(" {marker} {label}"),
++            Style::default()
++                .fg(palette.text)
++                .add_modifier(Modifier::BOLD),
++        );
++        put_right_text(
++            buffer,
++            rect,
++            rect.y,
++            signal,
++            Style::default().fg(palette.overlay0),
++        );
++        Rect::default()
++    };
++    FleetMachineHit {
++        rect,
++        collapse_toggle: Rect::new(
++            rect.x.saturating_add(1),
++            rect.y,
++            u16::from(rect.width > 1),
++            u16::from(rect.height > 0),
++        ),
++        status_badge,
++        machine_id: group.machine.id.clone(),
++        endpoint_id: endpoint.map(|endpoint| endpoint.endpoint_id.clone()),
++    }
++}
++
++pub(super) fn render_branch(
++    buffer: &mut Buffer,
++    rect: Rect,
++    entry: &WorkspaceEntry,
++    branch: Branch,
++    gap: u16,
++    body_bottom: u16,
++    palette: &Palette,
++) -> Rect {
++    let end = rect.bottom().saturating_add(gap).min(body_bottom);
++    for y in rect.y..end {
++        let prefix = if !entry.indented && y == rect.y {
++            if branch.last_root {
++                "   └─"
++            } else {
++                "   ├─"
++            }
++        } else if branch.last_root {
++            "     "
++        } else {
++            "   │ "
++        };
++        put_text(
++            buffer,
++            rect.x,
++            y,
++            rect.width.min(5),
++            prefix,
++            Style::default().fg(palette.overlay0),
++        );
++    }
++    let indent = rect.width.min(5);
++    Rect::new(
++        rect.x.saturating_add(indent),
++        rect.y,
++        rect.width.saturating_sub(indent),
++        rect.height,
++    )
++}
 diff --git a/src/client/shell/input.rs b/src/client/shell/input.rs
 --- a/src/client/shell/input.rs
 +++ b/src/client/shell/input.rs
@@ -1981,7 +2363,41 @@ diff --git a/src/client/shell/input.rs b/src/client/shell/input.rs
 diff --git a/src/client/shell/machine_diagnostics.rs b/src/client/shell/machine_diagnostics.rs
 --- a/src/client/shell/machine_diagnostics.rs
 +++ b/src/client/shell/machine_diagnostics.rs
-@@ -97,15 +97,17 @@
+@@ -66,18 +66,21 @@
+         {
+             return false;
+         }
+-        let hit = self
+-            .hits
+-            .machines
+-            .iter()
+-            .find(|hit| {
+-                contains(hit.status_badge, (mouse.column, mouse.row))
+-                    && self
+-                        .machine_diagnostics
+-                        .errors
+-                        .contains_key(&hit.endpoint_id)
+-            })
+-            .map(|hit| hit.endpoint_id.clone());
++        let hit =
++            self.hits
++                .machines
++                .iter()
++                .map(|hit| (&hit.endpoint_id, hit.status_badge))
++                .chain(
++                    self.hits.fleet_machines.iter().filter_map(|hit| {
++                        hit.endpoint_id.as_ref().map(|id| (id, hit.status_badge))
++                    }),
++                )
++                .find(|(id, rect)| {
++                    contains(*rect, (mouse.column, mouse.row))
++                        && self.machine_diagnostics.errors.contains_key(*id)
++                })
++                .map(|(id, _)| id.clone());
+         if mouse.kind == MouseEventKind::Moved {
+             if self.machine_diagnostics.hover != hit {
+                 self.machine_diagnostics.hover = hit;
+@@ -97,15 +100,17 @@
          let Some(error) = self.machine_diagnostics.errors.get(&id) else {
              return true;
          };
@@ -2034,7 +2450,21 @@ diff --git a/src/client/shell/mobile.rs b/src/client/shell/mobile.rs
 diff --git a/src/client/shell/mouse.rs b/src/client/shell/mouse.rs
 --- a/src/client/shell/mouse.rs
 +++ b/src/client/shell/mouse.rs
-@@ -2022,6 +2022,16 @@
+@@ -509,6 +509,13 @@
+     }
+ 
+     fn workspace_drop_target_at(&self, point: (u16, u16)) -> Option<(Option<String>, u16)> {
++        if self.fleet.is_some()
++            && !self.hits.fleet_workspace_regions.iter().any(|region| {
++                region.endpoint_id == self.active_endpoint_id && super::contains(region.rect, point)
++            })
++        {
++            return None;
++        }
+         if self.hits.workspace_body.height == 0
+             || point.1 < self.hits.workspace_body.y.saturating_sub(1)
+             || point.1 >= self.hits.new_workspace.y
+@@ -2022,6 +2029,16 @@
                      }
                      return;
                  }
@@ -2206,19 +2636,30 @@ diff --git a/src/client/shell/render.rs b/src/client/shell/render.rs
              if state.sidebar_collapsed {
                  super::endpoint_sidebar::render_collapsed(
                      buffer,
+@@ -329,6 +330,9 @@
+         hits.agent_sort_toggle = Rect::default();
+         hits.new_workspace = Rect::default();
+         hits.machines.clear();
++        hits.fleet_machines.clear();
++        hits.fleet_scope = Rect::default();
++        hits.fleet_workspace_regions.clear();
+         hits.workspaces.clear();
+         hits.agents.clear();
+         hits.endpoint_agents.clear();
 diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
 --- a/src/client/shell/state.rs
 +++ b/src/client/shell/state.rs
-@@ -84,6 +84,8 @@
+@@ -84,6 +84,9 @@
  #[derive(Default)]
  pub(super) struct ShellHitMap {
      pub(super) machines: Vec<MachineHit>,
-+    pub(super) fleet_machines: Vec<(Rect, String)>,
++    pub(super) fleet_machines: Vec<super::fleet_tree::FleetMachineHit>,
 +    pub(super) fleet_scope: Rect,
++    pub(super) fleet_workspace_regions: Vec<super::fleet_tree::WorkspaceRegion>,
      pub(super) workspaces: Vec<WorkspaceHit>,
      pub(super) workspace_body: Rect,
      pub(super) workspace_scrollbar: Rect,
-@@ -296,6 +298,8 @@
+@@ -296,6 +299,8 @@
  #[derive(Debug)]
  pub(super) enum ClientRenameTarget {
      NewWorkspace {
@@ -2227,7 +2668,7 @@ diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
          source_workspace_id: Option<String>,
          cwd: Option<String>,
          suggested_name: String,
-@@ -896,6 +900,12 @@
+@@ -896,6 +901,12 @@
      pub(super) last_composed_at: Option<std::time::Instant>,
      pub(super) selection_repaint_deadline: Option<std::time::Instant>,
      pub(super) hits: ShellHitMap,
@@ -2240,7 +2681,7 @@ diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
      pub(super) endpoints: Vec<ClientShellEndpoint>,
      pub(super) active_endpoint_id: ClientEndpointId,
      pub(super) collapsed_endpoints: HashSet<ClientEndpointId>,
-@@ -1021,11 +1031,20 @@
+@@ -1021,11 +1032,20 @@
          }
          let mut remote_collapsed_groups = HashMap::<ClientEndpointId, HashSet<String>>::new();
          for saved in preferences.remote_collapsed_groups {
@@ -2263,7 +2704,7 @@ diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
                  .or_default()
                  .extend(saved.collapsed_groups);
          }
-@@ -1070,6 +1089,8 @@
+@@ -1070,6 +1090,8 @@
              last_composed_at: None,
              selection_repaint_deadline: None,
              hits: ShellHitMap::default(),
@@ -2272,6 +2713,17 @@ diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
              endpoints: vec![local_endpoint()],
              active_endpoint_id: ClientEndpointId::Local,
              collapsed_endpoints: HashSet::new(),
+diff --git a/src/client/shell/workspace_navigation.rs b/src/client/shell/workspace_navigation.rs
+--- a/src/client/shell/workspace_navigation.rs
++++ b/src/client/shell/workspace_navigation.rs
+@@ -153,6 +153,7 @@
+             None => 0,
+         };
+         let target = targets.swap_remove(next);
++        self.reveal_fleet_endpoint(&target.endpoint_id);
+         self.collapsed_endpoints.remove(&target.endpoint_id);
+         if self.endpoints.len() == 1 && !mobile {
+             self.reveal_workspace(&target.workspace_id);
 diff --git a/src/client/tests/mod.rs b/src/client/tests/mod.rs
 --- a/src/client/tests/mod.rs
 +++ b/src/client/tests/mod.rs
@@ -2996,6 +3448,14 @@ diff --git a/src/server/autodetect.rs b/src/server/autodetect.rs
          .arg("server")
          // Redirect stdio to /dev/null
          .stdin(std::process::Stdio::null())
+@@ -303,6 +306,7 @@
+ /// 2. If no server → spawn server daemon → wait for socket readiness
+ /// 3. Run the thin client (which connects to the server)
+ pub fn auto_detect_launch(saved_federation: bool) -> io::Result<()> {
++    crate::client::validate_fleet_configuration()?;
+     // The client requires terminal geometry before it can attach. Reject an
+     // unusable terminal before socket lookup creates directories or starts a daemon.
+     crate::platform::terminal_grid_size().map_err(|err| {
 diff --git a/src/server/handoff.rs b/src/server/handoff.rs
 --- a/src/server/handoff.rs
 +++ b/src/server/handoff.rs
