@@ -5,6 +5,15 @@ let
     "lumi"
   ];
   user = "feltfomo";
+  machineConfig = pkgs.writeText "herdr-machines.json" (
+    builtins.toJSON (
+      map (machine: {
+        id = machine;
+        label = machine;
+        target = "${user}@${machine}";
+      }) machines
+    )
+  );
   remote = {
     packages = [
       inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.herdr-scoped
@@ -17,6 +26,7 @@ let
     command = [
       "${pkgs.fish}/bin/fish"
       "${./modules/terminals/herdr/_praxis.fish}"
+      "${machineConfig}"
     ];
     forwardArgs = false;
   };
@@ -52,7 +62,6 @@ in
         interactive = true;
         args = [
           "new"
-          user
           { param = "machine"; }
           { param = "session"; }
         ];
@@ -63,7 +72,6 @@ in
         parameters.machine.choices = machines;
         args = [
           "list"
-          user
           { param = "machine"; }
         ];
       };
@@ -78,7 +86,6 @@ in
         interactive = true;
         args = [
           "attach"
-          user
           machine
           { param = "session"; }
         ];

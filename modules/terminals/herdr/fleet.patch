@@ -1,0 +1,3011 @@
+diff --git a/src/cli/machine.rs b/src/cli/machine.rs
+--- a/src/cli/machine.rs
++++ b/src/cli/machine.rs
+@@ -10,6 +10,7 @@
+ const HELP: &str = "Usage:
+   herdr machine list [--json]
+   herdr machine state-dir
++  herdr machine fleet-create <ssh-target> <session>
+   herdr machine status [<label-or-id>] [--json]
+   herdr machine reconnect <label-or-id>
+   herdr machine add <ssh-target> [--label <label>] [--remote-session <name>]
+@@ -38,6 +39,11 @@
+ pub(super) fn run_machine_command(args: &[String]) -> std::io::Result<i32> {
+     match args.first().map(String::as_str) {
+         Some("list") => list(&args[1..]),
++        Some("fleet-version") if args.len() == 1 => {
++            println!("1");
++            Ok(0)
++        }
++        Some("fleet-create") => fleet_create(&args[1..]),
+         Some("state-dir") => state_dir(&args[1..], &mut std::io::stdout().lock()),
+         Some("status") => status(&args[1..]),
+         Some("reconnect") => reconnect(&args[1..]),
+@@ -55,6 +61,34 @@
+             Ok(2)
+         }
+     }
++}
++
++fn parse_fleet_create_args(args: &[String]) -> Result<(&str, &str), String> {
++    let [target, session] = args else {
++        return Err("usage: herdr machine fleet-create <ssh-target> <session>".into());
++    };
++    crate::client::endpoint::SavedSshEndpoint::new("peer", target.as_str(), session.as_str())?;
++    if session == crate::session::DEFAULT_SESSION_NAME {
++        return Err("fleet-create requires a new named session; default is reserved".into());
++    }
++    Ok((target, session))
++}
++
++fn fleet_create(args: &[String]) -> std::io::Result<i32> {
++    let (target, session) = match parse_fleet_create_args(args) {
++        Ok(args) => args,
++        Err(error) => {
++            eprintln!("{error}");
++            return Ok(2);
++        }
++    };
++    if let Err(error) = crate::remote::SavedSshSetup::create_session(target, session) {
++        eprintln!("error: {error}");
++        crate::remote::print_saved_ssh_error_hint(&error, target);
++        return Ok(1);
++    }
++    println!("Session {session} is ready on {target}.");
++    Ok(0)
+ }
+ 
+ fn state_dir(args: &[String], output: &mut impl std::io::Write) -> std::io::Result<i32> {
+diff --git a/src/cli/spec/machine.rs b/src/cli/spec/machine.rs
+--- a/src/cli/spec/machine.rs
++++ b/src/cli/spec/machine.rs
+@@ -9,6 +9,13 @@
+             Command::new("list")
+                 .about("List saved SSH machines")
+                 .arg(json_flag()),
++        )
++        .subcommand(Command::new("fleet-version").about("Print the combined-window client schema version"))
++        .subcommand(
++            Command::new("fleet-create")
++                .about("Create a new peer session without saving an SSH machine")
++                .arg(Arg::new("ssh-target").value_name("SSH_TARGET").required(true))
++                .arg(Arg::new("session").value_name("SESSION").required(true)),
+         )
+         .subcommand(Command::new("state-dir").about("Print the client machine state directory"))
+         .subcommand(
+diff --git a/src/client/catalog_reload.rs b/src/client/catalog_reload.rs
+--- a/src/client/catalog_reload.rs
++++ b/src/client/catalog_reload.rs
+@@ -90,6 +90,53 @@
+         }
+     }
+     active_removed
++}
++
++pub(super) fn apply_fleet(
++    state: &mut ClientState,
++    endpoints: &mut endpoint::EndpointRegistry,
++    commands: &mut endpoint_commands::EndpointCommands,
++    supervisors: &mut endpoint::EndpointSupervisors,
++    discovery: fleet::Discovery,
++    now: std::time::Instant,
++) -> Option<bool> {
++    let shell = state.shell.as_mut()?;
++    let fleet = shell.fleet.as_mut()?;
++    if !fleet.apply(discovery) {
++        return None;
++    }
++    let retired = supervisors.reconcile_fleet(&fleet.sessions, now);
++    let active_removed = retired.contains(endpoints.active_id());
++    for endpoint_id in retired {
++        endpoints.disconnect(&endpoint_id);
++        let cancelled = commands.disconnect(&endpoint_id);
++        #[cfg(unix)]
++        state.forget_endpoint_graphics(&endpoint_id);
++        if let Some(shell) = state.shell.as_mut() {
++            for request_id in cancelled {
++                shell.cancel_endpoint_request(&request_id);
++            }
++            shell.retire_endpoint(&endpoint_id);
++        }
++    }
++    if active_removed {
++        endpoints.select_unavailable_local();
++        state.freeze_presentation();
++        if let Some(shell) = state.shell.as_mut() {
++            shell.select_unavailable_local();
++            if let Some(fleet) = shell.fleet.as_mut() {
++                fleet.selected = fleet::Selection {
++                    machine: fleet.config.local_machine.clone(),
++                    session: fleet.config.origin_session.clone(),
++                };
++                fleet.persist();
++            }
++        }
++    }
++    if let Some(shell) = state.shell.as_mut() {
++        shell.refresh_fleet_endpoints();
++    }
++    Some(active_removed)
+ }
+ 
+ #[cfg(test)]
+diff --git a/src/client/endpoint.rs b/src/client/endpoint.rs
+--- a/src/client/endpoint.rs
++++ b/src/client/endpoint.rs
+@@ -74,6 +74,7 @@
+ pub(crate) enum ClientEndpointId {
+     Local,
+     Ssh(ProfileId),
++    Session(ProfileId),
+ }
+ 
+ impl ClientEndpointId {
+@@ -85,6 +86,7 @@
+         match self {
+             Self::Local => "local".into(),
+             Self::Ssh(profile_id) => format!("ssh:{profile_id}"),
++            Self::Session(profile_id) => format!("session:{profile_id}"),
+         }
+     }
+ }
+diff --git a/src/client/endpoint/catalog.rs b/src/client/endpoint/catalog.rs
+--- a/src/client/endpoint/catalog.rs
++++ b/src/client/endpoint/catalog.rs
+@@ -207,6 +207,7 @@
+                 true
+             }
+             super::ClientEndpointId::Ssh(profile_id) => self.select_ssh(profile_id),
++            super::ClientEndpointId::Session(_) => false,
+         }
+     }
+ 
+diff --git a/src/client/endpoint/registry.rs b/src/client/endpoint/registry.rs
+--- a/src/client/endpoint/registry.rs
++++ b/src/client/endpoint/registry.rs
+@@ -24,6 +24,7 @@
+ pub(crate) struct EndpointNegotiation {
+     methods: HashSet<String>,
+     capabilities: HashSet<String>,
++    shared_filesystem: bool,
+ }
+ 
+ impl EndpointNegotiation {
+@@ -31,7 +32,17 @@
+         Self {
+             methods: methods.into_iter().collect(),
+             capabilities: capabilities.into_iter().collect(),
+-        }
++            shared_filesystem: false,
++        }
++    }
++
++    pub(crate) fn with_shared_filesystem(mut self, shared_filesystem: bool) -> Self {
++        self.shared_filesystem = shared_filesystem;
++        self
++    }
++
++    pub(crate) fn shares_filesystem(&self) -> bool {
++        self.shared_filesystem
+     }
+ 
+     pub(crate) fn methods(&self) -> Vec<String> {
+diff --git a/src/client/endpoint/supervisor.rs b/src/client/endpoint/supervisor.rs
+--- a/src/client/endpoint/supervisor.rs
++++ b/src/client/endpoint/supervisor.rs
+@@ -42,10 +42,10 @@
+     },
+ }
+ 
+-#[derive(Clone)]
++#[derive(Clone, PartialEq, Eq)]
+ enum ConnectTarget {
+     Local(PathBuf),
+-    Ssh(super::SavedSshEndpoint),
++    Ssh(super::SavedSshEndpoint, crate::remote::RemoteAttachPolicy),
+ }
+ 
+ struct ReconnectState {
+@@ -84,7 +84,13 @@
+             .map(|profile| {
+                 (
+                     ClientEndpointId::Ssh(profile.id.clone()),
+-                    ReconnectState::new(ConnectTarget::Ssh(profile.clone()), now),
++                    ReconnectState::new(
++                        ConnectTarget::Ssh(
++                            profile.clone(),
++                            crate::remote::RemoteAttachPolicy::StartIfMissing,
++                        ),
++                        now,
++                    ),
+                 )
+             })
+             .collect();
+@@ -111,7 +117,7 @@
+     ) -> Vec<ClientEndpointId> {
+         let mut retired = Vec::new();
+         self.endpoints.retain(|endpoint_id, state| {
+-            let ConnectTarget::Ssh(previous) = &state.target else {
++            let ConnectTarget::Ssh(previous, _) = &state.target else {
+                 return true;
+             };
+             let keep = profiles.iter().any(|profile| {
+@@ -129,8 +135,59 @@
+             let state = self
+                 .endpoints
+                 .entry(ClientEndpointId::Ssh(profile.id.clone()))
+-                .or_insert_with(|| ReconnectState::new(ConnectTarget::Ssh(profile.clone()), now));
+-            state.target = ConnectTarget::Ssh(profile.clone());
++                .or_insert_with(|| {
++                    ReconnectState::new(
++                        ConnectTarget::Ssh(
++                            profile.clone(),
++                            crate::remote::RemoteAttachPolicy::StartIfMissing,
++                        ),
++                        now,
++                    )
++                });
++            state.target = ConnectTarget::Ssh(
++                profile.clone(),
++                crate::remote::RemoteAttachPolicy::StartIfMissing,
++            );
++        }
++        retired
++    }
++
++    pub(in crate::client) fn reconcile_fleet(
++        &mut self,
++        sessions: &std::collections::BTreeMap<ClientEndpointId, crate::client::fleet::Session>,
++        now: Instant,
++    ) -> Vec<ClientEndpointId> {
++        let desired = sessions
++            .values()
++            .filter(|s| s.running && !s.endpoint.is_local())
++            .map(|session| {
++                let target = match &session.transport {
++                    crate::client::fleet::Transport::Local(path) => {
++                        ConnectTarget::Local(path.clone())
++                    }
++                    crate::client::fleet::Transport::Ssh(profile) => ConnectTarget::Ssh(
++                        profile.clone(),
++                        crate::remote::RemoteAttachPolicy::ExistingOnly,
++                    ),
++                };
++                (session.endpoint.clone(), target)
++            })
++            .collect::<HashMap<_, _>>();
++        let mut retired = Vec::new();
++        self.endpoints.retain(|id, state| {
++            if !matches!(id, ClientEndpointId::Session(_)) {
++                return true;
++            }
++            let keep = desired.get(id) == Some(&state.target);
++            if !keep {
++                retired.push(id.clone());
++            }
++            keep
++        });
++        for (id, target) in desired {
++            self.endpoints
++                .entry(id)
++                .or_insert_with(|| ReconnectState::new(target, now));
+         }
+         retired
+     }
+@@ -269,7 +326,7 @@
+     endpoint_id: ClientEndpointId,
+     generation: u64,
+ ) -> Result<EndpointSupervisorEvent, std::io::Error> {
+-    let (mut stream, lifetime): (_, Box<dyn Send>) = match target {
++    let (mut stream, lifetime) = match target {
+         ConnectTarget::Local(path) => {
+             let stream = crate::ipc::connect_local_stream(path).map_err(|error| {
+                 // An absent Local socket is transient, unlike a missing SSH install.
+@@ -282,15 +339,16 @@
+                     error
+                 }
+             })?;
+-            (stream, Box::new(()))
+-        }
+-        ConnectTarget::Ssh(profile) => {
++            (stream, None)
++        }
++        ConnectTarget::Ssh(profile, policy) => {
+             let connected = crate::remote::connect_saved_ssh(
+                 profile.id.as_str(),
+                 &profile.target,
+                 &profile.session,
++                *policy,
+             )?;
+-            (connected.stream, Box::new(connected.bridge))
++            (connected.stream, Some(connected.bridge))
+         }
+     };
+     let handshake = super::super::do_handshake(
+@@ -309,7 +367,12 @@
+         false,
+         matches!(target, ConnectTarget::Local(_)),
+     )
+-    .map_err(handshake_error)?;
++    .map_err(|error| {
++        lifetime
++            .as_ref()
++            .and_then(crate::remote::SavedSshBridge::reported_failure)
++            .unwrap_or_else(|| handshake_error(error))
++    })?;
+     if handshake.encoding != RenderEncoding::SemanticFrame {
+         return Err(std::io::Error::new(
+             std::io::ErrorKind::InvalidData,
+@@ -319,7 +382,8 @@
+     let negotiation = EndpointNegotiation::new(
+         handshake.endpoint_methods.unwrap_or_default(),
+         handshake.endpoint_capabilities.unwrap_or_default(),
+-    );
++    )
++    .with_shared_filesystem(matches!(target, ConnectTarget::Local(_)));
+     if !negotiation.supports_surface_interest()
+         || (!endpoint_id.is_local() && !negotiation.supports_health_check())
+     {
+diff --git a/src/client/events.rs b/src/client/events.rs
+--- a/src/client/events.rs
++++ b/src/client/events.rs
+@@ -25,6 +25,7 @@
+     },
+     EndpointSupervisor(endpoint::EndpointSupervisorEvent),
+     EndpointCatalog(Result<Vec<endpoint::SavedSshEndpoint>, String>),
++    FleetDiscovery(super::fleet::Discovery),
+     ActivateEndpoint {
+         endpoint_id: endpoint::ClientEndpointId,
+         target: Option<shell::ClientEndpointFocusTarget>,
+diff --git a/src/client/fleet.rs b/src/client/fleet.rs
+new file mode 100644
+--- /dev/null
++++ b/src/client/fleet.rs
+@@ -0,0 +1,602 @@
++//! Client-owned machine/session discovery and presentation for explicitly combined windows.
++
++use std::collections::{BTreeMap, HashSet};
++use std::io::{self, Read, Write};
++use std::path::PathBuf;
++use std::sync::atomic::{AtomicBool, Ordering};
++use std::sync::Arc;
++use std::time::Duration;
++
++use serde::{Deserialize, Serialize};
++use sha2::{Digest, Sha256};
++use tokio::io::AsyncReadExt;
++
++use super::endpoint::{ClientEndpointId, ProfileId, SavedSshEndpoint};
++
++pub(super) const CONFIG_ENV: &str = "HERDR_FLEET_CONFIG";
++static NEXT_PREFERENCE_WRITE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
++const MAX_BYTES: usize = 256 * 1024;
++const MAX_SESSIONS: usize = 64;
++const QUERY_TIMEOUT: Duration = Duration::from_secs(8);
++const REFRESH_INTERVAL: Duration = Duration::from_secs(5);
++
++#[derive(Clone, Debug, Deserialize, Serialize)]
++#[serde(deny_unknown_fields)]
++pub(super) struct Machine {
++    pub id: String,
++    pub label: String,
++    pub target: Option<String>,
++}
++
++#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
++#[serde(deny_unknown_fields)]
++pub(super) struct Selection {
++    pub machine: String,
++    pub session: String,
++}
++
++#[derive(Clone, Debug, Deserialize, Serialize)]
++#[serde(deny_unknown_fields)]
++pub(super) struct Config {
++    pub version: u32,
++    pub local_machine: String,
++    pub origin_session: String,
++    pub selected: Selection,
++    pub machines: Vec<Machine>,
++}
++
++impl Config {
++    pub fn load() -> Result<Option<Self>, String> {
++        let Some(path) = std::env::var_os(CONFIG_ENV) else {
++            return Ok(None);
++        };
++        let path = PathBuf::from(path);
++        let state = std::env::var_os(crate::config::CLIENT_STATE_DIR_ENV_VAR)
++            .map(PathBuf::from)
++            .filter(|path| path.is_absolute())
++            .ok_or("combined windows require an absolute HERDR_CLIENT_STATE_DIR")?;
++        if !path.is_absolute() || path.parent() != Some(state.as_path()) {
++            return Err("fleet configuration must be inside its scoped client directory".into());
++        }
++        let mut bytes = Vec::new();
++        std::fs::File::open(&path)
++            .and_then(|file| file.take(MAX_BYTES as u64 + 1).read_to_end(&mut bytes))
++            .map_err(|error| format!("cannot read fleet configuration: {error}"))?;
++        if bytes.len() > MAX_BYTES {
++            return Err("fleet configuration is too large".into());
++        }
++        let config: Self = serde_json::from_slice(&bytes)
++            .map_err(|error| format!("invalid fleet configuration: {error}"))?;
++        config.validate()?;
++        let active = crate::session::active_name()
++            .unwrap_or_else(|| crate::session::DEFAULT_SESSION_NAME.into());
++        if config.origin_session != active {
++            return Err("fleet origin does not match the attached local session".into());
++        }
++        Ok(Some(config))
++    }
++
++    pub fn validate(&self) -> Result<(), String> {
++        if self.version != 1 || self.machines.is_empty() || self.machines.len() > 8 {
++            return Err("unsupported fleet version or machine count".into());
++        }
++        crate::session::validate_name(&self.origin_session)?;
++        crate::session::validate_name(&self.selected.session)?;
++        let mut ids = HashSet::new();
++        let mut local = 0;
++        for machine in &self.machines {
++            if machine.id.is_empty()
++                || machine.id.len() > 64
++                || !machine
++                    .id
++                    .bytes()
++                    .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
++                || !ids.insert(machine.id.as_str())
++                || machine.label.trim().is_empty()
++                || machine.label.len() > 128
++                || machine.label.chars().any(char::is_control)
++            {
++                return Err("invalid or duplicate fleet machine identity".into());
++            }
++            if let Some(target) = &machine.target {
++                SavedSshEndpoint::new(&machine.label, target, "default")?;
++            } else {
++                local += 1;
++                if machine.id != self.local_machine {
++                    return Err("local transport belongs to the current machine only".into());
++                }
++            }
++        }
++        if local != 1 || !ids.contains(self.selected.machine.as_str()) {
++            return Err("fleet needs one current machine and a configured selection".into());
++        }
++        Ok(())
++    }
++
++    pub fn endpoint_id(&self, machine: &str, session: &str) -> ClientEndpointId {
++        if machine == self.local_machine && session == self.origin_session {
++            ClientEndpointId::Local
++        } else {
++            let mut hash = Sha256::new();
++            for part in [machine, session] {
++                hash.update((part.len() as u64).to_le_bytes());
++                hash.update(part.as_bytes());
++            }
++            let id = format!("{:x}", hash.finalize());
++            ClientEndpointId::Session(ProfileId::parse(&id[..32]).expect("hex digest"))
++        }
++    }
++}
++
++#[derive(Clone, Debug, Deserialize)]
++pub(super) struct DiscoveredSession {
++    pub name: String,
++    pub running: bool,
++}
++
++#[derive(Deserialize)]
++struct SessionList {
++    sessions: Vec<DiscoveredSession>,
++}
++
++#[derive(Debug)]
++pub(super) struct Discovery {
++    pub machine: String,
++    pub epoch: u64,
++    pub result: Result<Vec<DiscoveredSession>, String>,
++}
++
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub(super) enum Transport {
++    Local(PathBuf),
++    Ssh(SavedSshEndpoint),
++}
++
++#[derive(Clone, Debug)]
++pub(super) struct Session {
++    pub endpoint: ClientEndpointId,
++    pub machine: String,
++    pub name: String,
++    pub running: bool,
++    pub transport: Transport,
++}
++
++#[derive(Clone, Debug)]
++pub(super) struct MachineState {
++    pub machine: Machine,
++    pub epoch: u64,
++    pub error: Option<String>,
++    pub discovered: bool,
++}
++
++#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub(super) enum AgentScope {
++    #[default]
++    ThisSpace,
++    ThisMachine,
++    AllMachines,
++}
++
++impl AgentScope {
++    pub fn label(self) -> &'static str {
++        match self {
++            Self::ThisSpace => "this space",
++            Self::ThisMachine => "this machine",
++            Self::AllMachines => "all machines",
++        }
++    }
++
++    pub fn next(self) -> Self {
++        match self {
++            Self::ThisSpace => Self::ThisMachine,
++            Self::ThisMachine => Self::AllMachines,
++            Self::AllMachines => Self::ThisSpace,
++        }
++    }
++}
++
++#[derive(Default, Deserialize, Serialize)]
++#[serde(deny_unknown_fields)]
++struct Preferences {
++    version: u32,
++    #[serde(default)]
++    scope: AgentScope,
++    #[serde(default)]
++    collapsed: HashSet<String>,
++    #[serde(default)]
++    collapsed_sessions: HashSet<String>,
++    selected: Option<Selection>,
++}
++
++#[derive(Clone, Debug)]
++pub(super) struct State {
++    pub config: Config,
++    pub machines: Vec<MachineState>,
++    pub sessions: BTreeMap<ClientEndpointId, Session>,
++    pub scope: AgentScope,
++    pub collapsed: HashSet<String>,
++    pub collapsed_sessions: HashSet<String>,
++    pub selected: Selection,
++    preference_path: Option<PathBuf>,
++}
++
++impl State {
++    pub fn new(config: Config) -> Self {
++        Self::from_path(config, preferences_path())
++    }
++
++    fn from_path(config: Config, path: PathBuf) -> Self {
++        let loaded = (|| {
++            let file = match std::fs::File::open(&path) {
++                Ok(file) => file,
++                Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
++                Err(error) => return Err(error.to_string()),
++            };
++            let mut bytes = Vec::new();
++            file.take(MAX_BYTES as u64 + 1)
++                .read_to_end(&mut bytes)
++                .map_err(|error| error.to_string())?;
++            if bytes.len() > MAX_BYTES {
++                return Err("preferences exceed size limit".into());
++            }
++            let preferences: Preferences =
++                serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
++            if preferences.version != 1 {
++                return Err("unsupported preferences version".into());
++            }
++            Ok(Some(preferences))
++        })();
++        match loaded {
++            Ok(preferences) => {
++                let mut state = Self::from_preferences(config, preferences);
++                state.preference_path = Some(path);
++                state
++            }
++            Err(error) => {
++                tracing::warn!(%error, path = %path.display(), "preserving unreadable combined-window preferences; writes disabled");
++                Self::from_preferences(config, None)
++            }
++        }
++    }
++
++    fn from_preferences(config: Config, preferences: Option<Preferences>) -> Self {
++        let mut state = Self {
++            machines: config
++                .machines
++                .iter()
++                .cloned()
++                .map(|machine| MachineState {
++                    machine,
++                    epoch: 0,
++                    error: None,
++                    discovered: false,
++                })
++                .collect(),
++            sessions: BTreeMap::new(),
++            scope: preferences
++                .as_ref()
++                .map_or(AgentScope::default(), |p| p.scope),
++            collapsed: preferences
++                .as_ref()
++                .map_or_else(HashSet::new, |p| p.collapsed.clone()),
++            collapsed_sessions: preferences
++                .as_ref()
++                .map_or_else(HashSet::new, |p| p.collapsed_sessions.clone()),
++            preference_path: None,
++            selected: config.selected.clone(),
++            config,
++        };
++        state.collapsed.retain(|id| {
++            state
++                .config
++                .machines
++                .iter()
++                .any(|machine| &machine.id == id)
++        });
++        state.collapsed_sessions.retain(|key| {
++            key == "local"
++                || key
++                    .strip_prefix("session:")
++                    .is_some_and(|id| ProfileId::parse(id).is_ok())
++        });
++        if state.collapsed_sessions.len() > MAX_SESSIONS * 8 + 2 {
++            state.collapsed_sessions.clear();
++        }
++        let local = state
++            .config
++            .machines
++            .iter()
++            .find(|m| m.target.is_none())
++            .cloned()
++            .expect("validated local machine");
++        state.insert_session(&local, state.config.origin_session.clone(), true);
++        state
++    }
++
++    fn insert_session(&mut self, machine: &Machine, name: String, running: bool) {
++        let endpoint = self.config.endpoint_id(&machine.id, &name);
++        let transport = match &machine.target {
++            Some(target) => Transport::Ssh(SavedSshEndpoint {
++                id: match &endpoint {
++                    ClientEndpointId::Session(id) => id.clone(),
++                    _ => unreachable!(),
++                },
++                label: format!("{}/{}", machine.label, name),
++                target: target.clone(),
++                session: name.clone(),
++                enabled: running,
++            }),
++            None => Transport::Local(crate::session::client_socket_path_for(
++                (name != crate::session::DEFAULT_SESSION_NAME).then_some(name.as_str()),
++            )),
++        };
++        let running = running || endpoint.is_local();
++        self.sessions.insert(
++            endpoint.clone(),
++            Session {
++                endpoint,
++                machine: machine.id.clone(),
++                name,
++                running,
++                transport,
++            },
++        );
++    }
++
++    pub fn apply(&mut self, discovery: Discovery) -> bool {
++        let Some(index) = self
++            .machines
++            .iter()
++            .position(|m| m.machine.id == discovery.machine)
++        else {
++            return false;
++        };
++        if discovery.epoch <= self.machines[index].epoch {
++            return false;
++        }
++        self.machines[index].epoch = discovery.epoch;
++        self.machines[index].discovered = true;
++        match discovery.result {
++            Err(error) => self.machines[index].error = Some(error),
++            Ok(sessions) => {
++                self.machines[index].error = None;
++                let machine = self.machines[index].machine.clone();
++                let selected = self
++                    .config
++                    .endpoint_id(&self.selected.machine, &self.selected.session);
++                let names = sessions
++                    .iter()
++                    .map(|session| session.name.as_str())
++                    .collect::<HashSet<_>>();
++                self.sessions.retain(|endpoint, session| {
++                    session.machine != machine.id
++                        || endpoint.is_local()
++                        || endpoint == &selected
++                        || names.contains(session.name.as_str())
++                });
++                for session in self
++                    .sessions
++                    .values_mut()
++                    .filter(|s| s.machine == machine.id)
++                {
++                    if session.endpoint != ClientEndpointId::Local {
++                        session.running = false;
++                    }
++                }
++                for session in sessions {
++                    self.insert_session(&machine, session.name, session.running);
++                }
++            }
++        }
++        if self
++            .machines
++            .iter()
++            .all(|machine| machine.discovered && machine.error.is_none())
++        {
++            self.collapsed_sessions.retain(|key| {
++                self.sessions
++                    .keys()
++                    .any(|endpoint| endpoint.storage_key() == *key)
++            });
++        }
++        true
++    }
++
++    pub fn machine_for(&self, endpoint: &ClientEndpointId) -> Option<&str> {
++        self.sessions
++            .get(endpoint)
++            .map(|session| session.machine.as_str())
++    }
++
++    pub fn label(&self, endpoint: &ClientEndpointId) -> String {
++        self.sessions.get(endpoint).map_or_else(
++            || "unavailable".into(),
++            |session| {
++                let machine = self
++                    .machines
++                    .iter()
++                    .find(|m| m.machine.id == session.machine)
++                    .expect("session machine");
++                format!("{}/{}", machine.machine.label, session.name)
++            },
++        )
++    }
++
++    pub fn select(&mut self, endpoint: &ClientEndpointId) {
++        if let Some(session) = self.sessions.get(endpoint) {
++            self.selected = Selection {
++                machine: session.machine.clone(),
++                session: session.name.clone(),
++            };
++            self.persist();
++        }
++    }
++
++    pub fn persist(&self) {
++        let Some(path) = self.preference_path.as_ref() else {
++            return;
++        };
++        let prefs = Preferences {
++            version: 1,
++            scope: self.scope,
++            collapsed: self.collapsed.clone(),
++            collapsed_sessions: self.collapsed_sessions.clone(),
++            selected: Some(self.selected.clone()),
++        };
++        if let Ok(bytes) = serde_json::to_vec(&prefs) {
++            let temp = path.with_extension(format!(
++                "tmp-{}-{}",
++                std::process::id(),
++                NEXT_PREFERENCE_WRITE.fetch_add(1, Ordering::Relaxed)
++            ));
++            let mut created = false;
++            let result = (|| {
++                let mut options = std::fs::OpenOptions::new();
++                options.write(true).create_new(true);
++                #[cfg(unix)]
++                {
++                    use std::os::unix::fs::OpenOptionsExt;
++                    options.mode(0o600);
++                }
++                let mut file = options.open(&temp)?;
++                created = true;
++                file.write_all(&bytes)?;
++                std::fs::rename(&temp, path)
++            })();
++            if let Err(error) = result {
++                if created {
++                    let _ = std::fs::remove_file(&temp);
++                }
++                tracing::warn!(%error, "cannot save combined-window preferences");
++            }
++        }
++    }
++}
++
++fn preferences_path() -> PathBuf {
++    crate::config::client_state_dir().join("fleet-preferences.json")
++}
++
++pub(super) fn start(
++    config: &Config,
++    tx: tokio::sync::mpsc::Sender<super::events::ClientLoopEvent>,
++    quit: Arc<AtomicBool>,
++) {
++    for machine in config.machines.clone() {
++        let tx = tx.clone();
++        let quit = quit.clone();
++        tokio::spawn(async move {
++            let mut epoch = 0;
++            while !quit.load(Ordering::Acquire) {
++                epoch += 1;
++                let result = discover(&machine).await;
++                if quit.load(Ordering::Acquire) {
++                    break;
++                }
++                if tx
++                    .send(super::events::ClientLoopEvent::FleetDiscovery(Discovery {
++                        machine: machine.id.clone(),
++                        epoch,
++                        result,
++                    }))
++                    .await
++                    .is_err()
++                {
++                    break;
++                }
++                tokio::time::sleep(REFRESH_INTERVAL).await;
++            }
++        });
++    }
++}
++
++async fn discover(machine: &Machine) -> Result<Vec<DiscoveredSession>, String> {
++    let mut command = if let Some(target) = &machine.target {
++        let mut command = tokio::process::Command::new("ssh");
++        command.args([
++            "-T",
++            "-o",
++            "BatchMode=yes",
++            "-o",
++            "ConnectTimeout=5",
++            "-o",
++            "ConnectionAttempts=1",
++            "-o",
++            "ControlMaster=no",
++            "-o",
++            "ControlPath=none",
++            "--",
++            target,
++            "herdr session list --json",
++        ]);
++        command
++    } else {
++        let mut command =
++            tokio::process::Command::new(std::env::current_exe().map_err(|e| e.to_string())?);
++        command.args(["session", "list", "--json"]);
++        command
++    };
++    command
++        .env_remove(CONFIG_ENV)
++        .env_remove(crate::config::CLIENT_STATE_DIR_ENV_VAR)
++        .env_remove("HERDR_SOCKET_PATH")
++        .env_remove("HERDR_CLIENT_SOCKET_PATH")
++        .env_remove("HERDR_SESSION")
++        .stdin(std::process::Stdio::null())
++        .stdout(std::process::Stdio::piped())
++        .stderr(std::process::Stdio::piped())
++        .kill_on_drop(true);
++    let mut child = command.spawn().map_err(|error| error.to_string())?;
++    let stdout = child.stdout.take().expect("piped stdout");
++    let stderr = child.stderr.take().expect("piped stderr");
++    let outcome = tokio::time::timeout(QUERY_TIMEOUT, async {
++        let (out, err) = tokio::join!(read_limited(stdout), read_limited(stderr));
++        let status = child.wait().await?;
++        Ok::<_, io::Error>((status, out?, err?))
++    })
++    .await;
++    let (status, out, err) = match outcome {
++        Ok(result) => result.map_err(|error| error.to_string())?,
++        Err(_) => {
++            let _ = child.kill().await;
++            return Err("session discovery timed out".into());
++        }
++    };
++    if out.len() > MAX_BYTES || err.len() > MAX_BYTES {
++        return Err("session discovery response is too large".into());
++    }
++    if !status.success() {
++        return Err(String::from_utf8_lossy(&err)
++            .chars()
++            .take(256)
++            .filter(|c| !c.is_control())
++            .collect());
++    }
++    parse_sessions(&out)
++}
++
++async fn read_limited(stream: impl tokio::io::AsyncRead + Unpin) -> io::Result<Vec<u8>> {
++    let mut bytes = Vec::new();
++    stream
++        .take(MAX_BYTES as u64 + 1)
++        .read_to_end(&mut bytes)
++        .await?;
++    Ok(bytes)
++}
++
++fn parse_sessions(bytes: &[u8]) -> Result<Vec<DiscoveredSession>, String> {
++    let list: SessionList = serde_json::from_slice(bytes)
++        .map_err(|error| format!("invalid session response: {error}"))?;
++    if list.sessions.len() > MAX_SESSIONS {
++        return Err("too many discovered sessions".into());
++    }
++    let mut names = HashSet::new();
++    for session in &list.sessions {
++        crate::session::validate_name(&session.name)?;
++        if !names.insert(session.name.as_str()) {
++            return Err("duplicate discovered session".into());
++        }
++    }
++    Ok(list.sessions)
++}
+diff --git a/src/client/loop_config.rs b/src/client/loop_config.rs
+--- a/src/client/loop_config.rs
++++ b/src/client/loop_config.rs
+@@ -1,6 +1,7 @@
+ use super::*;
+ 
+ pub(super) struct ClientLoopConfig {
++    pub(super) fleet_config: Option<super::fleet::Config>,
+     pub(super) sound_config: crate::config::SoundConfig,
+     pub(super) mouse_scroll_lines: usize,
+     pub(super) redraw_on_focus_gained: bool,
+diff --git a/src/client/mod.rs b/src/client/mod.rs
+--- a/src/client/mod.rs
++++ b/src/client/mod.rs
+@@ -23,6 +23,7 @@
+ mod endpoint_commands;
+ mod errors;
+ mod events;
++mod fleet;
+ mod frame_output;
+ #[cfg(test)]
+ mod frame_output_tests;
+@@ -194,12 +195,23 @@
+         } else {
+             crate::config::config_diagnostic_summary(&loaded_config.diagnostics)
+         };
++    let fleet_config = if client_rendered_shell {
++        fleet::Config::load().map_err(io::Error::other)?
++    } else {
++        None
++    };
+     let shell_config = client_rendered_shell.then(|| {
+-        shell::ClientShellConfig::from_config(&loaded_config.config)
++        let config = shell::ClientShellConfig::from_config(&loaded_config.config)
+             .with_startup_config_diagnostic(startup_config_diagnostic)
+             .with_startup_onboarding(loaded_config.config.should_show_onboarding())
+-            .with_keybinding_source(keybinding_source)
+-            .with_process_endpoint_preferences(&socket_path)
++            .with_keybinding_source(keybinding_source);
++        if fleet_config.is_some() {
++            config.with_fleet_preferences_path(
++                crate::config::client_state_dir().join("fleet-chrome.json"),
++            )
++        } else {
++            config.with_process_endpoint_preferences(&socket_path)
++        }
+     });
+     let mouse_capture = loaded_config.config.ui.mouse_capture;
+     let mouse_scroll_lines = loaded_config.config.ui.mouse_scroll_lines();
+@@ -213,6 +225,7 @@
+         .as_ref()
+         .is_some_and(shell::ClientShellConfig::uses_endpoint_keybindings);
+     let mut loop_config = ClientLoopConfig {
++        fleet_config: fleet_config.clone(),
+         sound_config: loaded_config.config.ui.sound,
+         mouse_scroll_lines,
+         redraw_on_focus_gained,
+@@ -240,7 +253,7 @@
+     } else {
+         endpoint::EndpointCatalog::default()
+     };
+-    let federated = endpoint_catalog.has_enabled_ssh();
++    let federated = fleet_config.is_some() || endpoint_catalog.has_enabled_ssh();
+ 
+     let initial_stream = match crate::ipc::connect_local_stream(&socket_path) {
+         Ok(stream) => Some(stream),
+@@ -403,11 +416,8 @@
+ 
+ // This guards server-supplied paths only. Client-owned temporary files generated
+ // from received graphics bytes remain usable for remote endpoints.
+-fn server_graphics_files_allowed(
+-    endpoint_id: &endpoint::ClientEndpointId,
+-    remote_client_process: bool,
+-) -> bool {
+-    endpoint_id.is_local() && !remote_client_process
++fn server_graphics_files_allowed(shared_filesystem: bool, remote_client_process: bool) -> bool {
++    shared_filesystem && !remote_client_process
+ }
+ 
+ #[cfg(unix)]
+@@ -448,6 +458,7 @@
+ ) -> Result<(), ClientError> {
+     #[cfg(windows)]
+     let _ = config.mouse_scroll_lines;
++    let fleet_config = config.fleet_config.take();
+     let draw_host_cursor = attach_escape.is_none() && should_draw_host_cursor(config.host_cursor);
+     let is_remote_client = is_remote_client_process();
+     let local_unavailable = initial.is_none();
+@@ -492,12 +503,16 @@
+         detached_process_children: Vec::new(),
+         shell: config.shell_config.map(shell::ClientShellState::new),
+     };
+-    let mut federated = endpoint_catalog.has_enabled_ssh();
++    let mut federated = fleet_config.is_some() || endpoint_catalog.has_enabled_ssh();
+     if let Some(shell) = state.shell.as_mut() {
+         shell.set_host_reports_key_releases(config.host_escape_disambiguation_active);
+         shell.set_host_erase_byte(crate::platform::terminal_erase_byte());
+         shell.set_graphics_cell_size(initial_cell_width_px, initial_cell_height_px);
+-        shell.set_endpoint_catalog(&endpoint_catalog.ssh);
++        if let Some(config) = fleet_config.clone() {
++            shell.set_fleet(fleet::State::new(config));
++        } else {
++            shell.set_endpoint_catalog(&endpoint_catalog.ssh);
++        }
+         shell.set_endpoint_methods_for(
+             &endpoint::ClientEndpointId::Local,
+             initial
+@@ -620,7 +635,8 @@
+         let negotiation = endpoint::EndpointNegotiation::new(
+             handshake.endpoint_methods.unwrap_or_default(),
+             handshake.endpoint_capabilities.unwrap_or_default(),
+-        );
++        )
++        .with_shared_filesystem(!is_remote_client);
+         let surface_decoder = negotiated_surface_decoder(&negotiation);
+         let transport = start_endpoint_transport(
+             stream,
+@@ -639,8 +655,14 @@
+     } else {
+         endpoint::EndpointRegistry::empty()
+     };
+-    let mut supervisors =
+-        endpoint::EndpointSupervisors::new(&endpoint_catalog.ssh, std::time::Instant::now());
++    let mut supervisors = endpoint::EndpointSupervisors::new(
++        if fleet_config.is_some() {
++            &[]
++        } else {
++            &endpoint_catalog.ssh
++        },
++        std::time::Instant::now(),
++    );
+     if federated {
+         supervisors.add_local(
+             client_socket_path(),
+@@ -663,7 +685,10 @@
+     let mut pending_activation: Option<endpoint::PendingEndpointActivation> = None;
+     let mut scheduled_activation = None;
+     let mut pending_catalog: Option<Result<Vec<endpoint::SavedSshEndpoint>, String>> = None;
+-    if state.shell.is_some() && !is_remote_client && state.attach_escape.is_none() {
++    let mut pending_fleet = std::collections::BTreeMap::new();
++    if let Some(config) = fleet_config.clone() {
++        fleet::start(&config, event_tx.clone(), should_quit.clone());
++    } else if state.shell.is_some() && !is_remote_client && state.attach_escape.is_none() {
+         catalog_reload::watch_profiles(event_tx.clone(), should_quit.clone());
+     }
+ 
+@@ -677,7 +702,23 @@
+     let mut stdin_open = true;
+     while !should_quit.load(Ordering::Acquire) {
+         if pending_activation.is_none() {
++            let mut topology_changed = false;
++            let mut recover_local = false;
++            for (_, discovery) in std::mem::take(&mut pending_fleet) {
++                if let Some(active_removed) = catalog_reload::apply_fleet(
++                    &mut state,
++                    &mut write_stream,
++                    &mut endpoint_commands,
++                    &mut supervisors,
++                    discovery,
++                    std::time::Instant::now(),
++                ) {
++                    topology_changed = true;
++                    recover_local |= active_removed;
++                }
++            }
+             if let Some(reload) = pending_catalog.take() {
++                topology_changed = true;
+                 match reload {
+                     Ok(profiles) => {
+                         let now = std::time::Instant::now();
+@@ -714,33 +755,7 @@
+                             profiles,
+                             now,
+                         );
+-                        if active_removed {
+-                            clear_endpoint_host_effects(
+-                                &mut state,
+-                                &host_mouse_capture_active,
+-                                &host_sgr_pixels_active,
+-                            );
+-                            scheduled_activation = None;
+-                            if state.shell.as_ref().is_some_and(|shell| {
+-                                shell.endpoint_projection_available(
+-                                    &endpoint::ClientEndpointId::Local,
+-                                )
+-                            }) && write_stream
+-                                .connection(&endpoint::ClientEndpointId::Local)
+-                                .is_some()
+-                            {
+-                                scheduled_activation = Some(ClientLoopEvent::ActivateEndpoint {
+-                                    endpoint_id: endpoint::ClientEndpointId::Local,
+-                                    target: None,
+-                                    force: true,
+-                                });
+-                            } else {
+-                                present_handoff_unavailable(
+-                                    &mut state,
+-                                    "Local is unavailable; reconnecting".into(),
+-                                );
+-                            }
+-                        }
++                        recover_local |= active_removed;
+                     }
+                     Err(error) => {
+                         warn!(%error, "saved machines could not be reloaded; keeping current connections");
+@@ -751,6 +766,33 @@
+                         }
+                     }
+                 }
++            }
++            if recover_local {
++                clear_endpoint_host_effects(
++                    &mut state,
++                    &host_mouse_capture_active,
++                    &host_sgr_pixels_active,
++                );
++                scheduled_activation = None;
++                if state.shell.as_ref().is_some_and(|shell| {
++                    shell.endpoint_projection_available(&endpoint::ClientEndpointId::Local)
++                }) && write_stream
++                    .connection(&endpoint::ClientEndpointId::Local)
++                    .is_some()
++                {
++                    scheduled_activation = Some(ClientLoopEvent::ActivateEndpoint {
++                        endpoint_id: endpoint::ClientEndpointId::Local,
++                        target: None,
++                        force: true,
++                    });
++                } else {
++                    present_handoff_unavailable(
++                        &mut state,
++                        "Local is unavailable; reconnecting".into(),
++                    );
++                }
++            }
++            if topology_changed {
+                 apply_client_shell_input_source_changes(&mut state, &mut prefix_input_source);
+                 if let Some(shell) = state.shell.as_mut() {
+                     let cleanup = shell.take_pending_graphics_cleanup();
+@@ -765,6 +807,7 @@
+                 }
+             }
+         }
++
+         if let Some(shell) = state.shell.as_ref() {
+             supervisors.spawn_due(
+                 std::time::Instant::now(),
+@@ -825,6 +868,9 @@
+ 
+         match event {
+             ClientLoopEvent::EndpointCatalog(reload) => pending_catalog = Some(reload),
++            ClientLoopEvent::FleetDiscovery(discovery) => {
++                pending_fleet.insert(discovery.machine.clone(), discovery);
++            }
+             #[cfg(unix)]
+             ClientLoopEvent::StdinInput(data) => {
+                 let image_bridge_active = endpoint_accepts_local_images(
+@@ -1405,11 +1451,18 @@
+                 target,
+                 force,
+             } => {
+-                if !endpoint_catalog.select_endpoint(&endpoint_id) {
+-                    continue;
+-                }
+-                if let Err(error) = endpoint_catalog.store_selection() {
+-                    warn!(%error, "failed to persist desired endpoint selection");
++                if let Some(fleet) = state.shell.as_mut().and_then(|shell| shell.fleet.as_mut()) {
++                    if !fleet.sessions.contains_key(&endpoint_id) {
++                        continue;
++                    }
++                    fleet.select(&endpoint_id);
++                } else {
++                    if !endpoint_catalog.select_endpoint(&endpoint_id) {
++                        continue;
++                    }
++                    if let Err(error) = endpoint_catalog.store_selection() {
++                        warn!(%error, "failed to persist desired endpoint selection");
++                    }
+                 }
+                 begin_endpoint_activation(
+                     &mut state,
+@@ -1635,8 +1688,14 @@
+                     } => {
+                         // Never interpret an SSH server's filesystem path on this host,
+                         // including legacy peers that send files without negotiation.
+-                        if !server_graphics_files_allowed(&endpoint_id, is_remote_client_process())
+-                        {
++                        if !server_graphics_files_allowed(
++                            write_stream
++                                .connection(&endpoint_id)
++                                .is_some_and(|connection| {
++                                    connection.negotiation.shares_filesystem()
++                                }),
++                            is_remote_client_process(),
++                        ) {
+                             write_stream.send_to(
+                                 &endpoint_id,
+                                 &ClientMessage::GraphicsTransmissionResult {
+@@ -2185,11 +2244,22 @@
+                                 continue;
+                             }
+                         }
+-                        let selected_endpoint = endpoint_catalog
+-                            .selected_profile
++                        let selected_endpoint = state
++                            .shell
+                             .as_ref()
+-                            .map_or(endpoint::ClientEndpointId::Local, |profile_id| {
+-                                endpoint::ClientEndpointId::Ssh(profile_id.clone())
++                            .and_then(|shell| shell.fleet.as_ref())
++                            .map(|fleet| {
++                                fleet
++                                    .config
++                                    .endpoint_id(&fleet.selected.machine, &fleet.selected.session)
++                            })
++                            .unwrap_or_else(|| {
++                                endpoint_catalog.selected_profile.as_ref().map_or(
++                                    endpoint::ClientEndpointId::Local,
++                                    |profile_id| {
++                                        endpoint::ClientEndpointId::Ssh(profile_id.clone())
++                                    },
++                                )
+                             });
+                         let activation_ready = state.shell.as_ref().is_some_and(|shell| {
+                             shell.endpoint_has_snapshot(&selected_endpoint)
+diff --git a/src/client/shell/aggregate_navigation.rs b/src/client/shell/aggregate_navigation.rs
+--- a/src/client/shell/aggregate_navigation.rs
++++ b/src/client/shell/aggregate_navigation.rs
+@@ -87,6 +87,7 @@
+                     .snapshot
+                     .agents
+                     .iter()
++                    .filter(move |agent| endpoints[endpoint.endpoint_index].agent_visible(agent))
+                     .map(move |agent| AggregateAgentRow {
+                         recency: endpoint
+                             .agent_recency
+@@ -123,10 +124,12 @@
+                         &view.sort,
+                     )
+                 });
++                group_fleet_rows(&mut rows, endpoints);
+                 return rows;
+             }
+         }
+         sort_aggregate_rows(&mut rows, sort);
++        group_fleet_rows(&mut rows, endpoints);
+         return rows;
+     }
+ 
+@@ -140,6 +143,9 @@
+                         .agents
+                         .iter()
+                         .find(|agent| agent.pane_id == pane_id)?;
++                    if !endpoints[endpoint.endpoint_index].agent_visible(agent) {
++                        return None;
++                    }
+                     Some(AggregateAgentRow {
+                         recency: endpoint
+                             .agent_recency
+@@ -153,7 +159,17 @@
+         })
+         .collect::<Vec<_>>();
+     sort_aggregate_rows(&mut rows, sort);
++    group_fleet_rows(&mut rows, endpoints);
+     rows
++}
++
++fn group_fleet_rows(rows: &mut [AggregateAgentRow<'_>], endpoints: &[ClientShellEndpoint]) {
++    if endpoints
++        .iter()
++        .any(|endpoint| endpoint.agent_group.is_some())
++    {
++        rows.sort_by_key(|row| row.endpoint.endpoint_index);
++    }
+ }
+ 
+ fn sort_aggregate_rows(
+@@ -309,6 +325,7 @@
+             let agents = snapshot
+                 .agents
+                 .iter()
++                .filter(|agent| endpoint.agent_visible(agent))
+                 .map(|agent| (agent.pane_id.as_str(), agent))
+                 .collect::<HashMap<_, _>>();
+             // Build endpoint-local indexes once. Walk each bucket in snapshot
+diff --git a/src/client/shell/composition.rs b/src/client/shell/composition.rs
+--- a/src/client/shell/composition.rs
++++ b/src/client/shell/composition.rs
+@@ -48,13 +48,15 @@
+             });
+         // A resize invalidates pane geometry, not the healthy Local workspace chrome.
+         let local_snapshot = self.snapshot.as_deref().filter(|_| {
+-            self.endpoints.len() == 1
++            self.fleet.is_none()
++                && self.endpoints.len() == 1
+                 && !self.sidebar_collapsed
+                 && layout.sidebar.width > 0
+                 && self.endpoint_status(&self.active_endpoint_id)
+                     == Some(ClientEndpointStatus::Online)
+         });
+         let mut render_state = render::ShellRenderState {
++            fleet: self.fleet.as_ref(),
+             machine_diagnostics: &self.machine_diagnostics,
+             endpoints: &self.endpoints,
+             active_endpoint_id: &self.active_endpoint_id,
+@@ -152,6 +154,7 @@
+         cols: u16,
+         rows: u16,
+     ) -> Option<crate::client::frame_output::ComposedFrame> {
++        self.refresh_fleet_agent_visibility();
+         self.last_composed_at = Some(std::time::Instant::now());
+         self.selection_repaint_deadline = None;
+         if self.last_composed_size != Some((cols, rows)) && self.mode == ClientShellMode::Navigate {
+@@ -211,6 +214,7 @@
+             snapshot,
+             &self.config,
+             render::ShellRenderState {
++                fleet: self.fleet.as_ref(),
+                 machine_diagnostics: &self.machine_diagnostics,
+                 endpoints: &self.endpoints,
+                 active_endpoint_id: &self.active_endpoint_id,
+diff --git a/src/client/shell/config.rs b/src/client/shell/config.rs
+--- a/src/client/shell/config.rs
++++ b/src/client/shell/config.rs
+@@ -36,8 +36,10 @@
+             .remote_collapsed_groups
+             .iter()
+             .filter_map(|(endpoint_id, groups)| {
+-                let ClientEndpointId::Ssh(profile_id) = endpoint_id else {
+-                    return None;
++                let profile_id = match endpoint_id {
++                    ClientEndpointId::Ssh(id) => id.to_string(),
++                    ClientEndpointId::Session(_) => endpoint_id.storage_key(),
++                    ClientEndpointId::Local => return None,
+                 };
+                 let mut collapsed_groups = groups.iter().cloned().collect::<Vec<_>>();
+                 collapsed_groups.sort();
+@@ -219,7 +221,25 @@
+         }
+     }
+ 
+-    pub(super) fn with_preferences_path(mut self, path: std::path::PathBuf) -> Self {
++    pub(in crate::client) fn with_fleet_preferences_path(
++        mut self,
++        path: std::path::PathBuf,
++    ) -> Self {
++        match preferences::load_guarded(&path) {
++            Ok(preferences) => {
++                self.preferences = preferences.unwrap_or_default();
++                self.preferences_path = Some(path);
++            }
++            Err(error) => {
++                tracing::warn!(%error, path = %path.display(), "preserving unreadable fleet chrome preferences; writes disabled");
++                self.preferences = Default::default();
++                self.preferences_path = None;
++            }
++        }
++        self
++    }
++
++    pub(in crate::client) fn with_preferences_path(mut self, path: std::path::PathBuf) -> Self {
+         self.preferences = preferences::load(&path).unwrap_or_default();
+         self.preferences_path = Some(path);
+         self
+diff --git a/src/client/shell/endpoint_agents.rs b/src/client/shell/endpoint_agents.rs
+--- a/src/client/shell/endpoint_agents.rs
++++ b/src/client/shell/endpoint_agents.rs
+@@ -70,8 +70,23 @@
+         config,
+         agent_scroll,
+         hits,
+-        |row| row.agent.rows.len(),
++        |row| row.agent.rows.len() + usize::from(row.group_header.is_some()),
+         |buffer, rect, row, hits| {
++            let mut rect = rect;
++            if let Some(header) = &row.group_header {
++                put_text(
++                    buffer,
++                    rect.x,
++                    rect.y,
++                    rect.width,
++                    &format!(" {header}"),
++                    Style::default()
++                        .fg(config.palette.overlay0)
++                        .add_modifier(Modifier::BOLD),
++                );
++                rect.y = rect.y.saturating_add(1);
++                rect.height = rect.height.saturating_sub(1);
++            }
+             super::agent_sidebar::render_agent_row(buffer, rect, &row.agent, config);
+             if row.stale {
+                 buffer.set_style(
+@@ -106,7 +121,11 @@
+         };
+         let heights = rows
+             .iter()
+-            .map(|row| row.agent.rows.len().max(1).min(u16::MAX as usize) as u16)
++            .map(|row| {
++                (row.agent.rows.len() + usize::from(row.group_header.is_some()))
++                    .max(1)
++                    .min(u16::MAX as usize) as u16
++            })
+             .collect::<Vec<_>>();
+         let mut gaps = vec![self.config.agents.row_gap; rows.len()];
+         if let Some(last) = gaps.last_mut() {
+@@ -127,6 +146,7 @@
+     machine_label: String,
+     stale: bool,
+     agent: super::agent_sidebar::AgentRow,
++    group_header: Option<String>,
+ }
+ 
+ fn agent_rows(
+@@ -141,6 +161,7 @@
+                 snapshot
+                     .agents
+                     .iter()
++                    .filter(|agent| endpoint.agent_visible(agent))
+                     .filter_map(|agent| {
+                         super::agent_sidebar::agent_row(
+                             snapshot,
+@@ -156,7 +177,7 @@
+         .flatten()
+         .collect::<HashMap<_, _>>();
+ 
+-    super::aggregate_navigation::aggregate_agent_rows(
++    let mut rows = super::aggregate_navigation::aggregate_agent_rows(
+         endpoints,
+         active_endpoint_id,
+         config.agent_panel_sort,
+@@ -171,7 +192,24 @@
+             machine_label: row.endpoint.label.to_owned(),
+             stale: row.endpoint.stale(),
+             agent,
++            group_header: None,
+         })
+     })
+-    .collect()
+-}
++    .collect::<Vec<_>>();
++    if endpoints
++        .iter()
++        .any(|endpoint| endpoint.agent_group.is_some())
++    {
++        let mut previous = None;
++        for row in &mut rows {
++            if previous.as_ref() != Some(&row.endpoint_id) {
++                row.group_header = endpoints
++                    .iter()
++                    .find(|endpoint| endpoint.endpoint_id == row.endpoint_id)
++                    .and_then(|endpoint| endpoint.agent_group.clone());
++                previous = Some(row.endpoint_id.clone());
++            }
++        }
++    }
++    rows
++}
+diff --git a/src/client/shell/endpoint_navigation.rs b/src/client/shell/endpoint_navigation.rs
+--- a/src/client/shell/endpoint_navigation.rs
++++ b/src/client/shell/endpoint_navigation.rs
+@@ -47,6 +47,21 @@
+         point: (u16, u16),
+         outcome: &mut ClientShellInput,
+     ) -> bool {
++        if let Some((_, machine)) = self
++            .hits
++            .fleet_machines
++            .iter()
++            .find(|(rect, _)| super::contains(*rect, point))
++        {
++            if let Some(fleet) = self.fleet.as_mut() {
++                if !fleet.collapsed.remove(machine) {
++                    fleet.collapsed.insert(machine.clone());
++                }
++                fleet.persist();
++                outcome.repaint = true;
++            }
++            return true;
++        }
+         let Some(hit) = self
+             .hits
+             .machines
+@@ -61,8 +76,16 @@
+             if !self.collapsed_endpoints.remove(&endpoint_id) {
+                 self.collapsed_endpoints.insert(endpoint_id.clone());
+             }
++            if let Some(fleet) = self.fleet.as_mut() {
++                fleet.collapsed_sessions = self
++                    .collapsed_endpoints
++                    .iter()
++                    .map(ClientEndpointId::storage_key)
++                    .collect();
++                fleet.persist();
++            }
+             outcome.repaint = true;
+-            if !collapse_toggle && endpoint_id.is_local() {
++            if !collapse_toggle && (self.fleet.is_some() || endpoint_id.is_local()) {
+                 self.activate_endpoint(endpoint_id, outcome);
+             }
+         } else if endpoint_id.is_local() || self.endpoint_is_online(&endpoint_id) {
+@@ -239,7 +262,8 @@
+             outcome.repaint = true;
+             return false;
+         }
+-        if (endpoint_id.is_local() && (self.multi_endpoint_active() || !online))
++        if self.fleet.is_some()
++            || (endpoint_id.is_local() && (self.multi_endpoint_active() || !online))
+             || endpoint_id != self.active_endpoint_id
+         {
+             outcome.actions.push(ClientShellAction::ActivateEndpoint {
+@@ -272,6 +296,7 @@
+         // Local can still be displayed while a remote activation is pending.
+         // Route explicit selections through the runtime so they can cancel that handoff.
+         if endpoint_id == self.active_endpoint_id
++            && self.fleet.is_none()
+             && !(endpoint_id.is_local() && (self.multi_endpoint_active() || !online))
+         {
+             let method = match target {
+diff --git a/src/client/shell/endpoint_sidebar.rs b/src/client/shell/endpoint_sidebar.rs
+--- a/src/client/shell/endpoint_sidebar.rs
++++ b/src/client/shell/endpoint_sidebar.rs
+@@ -19,6 +19,10 @@
+     state: &mut ShellRenderState<'_>,
+     hits: &mut ShellHitMap,
+ ) {
++    if state.fleet.is_some() {
++        render_expanded(buffer, area, None, config, state, hits);
++        return;
++    }
+     let palette = &config.palette;
+     super::render::render_sidebar_background(buffer, area, palette);
+     let (workspace_area, divider_y, detail_area) = super::sidebar::collapsed_sidebar_sections(area);
+@@ -267,6 +271,7 @@
+     let empty_collapsed_groups = HashSet::new();
+ 
+     enum Row {
++        Machine(usize),
+         Endpoint(usize),
+         Workspace {
+             endpoint: usize,
+@@ -274,7 +279,24 @@
+         },
+     }
+     let mut rows = Vec::new();
++    let mut previous_machine = None;
+     for (endpoint_index, endpoint) in state.endpoints.iter().enumerate() {
++        if let Some(fleet) = state.fleet {
++            let machine = fleet.machine_for(&endpoint.endpoint_id);
++            if previous_machine != machine {
++                if let Some(index) = fleet
++                    .machines
++                    .iter()
++                    .position(|m| Some(m.machine.id.as_str()) == machine)
++                {
++                    rows.push(Row::Machine(index));
++                }
++                previous_machine = machine;
++            }
++            if machine.is_some_and(|machine| fleet.collapsed.contains(machine)) {
++                continue;
++            }
++        }
+         rows.push(Row::Endpoint(endpoint_index));
+         if state.collapsed_endpoints.contains(&endpoint.endpoint_id) {
+             continue;
+@@ -292,6 +314,17 @@
+             );
+         }
+     }
++    if let Some(fleet) = state.fleet {
++        for (index, machine) in fleet.machines.iter().enumerate() {
++            if !fleet
++                .sessions
++                .values()
++                .any(|session| session.machine == machine.machine.id)
++            {
++                rows.push(Row::Machine(index));
++            }
++        }
++    }
+     let body = Rect::new(
+         workspace_area.x,
+         workspace_area.y.saturating_add(WORKSPACE_HEADER_ROWS),
+@@ -304,7 +337,7 @@
+     let row_heights = rows
+         .iter()
+         .map(|row| match row {
+-            Row::Endpoint(_) => 1,
++            Row::Machine(_) | Row::Endpoint(_) => 1,
+             Row::Workspace { endpoint, entry } => {
+                 let endpoint = &state.endpoints[*endpoint];
+                 let collapsed_groups = collapsed_groups_for_endpoint(state, &endpoint.endpoint_id)
+@@ -372,7 +405,7 @@
+                         }
+                     })
+             }
+-            Row::Endpoint(_) => false,
++            Row::Machine(_) | Row::Endpoint(_) => false,
+         });
+         if let Some(selected_row) = selected_row {
+             *state.workspace_scroll = super::scroll::list_scroll_start_to_reveal(
+@@ -400,12 +433,54 @@
+     let mut y = body.y;
+     for (row_index, row) in rows.iter().enumerate().skip(*state.workspace_scroll) {
+         match row {
++            Row::Machine(index) => {
++                if y >= body.bottom() {
++                    break;
++                }
++                if let Some(fleet) = state.fleet {
++                    let machine = &fleet.machines[*index];
++                    let rect = Rect::new(body.x, y, content_width, 1);
++                    let marker = if fleet.collapsed.contains(&machine.machine.id) {
++                        "▸"
++                    } else {
++                        "▾"
++                    };
++                    let local = machine.machine.id == fleet.config.local_machine;
++                    let status = if local {
++                        " · This device"
++                    } else if machine.error.is_some() {
++                        " · offline"
++                    } else if !machine.discovered {
++                        " · discovering"
++                    } else {
++                        ""
++                    };
++                    put_text(
++                        buffer,
++                        rect.x,
++                        rect.y,
++                        rect.width,
++                        &format!("{marker} {}{status}", machine.machine.label),
++                        Style::default()
++                            .fg(palette.text)
++                            .add_modifier(Modifier::BOLD),
++                    );
++                    hits.fleet_machines.push((rect, machine.machine.id.clone()));
++                }
++                y = y.saturating_add(1);
++            }
+             Row::Endpoint(index) => {
+                 if y >= body.bottom() {
+                     break;
+                 }
+                 let endpoint = &state.endpoints[*index];
+-                let rect = Rect::new(body.x, y, content_width, 1);
++                let indent = u16::from(state.fleet.is_some());
++                let rect = Rect::new(
++                    body.x.saturating_add(indent),
++                    y,
++                    content_width.saturating_sub(indent),
++                    1,
++                );
+                 let collapsed = state.collapsed_endpoints.contains(&endpoint.endpoint_id);
+                 let marker = if collapsed { "▸" } else { "▾" };
+                 let status_badge = render_endpoint_row(
+@@ -563,6 +638,23 @@
+         state.agent_scroll,
+         hits,
+     );
++    if let Some(fleet) = state.fleet {
++        let rect = Rect::new(
++            detail_area.x.saturating_add(1),
++            detail_area.y.saturating_add(2),
++            detail_area.width.saturating_sub(2),
++            u16::from(detail_area.height > 2),
++        );
++        put_text(
++            buffer,
++            rect.x,
++            rect.y,
++            rect.width,
++            &format!("scope · {}", fleet.scope.label()),
++            Style::default().fg(palette.text),
++        );
++        hits.fleet_scope = rect;
++    }
+     hits.sidebar_toggle = Rect::new(
+         area.right().saturating_sub(2),
+         area.bottom().saturating_sub(1),
+@@ -579,12 +671,16 @@
+     );
+ }
+ 
+-fn active_endpoint_label<'a>(state: &'a ShellRenderState<'_>) -> &'a str {
++fn active_endpoint_label(state: &ShellRenderState<'_>) -> String {
++    if let Some(fleet) = state.fleet {
++        return fleet.label(state.active_endpoint_id);
++    }
+     state
+         .endpoints
+         .iter()
+         .find(|endpoint| &endpoint.endpoint_id == state.active_endpoint_id)
+         .map_or("Local", |endpoint| endpoint.label.as_str())
++        .to_owned()
+ }
+ 
+ fn render_endpoint_row(
+@@ -599,7 +695,10 @@
+     if highlighted {
+         buffer.set_style(rect, Style::default().bg(palette.active_row_bg));
+     }
+-    let (glyph, state, color) = endpoint_status_presentation(endpoint.status, palette);
++    let (glyph, mut state, color) = endpoint_status_presentation(endpoint.status, palette);
++    if endpoint.fleet_label.is_some() && endpoint.status == ClientEndpointStatus::Disabled {
++        state = "stopped";
++    }
+     let state = if endpoint.status == ClientEndpointStatus::Online {
+         ""
+     } else {
+diff --git a/src/client/shell/endpoints.rs b/src/client/shell/endpoints.rs
+--- a/src/client/shell/endpoints.rs
++++ b/src/client/shell/endpoints.rs
+@@ -12,6 +12,7 @@
+ pub(crate) struct ClientShellEndpoint {
+     pub(crate) endpoint_id: ClientEndpointId,
+     pub(crate) label: String,
++    pub(super) fleet_label: Option<String>,
+     pub(crate) status: ClientEndpointStatus,
+     pub(crate) snapshot: Option<Box<ClientShellSnapshot>>,
+     /// Connection generation that produced `snapshot`. `None` is reserved for local tests.
+@@ -22,6 +23,8 @@
+     pending_agent_view_projection: Option<ClientEndpointAgentViewProjection>,
+     pub(crate) agent_view_projection_supported: bool,
+     pub(crate) methods: Option<HashSet<String>>,
++    pub(super) agent_visibility: AgentVisibility,
++    pub(super) agent_group: Option<String>,
+ }
+ 
+ pub(super) struct MachineHit {
+@@ -43,7 +46,129 @@
+     },
+ }
+ 
++#[derive(Clone, Debug, Default)]
++pub(super) enum AgentVisibility {
++    #[default]
++    All,
++    None,
++    Workspace(String),
++}
++
++impl ClientShellEndpoint {
++    pub(super) fn agent_visible(&self, agent: &crate::protocol::ClientShellAgent) -> bool {
++        match &self.agent_visibility {
++            AgentVisibility::All => true,
++            AgentVisibility::None => false,
++            AgentVisibility::Workspace(workspace) => workspace == &agent.workspace_id,
++        }
++    }
++}
++
+ impl ClientShellState {
++    pub(in crate::client) fn set_fleet(&mut self, fleet: crate::client::fleet::State) {
++        self.fleet = Some(fleet);
++        self.refresh_fleet_endpoints();
++    }
++
++    pub(in crate::client) fn refresh_fleet_endpoints(&mut self) {
++        let Some(fleet) = &self.fleet else {
++            return;
++        };
++        let mut previous = std::mem::take(&mut self.endpoints)
++            .into_iter()
++            .map(|endpoint| (endpoint.endpoint_id.clone(), endpoint))
++            .collect::<HashMap<_, _>>();
++        for machine in &fleet.config.machines {
++            let mut sessions = fleet
++                .sessions
++                .values()
++                .filter(|session| session.machine == machine.id)
++                .collect::<Vec<_>>();
++            sessions.sort_unstable_by(|a, b| a.name.cmp(&b.name));
++            for session in sessions {
++                let mut endpoint = previous.remove(&session.endpoint).unwrap_or_else(|| {
++                    let mut endpoint = local_endpoint();
++                    endpoint.endpoint_id = session.endpoint.clone();
++                    endpoint.status = if session.running {
++                        ClientEndpointStatus::Connecting
++                    } else {
++                        ClientEndpointStatus::Disabled
++                    };
++                    endpoint
++                });
++                endpoint.label = session.name.clone();
++                endpoint.fleet_label = Some(fleet.label(&session.endpoint));
++                if !session.running && !session.endpoint.is_local() {
++                    endpoint.status = ClientEndpointStatus::Disabled;
++                }
++                if fleet
++                    .collapsed_sessions
++                    .contains(&endpoint.endpoint_id.storage_key())
++                {
++                    self.collapsed_endpoints
++                        .insert(endpoint.endpoint_id.clone());
++                }
++                self.endpoints.push(endpoint);
++            }
++        }
++        self.collapsed_endpoints
++            .retain(|endpoint| fleet.sessions.contains_key(endpoint));
++        self.remote_collapsed_groups
++            .retain(|endpoint, _| fleet.sessions.contains_key(endpoint));
++        self.fleet_agent_projection = None;
++        self.refresh_fleet_agent_visibility();
++    }
++
++    pub(super) fn refresh_fleet_agent_visibility(&mut self) {
++        let Some(fleet) = &self.fleet else {
++            return;
++        };
++        let workspace = self
++            .snapshot
++            .as_deref()
++            .and_then(|snapshot| snapshot.focused_workspace_id.as_deref());
++        if self.fleet_agent_projection.as_ref().is_some_and(
++            |(scope, endpoint, previous_workspace)| {
++                *scope == fleet.scope
++                    && endpoint == &self.active_endpoint_id
++                    && previous_workspace.as_deref() == workspace
++            },
++        ) {
++            return;
++        }
++        self.fleet_agent_projection = Some((
++            fleet.scope,
++            self.active_endpoint_id.clone(),
++            workspace.map(str::to_owned),
++        ));
++        let active_machine = fleet.machine_for(&self.active_endpoint_id);
++        for endpoint in &mut self.endpoints {
++            endpoint.agent_group = match fleet.scope {
++                crate::client::fleet::AgentScope::AllMachines => {
++                    Some(fleet.label(&endpoint.endpoint_id))
++                }
++                crate::client::fleet::AgentScope::ThisMachine => Some(endpoint.label.clone()),
++                _ => None,
++            };
++            endpoint.agent_visibility = match fleet.scope {
++                crate::client::fleet::AgentScope::AllMachines => AgentVisibility::All,
++                crate::client::fleet::AgentScope::ThisMachine
++                    if fleet.machine_for(&endpoint.endpoint_id) == active_machine =>
++                {
++                    AgentVisibility::All
++                }
++                crate::client::fleet::AgentScope::ThisSpace
++                    if endpoint.endpoint_id == self.active_endpoint_id =>
++                {
++                    workspace.map_or(AgentVisibility::None, |workspace| {
++                        AgentVisibility::Workspace(workspace.to_owned())
++                    })
++                }
++                _ => AgentVisibility::None,
++            };
++        }
++    }
++
+     pub(crate) fn set_endpoint_catalog(&mut self, profiles: &[SavedSshEndpoint]) {
+         let mut next = Vec::with_capacity(profiles.len().saturating_add(1));
+         let local = self
+@@ -65,6 +190,7 @@
+             next.push(ClientShellEndpoint {
+                 endpoint_id,
+                 label: profile.label.clone(),
++                fleet_label: None,
+                 status: previous.map_or(
+                     if profile.enabled {
+                         ClientEndpointStatus::Connecting
+@@ -88,6 +214,8 @@
+                 agent_view_projection_supported: previous
+                     .is_some_and(|endpoint| endpoint.agent_view_projection_supported),
+                 methods: previous.and_then(|endpoint| endpoint.methods.clone()),
++                agent_visibility: AgentVisibility::All,
++                agent_group: None,
+             });
+         }
+ 
+@@ -475,7 +603,7 @@
+     }
+ 
+     pub(crate) fn multi_endpoint_active(&self) -> bool {
+-        self.endpoints.len() > 1
++        self.fleet.is_some() || self.endpoints.len() > 1
+     }
+ 
+     #[cfg(test)]
+@@ -733,6 +861,7 @@
+     ClientShellEndpoint {
+         endpoint_id: ClientEndpointId::Local,
+         label: "Local".into(),
++        fleet_label: None,
+         status: ClientEndpointStatus::Online,
+         snapshot: None,
+         snapshot_generation: None,
+@@ -742,5 +871,7 @@
+         pending_agent_view_projection: None,
+         agent_view_projection_supported: false,
+         methods: None,
++        agent_visibility: AgentVisibility::All,
++        agent_group: None,
+     }
+ }
+diff --git a/src/client/shell/input.rs b/src/client/shell/input.rs
+--- a/src/client/shell/input.rs
++++ b/src/client/shell/input.rs
+@@ -221,6 +221,7 @@
+     }
+ 
+     pub(crate) fn handle_raw_events(&mut self, events: Vec<RawInputEvent>) -> ClientShellInput {
++        self.refresh_fleet_agent_visibility();
+         let mut outcome = ClientShellInput::default();
+         if !events.is_empty() && self.endpoint_error.take().is_some() {
+             self.endpoint_error_deadline = None;
+diff --git a/src/client/shell/machine_diagnostics.rs b/src/client/shell/machine_diagnostics.rs
+--- a/src/client/shell/machine_diagnostics.rs
++++ b/src/client/shell/machine_diagnostics.rs
+@@ -97,15 +97,17 @@
+         let Some(error) = self.machine_diagnostics.errors.get(&id) else {
+             return true;
+         };
+-        let ClientEndpointId::Ssh(profile_id) = &id else {
+-            return true;
++        let command = match &id {
++            ClientEndpointId::Ssh(profile_id)
++                if crate::remote::ssh_error_requires_authentication(error) =>
++            {
++                format!("herdr machine reconnect {profile_id}")
++            }
++            ClientEndpointId::Ssh(profile_id) => format!("herdr machine status {profile_id}"),
++            ClientEndpointId::Session(_) => "connection diagnostic".into(),
++            ClientEndpointId::Local => return true,
+         };
+-        let command = if crate::remote::ssh_error_requires_authentication(error) {
+-            format!("herdr machine reconnect {profile_id}")
+-        } else {
+-            format!("herdr machine status {profile_id}")
+-        };
+-        let code = format!("machine-diagnostic:{}", profile_id);
++        let code = format!("machine-diagnostic:{}", id.storage_key());
+         // An explicit click can reopen its diagnostic, but must not replace another notice.
+         if self
+             .visible_endpoint_notice
+diff --git a/src/client/shell/mobile.rs b/src/client/shell/mobile.rs
+--- a/src/client/shell/mobile.rs
++++ b/src/client/shell/mobile.rs
+@@ -593,7 +593,10 @@
+                         Span::styled("  ", Style::default().bg(background)),
+                         Span::styled(symbol, Style::default().fg(color).bg(background)),
+                         Span::styled(
+-                            format!(" {}", endpoint.label),
++                            format!(
++                                " {}",
++                                endpoint.fleet_label.as_ref().unwrap_or(&endpoint.label)
++                            ),
+                             Style::default()
+                                 .fg(palette.text)
+                                 .bg(background)
+@@ -1007,7 +1010,7 @@
+                 if endpoint_id == self.active_endpoint_id {
+                     self.mode = ClientShellMode::Terminal;
+                     self.navigate_workspace_id = None;
+-                    if endpoint_id.is_local() {
++                    if self.fleet.is_some() || endpoint_id.is_local() {
+                         self.activate_endpoint(endpoint_id, outcome);
+                     }
+                 } else if self.activate_endpoint(endpoint_id, outcome) {
+diff --git a/src/client/shell/mouse.rs b/src/client/shell/mouse.rs
+--- a/src/client/shell/mouse.rs
++++ b/src/client/shell/mouse.rs
+@@ -2022,6 +2022,16 @@
+                     }
+                     return;
+                 }
++                if super::contains(self.hits.fleet_scope, point) {
++                    if let Some(fleet) = self.fleet.as_mut() {
++                        fleet.scope = fleet.scope.next();
++                        fleet.persist();
++                        self.refresh_fleet_agent_visibility();
++                        self.agent_scroll = 0;
++                        outcome.repaint = true;
++                    }
++                    return;
++                }
+                 if super::contains(self.hits.agent_sort_toggle, point) {
+                     let sort = match self.config.agent_panel_sort {
+                         crate::config::AgentPanelSortConfig::Spaces => {
+diff --git a/src/client/shell/overlay_input.rs b/src/client/shell/overlay_input.rs
+--- a/src/client/shell/overlay_input.rs
++++ b/src/client/shell/overlay_input.rs
+@@ -349,6 +349,10 @@
+             title: "new workspace",
+             input: TextEditor::new(&suggested_name, true),
+             target: ClientRenameTarget::NewWorkspace {
++                endpoint_id: self.active_endpoint_id.clone(),
++                boot_id: self
++                    .endpoint_boot_id(&self.active_endpoint_id)
++                    .map(str::to_owned),
+                 source_workspace_id,
+                 cwd,
+                 suggested_name,
+@@ -937,19 +941,32 @@
+         let trimmed = rename.input.trim();
+         let method = match rename.target {
+             ClientRenameTarget::NewWorkspace {
++                endpoint_id,
++                boot_id,
+                 source_workspace_id,
+                 cwd,
+                 suggested_name,
+-            } => Some(crate::api::schema::Method::WorkspaceCreate(
+-                crate::api::schema::WorkspaceCreateParams {
+-                    source_workspace_id,
+-                    cwd,
+-                    focus: true,
+-                    label: (!trimmed.is_empty() && trimmed != suggested_name)
+-                        .then(|| trimmed.to_owned()),
+-                    env: Default::default(),
+-                },
+-            )),
++            } => {
++                if endpoint_id != self.active_endpoint_id
++                    || boot_id.as_deref() != self.endpoint_boot_id(&endpoint_id)
++                {
++                    self.receive_endpoint_unavailable(
++                        "The destination changed; reopen New space on the intended session".into(),
++                    );
++                    outcome.repaint = true;
++                    return;
++                }
++                Some(crate::api::schema::Method::WorkspaceCreate(
++                    crate::api::schema::WorkspaceCreateParams {
++                        source_workspace_id,
++                        cwd,
++                        focus: true,
++                        label: (!trimmed.is_empty() && trimmed != suggested_name)
++                            .then(|| trimmed.to_owned()),
++                        env: Default::default(),
++                    },
++                ))
++            }
+             ClientRenameTarget::Workspace { workspace_id } => (!trimmed.is_empty()).then(|| {
+                 crate::api::schema::Method::WorkspaceRename(
+                     crate::api::schema::WorkspaceRenameParams {
+diff --git a/src/client/shell/overlays.rs b/src/client/shell/overlays.rs
+--- a/src/client/shell/overlays.rs
++++ b/src/client/shell/overlays.rs
+@@ -61,7 +61,7 @@
+         ClientShellOverlay::ReleaseNotes(v) => {
+             render_release_notes_overlay(b, v, &s.update_install_command, p)
+         }
+-        ClientShellOverlay::Rename(v) => render_rename_overlay(b, v, p),
++        ClientShellOverlay::Rename(v) => render_rename_overlay(b, v, endpoints, p),
+         ClientShellOverlay::ConfirmClose(v) => render_confirm_close_overlay(b, v, p),
+         ClientShellOverlay::Help(v) => render_help_overlay(b, v, k, p),
+         ClientShellOverlay::Navigator(v) => {
+@@ -644,6 +644,7 @@
+ fn render_rename_overlay(
+     b: &mut Buffer,
+     v: &ClientRenameOverlay,
++    endpoints: &[ClientShellEndpoint],
+     p: &Palette,
+ ) -> Option<OverlayRender> {
+     let q = popup(b.area, 56, 7)?;
+@@ -659,6 +660,22 @@
+             .bg(p.panel_bg)
+             .add_modifier(Modifier::BOLD),
+     );
++    if let ClientRenameTarget::NewWorkspace { endpoint_id, .. } = &v.target {
++        if let Some(label) = endpoints
++            .iter()
++            .find(|endpoint| &endpoint.endpoint_id == endpoint_id)
++            .and_then(|endpoint| endpoint.fleet_label.as_deref())
++        {
++            put_text(
++                b,
++                i.x,
++                i.y + 1,
++                i.width,
++                &format!("on {label}"),
++                Style::default().fg(p.overlay0).bg(p.panel_bg),
++            );
++        }
++    }
+     let input = Rect::new(i.x, i.y + 2, i.width, 1);
+     b.set_style(input, Style::default().fg(p.text).bg(p.surface0));
+     let cursor = text_editor::render(
+diff --git a/src/client/shell/preferences.rs b/src/client/shell/preferences.rs
+--- a/src/client/shell/preferences.rs
++++ b/src/client/shell/preferences.rs
+@@ -58,6 +58,31 @@
+ pub(super) fn load(path: &Path) -> Option<ClientChromePreferences> {
+     let content = std::fs::read_to_string(path).ok()?;
+     serde_json::from_str(&content).ok()
++}
++
++pub(super) fn load_guarded(path: &Path) -> Result<Option<ClientChromePreferences>, String> {
++    use std::io::Read;
++    let file = match std::fs::File::open(path) {
++        Ok(file) => file,
++        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
++        Err(error) => return Err(error.to_string()),
++    };
++    let mut bytes = Vec::new();
++    file.take(256 * 1024 + 1)
++        .read_to_end(&mut bytes)
++        .map_err(|error| error.to_string())?;
++    if bytes.len() > 256 * 1024 {
++        return Err("chrome preferences exceed size limit".into());
++    }
++    let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
++    let mut unknown = false;
++    let preferences = serde_ignored::deserialize(&mut deserializer, |_| unknown = true)
++        .map_err(|error| error.to_string())?;
++    deserializer.end().map_err(|error| error.to_string())?;
++    if unknown {
++        return Err("unknown chrome preference fields".into());
++    }
++    Ok(Some(preferences))
+ }
+ 
+ pub(super) fn store(path: &Path, preferences: ClientChromePreferences) -> Result<(), String> {
+diff --git a/src/client/shell/render.rs b/src/client/shell/render.rs
+--- a/src/client/shell/render.rs
++++ b/src/client/shell/render.rs
+@@ -230,6 +230,7 @@
+ }
+ 
+ pub(super) struct ShellRenderState<'a> {
++    pub(super) fleet: Option<&'a crate::client::fleet::State>,
+     pub(super) machine_diagnostics: &'a super::machine_diagnostics::MachineDiagnostics,
+     pub(super) endpoints: &'a [ClientShellEndpoint],
+     pub(super) active_endpoint_id: &'a ClientEndpointId,
+@@ -268,7 +269,7 @@
+         );
+     }
+     if layout.sidebar.width > 0 {
+-        if state.endpoints.len() > 1 {
++        if state.fleet.is_some() || state.endpoints.len() > 1 {
+             if state.sidebar_collapsed {
+                 super::endpoint_sidebar::render_collapsed(
+                     buffer,
+diff --git a/src/client/shell/state.rs b/src/client/shell/state.rs
+--- a/src/client/shell/state.rs
++++ b/src/client/shell/state.rs
+@@ -84,6 +84,8 @@
+ #[derive(Default)]
+ pub(super) struct ShellHitMap {
+     pub(super) machines: Vec<MachineHit>,
++    pub(super) fleet_machines: Vec<(Rect, String)>,
++    pub(super) fleet_scope: Rect,
+     pub(super) workspaces: Vec<WorkspaceHit>,
+     pub(super) workspace_body: Rect,
+     pub(super) workspace_scrollbar: Rect,
+@@ -296,6 +298,8 @@
+ #[derive(Debug)]
+ pub(super) enum ClientRenameTarget {
+     NewWorkspace {
++        endpoint_id: ClientEndpointId,
++        boot_id: Option<String>,
+         source_workspace_id: Option<String>,
+         cwd: Option<String>,
+         suggested_name: String,
+@@ -896,6 +900,12 @@
+     pub(super) last_composed_at: Option<std::time::Instant>,
+     pub(super) selection_repaint_deadline: Option<std::time::Instant>,
+     pub(super) hits: ShellHitMap,
++    pub(in crate::client) fleet: Option<crate::client::fleet::State>,
++    pub(super) fleet_agent_projection: Option<(
++        crate::client::fleet::AgentScope,
++        ClientEndpointId,
++        Option<String>,
++    )>,
+     pub(super) endpoints: Vec<ClientShellEndpoint>,
+     pub(super) active_endpoint_id: ClientEndpointId,
+     pub(super) collapsed_endpoints: HashSet<ClientEndpointId>,
+@@ -1021,11 +1031,20 @@
+         }
+         let mut remote_collapsed_groups = HashMap::<ClientEndpointId, HashSet<String>>::new();
+         for saved in preferences.remote_collapsed_groups {
+-            let Ok(profile_id) = crate::client::endpoint::ProfileId::parse(saved.profile_id) else {
++            let (session, id) = saved
++                .profile_id
++                .strip_prefix("session:")
++                .map_or((false, saved.profile_id.as_str()), |id| (true, id));
++            let Ok(profile_id) = crate::client::endpoint::ProfileId::parse(id) else {
+                 continue;
+             };
++            let endpoint = if session {
++                ClientEndpointId::Session(profile_id)
++            } else {
++                ClientEndpointId::Ssh(profile_id)
++            };
+             remote_collapsed_groups
+-                .entry(ClientEndpointId::Ssh(profile_id))
++                .entry(endpoint)
+                 .or_default()
+                 .extend(saved.collapsed_groups);
+         }
+@@ -1070,6 +1089,8 @@
+             last_composed_at: None,
+             selection_repaint_deadline: None,
+             hits: ShellHitMap::default(),
++            fleet: None,
++            fleet_agent_projection: None,
+             endpoints: vec![local_endpoint()],
+             active_endpoint_id: ClientEndpointId::Local,
+             collapsed_endpoints: HashSet::new(),
+diff --git a/src/client/tests/mod.rs b/src/client/tests/mod.rs
+--- a/src/client/tests/mod.rs
++++ b/src/client/tests/mod.rs
+@@ -71,17 +71,28 @@
+ 
+ #[test]
+ fn server_graphics_files_require_local_filesystem_not_just_local_terminal() {
+-    let local = endpoint::ClientEndpointId::Local;
+-    let ssh = endpoint::ClientEndpointId::Ssh(
++    let extra_ipc = endpoint::ClientEndpointId::Session(
+         endpoint::ProfileId::parse("0123456789abcdef0123456789abcdef").unwrap(),
+     );
+-    // Keep old local peers working without requiring a negotiated capability.
+-    assert!(server_graphics_files_allowed(&local, false));
+-    // Saved SSH endpoints run in the normal local client process.
+-    assert!(!server_graphics_files_allowed(&ssh, false));
+-    // A standalone --remote bridge can retain the Local endpoint identity.
+-    assert!(!server_graphics_files_allowed(&local, true));
+-    assert!(!server_graphics_files_allowed(&ssh, true));
++    assert!(!extra_ipc.is_local());
++    let ipc = endpoint::EndpointNegotiation::default().with_shared_filesystem(true);
++    let ssh = endpoint::EndpointNegotiation::default().with_shared_filesystem(false);
++    assert!(server_graphics_files_allowed(
++        ipc.shares_filesystem(),
++        false
++    ));
++    assert!(!server_graphics_files_allowed(
++        ssh.shares_filesystem(),
++        false
++    ));
++    assert!(!server_graphics_files_allowed(
++        ipc.shares_filesystem(),
++        true
++    ));
++    assert!(!server_graphics_files_allowed(
++        ssh.shares_filesystem(),
++        true
++    ));
+ }
+ 
+ fn restore_env_var(key: &str, value: Option<OsString>) {
+diff --git a/src/remote.rs b/src/remote.rs
+--- a/src/remote.rs
++++ b/src/remote.rs
+@@ -6,6 +6,12 @@
+ mod saved;
+ #[cfg(unix)]
+ mod ssh_agent;
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub(crate) enum RemoteAttachPolicy {
++    StartIfMissing,
++    ExistingOnly,
++}
+ 
+ pub(crate) use args::*;
+ pub(crate) use attach::*;
+diff --git a/src/remote/attach.rs b/src/remote/attach.rs
+--- a/src/remote/attach.rs
++++ b/src/remote/attach.rs
+@@ -27,6 +27,8 @@
+ const REMOTE_SERVER_SHUTDOWN_CONFIRM_TIMEOUT: Duration = Duration::from_secs(5);
+ const NONINTERACTIVE_SSH_COMMAND_TIMEOUT: Duration = Duration::from_secs(15);
+ const NONINTERACTIVE_SSH_STDERR_LIMIT: usize = 16 * 1024;
++const SESSION_DISCOVERY_OUTPUT_LIMIT: usize = 1024 * 1024;
++const SESSION_DISCOVERY_COUNT_LIMIT: usize = 4096;
+ const BRIDGE_FAILURE_REPORT_TIMEOUT: Duration = Duration::from_secs(1);
+ const REMOTE_SERVER_SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
+ const CURRENT_PROTOCOL: u32 = crate::protocol::PROTOCOL_VERSION;
+@@ -144,6 +146,10 @@
+             manage,
+             crate::session::DEFAULT_SESSION_NAME.to_owned(),
+         );
++        Self::connect_with_ssh(ssh)
++    }
++
++    fn connect_with_ssh(ssh: RemoteSsh) -> io::Result<Self> {
+         let remote_herdr =
+             RemoteHerdr::for_platform(detect_remote_platform(&ssh)?.into_setup_platform());
+         let candidates = remote_binary_candidates(&ssh, &remote_herdr)?;
+@@ -152,6 +158,106 @@
+             remote_herdr,
+             candidates,
+         })
++    }
++
++    pub(crate) fn create_session(target: &str, session_name: &str) -> io::Result<()> {
++        crate::client::endpoint::SavedSshEndpoint::new("peer", target, session_name)
++            .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
++        if session_name == crate::session::DEFAULT_SESSION_NAME {
++            return Err(io::Error::new(
++                io::ErrorKind::InvalidInput,
++                "default is reserved",
++            ));
++        }
++        let mut ssh = RemoteSsh::new_noninteractive(target.to_owned());
++        ssh.output_limit = Some(SESSION_DISCOVERY_OUTPUT_LIMIT);
++        let mut setup = Self::connect_with_ssh(ssh)?;
++        if setup.candidates.len() > 16 {
++            return Err(io::Error::new(
++                io::ErrorKind::InvalidData,
++                "remote discovery returned too many Herdr installations",
++            ));
++        }
++        ensure_session_absent(&setup.all_sessions()?, session_name)?;
++        setup.ssh.session_name = session_name.to_owned();
++        let prepared = prepare_discovered_remote_herdr(
++            &setup.ssh,
++            setup.remote_herdr,
++            &setup.candidates,
++            false,
++            true,
++        )?;
++        let sessions = query_remote_sessions(&setup.ssh, &prepared.remote_herdr)?;
++        ensure_session_absent(&sessions, session_name)?;
++        if remote_server_status(&setup.ssh, &prepared.remote_herdr, true)?
++            != RemoteServerStatus::NotRunning
++        {
++            return Err(io::Error::new(
++                io::ErrorKind::AlreadyExists,
++                "the requested session started during setup; it was left running",
++            ));
++        }
++        // This bridge may attach if another creator wins the final race. Never use
++        // ensure_remote_server_ready here, because it can restart that server.
++        let command = prepared
++            .remote_herdr
++            .executable
++            .saved_bridge_command(session_name);
++        let output = setup
++            .ssh
++            .shell_output(&prepared.remote_herdr.platform, &command)?;
++        if !output.status.success() {
++            return Err(command_failed("remote session startup failed", &output));
++        }
++        match remote_server_status(&setup.ssh, &prepared.remote_herdr, true)? {
++            RemoteServerStatus::Running {
++                endpoint_protocol_generation,
++                surface_interest,
++                health_check,
++                detached_server_daemon,
++                ..
++            } if remote_server_restart_reason(
++                endpoint_protocol_generation,
++                detached_server_daemon,
++                true,
++                surface_interest,
++                health_check,
++            )
++            .is_none() =>
++            {
++                Ok(())
++            }
++            _ => Err(io::Error::other(
++                "remote session is not ready; no existing server was restarted",
++            )),
++        }
++    }
++
++    fn all_sessions(&self) -> io::Result<Vec<RemoteSessionJson>> {
++        if self.candidates.is_empty() {
++            return Err(io::Error::new(
++                io::ErrorKind::Unsupported,
++                "no installed remote Herdr can list sessions; install Herdr on the peer first",
++            ));
++        }
++        let mut failure = String::new();
++        for candidate in &self.candidates {
++            match query_remote_sessions(&self.ssh, candidate) {
++                Ok(sessions) => return Ok(sessions),
++                Err(error)
++                    if matches!(
++                        error.kind(),
++                        io::ErrorKind::InvalidData | io::ErrorKind::TimedOut
++                    ) =>
++                {
++                    return Err(error)
++                }
++                Err(error) => failure = error.to_string(),
++            }
++        }
++        Err(io::Error::other(format!(
++            "could not discover remote Herdr sessions: {failure}"
++        )))
+     }
+ 
+     pub(crate) fn running_sessions(&self) -> io::Result<Vec<String>> {
+@@ -265,6 +371,58 @@
+     running: bool,
+ }
+ 
++fn parse_remote_sessions(bytes: &[u8]) -> io::Result<Vec<RemoteSessionJson>> {
++    if bytes.len() > SESSION_DISCOVERY_OUTPUT_LIMIT {
++        return Err(io::Error::new(
++            io::ErrorKind::InvalidData,
++            "remote session list exceeds the output limit",
++        ));
++    }
++    let list: RemoteSessionListJson = serde_json::from_slice(bytes).map_err(|error| {
++        io::Error::new(
++            io::ErrorKind::InvalidData,
++            format!("invalid remote session list: {error}"),
++        )
++    })?;
++    if list.sessions.len() > SESSION_DISCOVERY_COUNT_LIMIT {
++        return Err(io::Error::new(
++            io::ErrorKind::InvalidData,
++            "remote session list contains too many sessions",
++        ));
++    }
++    for session in &list.sessions {
++        crate::session::validate_name(&session.name).map_err(|error| {
++            io::Error::new(
++                io::ErrorKind::InvalidData,
++                format!("invalid remote session name: {error}"),
++            )
++        })?;
++    }
++    Ok(list.sessions)
++}
++
++fn query_remote_sessions(
++    ssh: &RemoteSsh,
++    remote: &RemoteHerdr,
++) -> io::Result<Vec<RemoteSessionJson>> {
++    let output = ssh.shell_output(
++        &remote.platform,
++        &remote.executable.command(&["session", "list", "--json"]),
++    )?;
++    if !output.status.success() {
++        return Err(command_failed("remote session query failed", &output));
++    }
++    parse_remote_sessions(&output.stdout)
++}
++
++fn ensure_session_absent(sessions: &[RemoteSessionJson], name: &str) -> io::Result<()> {
++    if sessions.iter().any(|session| session.name == name) {
++        return Err(io::Error::new(io::ErrorKind::AlreadyExists,
++            format!("remote session '{name}' already exists, including stopped sessions; choose a new name")));
++    }
++    Ok(())
++}
++
+ #[derive(Debug, PartialEq, Eq)]
+ struct DetectedRemotePlatform {
+     platform: RemotePlatform,
+@@ -394,17 +552,34 @@
+         }
+     }
+ 
++    #[cfg(test)]
+     fn bridge_command(&self, session_name: &str) -> String {
+         self.bridge_command_with_idle_timeout(session_name, false)
+     }
+ 
++    #[cfg(test)]
+     fn bridge_command_with_idle_timeout(&self, session_name: &str, idle_timeout: bool) -> String {
+-        let command = if idle_timeout {
+-            &["remote-client-bridge", "--idle-timeout-v1"][..]
+-        } else {
+-            &["remote-client-bridge"][..]
+-        };
+-        let args = Self::session_args(session_name, command);
++        self.bridge_command_with_policy(
++            session_name,
++            idle_timeout,
++            super::RemoteAttachPolicy::StartIfMissing,
++        )
++    }
++
++    fn bridge_command_with_policy(
++        &self,
++        session_name: &str,
++        idle_timeout: bool,
++        policy: super::RemoteAttachPolicy,
++    ) -> String {
++        let mut command = vec!["remote-client-bridge"];
++        if idle_timeout {
++            command.push("--idle-timeout-v1");
++        }
++        if policy == super::RemoteAttachPolicy::ExistingOnly {
++            command.push("--existing-only-v1");
++        }
++        let args = Self::session_args(session_name, &command);
+         match self {
+             Self::PosixShellPath(_) => {
+                 posix_remote_output_command(&format!("exec {}", self.command(&args)))
+@@ -780,6 +955,7 @@
+     session_name: String,
+     managed_config: Option<ManagedSshConfig>,
+     noninteractive: bool,
++    output_limit: Option<usize>,
+ }
+ 
+ impl RemoteSsh {
+@@ -799,6 +975,7 @@
+             session_name,
+             managed_config,
+             noninteractive: false,
++            output_limit: None,
+         }
+     }
+ 
+@@ -871,7 +1048,7 @@
+                 "ssh bootstrap stdin missing",
+             ))
+         };
+-        let output = wait_with_output_timeout(child, NONINTERACTIVE_SSH_COMMAND_TIMEOUT)?;
++        let output = self.wait_for_output(child)?;
+         write_result?;
+         normalize_remote_output(output)
+     }
+@@ -886,7 +1063,7 @@
+             .stdout(Stdio::piped())
+             .stderr(Stdio::piped());
+         let output = if self.noninteractive {
+-            wait_with_output_timeout(command.spawn()?, NONINTERACTIVE_SSH_COMMAND_TIMEOUT)
++            self.wait_for_output(command.spawn()?)
+         } else {
+             output_with_forwarded_stderr(command.spawn()?, None)
+         }?;
+@@ -895,6 +1072,15 @@
+ 
+     fn posix_user_shell_output(&self, remote_command: &str) -> io::Result<Output> {
+         self.framed_user_shell_output(&posix_remote_output_command(remote_command))
++    }
++
++    fn wait_for_output(&self, child: Child) -> io::Result<Output> {
++        match self.output_limit {
++            Some(limit) => {
++                wait_with_bounded_output(child, NONINTERACTIVE_SSH_COMMAND_TIMEOUT, limit)
++            }
++            None => wait_with_output_timeout(child, NONINTERACTIVE_SSH_COMMAND_TIMEOUT),
++        }
+     }
+ 
+     fn shell_output(&self, platform: &RemotePlatform, remote_command: &str) -> io::Result<Output> {
+@@ -1077,6 +1263,83 @@
+     write_result?;
+     output.stderr = stderr_result?;
+     Ok(output)
++}
++
++fn read_bounded_output(reader: impl io::Read, limit: usize) -> io::Result<Vec<u8>> {
++    let mut bytes = Vec::new();
++    reader.take(limit as u64 + 1).read_to_end(&mut bytes)?;
++    if bytes.len() > limit {
++        return Err(io::Error::new(
++            io::ErrorKind::InvalidData,
++            "remote setup command exceeded the output limit",
++        ));
++    }
++    Ok(bytes)
++}
++
++fn wait_with_bounded_output(
++    mut child: Child,
++    timeout: Duration,
++    limit: usize,
++) -> io::Result<Output> {
++    let stdout = child
++        .stdout
++        .take()
++        .ok_or_else(|| io::Error::other("SSH command stdout was not captured"))?;
++    let stderr = child
++        .stderr
++        .take()
++        .ok_or_else(|| io::Error::other("SSH command stderr was not captured"))?;
++    let (sender, receiver) = mpsc::channel();
++    let stdout_sender = sender.clone();
++    thread::spawn(move || {
++        let _ = stdout_sender.send((true, read_bounded_output(stdout, limit)));
++    });
++    thread::spawn(move || {
++        let _ = sender.send((
++            false,
++            read_bounded_output(stderr, NONINTERACTIVE_SSH_STDERR_LIMIT),
++        ));
++    });
++    let result = (|| {
++        let deadline = Instant::now() + timeout;
++        let mut stdout = None;
++        let mut stderr = None;
++        let mut status = None;
++        loop {
++            while let Ok((is_stdout, bytes)) = receiver.try_recv() {
++                if is_stdout {
++                    stdout = Some(bytes?);
++                } else {
++                    stderr = Some(bytes?);
++                }
++            }
++            if status.is_none() {
++                status = child.try_wait()?;
++            }
++            if let (Some(status), Some(stdout), Some(stderr)) =
++                (status, stdout.as_mut(), stderr.as_mut())
++            {
++                return Ok(Output {
++                    status,
++                    stdout: std::mem::take(stdout),
++                    stderr: std::mem::take(stderr),
++                });
++            }
++            if Instant::now() >= deadline {
++                return Err(io::Error::new(
++                    io::ErrorKind::TimedOut,
++                    "remote setup command timed out",
++                ));
++            }
++            thread::sleep(Duration::from_millis(10));
++        }
++    })();
++    if result.is_err() {
++        let _ = child.kill();
++        let _ = child.wait();
++    }
++    result
+ }
+ 
+ fn normalize_remote_output(mut output: Output) -> io::Result<Output> {
+@@ -2765,6 +3028,7 @@
+     socket_identity: crate::ipc::SocketFileIdentity,
+     should_stop: Arc<AtomicBool>,
+     failure_rx: mpsc::Receiver<io::Error>,
++    policy: super::RemoteAttachPolicy,
+     thread: Option<JoinHandle<()>>,
+ }
+ 
+@@ -2777,19 +3041,39 @@
+         ssh_options: Option<&ManagedSshOptions>,
+         noninteractive: bool,
+     ) -> io::Result<Self> {
+-        Self::start_command(
++        Self::start_with_policy(
+             target,
+-            if noninteractive && remote_herdr.bridge_idle_timeout {
+-                remote_herdr
+-                    .executable
+-                    .bridge_command_with_idle_timeout(&session_name, true)
+-            } else {
+-                remote_herdr.executable.bridge_command(&session_name)
+-            },
++            remote_herdr,
++            local_socket,
++            session_name,
++            ssh_options,
++            noninteractive,
++            super::RemoteAttachPolicy::StartIfMissing,
++        )
++    }
++
++    pub(super) fn start_with_policy(
++        target: String,
++        remote_herdr: RemoteHerdr,
++        local_socket: PathBuf,
++        session_name: String,
++        ssh_options: Option<&ManagedSshOptions>,
++        noninteractive: bool,
++        policy: super::RemoteAttachPolicy,
++    ) -> io::Result<Self> {
++        let mut bridge = Self::start_command(
++            target,
++            remote_herdr.executable.bridge_command_with_policy(
++                &session_name,
++                noninteractive && remote_herdr.bridge_idle_timeout,
++                policy,
++            ),
+             local_socket,
+             ssh_options,
+             noninteractive,
+-        )
++        )?;
++        bridge.policy = policy;
++        Ok(bridge)
+     }
+ 
+     pub(super) fn start_command(
+@@ -2870,6 +3154,7 @@
+             socket_identity,
+             should_stop,
+             failure_rx,
++            policy: super::RemoteAttachPolicy::StartIfMissing,
+             thread: Some(thread),
+         })
+     }
+@@ -2878,7 +3163,28 @@
+         self.failure_rx
+             .recv_timeout(BRIDGE_FAILURE_REPORT_TIMEOUT)
+             .ok()
+-    }
++            .map(|error| bridge_policy_error(error, self.policy))
++    }
++}
++
++fn bridge_policy_error(error: io::Error, policy: super::RemoteAttachPolicy) -> io::Error {
++    if policy == super::RemoteAttachPolicy::ExistingOnly {
++        let message = error.to_string();
++        if message.contains("unsupported remote client bridge option")
++            || (message.contains("--existing-only-v1")
++                && [
++                    "unexpected argument",
++                    "unrecognized option",
++                    "unknown option",
++                ]
++                .iter()
++                .any(|diagnostic| message.contains(diagnostic)))
++        {
++            return io::Error::new(io::ErrorKind::Unsupported,
++                format!("peer Herdr does not support existing-session-only attachment; update Herdr on the peer and retry: {error}"));
++        }
++    }
++    error
+ }
+ 
+ fn prepare_remote_bridge_stream(
+@@ -3994,6 +4300,7 @@
+             session_name: crate::session::DEFAULT_SESSION_NAME.into(),
+             managed_config: Some(managed_config),
+             noninteractive: false,
++            output_limit: None,
+         };
+ 
+         let command = ssh.command();
+@@ -4065,6 +4372,7 @@
+             session_name: crate::session::DEFAULT_SESSION_NAME.into(),
+             managed_config: Some(managed_config),
+             noninteractive: false,
++            output_limit: None,
+         };
+         let args = ssh
+             .command()
+@@ -4144,6 +4452,7 @@
+             session_name: "probe-options".into(),
+             managed_config: Some(managed_config),
+             noninteractive: false,
++            output_limit: None,
+         };
+         let remote = RemoteHerdr::for_platform(RemotePlatform {
+             os: "linux",
+@@ -4275,6 +4584,7 @@
+             session_name: crate::session::DEFAULT_SESSION_NAME.into(),
+             managed_config: None,
+             noninteractive: false,
++            output_limit: None,
+         };
+ 
+         let command = ssh.command();
+diff --git a/src/remote/host.rs b/src/remote/host.rs
+--- a/src/remote/host.rs
++++ b/src/remote/host.rs
+@@ -3,23 +3,12 @@
+ use std::io;
+ use std::time::Duration;
+ 
++use super::RemoteAttachPolicy;
++
+ pub(crate) fn run_remote_client_bridge(args: &[String]) -> io::Result<()> {
+-    let idle_timeout = match args {
+-        [] => false,
+-        [option]
+-            if option == "--idle-timeout-v1"
+-                && crate::platform::REMOTE_BRIDGE_IDLE_TIMEOUT_SUPPORTED =>
+-        {
+-            true
+-        }
+-        _ => {
+-            return Err(io::Error::new(
+-                io::ErrorKind::InvalidInput,
+-                "unsupported remote client bridge option",
+-            ))
+-        }
+-    };
+-    ensure_remote_server_running()?;
++    let (idle_timeout, policy) =
++        parse_bridge_options(args, crate::platform::REMOTE_BRIDGE_IDLE_TIMEOUT_SUPPORTED)?;
++    ensure_remote_server_running(policy)?;
+     #[cfg(unix)]
+     let _ssh_agent = super::ssh_agent::Registration::start();
+ 
+@@ -37,27 +26,72 @@
+     crate::platform::forward_remote_bridge_stdio(stream, idle_timeout)
+ }
+ 
+-fn ensure_remote_server_running() -> io::Result<()> {
++fn parse_bridge_options(
++    args: &[String],
++    idle_supported: bool,
++) -> io::Result<(bool, RemoteAttachPolicy)> {
++    let mut idle_timeout = false;
++    let mut policy = RemoteAttachPolicy::StartIfMissing;
++    for option in args {
++        match option.as_str() {
++            "--idle-timeout-v1" if idle_supported && !idle_timeout => idle_timeout = true,
++            "--existing-only-v1" if policy == RemoteAttachPolicy::StartIfMissing => {
++                policy = RemoteAttachPolicy::ExistingOnly;
++            }
++            _ => {
++                return Err(io::Error::new(
++                    io::ErrorKind::InvalidInput,
++                    "unsupported remote client bridge option",
++                ))
++            }
++        }
++    }
++    Ok((idle_timeout, policy))
++}
++
++fn ensure_remote_server_running(policy: RemoteAttachPolicy) -> io::Result<()> {
+     let socket_path = crate::server::socket_paths::client_socket_path();
+-    if crate::server::autodetect::is_server_listening()? {
+-        let status = crate::api::read_runtime_status_at(
+-            &crate::api::socket_path(),
+-            Duration::from_millis(500),
+-        )?
+-        .ok_or_else(|| io::Error::other("remote server status API is unavailable"))?;
+-        if status
+-            .capabilities
+-            .as_ref()
+-            .and_then(|capabilities| capabilities.endpoint_protocol_generation)
+-            == Some(crate::protocol::endpoint::ENDPOINT_PROTOCOL_GENERATION)
+-        {
+-            return Ok(());
+-        }
+-        return Err(io::Error::other(
++    ensure_remote_server_with(
++        policy,
++        || {
++            if !crate::server::autodetect::is_server_listening()? {
++                return Ok(false);
++            }
++            let status = crate::api::read_runtime_status_at(
++                &crate::api::socket_path(),
++                Duration::from_millis(500),
++            )?
++            .ok_or_else(|| io::Error::other("remote server status API is unavailable"))?;
++            if status
++                .capabilities
++                .as_ref()
++                .and_then(|capabilities| capabilities.endpoint_protocol_generation)
++                == Some(crate::protocol::endpoint::ENDPOINT_PROTOCOL_GENERATION)
++            {
++                return Ok(true);
++            }
++            Err(io::Error::other(
+             "remote herdr server needs one final update before this bridge can attach; rerun `herdr --remote` from an interactive terminal to approve it",
+-        ));
++        ))
++        },
++        || {
++            crate::server::autodetect::spawn_server_daemon()?;
++            crate::server::autodetect::wait_for_server_socket(&socket_path, Duration::from_secs(5))
++        },
++    )
++}
++
++fn ensure_remote_server_with(
++    policy: RemoteAttachPolicy,
++    inspect: impl FnOnce() -> io::Result<bool>,
++    start: impl FnOnce() -> io::Result<()>,
++) -> io::Result<()> {
++    if inspect()? {
++        return Ok(());
+     }
+-
+-    crate::server::autodetect::spawn_server_daemon()?;
+-    crate::server::autodetect::wait_for_server_socket(&socket_path, Duration::from_secs(5))
++    match policy {
++        RemoteAttachPolicy::ExistingOnly => Err(io::Error::new(io::ErrorKind::NotFound,
++            "remote Herdr session is stopped; attach or create it explicitly on the peer to start it")),
++        RemoteAttachPolicy::StartIfMissing => start(),
++    }
+ }
+diff --git a/src/remote/saved.rs b/src/remote/saved.rs
+--- a/src/remote/saved.rs
++++ b/src/remote/saved.rs
+@@ -5,6 +5,12 @@
+ 
+ pub(crate) struct SavedSshBridge {
+     _bridge: SshStdioBridge,
++}
++
++impl SavedSshBridge {
++    pub(crate) fn reported_failure(&self) -> Option<io::Error> {
++        self._bridge.reported_failure()
++    }
+ }
+ 
+ pub(crate) struct SavedSshStream {
+@@ -16,18 +22,20 @@
+     profile_id: &str,
+     target: &str,
+     session: &str,
++    policy: super::RemoteAttachPolicy,
+ ) -> io::Result<SavedSshStream> {
+     let ssh = validated_saved_ssh(profile_id, target, session)?;
+     let remote_herdr = find_installed_remote_herdr(&ssh)?;
+     let metadata = remote_herdr.machine_metadata();
+     let path = saved_bridge_path(profile_id);
+-    let bridge = SshStdioBridge::start(
++    let bridge = SshStdioBridge::start_with_policy(
+         target.to_owned(),
+         remote_herdr,
+         path.clone(),
+         session.to_owned(),
+         ssh.options(),
+         true,
++        policy,
+     )?;
+     let stream = crate::ipc::connect_local_stream(&path)?;
+     if let Some(metadata) = metadata {
+diff --git a/src/server/autodetect.rs b/src/server/autodetect.rs
+--- a/src/server/autodetect.rs
++++ b/src/server/autodetect.rs
+@@ -225,6 +225,9 @@
+ fn build_server_daemon_command(exe: PathBuf) -> Command {
+     let mut command = Command::new(&exe);
+     command
++        .env_remove("HERDR_FLEET_CONFIG")
++        .env_remove(crate::config::CLIENT_STATE_DIR_ENV_VAR);
++    command
+         .arg("server")
+         // Redirect stdio to /dev/null
+         .stdin(std::process::Stdio::null())
+diff --git a/src/server/handoff.rs b/src/server/handoff.rs
+--- a/src/server/handoff.rs
++++ b/src/server/handoff.rs
+@@ -84,6 +84,9 @@
+         &fallback_exe
+     };
+     let mut command = Command::new(exe);
++    command
++        .env_remove("HERDR_FLEET_CONFIG")
++        .env_remove(crate::config::CLIENT_STATE_DIR_ENV_VAR);
+     command
+         .arg("server")
+         .arg("--handoff-import")

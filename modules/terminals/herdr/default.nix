@@ -22,7 +22,10 @@ in
     { system, ... }:
     {
       packages.herdr-scoped = inputs.herdr-source.packages.${system}.default.overrideAttrs (old: {
-        patches = (old.patches or [ ]) ++ [ ./client-state.patch ];
+        patches = (old.patches or [ ]) ++ [
+          ./client-state.patch
+          ./fleet.patch
+        ];
       });
     };
 

@@ -58,15 +58,15 @@ praxis herdr khion skadi
 praxis herdr new khion research
 ```
 
-`machines` lists the configured SSH destinations, khion and lumi. it does not probe their online status. `sessions` queries the selected machine for its running Herdr sessions. `praxis herdr khion` opens a picker from that fresh list; Esc cancels. a session name skips the picker but must still be running. use `lumi` instead of `khion` for the laptop.
+`machines` lists khion and lumi without probing them. `sessions` lists running sessions on the chosen machine. `praxis herdr khion` opens a picker; Esc cancels. a session name skips the picker but must still be running. use `lumi` for the laptop. selecting the machine you are already using connects locally, without SSH.
 
-the picker checks again after selection that the session is running. `new` creates and opens a named session, after checking that the name is unused, including by stopped sessions. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved.
+each connection window groups spaces by machine, then session. "This device" uses local connections; the other machine uses SSH over Tailscale. both groups discover sessions in the background, including stopped sessions, without starting them. an offline machine does not block the local terminal. the agents panel defaults to this space; its scope control also offers this machine and all machines.
 
-each explicit connection opens a local Herdr client with the chosen remote session selected and Local still available in the sidebar. it keeps its saved machines and selection in a separate directory for that destination and session under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. ordinary Herdr windows keep their existing machines and selection. connections reuse their saved profile and preserve any machines you add inside that connection window.
+`new` creates and opens a named session after checking that the name is unused, including by stopped sessions. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved. creating a space inside the window uses the selected session; it does not silently create one on another machine.
 
-SSH uses your existing keys and Tailscale hostnames. the destination must be awake and reachable. normal attach commands check for running sessions; only `new` intentionally starts a new session. if a remote session was deleted but its connection profile remains, `new` asks you to choose another name or recreate it through Herdr directly.
+connection windows keep their sidebar preferences under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. ordinary Herdr windows keep their existing sidebar and saved machines. the combined view only discovers the configured khion and lumi machines.
 
-the connection helper requires the scoped Herdr binary supplied by praxis. after updating these declarations, use a fresh `nix run /etc/skadi#praxis -- herdr khion` invocation or rebuild. an older binary fails before changing saved machines.
+SSH uses your existing keys and Tailscale hostnames. the other machine must be awake and reachable. both machines need the patched Herdr binary for combined connections. an older peer fails with an update notice; connecting never starts a stopped peer session. the helper uses the patched binary supplied by praxis. after updating these declarations, use a fresh `nix run /etc/skadi#praxis -- herdr khion` invocation or rebuild; an older binary fails before writing connection state.
 
 ## editing the config
 
