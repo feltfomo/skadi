@@ -45,7 +45,6 @@
       equibop
       thunar
       tablet
-      t3code
       linear
       fuzzel
       helix
@@ -128,7 +127,6 @@
         };
       in
       {
-        programs.t3code.enable = true;
         # the wiped root removed ~/.steam before the steam wrapper's repair step
         # repair then failed while creating ~/.steam/steam with "no such file or directory"
         home.activation.steamSymlinks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
