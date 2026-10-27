@@ -5,6 +5,7 @@
 }:
 let
   lib = inputs.nixpkgs.lib;
+  settings = import ./_settings.nix;
   plugins = {
     enabled = [ "miguelfm/ai-triage" ];
     auto_update = "none";
@@ -34,14 +35,15 @@ let
     (inputs.lexicon.lib.toml { inherit pkgs; }).generate "noctalia-plugin-sources.toml" {
       inherit plugins;
     };
-  configFiles = lib.filterAttrs (name: kind: kind == "regular" && lib.hasSuffix ".toml" name) (
-    builtins.readDir ./config
-  );
-  profiles = [
-    "hyprland"
-    "mangowm"
-  ];
-  profileSource = profile: "${./config/profiles}/${profile}.toml";
+  configSources =
+    pkgs:
+    lib.mapAttrs (
+      name: value: (inputs.lexicon.lib.toml { inherit pkgs; }).generate name value
+    ) settings.files;
+  profiles = builtins.attrNames settings.profiles;
+  profileSource =
+    pkgs: profile:
+    (inputs.lexicon.lib.toml { inherit pkgs; }).generate "${profile}.toml" settings.profiles.${profile};
 
 in
 {
@@ -74,9 +76,9 @@ in
         declared =
           profile:
           toml.merge "noctalia-${profile}-baseline.toml" {
-            sources = (map (name: "${./config}/${name}") (builtins.attrNames configFiles)) ++ [
+            sources = (builtins.attrValues (configSources pkgs)) ++ [
               (pluginSource pkgs)
-              (profileSource profile)
+              (profileSource pkgs profile)
             ];
             conflict = "last";
           };
@@ -101,18 +103,15 @@ in
         ];
       };
 
-    furnish.directories = [
-      {
-        source = ./config;
-        destination = ".config/noctalia";
-        exclude = [ "profiles" ];
-      }
-    ];
     furnish.files =
       { pkgs, ... }:
-      map (profile: {
+      lib.mapAttrsToList (name: source: {
+        destination = ".config/noctalia/${name}";
+        inherit source;
+      }) (configSources pkgs)
+      ++ map (profile: {
         destination = ".config/noctalia/profiles/${profile}/noctalia/config.toml";
-        source = profileSource profile;
+        source = profileSource pkgs profile;
       }) profiles
       ++ [
         {

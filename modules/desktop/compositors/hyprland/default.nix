@@ -207,7 +207,9 @@ in
         destination = ".config/hypr/autoload.lua";
       }
       {
-        source = ./pypr/config.toml;
+        source = (inputs.lexicon.lib.toml { inherit pkgs; }).generate "pypr-config.toml" (
+          import ./_pypr.nix
+        );
         destination = ".config/pypr/config.toml";
       }
       {

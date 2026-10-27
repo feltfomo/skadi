@@ -1,0 +1,58 @@
+{
+  reactive = {
+    ui = {
+      accent = "{{ colors.primary.default.hex }}";
+    };
+    theme = {
+      custom = {
+        panel_bg = "{{ colors.surface.default.hex }}";
+        sidebar_bg = "{{ colors.surface.default.hex }}";
+        active_row_bg = "{{ colors.surface_container_high.default.hex }}";
+        selection_bg = "{{ colors.surface_container_highest.default.hex }}";
+        accent = "{{ colors.primary.default.hex }}";
+        green = "{{ colors.primary.default.hex }}";
+        yellow = "{{ colors.tertiary.default.hex }}";
+        blue = "{{ colors.secondary.default.hex }}";
+        red = "{{ colors.error.default.hex }}";
+        surface0 = "{{ colors.surface.default.hex }}";
+        surface1 = "{{ colors.surface_container.default.hex }}";
+        surface_dim = "{{ colors.outline.default.hex }}";
+        overlay0 = "{{ colors.outline.default.hex }}";
+        overlay1 = "{{ colors.outline.default.hex }}";
+        text = "{{ colors.on_surface.default.hex }}";
+        subtext0 = "{{ colors.on_surface_variant.default.hex }}";
+        mauve = "{{ colors.tertiary.default.hex }}";
+        teal = "{{ colors.tertiary.default.hex }}";
+        peach = "{{ colors.tertiary.default.hex }}";
+      };
+    };
+  };
+  caelestia = {
+    ui = {
+      accent = "#{{ primary.hex }}";
+    };
+    theme = {
+      custom = {
+        panel_bg = "#{{ surface.hex }}";
+        sidebar_bg = "#{{ surface.hex }}";
+        active_row_bg = "#{{ surfaceContainerHigh.hex }}";
+        selection_bg = "#{{ surfaceContainerHighest.hex }}";
+        accent = "#{{ primary.hex }}";
+        green = "#{{ term2.hex }}";
+        yellow = "#{{ term3.hex }}";
+        blue = "#{{ secondary.hex }}";
+        red = "#{{ error.hex }}";
+        surface0 = "#{{ surface.hex }}";
+        surface1 = "#{{ surfaceContainer.hex }}";
+        surface_dim = "#{{ surfaceDim.hex }}";
+        overlay0 = "#{{ outline.hex }}";
+        overlay1 = "#{{ outlineVariant.hex }}";
+        text = "#{{ onSurface.hex }}";
+        subtext0 = "#{{ onSurfaceVariant.hex }}";
+        mauve = "#{{ tertiary.hex }}";
+        teal = "#{{ term6.hex }}";
+        peach = "#{{ term3.hex }}";
+      };
+    };
+  };
+}

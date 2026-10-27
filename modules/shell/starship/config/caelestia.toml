@@ -1,8 +1,0 @@
-[palettes.reactive]
-purple = "#{{ tertiary.hex }}"
-yellow = "#{{ term3.hex }}"
-white = "#{{ onSurface.hex }}"
-green = "#{{ term2.hex }}"
-blue = "#{{ primary.hex }}"
-cyan = "#{{ secondary.hex }}"
-red = "#{{ error.hex }}"

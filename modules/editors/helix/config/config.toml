@@ -1,8 +1,0 @@
-# evilhelix reads the same configuration and theme paths as helix
-theme = "reactive"
-
-[editor]
-true-color = true
-color-modes = true
-cursorline = true
-bufferline = "multiple"

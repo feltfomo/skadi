@@ -58,6 +58,8 @@ in
                 done
           '';
         };
+        toml = inputs.lexicon.lib.toml { inherit pkgs; };
+        themes = import ./_themes.nix;
       in
       {
         id = "herdr";
@@ -89,10 +91,14 @@ in
             };
             renderers = {
               noctalia = {
-                source = ./config/themes/reactive.toml;
+                source = toString (toml.generate "herdr-reactive.toml" themes.reactive);
+                placedAs = "reactive.toml";
                 sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
               };
-              caelestia.source = ./config/themes/caelestia.toml;
+              caelestia = {
+                source = toString (toml.generate "herdr-caelestia.toml" themes.caelestia);
+                placedAs = "caelestia.toml";
+              };
             };
           }
           {
