@@ -1,35 +1,6 @@
 { inputs, pkgs, ... }:
 let
-  machines = [
-    "khion"
-    "lumi"
-  ];
-  user = "feltfomo";
-  machineConfig = pkgs.writeText "herdr-machines.json" (
-    builtins.toJSON (
-      map (machine: {
-        id = machine;
-        label = machine;
-        target = "${user}@${machine}";
-      }) machines
-    )
-  );
-  remote = {
-    packages = [
-      inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.herdr-scoped
-      pkgs.coreutils
-      pkgs.openssh
-      pkgs.fish
-      pkgs.fzf
-      pkgs.jq
-    ];
-    command = [
-      "${pkgs.fish}/bin/fish"
-      "${./modules/terminals/herdr/_praxis.fish}"
-      "${machineConfig}"
-    ];
-    forwardArgs = false;
-  };
+  inherit (import ./modules/terminals/herdr/_machines.nix) machines user;
 in
 {
   # use the live checkout, including when invoked outside /etc/skadi.
@@ -38,7 +9,7 @@ in
   commands = {
     herdr = {
       machines = {
-        description = "List configured Herdr SSH destinations";
+        description = "List the machines Herdr combines into one window";
         command = [
           "${pkgs.coreutils}/bin/printf"
           "%-8s %s\n"
@@ -49,48 +20,7 @@ in
         ]) machines;
         forwardArgs = false;
       };
-      new = remote // {
-        description = "Create and attach to a new named Herdr session";
-        positional = [
-          "machine"
-          "session"
-        ];
-        parameters = {
-          machine.choices = machines;
-          session = { };
-        };
-        interactive = true;
-        args = [
-          "new"
-          { param = "machine"; }
-          { param = "session"; }
-        ];
-      };
-      sessions = remote // {
-        description = "List running Herdr sessions on a machine";
-        positional = [ "machine" ];
-        parameters.machine.choices = machines;
-        args = [
-          "list"
-          { param = "machine"; }
-        ];
-      };
-    }
-    // pkgs.lib.genAttrs machines (
-      machine:
-      remote
-      // {
-        description = "Pick a running Herdr session on ${machine}, or attach by name";
-        positional = [ "session" ];
-        parameters.session.required = false;
-        interactive = true;
-        args = [
-          "attach"
-          machine
-          { param = "session"; }
-        ];
-      }
-    );
+    };
     gen = {
       description = "Regenerate flake.nix from the module declarations";
       command = [

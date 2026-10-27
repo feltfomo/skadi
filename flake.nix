@@ -50,7 +50,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     herdr-source = {
       inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:herdrdev/herdr/2ecf19a92fc3a7fff75b6ce3655ef04f4625ec01";
+      url = "github:feltfomo/herdr/c66572a9e9ed73949004012c7372df069c5fc4e9";
     };
     home-manager = {
       inputs.nixpkgs.follows = "nixpkgs";

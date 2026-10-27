@@ -10,6 +10,7 @@
         active_row_bg = "{{ colors.surface_container_high.default.hex }}";
         selection_bg = "{{ colors.surface_container_highest.default.hex }}";
         accent = "{{ colors.primary.default.hex }}";
+        on_accent = "{{ colors.on_primary.default.hex }}";
         green = "{{ colors.primary.default.hex }}";
         yellow = "{{ colors.tertiary.default.hex }}";
         blue = "{{ colors.secondary.default.hex }}";
@@ -38,6 +39,7 @@
         active_row_bg = "#{{ surfaceContainerHigh.hex }}";
         selection_bg = "#{{ surfaceContainerHighest.hex }}";
         accent = "#{{ primary.hex }}";
+        on_accent = "#{{ onPrimary.hex }}";
         green = "#{{ term2.hex }}";
         yellow = "#{{ term3.hex }}";
         blue = "#{{ secondary.hex }}";

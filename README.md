@@ -48,27 +48,25 @@ nix run /etc/skadi#praxis -- rebuild khion
 
 ## remote herdr sessions
 
-run these from a terminal on the machine you are using:
+herdr combines khion and lumi itself. both machines are declared once in [`_machines.nix`](modules/terminals/herdr/_machines.nix), which the herdr config lists under `[fleet]`. run these from a terminal on the machine you are using:
 
 ```fish
+herdr
+herdr --session skadi
+herdr --fleet lumi --session skadi
+herdr --fleet lumi --session research --new
 praxis herdr machines
-praxis herdr sessions khion
-praxis herdr khion
-praxis herdr khion skadi
-praxis herdr new khion research
 ```
 
-`machines` lists khion and lumi without probing them. `sessions` lists running sessions on the chosen machine. `praxis herdr khion` opens a picker; Esc cancels. a session name skips the picker but must still be running. use `lumi` for the laptop. selecting the machine you are already using connects locally, without SSH.
+plain `herdr` opens a combined window for the session, with this device selected. herdr finds this device by its host name and connects to it locally, without SSH. `--fleet lumi` selects lumi's copy of the session instead; it must already be running there, because connecting never starts a stopped peer session. `--new` creates the named session on that machine first. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved. `praxis herdr machines` lists the declared machines without probing them.
 
-`praxis herdr khion skadi` opens only the `skadi` session. each machine contributes its own spaces from that session; other sessions are never attached or shown. the sidebar is a tree of machines and their spaces. "This device" uses local IPC, while the other machine uses SSH over Tailscale. an offline machine does not block the local terminal. the agents panel defaults to this space; this machine and all machines also stay within `skadi`.
+the window shows only the selected session. each machine contributes its own spaces from that session; other sessions are never attached or shown. the sidebar is a tree of machines and their spaces. "This device" uses local IPC, while the other machine uses SSH over Tailscale. an offline machine does not block the local terminal. the agents panel defaults to this space; this machine and all machines also stay within the session. the session picker (`prefix+g`) lists sessions across both machines and opens or creates one in a fresh window.
 
-`new` creates and opens a named session after checking that the name is unused, including by stopped sessions. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved. creating a space inside the window uses the selected session; it does not silently create one on another machine.
+opening a peer connection also opens the same-named local session for local editing.
 
-opening a peer connection also opens the same-named local session for local editing. it does not reuse the session of the terminal that launched the command. attaching to this device requires the selected session to be running.
+connection windows keep their sidebar preferences under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. windows opened by the old praxis helper used different directories there, so their sidebar preferences don't carry over. herdr launched with `HERDR_SOCKET_PATH` or `HERDR_CLIENT_SOCKET_PATH` set keeps its ordinary window and saved machines.
 
-connection windows keep their sidebar preferences under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. ordinary Herdr windows keep their existing sidebar and saved machines. the combined view only discovers the configured khion and lumi machines.
-
-SSH uses your existing keys and Tailscale hostnames. the other machine must be awake and reachable. both machines need the patched Herdr binary for combined connections. an older peer fails with an update notice; connecting never starts a stopped peer session. the helper uses the patched binary supplied by praxis. after updating these declarations, use a fresh `nix run /etc/skadi#praxis -- herdr khion` invocation or rebuild; an older binary fails before writing connection state.
+SSH uses your existing keys and Tailscale hostnames. the other machine must be awake and reachable. both machines need the patched Herdr binary for combined connections. an older peer fails with an update notice.
 
 ## editing the config
 
