@@ -66,10 +66,10 @@ in
           source = "${inputs.steam-aika}";
           destination = themeDirectory;
           exclude = [
-            ".gitignore"
-            "README.md"
-            "ROADMAP.md"
             "screenshots"
+            ".gitignore"
+            "ROADMAP.md"
+            "README.md"
             "tools"
           ];
         }

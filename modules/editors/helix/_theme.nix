@@ -69,8 +69,8 @@ palette: {
   "markup.link.url" = {
     fg = "secondary";
     modifiers = [
-      "italic"
       "underlined"
+      "italic"
     ];
   };
   "markup.link.label" = "primary";

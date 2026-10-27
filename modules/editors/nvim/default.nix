@@ -27,10 +27,10 @@
           tree-sitter
           clang-tools
           kotlinLsp
+          prettier
           ripgrep
           lazygit
           pyright
-          prettier
           nushell
           deadnix
           rustfmt
@@ -40,8 +40,8 @@
           nixfmt
           statix
           taplo
-          ruff
           cargo
+          ruff
           nixd
           gcc
           zls

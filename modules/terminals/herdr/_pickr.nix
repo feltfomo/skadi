@@ -64,8 +64,8 @@ stdenvNoCC.mkDerivation {
     description = "Herdr fuzzy pane, tab, space and agent pickers with previews";
     homepage = "https://github.com/javoscript/herdr-pickr";
     license = with lib.licenses; [
-      mit
       asl20
+      mit
     ];
     platforms = lib.platforms.linux;
   };

@@ -65,11 +65,11 @@ in
             StateDirectory = "ovis";
             CacheDirectory = "ovis";
             Environment = [
-              "HOST=127.0.0.1"
-              "PORT=7317"
+              "BUN_RUNTIME_TRANSPILER_CACHE_PATH=${config.xdg.cacheHome}/ovis/bun"
               "HERDR_WEB_STATE_DIR=${config.xdg.stateHome}/ovis"
               "HERDR_WEB_TELEMETRY=0"
-              "BUN_RUNTIME_TRANSPILER_CACHE_PATH=${config.xdg.cacheHome}/ovis/bun"
+              "HOST=127.0.0.1"
+              "PORT=7317"
             ];
           };
         };

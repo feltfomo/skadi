@@ -9,8 +9,8 @@ in
         {
           source = checkoutFor user;
           names = [
-            "agentic-workflow"
             "agentic-workflow-subagent"
+            "agentic-workflow"
           ];
           destinations = [
             ".claude/skills"
