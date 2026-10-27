@@ -4,7 +4,7 @@
     { pkgs, ... }:
     let
       praxis = inputs.lexicon.lib.praxis (
-        (import ../../praxis.nix { inherit inputs; }) // { inherit pkgs; }
+        (import ../../praxis.nix { inherit inputs pkgs; }) // { inherit pkgs; }
       );
     in
     {

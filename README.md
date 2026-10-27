@@ -45,6 +45,24 @@ nix develop /etc/skadi
 nix run /etc/skadi#praxis -- rebuild khion
 ```
 
+## remote herdr sessions
+
+run these from a terminal on the machine you are using:
+
+```fish
+praxis herdr machines
+praxis herdr sessions khion
+praxis herdr khion
+praxis herdr khion skadi
+praxis herdr new khion research
+```
+
+`machines` lists the configured SSH destinations, khion and lumi. it does not probe their online status. `sessions` queries the selected machine for its running Herdr sessions. `praxis herdr khion` opens a picker from that fresh list; Esc cancels. a session name skips the picker but must still be running. use `lumi` instead of `khion` for the laptop.
+
+the picker checks again after selection that the session is running. `new` creates and opens a named session, after checking that the name is unused, including by stopped sessions. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved.
+
+SSH uses your existing keys and Tailscale hostnames. the destination must be awake and reachable. normal attach commands check for running sessions; only `new` intentionally starts a new session.
+
 ## editing the config
 
 | path                                                       | what's there                                                       |
