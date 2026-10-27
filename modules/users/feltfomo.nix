@@ -55,7 +55,6 @@
       herdr
       lunar
       nvim
-      ovis
       niri
       zed
       obs
