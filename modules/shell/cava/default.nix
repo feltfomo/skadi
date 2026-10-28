@@ -15,10 +15,10 @@
         ];
       }
     ];
-    theme = {
+    theme = { pkgs, ... }: {
       id = "cava";
       output = ".config/cava/themes/reactive";
-      reload = ''nu "$HOME/.config/cava/apply.nu"'';
+      reload = "${pkgs.procps}/bin/pkill -USR1 -x cava || true";
       renderers = {
         noctalia = {
           source = ./config/reactive.ini;

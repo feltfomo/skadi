@@ -10,7 +10,7 @@
 
   den.aspects.vm = {
     includes = with den.aspects; [
-      base # system + impermanence + sops + graalvm + thunar
+      base
     ];
 
     nixos.imports = [

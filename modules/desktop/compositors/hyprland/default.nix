@@ -159,7 +159,14 @@ in
           };
         }
       ];
-    homeManager.imports = [ audioOpacityService ];
+    homeManager = { pkgs, ... }: {
+      imports = [ audioOpacityService ];
+      home.packages = with pkgs; [
+        hyprpicker
+        grimblast
+        hyprshot
+      ];
+    };
     furnish.files = { host, pkgs, ... }: [
       {
         destination = ".config/hyprland-preview-share-picker/config.yaml";

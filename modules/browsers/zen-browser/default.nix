@@ -5,6 +5,12 @@
   ...
 }:
 {
+  flake-file.inputs.zen-browser = {
+    url = "github:0xc000022070/zen-browser-flake";
+    inputs.nixpkgs.follows = "nixpkgs";
+    inputs.home-manager.follows = "home-manager";
+  };
+
   den.aspects.zen-browser = lexicon {
     package = pkgs: inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight;
     homeManager =

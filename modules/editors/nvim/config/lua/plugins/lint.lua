@@ -9,7 +9,11 @@ return {
 			callback = function(args)
 				if vim.bo[args.buf].buftype == "" and vim.bo[args.buf].filetype == "nix" then
 					vim.api.nvim_buf_call(args.buf, function()
-						lint.try_lint()
+						lint.try_lint(nil, {
+							filter = function(linter)
+								return vim.fn.executable(linter.cmd) == 1
+							end,
+						})
 					end)
 				end
 			end,

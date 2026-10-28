@@ -126,18 +126,23 @@ return {
 			float = { border = "rounded", source = true },
 		})
 
-		vim.lsp.enable({
-			"nixd",
-			"lua_ls",
-			"jdtls",
-			"pyright",
-			"ruff",
-			"clangd",
-			"nushell",
-			"jsonls",
-			"yamlls",
-			"zls",
-			"ols",
-		})
+		local servers = {
+			jsonls = "vscode-json-language-server",
+			yamlls = "yaml-language-server",
+			lua_ls = "lua-language-server",
+			pyright = "pyright-langserver",
+			clangd = "clangd",
+			jdtls = "jdtls",
+			nixd = "nixd",
+			ruff = "ruff",
+			ols = "ols",
+			zls = "zls",
+			nushell = "nu",
+		}
+		for server, command in pairs(servers) do
+			if vim.fn.executable(command) == 1 then
+				vim.lsp.enable(server)
+			end
+		end
 	end,
 }

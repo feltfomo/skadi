@@ -10,7 +10,11 @@
             "khion"
             "lumi"
           ];
-          value.environment.systemPackages = [ pkgs.pavucontrol ];
+          value.environment.systemPackages = [
+            pkgs.pavucontrol
+            # PipeWire's Pulse server does not provide pactl.
+            pkgs.pulseaudio
+          ];
         }
       ];
   };

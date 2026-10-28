@@ -9,9 +9,7 @@
       procs
       dust
       ouch
-      eza
       duf
-      fd
       sd
       xh
       jq

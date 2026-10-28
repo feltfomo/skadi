@@ -1325,22 +1325,6 @@
         "type": "github"
       }
     },
-    "nixpkgs-logseq": {
-      "locked": {
-        "lastModified": 1792534302,
-        "narHash": "sha256-8iGEzm+iAPdoFwL1ULuBi7T4RSSIEAbxRsYGWagcE+E=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "808311374c3ab66fdf82ffff5e8bfc9e5d327786",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "ref": "master",
-        "repo": "nixpkgs",
-        "type": "github"
-      }
-    },
     "nixpkgs-stable": {
       "locked": {
         "lastModified": 1792503283,
@@ -1653,7 +1637,6 @@
         "millennium": "millennium",
         "niri": "niri",
         "nixpkgs": "nixpkgs_7",
-        "nixpkgs-logseq": "nixpkgs-logseq",
         "nixpkgs-stable": "nixpkgs-stable_2",
         "no-ai-slop": "no-ai-slop",
         "noctalia": "noctalia",

@@ -81,7 +81,6 @@
       url = "github:epireyn/niri-flake";
     };
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
     nixpkgs-stable.url = "github:NixOS/nixpkgs/nixos-26.05";
     no-ai-slop = {
       flake = false;

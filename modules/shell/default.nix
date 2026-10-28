@@ -2,12 +2,10 @@
 {
   den.aspects.shell = {
     includes = with den.aspects; [
-      fastfetch
       starship
       btop
       cava
       fish
-      bat
     ];
 
     homeManager.programs.nix-your-shell = {

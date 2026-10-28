@@ -1,5 +1,8 @@
 return {
 	"AlexandrosAlexiou/kotlin.nvim",
+	cond = function()
+		return vim.env.KOTLIN_LSP_DIR ~= nil
+	end,
 	ft = "kotlin",
 	dependencies = { "stevearc/oil.nvim", "folke/trouble.nvim", "mfussenegger/nvim-dap" },
 	opts = {

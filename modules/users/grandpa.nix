@@ -6,6 +6,7 @@
       den.batteries.define-user
       den.aspects.ghostty
       den.aspects.chrome
+      den.aspects.obsidian
     ];
 
     nixos =
@@ -76,6 +77,7 @@
       in
       {
         home.packages = [
+          pkgs.zed-editor
           pkgs.papirus-icon-theme
           pkgs.win10-cursors
         ];

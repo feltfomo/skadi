@@ -62,6 +62,13 @@ in
     };
   };
 
+  flake-file.nixConfig = {
+    extra-substituters = [ "https://noctalia.cachix.org" ];
+    extra-trusted-public-keys = [
+      "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
+    ];
+  };
+
   den.aspects.noctalia = lexicon {
     package = pkgs: import ./_package.nix { inherit inputs pkgs; };
     nixos = [

@@ -51,14 +51,6 @@ in
         };
       }
     ];
-    homeManager.imports = [
-      ({ pkgs, ... }: {
-        home.packages = with pkgs; [
-          libpulseaudio
-          playerctl
-        ];
-      })
-    ];
     furnish.files = [
       {
         # Replace the bundled display map rather than merging its disabled eDP-1.

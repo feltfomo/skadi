@@ -30,6 +30,9 @@ return {
 			if vim.bo[buf].filetype == "java" then
 				return
 			end
+			if #require("conform").list_formatters(buf) == 0 then
+				return
+			end
 			return { timeout_ms = 2000, lsp_format = "never" }
 		end,
 	},

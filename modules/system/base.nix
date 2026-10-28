@@ -14,7 +14,6 @@
   den.aspects.base = {
     includes = with den.aspects; [
       installer-tunables
-      graalvm-oracle-21
       impermanence
       provision
       thunar
@@ -23,13 +22,21 @@
       sops
     ];
 
-    nixos = { pkgs, ... }: {
+    nixos = { pkgs, lib, ... }: {
       # disko stays beside each host's device declaration.
       imports = [
         inputs.home-manager.nixosModules.home-manager
       ];
 
       nix.package = pkgs.lixPackageSets.stable.lix;
+
+      environment.systemPackages = with pkgs; [
+        ffmpeg
+        # Both wrappers provide cc/c++; prefer Clang for those shared names.
+        (lib.hiPrio clang)
+        unzip
+        gcc
+      ];
 
       # fleet disk layouts do not use zfs
       boot.zfs.forceImportRoot = false;

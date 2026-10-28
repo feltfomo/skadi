@@ -7,9 +7,19 @@ its repository root:
 devenv shell -- nvim .
 ```
 
-The shell supplies Odyssey's JDK 25, Rust toolchain and runtime environment.
-The Neovim package supplies the language servers, Java debug bundle and
-CodeLLDB. After activating a changed system configuration, run `:Lazy sync`
+The project shell supplies compilers, formatters, linters and language servers
+through `PATH`. Neovim keeps its file-search, clipboard and navigation tools.
+The selected `nix-development` and `lua-development` aspects provide defaults
+for editing configuration files outside a project. `jvm-development` supplies
+the Java/Kotlin servers and Java debug bundle; `native-debugging` supplies
+CodeLLDB. These are independent selections, not Neovim dependencies.
+
+Projects can override the JVM defaults with `KOTLIN_LSP_DIR` and
+`NVIM_JAVA_DEBUG_DIR`. Start a fresh Neovim process inside each project's shell;
+changing directories or opening the task picker does not load a new environment
+into an existing editor. Language servers are enabled only when their commands
+are on `PATH` at startup. After activating a changed system configuration, start a
+new login session to load the default environment variables, then run `:Lazy sync`
 and restart Neovim to install the pinned plugins.
 
 ## Finding your place
@@ -61,12 +71,15 @@ and Tree-sitter analysis.
 Space c f formats explicitly. Kotlin uses ktlint and Rust uses rustfmt on
 save. Java formatting is manual, matching Odyssey's repository policy.
 Python uses Ruff, C uses clang-format, TOML uses Taplo, and Markdown/YAML use
-Prettier on save. Their executables come from Nix.
+Prettier on save. The project shell supplies their executables. Saving skips
+formatting when the configured formatter is unavailable; Space c f and
+`:ConformInfo` remain available to diagnose missing tools.
 
 Nix completion uses the current project's pinned nixpkgs when it has a flake.
 NixOS and integrated Home Manager options come from that flake's configuration
 for the current hostname. Flakes without that host expose no host options.
-Statix and deadnix report Nix findings on save. Python uses Pyright for types
+Statix and deadnix report Nix findings on save when available on `PATH`.
+Python uses Pyright for types
 and Ruff for linting. C uses clangd, Nushell uses its built-in server, and
 JSON/YAML use SchemaStore schemas. For native projects, clangd needs the build's
 compiler flags, normally through `compile_commands.json`, to resolve external
@@ -182,11 +195,12 @@ to its runtime path so Lazy's sync doesn't write into the immutable plugin.
 those commits as plugin constraints and writes its mutable working lock to
 the state directory, since Furnish deploys immutable configuration files.
 To upgrade a plugin, update its recorded commit and validate it before
-running `:Lazy sync`. Language servers and debugger binaries come from Nix.
+running `:Lazy sync`. Project shells and the selected development aspects own
+language servers and debugger binaries.
 
 The official Kotlin server is an EAP build. The pinned version 263.7084.0
 expires on November 13, 2026. Update its version and archive hash in
-`pkgs/kotlin-lsp/default.nix` before that date, then rebuild. `:checkhealth kotlin` reports the installed build and licence status.
+`modules/dev/jvm/_kotlin-lsp.nix` before that date, then rebuild. `:checkhealth kotlin` reports the installed build and licence status.
 
 For import problems, inspect `:KotlinBuildLog`, `:KotlinShowLogs` or
 `:LspInfo`. Run `:checkhealth` for missing executables. Java and Kotlin keep

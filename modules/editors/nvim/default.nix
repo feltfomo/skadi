@@ -1,58 +1,33 @@
 {
   lexicon,
+  den,
   ...
 }:
 {
   # lazy.nvim clones plugins until the plugin list is stable enough to pin in nix.
-  den.aspects.nvim = lexicon {
+  den.aspects.nvim = {
+    includes = [ den.aspects.devenv ];
+  }
+  // lexicon {
     package =
       pkgs:
       let
-        kotlinLsp = pkgs.callPackage ./_kotlin-lsp.nix { };
         neoTree = pkgs.callPackage ./_neo-tree { };
-        javaDebug = pkgs.vscode-extensions.vscjava.vscode-java-debug;
       in
       pkgs.symlinkJoin {
         name = "neovim-with-deps";
         nativeBuildInputs = [ pkgs.makeWrapper ];
         paths = with pkgs; [
-          vscode-extensions.vadimcn.vscode-lldb.adapter
-          vscode-langservers-extracted
-          yaml-language-server
-          lua-language-server
-          jdt-language-server
-          google-java-format
-          rust-analyzer
           wl-clipboard
           tree-sitter
-          clang-tools
-          kotlinLsp
-          prettier
           ripgrep
           lazygit
-          pyright
-          nushell
-          deadnix
-          rustfmt
-          stylua
           neovim
-          ktlint
-          nixfmt
-          statix
-          taplo
-          cargo
-          ruff
-          nixd
-          gcc
-          zls
-          ols
           fd
         ];
         postBuild = ''
           wrapProgram "$out/bin/nvim" \
-            --set NVIM_NEO_TREE_DIR "${neoTree}" \
-            --set KOTLIN_LSP_DIR "${kotlinLsp}/share/kotlin-lsp" \
-            --set NVIM_JAVA_DEBUG_DIR "${javaDebug}/share/vscode/extensions/vscjava.vscode-java-debug/server"
+            --set NVIM_NEO_TREE_DIR "${neoTree}"
         '';
       };
     furnish.directories = [

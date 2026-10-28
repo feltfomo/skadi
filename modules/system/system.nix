@@ -95,21 +95,12 @@
       systemd.tmpfiles.rules = [ "Z /etc/skadi - feltfomo feltfomo - -" ];
 
       environment.systemPackages = with pkgs; [
-        gsettings-desktop-schemas
-        # pipewire ships the pulse server but not pactl, which steam invokes directly
-        pulseaudio
         efibootmgr
         grub2_efi
-        ffmpeg
-        xclip
-        nixd
-        glib
         wget
         curl
-        gcc
         git
         fzf
-        nil
         jq
       ];
 

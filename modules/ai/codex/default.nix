@@ -49,6 +49,7 @@
       in
       {
         home.packages = [
+          pkgs.bubblewrap
           chatgpt
           codex
         ];

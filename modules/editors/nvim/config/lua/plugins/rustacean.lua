@@ -1,5 +1,8 @@
 return {
 	"mrcjkb/rustaceanvim",
+	cond = function()
+		return vim.fn.executable("rust-analyzer") == 1
+	end,
 	-- v8 targets neovim 0.11 while keeping the rust-specific lsp extensions stable
 	version = "^8",
 	lazy = false,

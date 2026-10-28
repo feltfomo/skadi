@@ -1,65 +1,72 @@
 {
-  inputs,
   den,
   ...
 }:
 {
-  flake-file = {
-    inputs = {
-      # temporary logseq pin until nixpkgs #536292 reaches unstable
-      nixpkgs-logseq.url = "github:NixOS/nixpkgs/master";
-      zen-browser = {
-        url = "github:0xc000022070/zen-browser-flake";
-        inputs = {
-          nixpkgs.follows = "nixpkgs";
-          home-manager.follows = "home-manager";
-        };
-      };
-    };
-    nixConfig = {
-      extra-substituters = [ "https://noctalia.cachix.org" ];
-      extra-trusted-public-keys = [
-        "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
-      ];
-    };
-  };
-
   den.aspects.feltfomo = {
     includes = with den.aspects; [
       (den.batteries.user-shell "fish")
       den.batteries.primary-user
       den.batteries.define-user
+      native-debugging
       bootstrap-repos
-      zen-browser
+      jvm-development
+      lua-development
+      nix-development
+      screen-capture
+      prismlauncher
       claude-code
+      image-tools
+      qbittorrent
+      steam-tools
+      translation
+      zen-browser
+      proton-vpn
+      sops-tools
+      winetricks
+      gtk-theme
       spicetify
       superfile
-      gtk-theme
-      noctalia
+      tty-clock
+      appimage
       hyprland
-      ghostty
-      theming
-      mangowm
+      noctalia
+      obsidian
+      rayburst
+      spotatui
+      vscodium
+      ayugram
       end4-pc
-      wooting
       equibop
-      thunar
-      tablet
-      linear
+      ghostty
+      lazygit
+      mangowm
+      nushell
+      theming
+      wooting
+      devenv
       fuzzel
-      helix
+      heroic
+      linear
+      python
+      tablet
+      thunar
+      brave
       codex
-      shell
-      kitty
-      qt-hm
+      helix
       herdr
+      kitty
       lunar
-      nvim
+      qt-hm
+      shell
+      idea
       niri
-      zed
-      obs
+      nvim
       dms
+      obs
       osu
+      vlc
+      zed
       pi
     ];
 
@@ -74,18 +81,6 @@
           method = "mkpasswd";
           prompt = "login password for feltfomo";
         };
-
-        # logseq pulls an eol electron
-        nixpkgs.config.permittedInsecurePackages = [ "electron-39.8.10" ];
-
-        # gifski 1.34.0 intermittently failed its timing test
-        nixpkgs.overlays = [
-          (_: prev: {
-            gifski = prev.gifski.overrideAttrs (_: {
-              doCheck = false;
-            });
-          })
-        ];
 
         users.users.feltfomo = {
           group = "feltfomo";
@@ -108,130 +103,28 @@
         users.groups.feltfomo = { };
       };
 
-    homeManager =
-      {
-        pkgs,
-        lib,
-        ...
-      }:
-      let
-        # logseq hangs in the nixos-unstable buildphase
-        # nixpkgs-logseq carries the fix from nixpkgs #536292
-        logseqPkgs = import inputs.nixpkgs-logseq {
-          system = pkgs.stdenv.hostPlatform.system;
-          config = {
-            allowUnfree = true;
-            allowInsecurePredicate = p: builtins.elem (pkgs.lib.getName p) [ "electron" ];
-          };
+    homeManager = {
+      programs.git = {
+        enable = true;
+        settings.user = {
+          name = "feltfomo";
+          email = "241195017+feltfomo@users.noreply.github.com";
         };
-      in
-      {
-        # the wiped root removed ~/.steam before the steam wrapper's repair step
-        # repair then failed while creating ~/.steam/steam with "no such file or directory"
-        home.activation.steamSymlinks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-          run mkdir -p "$HOME/.steam"
-          run ln -sfn "$HOME/.local/share/Steam" "$HOME/.steam/steam"
-          run ln -sfn "$HOME/.local/share/Steam" "$HOME/.steam/root"
-        '';
-
-        programs.git = {
-          enable = true;
-          settings.user = {
-            name = "feltfomo";
-            email = "241195017+feltfomo@users.noreply.github.com";
-          };
-        };
-
-        services.ssh-agent.enable = true;
-        programs.ssh = {
-          enable = true;
-          enableDefaultConfig = false;
-          settings = {
-            "*".AddKeysToAgent = "yes";
-            "github.com" = {
-              IdentityFile = "~/.ssh/id_ed25519";
-              IdentitiesOnly = true;
-            };
-          };
-        };
-
-        home.packages = with pkgs; [
-          (prismlauncher.override {
-            # lwjgl 3.4.1's bundled glfw dlopens libxkbcommon under wayland and the
-            # nixpkgs wrapper doesn't ship it, so 26.2 died at "Failed to load libxkbcommon"
-            # the rest is chromium's runtime, for mods that ship their own libcef
-            # (liquidbounce/mcef), which failed on libnspr4.so
-            additionalLibs = [
-              libXcomposite
-              libxkbcommon
-              at-spi2-core
-              libxshmfence
-              at-spi2-atk
-              libXdamage
-              libXfixes
-              libdrm
-              libgbm
-              libxcb
-              cairo
-              expat
-              pango
-              nspr
-              cups
-              dbus
-              glib
-              gtk3
-              nss
-              atk
-            ];
-            jdks = [
-              jdk8
-              jdk21
-              jdk17
-              jdk25
-              graalvm-oracle-21
-              graalvmPackages.graalvm-ce
-            ];
-          })
-          (pkgs.writeScriptBin "sops-edit" ''
-            #!${pkgs.nushell}/bin/nu
-            ${builtins.readFile ../system/sops/sops-edit.nu}
-          '')
-          logseqPkgs.logseq
-          opencode-desktop
-          ayugram-desktop
-          translate-shell
-          jetbrains.idea
-          brave-origin
-          appimage-run
-          qbittorrent
-          imagemagick
-          bubblewrap
-          proton-vpn
-          winetricks
-          hyprpicker
-          grimblast
-          tesseract
-          tty-clock
-          alejandra
-          mpvpaper
-          spotatui
-          vscodium
-          hyprshot
-          obsidian
-          rayburst
-          nushell
-          python3
-          lazygit
-          sgdboop
-          heroic
-          nixfmt
-          devenv
-          gifski
-          zenity
-          slurp
-          grim
-          vlc
-        ];
       };
+
+      services.ssh-agent.enable = true;
+      programs.ssh = {
+        enable = true;
+        enableDefaultConfig = false;
+        settings = {
+          "*".AddKeysToAgent = "yes";
+          "github.com" = {
+            IdentityFile = "~/.ssh/id_ed25519";
+            IdentitiesOnly = true;
+          };
+        };
+      };
+
+    };
   };
 }

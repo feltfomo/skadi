@@ -7,6 +7,7 @@
         wl-screenrec
         wl-clipboard
         cliphist
+        xclip
       ];
 
       # tell qt/gtk/electron apps to prefer the wayland backend

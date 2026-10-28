@@ -92,7 +92,7 @@ when adding a system service, declare any state it needs across reboots in `pers
 
 ## lumi's plasma account
 
-`grandpa` gets chrome and stock ghostty through nix and installs other apps from discover's per-user flathub source. chrome stays installed across rebuilds and isn't managed by discover. the launcher lists chrome, files, discover, settings, and apps or website shortcuts added under that account.
+`grandpa` gets chrome, stock ghostty, zed and obsidian through nix and installs other apps from discover's per-user flathub source. these baseline apps stay installed across rebuilds and aren't managed by discover. the launcher lists chrome, files, discover, settings, and apps or website shortcuts added under that account.
 
 plasma starts in Breeze Dark with Papirus Dark icons, 12-point text and a 48-pixel Windows-style cursor. the cursor size stays adjustable in settings. initial files are copied only when absent. the palette and cursor are applied once, so later changes through settings remain writable and survive rebuilds. browser data and user flatpaks persist with `/home`.
 

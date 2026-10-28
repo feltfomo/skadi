@@ -1,7 +1,18 @@
+{ den, ... }:
 {
+  den.aspects.fish.includes = with den.aspects; [
+    fastfetch
+    bat
+  ];
+
   den.aspects.fish.homeManager = { pkgs, ... }: {
     # greetd reads .profile before starting the desktop, even when the login shell is fish.
     programs.bash.enable = true;
+
+    home.packages = with pkgs; [
+      eza
+      fd
+    ];
 
     programs.fish = {
       enable = true;

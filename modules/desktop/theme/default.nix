@@ -8,7 +8,11 @@
         # both toolkits find the reload module through GTK_PATH: gtk 4 scans its immodules directory,
         # and gtk 3 loads GTK_MODULES by name. gtk 3 ignores gtk-modules from settings.ini at startup,
         # so the session variable is the only startup hook that works on wayland.
-        environment.systemPackages = [ pkgs.skadi-gtk-reload ];
+        environment.systemPackages = with pkgs; [
+          gsettings-desktop-schemas
+          skadi-gtk-reload
+          glib
+        ];
         environment.sessionVariables.GTK_MODULES = [ "skadi-palette-reload" ];
         # keep plugin discovery global; each account selects its own Qt theme.
         qt.enable = true;
@@ -33,17 +37,6 @@
         };
 
         dconf.settings."org/gnome/desktop/interface".gtk-theme = config.gtk.theme.name;
-
-        programs.btop = {
-          enable = true;
-          settings = {
-            color_theme = "reactive";
-            theme_background = "false";
-            true-color = true;
-            rounded-corners = true;
-            temp_scale = "fahrenheit";
-          };
-        };
 
         # cursor theme for gtk + x11/xwayland/wayland
         home.pointerCursor =
