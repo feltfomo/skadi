@@ -10,6 +10,7 @@ in
           source = checkoutFor user;
           names = [
             "agentic-workflow-subagent"
+            "technical-writing"
             "agentic-workflow"
           ];
           destinations = [
