@@ -3,13 +3,14 @@ _: {
   den.aspects.bootstrap-repos.homeManager =
     { pkgs, lib, ... }:
     let
+      # private repos need ssh, since anonymous https can't reach them.
       repos = {
-        "Projects/lexicon" = "https://github.com/feltfomo/lexicon";
-        "Projects/odyssey" = "https://github.com/feltfomo/odyssey";
-        "Projects/furnish-coordinator" = "https://github.com/feltfomo/furnish-coordinator";
-        "Projects/axiom-nix" = "https://github.com/feltfomo/axiom-nix";
         "Projects/illogical-impulse-shell-nix" = "https://github.com/feltfomo/illogical-impulse-shell-nix";
-        "Projects/skills" = "https://github.com/feltfomo/skills";
+        "Projects/furnish-coordinator" = "git@github.com:feltfomo/furnish-coordinator.git";
+        "Projects/axiom-nix" = "git@github.com:feltfomo/axiom-nix.git";
+        "Projects/lexicon" = "git@github.com:feltfomo/lexicon.git";
+        "Projects/odyssey" = "git@github.com:feltfomo/odyssey.git";
+        "Projects/skills" = "git@github.com:feltfomo/skills.git";
         "Wallpapers" = "https://github.com/feltfomo/Wallpapers";
       };
       clone = pkgs.writeShellApplication {
