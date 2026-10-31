@@ -20,6 +20,12 @@ jobs:
       # Lix (the lock's owner) makes CI agree with how the fleet is actually built.
       # (Lix GHA installer: lix.systems/install)
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
+      - name: Give nix read access to private inputs
+        env:
+          TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
+        run: |
+          echo "access-tokens = github.com=$TOKEN" | sudo tee -a /etc/nix/nix.conf > /dev/null
+          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       # github's ubuntu-latest (24.04) sets
       # kernel.apparmor_restrict_unprivileged_userns=1, blocking unprivileged user
@@ -56,6 +62,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
+      - name: Give nix read access to private inputs
+        env:
+          TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
+        run: |
+          echo "access-tokens = github.com=$TOKEN" | sudo tee -a /etc/nix/nix.conf > /dev/null
+          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -72,6 +84,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
+      - name: Give nix read access to private inputs
+        env:
+          TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
+        run: |
+          echo "access-tokens = github.com=$TOKEN" | sudo tee -a /etc/nix/nix.conf > /dev/null
+          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
