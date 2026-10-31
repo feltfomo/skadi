@@ -67,6 +67,7 @@
       osu
       vlc
       zed
+      gh
       pi
     ];
 
