@@ -28,15 +28,6 @@ jobs:
           TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
         run: git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Check private input access
-        env:
-          TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
-        run: |
-          curl -s -L -o /dev/null -w 'secret tarball %{http_code}\n' -H "Authorization: Bearer $TOKEN" https://api.github.com/repos/feltfomo/lexicon/tarball/67c5440449b9b2db5c567a320e249561aa0afbd5
-          curl -s -L -o /dev/null -w 'token scheme %{http_code}\n' -H "Authorization: token $TOKEN" https://api.github.com/repos/feltfomo/lexicon/tarball/67c5440449b9b2db5c567a320e249561aa0afbd5
-          grep -c 'access-tokens' /etc/nix/nix.conf
-          nix --version
-          nix flake prefetch --refresh github:feltfomo/lexicon/67c5440449b9b2db5c567a320e249561aa0afbd5 2>&1 | tail -3
       # github's ubuntu-latest (24.04) sets
       # kernel.apparmor_restrict_unprivileged_userns=1, blocking unprivileged user
       # namespaces. Lix builds from source here (HEAD pin, uncached) and its
