@@ -1010,11 +1010,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793421179,
-        "narHash": "sha256-HP7JmSI9Gyaji8Xw/lYfhWYoC97MIR7sbQz6jzvyNzE=",
+        "lastModified": 1793423929,
+        "narHash": "sha256-y4HXmU/D7qW8W7TPoVFMyp0MFQ/yN4s4wLKXd+1crZs=",
         "ref": "refs/heads/main",
-        "rev": "881a626fccc5d0331f05d198a0f2902d36cab08c",
-        "revCount": 2,
+        "rev": "4a4452a7660f66906cb4daf9f980c935b4c070de",
+        "revCount": 3,
         "type": "git",
         "url": "ssh://git@github.com/feltfomo/Junban"
       },
