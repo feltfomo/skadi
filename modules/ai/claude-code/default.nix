@@ -14,7 +14,8 @@
   // lexicon {
     # the github plugin expands GITHUB_PERSONAL_ACCESS_TOKEN into its
     # Authorization header. reading the secret at launch keeps it out of
-    # other shells, and hosts without the secret start without github mcp.
+    # other shells. hosts without the secret leave it unset, so the plugin
+    # fails to connect with a malformed Authorization header.
     package =
       pkgs:
       let
@@ -32,8 +33,10 @@
       };
     nixos = [
       {
-        # khion only because lumi.yaml can only be checked and edited on lumi; add the key there before widening this
-        hosts = [ "khion" ];
+        hosts = [
+          "khion"
+          "lumi"
+        ];
         value = {
           sops.secrets."github-mcp-token" = {
             owner = "feltfomo";
