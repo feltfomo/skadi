@@ -44,6 +44,7 @@
       nushell
       theming
       wooting
+      junban
       devenv
       fuzzel
       heroic
