@@ -40,20 +40,7 @@
       id = "nvim";
       output = ".config/nvim/lua/reactive/palette.lua";
       reload = ''nvim --headless -u NONE -l "$HOME/.config/nvim/reload-theme.lua"'';
-      renderers = {
-        noctalia = {
-          source = ./config/colors/theme-templates/noctalia-dms.lua;
-          sharedWith = [ "dms" ];
-        };
-        illogical-impulse = {
-          source = ./config/colors/theme-templates/illogical-impulse-end4-pc.lua;
-          sharedWith = [
-            "serpantinum"
-            "end4-pc"
-          ];
-        };
-        caelestia.source = ./config/colors/theme-templates/caelestia-palette.lua;
-      };
+      template = ./config/colors/theme-templates/palette.lua;
     };
   };
 }

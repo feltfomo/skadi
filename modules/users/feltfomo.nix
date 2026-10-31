@@ -44,6 +44,7 @@
       nushell
       theming
       wooting
+      junban
       devenv
       fuzzel
       heroic
@@ -67,6 +68,7 @@
       osu
       vlc
       zed
+      gh
       pi
     ];
 

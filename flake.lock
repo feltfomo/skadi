@@ -1003,27 +1003,45 @@
         "type": "github"
       }
     },
+    "junban": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793419005,
+        "narHash": "sha256-WUHEphgYHW/bOZP4ppockVKoNaSKBTGrbORlt8HOXEc=",
+        "ref": "refs/heads/main",
+        "rev": "b4f132fabd2ad1ae5a74e8e5c46dd7bee31ed40e",
+        "revCount": 1,
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/Junban"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/Junban"
+      }
+    },
     "krisis": {
       "inputs": {
-        "axiom": [
-          "lexicon",
-          "axiom"
-        ],
         "flake-parts": "flake-parts_4",
+        "nix-effects": "nix-effects",
         "nixpkgs": "nixpkgs_6",
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1788630352,
-        "narHash": "sha256-dGkqA7FUrDO+Q6LJ+7m2QWg+pKeBwX5da37O8HUBWT8=",
+        "lastModified": 1792834910,
+        "narHash": "sha256-mY7wl3gCuVgR0FiLTwuKU7wXf+9eTWib62J29JkUruk=",
         "owner": "feltfomo",
         "repo": "krisis",
-        "rev": "730e7b58602807ad781c8c0f2009cecc8976532b",
+        "rev": "c48e40834fe90299096d2988433b17f650c30c8a",
         "type": "github"
       },
       "original": {
         "owner": "feltfomo",
         "repo": "krisis",
+        "rev": "c48e40834fe90299096d2988433b17f650c30c8a",
         "type": "github"
       }
     },
@@ -1040,11 +1058,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1792721515,
-        "narHash": "sha256-g8y3OiJDPcejQYjxQMsrC1GO8bWp64haEchb9d49Ixc=",
+        "lastModified": 1793407813,
+        "narHash": "sha256-ZtqO31x9BhUtzMqClXmJkalGzqSsmsQJnVFP/tW/NCc=",
         "owner": "feltfomo",
         "repo": "lexicon",
-        "rev": "8a4eb3eeebef80b2a439c1bcf3fd46f3f48e342e",
+        "rev": "67c5440449b9b2db5c567a320e249561aa0afbd5",
         "type": "github"
       },
       "original": {
@@ -1218,6 +1236,23 @@
       "original": {
         "owner": "niri-wm",
         "repo": "niri",
+        "type": "github"
+      }
+    },
+    "nix-effects": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783166429,
+        "narHash": "sha256-oktsDBoufvZS0cKlo8sMFV2j/KmN+ZPrtzOZ6ioaDQk=",
+        "owner": "kleisli-io",
+        "repo": "nix-effects",
+        "rev": "55ec2657c3c37e178c7730992a0f510739c1f945",
+        "type": "github"
+      },
+      "original": {
+        "owner": "kleisli-io",
+        "repo": "nix-effects",
+        "rev": "55ec2657c3c37e178c7730992a0f510739c1f945",
         "type": "github"
       }
     },
@@ -1631,6 +1666,7 @@
         "illogical-impulse": "illogical-impulse",
         "impermanence": "impermanence",
         "import-tree": "import-tree",
+        "junban": "junban",
         "lexicon": "lexicon",
         "llm-agents": "llm-agents",
         "mango": "mango",

@@ -1,5 +1,4 @@
 {
-  config,
   den,
   inputs,
   lexicon,
@@ -68,13 +67,7 @@
         id = "claude-code";
         output = ".claude/themes/reactive.json";
         reload = "${setup}/bin/app-theme-setup claude-code";
-        renderers = {
-          noctalia = {
-            source = ./config/reactive.json;
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia.source = ./config/caelestia.json;
-        };
+        template = ./config/reactive.json;
       };
   };
 }

@@ -252,20 +252,7 @@ in
       id = "hyprland";
       output = ".config/hypr/colors.lua";
       reload = ''if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then hyprctl reload; fi'';
-      renderers = {
-        noctalia = {
-          source = ./config/colors.lua;
-          sharedWith = [
-            "illogical-impulse"
-            "serpantinum"
-            "end4-pc"
-          ];
-        };
-        caelestia = {
-          source = ./config/caelestia-colors.lua;
-          placedAs = "colors.lua";
-        };
-      };
+      template = ./config/colors.lua;
     };
   };
 }

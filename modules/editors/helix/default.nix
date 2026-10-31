@@ -1,5 +1,4 @@
 {
-  config,
   inputs,
   lexicon,
   ...
@@ -21,22 +20,13 @@
       let
         toml = inputs.lexicon.lib.toml { inherit pkgs; };
         theme = import ./_theme.nix;
-        palettes = import ./_palettes.nix;
+        palette = import ./_palettes.nix;
       in
       {
         id = "helix";
         output = ".config/helix/themes/reactive.toml";
-        renderers = {
-          noctalia = {
-            source = toString (toml.generate "helix-reactive.toml" (theme palettes.reactive));
-            placedAs = "reactive.toml";
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia = {
-            source = toString (toml.generate "helix-caelestia.toml" (theme palettes.caelestia));
-            placedAs = "caelestia.toml";
-          };
-        };
+        template = toml.render (theme palette);
+        placedAs = "reactive.toml";
       };
   };
 }

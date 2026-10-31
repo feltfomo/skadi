@@ -1,4 +1,4 @@
-{ config, lexicon, ... }:
+{ lexicon, ... }:
 {
   den.aspects.cava = lexicon {
     package = pkgs: pkgs.cava;
@@ -19,13 +19,7 @@
       id = "cava";
       output = ".config/cava/themes/reactive";
       reload = "${pkgs.procps}/bin/pkill -USR1 -x cava || true";
-      renderers = {
-        noctalia = {
-          source = ./config/reactive.ini;
-          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-        };
-        caelestia.source = ./config/caelestia.ini;
-      };
+      template = ./config/reactive.ini;
     };
   };
 }

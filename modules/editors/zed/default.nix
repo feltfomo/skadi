@@ -1,4 +1,4 @@
-{ config, lexicon, ... }:
+{ lexicon, ... }:
 {
   den.aspects.zed = lexicon {
     homeManager.programs.zed-editor = {
@@ -24,16 +24,7 @@
       id = "zed";
       output = ".config/zed/themes/reactive.json";
       reload = "zed --unstable-features theme-reload";
-      renderers = {
-        noctalia = {
-          source = ./config/themes/reactive.json;
-          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-        };
-        caelestia = {
-          source = ./config/themes/caelestia.json;
-          placedAs = "theme.json";
-        };
-      };
+      template = ./config/themes/reactive.json;
     };
   };
 }

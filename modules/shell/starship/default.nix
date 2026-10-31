@@ -1,5 +1,4 @@
 {
-  config,
   inputs,
   lexicon,
   ...
@@ -14,7 +13,7 @@
       { pkgs, ... }:
       let
         toml = inputs.lexicon.lib.toml { inherit pkgs; };
-        palettes = import ./_palettes.nix;
+        palette = import ./_palettes.nix;
       in
       {
         id = "starship";
@@ -70,17 +69,8 @@
             };
           };
         };
-        renderers = {
-          noctalia = {
-            source = toString (toml.generate "starship-reactive.toml" palettes.reactive);
-            placedAs = "reactive.toml";
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia = {
-            source = toString (toml.generate "starship-caelestia.toml" palettes.caelestia);
-            placedAs = "caelestia.toml";
-          };
-        };
+        template = toml.render palette;
+        placedAs = "reactive.toml";
       };
   };
 }

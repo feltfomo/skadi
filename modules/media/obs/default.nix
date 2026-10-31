@@ -1,4 +1,4 @@
-{ config, lexicon, ... }: {
+{ lexicon, ... }: {
   den.aspects.obs = lexicon {
     hosts = [ "khion" ];
     nixos = { pkgs, ... }: [
@@ -32,13 +32,7 @@
         id = "obs";
         output = ".config/obs-studio/themes/Reactive.ovt";
         reload = "${setup}/bin/app-theme-setup obs";
-        renderers = {
-          noctalia = {
-            source = ./config/reactive.ovt;
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia.source = ./config/caelestia.ovt;
-        };
+        template = ./config/reactive.ovt;
       };
   };
 }

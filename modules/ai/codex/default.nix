@@ -1,5 +1,4 @@
 {
-  config,
   den,
   inputs,
   lexicon,
@@ -76,13 +75,7 @@
         id = "codex";
         output = ".codex/themes/reactive.tmTheme";
         reload = "${setup}/bin/app-theme-setup codex";
-        renderers = {
-          noctalia = {
-            source = ./config/reactive.tmTheme;
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia.source = ./config/caelestia.tmTheme;
-        };
+        template = ./config/reactive.tmTheme;
       };
   };
 
