@@ -1,12 +1,12 @@
 :root {
-  --skadi-surface: {{ colors.surface.default.hex }};
-  --skadi-surface-container-low: {{ colors.surface_container_low.default.hex }};
-  --skadi-surface-container: {{ colors.surface_container.default.hex }};
-  --skadi-surface-container-high: {{ colors.surface_container_high.default.hex }};
-  --skadi-on-surface: {{ colors.on_surface.default.hex }};
-  --skadi-on-surface-variant: {{ colors.on_surface_variant.default.hex }};
-  --skadi-outline-variant: {{ colors.outline_variant.default.hex }};
-  --skadi-tertiary: {{ colors.tertiary.default.hex }};
-  --skadi-primary: {{ colors.primary.default.hex }};
-  --skadi-on-primary: {{ colors.on_primary.default.hex }};
+  --skadi-surface: {{ surface }};
+  --skadi-surface-container-low: {{ surfaceContainerLow }};
+  --skadi-surface-container: {{ surfaceContainer }};
+  --skadi-surface-container-high: {{ surfaceContainerHigh }};
+  --skadi-on-surface: {{ onSurface }};
+  --skadi-on-surface-variant: {{ onSurfaceVariant }};
+  --skadi-outline-variant: {{ outlineVariant }};
+  --skadi-tertiary: {{ tertiary }};
+  --skadi-primary: {{ primary }};
+  --skadi-on-primary: {{ onPrimary }};
 }

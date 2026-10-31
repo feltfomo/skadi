@@ -1,4 +1,4 @@
-{ config, lexicon, ... }:
+{ lexicon, ... }:
 {
   den.aspects.btop = lexicon {
     homeManager.programs.btop = {
@@ -21,13 +21,7 @@
       id = "btop";
       output = ".config/btop/themes/reactive.theme";
       reload = "${pkgs.procps}/bin/pkill -SIGUSR2 -x btop || true";
-      renderers = {
-        noctalia = {
-          source = ./config/reactive.theme;
-          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-        };
-        caelestia.source = ./config/caelestia.theme;
-      };
+      template = ./config/reactive.theme;
     };
   };
 }

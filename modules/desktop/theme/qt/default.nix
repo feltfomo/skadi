@@ -1,4 +1,4 @@
-{ config, lexicon, ... }:
+{ lexicon, ... }:
 {
   skadi.packages.skadi-qt-theme = ./_package.nix;
 
@@ -64,17 +64,8 @@
         id = "qt";
         output = ".config/qt-theme/palette.json";
         reload = ''${theme}/bin/skadi-qt-theme --palette "$HOME/.config/qt-theme/palette.json" --config-home "$HOME/.config" --data-home "$HOME/.local/share"'';
-        renderers = {
-          noctalia = {
-            source = ./config/reactive.json;
-            placedAs = "qt.json";
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia = {
-            source = ./config/caelestia.json;
-            placedAs = "qt.json";
-          };
-        };
+        template = ./config/reactive.json;
+        placedAs = "qt.json";
       };
   };
 }

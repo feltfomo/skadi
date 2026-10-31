@@ -1,4 +1,4 @@
-{ config, lexicon, ... }:
+{ lexicon, ... }:
 {
   den.aspects.equibop = lexicon {
     package = pkgs: pkgs.equibop;
@@ -16,23 +16,13 @@
       { pkgs, ... }:
       let
         setup = pkgs.skadi-app-theme-setup;
-        stylesheet = palette: toString (pkgs.callPackage ./config/_system24.nix { inherit palette; });
       in
       {
         id = "equibop";
         output = ".config/equibop/themes/reactive.theme.css";
         reload = "${setup}/bin/app-theme-setup equibop";
-        renderers = {
-          noctalia = {
-            source = stylesheet ./config/reactive.css;
-            placedAs = "reactive.css";
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia = {
-            source = stylesheet ./config/caelestia.css;
-            placedAs = "caelestia.css";
-          };
-        };
+        template = ./config/reactive.css;
+        transform = palette: pkgs.callPackage ./config/_system24.nix { inherit palette; };
       };
   };
 }

@@ -1,13 +1,13 @@
 :root {
-  --accent: {{colors.primary.default.hex}};
-  --accent-container: {{colors.primary_container.default.hex}};
-  --bg-primary: {{colors.surface.default.hex}};
-  --bg-secondary: {{colors.surface_container.default.hex}};
-  --bg-tertiary: {{colors.surface_container_high.default.hex}};
-  --bg-darker: {{colors.surface_container_lowest.default.hex}};
-  --text-primary: {{colors.on_surface.default.hex}};
-  --text-secondary: {{colors.on_surface_variant.default.hex}};
-  --border: {{colors.outline_variant.default.hex}};
+  --accent: {{ primary }};
+  --accent-container: {{ primaryContainer }};
+  --bg-primary: {{ surface }};
+  --bg-secondary: {{ surfaceContainer }};
+  --bg-tertiary: {{ surfaceContainerHigh }};
+  --bg-darker: {{ surfaceContainerLowest }};
+  --text-primary: {{ onSurface }};
+  --text-secondary: {{ onSurfaceVariant }};
+  --border: {{ outlineVariant }};
 }
 
 * {

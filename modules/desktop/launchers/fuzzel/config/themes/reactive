@@ -1,13 +1,13 @@
-# rendered by noctalia from the active material palette
+# rendered by the active shell from the material palette
 [colors]
-background={{colors.background.default.hex_stripped}}CC
-text={{colors.on_surface.default.hex_stripped}}ff
-prompt={{colors.secondary.default.hex_stripped}}ff
-placeholder={{colors.tertiary.default.hex_stripped}}ff
-input={{colors.primary.default.hex_stripped}}ff
-match={{colors.tertiary.default.hex_stripped}}ff
-selection={{colors.primary.default.hex_stripped}}80
-selection-text={{colors.on_surface.default.hex_stripped}}ff
-selection-match={{colors.on_primary.default.hex_stripped}}ff
-counter={{colors.secondary.default.hex_stripped}}ff
-border={{colors.primary.default.hex_stripped}}ff
+background={{ background.bare }}CC
+text={{ onSurface.bare }}ff
+prompt={{ secondary.bare }}ff
+placeholder={{ tertiary.bare }}ff
+input={{ primary.bare }}ff
+match={{ tertiary.bare }}ff
+selection={{ primary.bare }}80
+selection-text={{ onSurface.bare }}ff
+selection-match={{ onPrimary.bare }}ff
+counter={{ secondary.bare }}ff
+border={{ primary.bare }}ff

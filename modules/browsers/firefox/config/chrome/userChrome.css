@@ -1,17 +1,17 @@
 :root {
-  --accent: {{colors.primary.default.hex}};
-  --accent-container: {{colors.primary_container.default.hex}};
-  --on-accent: {{colors.on_primary.default.hex}};
-  --bg-primary: {{colors.surface.default.hex}};
-  --bg-secondary: {{colors.surface_container.default.hex}};
-  --bg-tertiary: {{colors.surface_container_high.default.hex}};
-  --bg-highest: {{colors.surface_container_highest.default.hex}};
-  --bg-low: {{colors.surface_container_low.default.hex}};
-  --bg-lowest: {{colors.surface_container_lowest.default.hex}};
-  --text-primary: {{colors.on_surface.default.hex}};
-  --text-secondary: {{colors.on_surface_variant.default.hex}};
-  --border: {{colors.outline_variant.default.hex}};
-  --border-strong: {{colors.outline.default.hex}};
+  --accent: {{ primary }};
+  --accent-container: {{ primaryContainer }};
+  --on-accent: {{ onPrimary }};
+  --bg-primary: {{ surface }};
+  --bg-secondary: {{ surfaceContainer }};
+  --bg-tertiary: {{ surfaceContainerHigh }};
+  --bg-highest: {{ surfaceContainerHighest }};
+  --bg-low: {{ surfaceContainerLow }};
+  --bg-lowest: {{ surfaceContainerLowest }};
+  --text-primary: {{ onSurface }};
+  --text-secondary: {{ onSurfaceVariant }};
+  --border: {{ outlineVariant }};
+  --border-strong: {{ outline }};
 
   --lwt-accent-color: var(--bg-low) !important;
   --lwt-text-color: var(--text-primary) !important;

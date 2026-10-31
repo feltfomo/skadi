@@ -1,5 +1,4 @@
 {
-  config,
   lexicon,
   ...
 }:
@@ -17,13 +16,7 @@
       id = "kitty";
       output = ".config/kitty/themes/reactive.conf";
       reload = "pkill -SIGUSR1 kitty";
-      renderers = {
-        noctalia = {
-          source = ./config/themes/reactive.conf;
-          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-        };
-        caelestia.source = ./config/themes/caelestia.conf;
-      };
+      template = ./config/themes/reactive.conf;
     };
   };
 }

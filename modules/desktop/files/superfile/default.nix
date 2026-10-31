@@ -1,5 +1,4 @@
 {
-  config,
   inputs,
   lexicon,
   ...
@@ -14,22 +13,13 @@
       { pkgs, ... }:
       let
         toml = inputs.lexicon.lib.toml { inherit pkgs; };
-        themes = import ./_themes.nix;
+        palette = import ./_themes.nix;
       in
       {
         id = "superfile";
         output = ".config/superfile/theme/reactive.toml";
-        renderers = {
-          noctalia = {
-            source = toString (toml.generate "superfile-reactive.toml" themes.reactive);
-            placedAs = "reactive.toml";
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia = {
-            source = toString (toml.generate "superfile-caelestia.toml" themes.caelestia);
-            placedAs = "caelestia.toml";
-          };
-        };
+        template = toml.render palette;
+        placedAs = "reactive.toml";
       };
   };
 }

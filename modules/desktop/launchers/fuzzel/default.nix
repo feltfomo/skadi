@@ -1,5 +1,4 @@
 {
-  config,
   lexicon,
   ...
 }:
@@ -32,13 +31,7 @@
       id = "fuzzel";
       output = ".config/fuzzel/themes/reactive";
       # fuzzel reads the included palette each time it opens, so no reload hook is needed
-      renderers = {
-        noctalia = {
-          source = ./config/themes/reactive;
-          sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-        };
-        caelestia.source = ./config/themes/caelestia;
-      };
+      template = ./config/themes/reactive;
     };
   };
 }

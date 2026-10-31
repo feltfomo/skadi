@@ -1,40 +1,40 @@
 local M = {}
 
-M.primary = "rgb({{colors.primary.default.hex_stripped}})"
-M.on_primary = "rgb({{colors.on_primary.default.hex_stripped}})"
-M.primary_container = "rgb({{colors.primary_container.default.hex_stripped}})"
-M.on_primary_container = "rgb({{colors.on_primary_container.default.hex_stripped}})"
+M.primary = "rgb({{ primary.bare }})"
+M.on_primary = "rgb({{ onPrimary.bare }})"
+M.primary_container = "rgb({{ primaryContainer.bare }})"
+M.on_primary_container = "rgb({{ onPrimaryContainer.bare }})"
 
-M.secondary = "rgb({{colors.secondary.default.hex_stripped}})"
-M.on_secondary = "rgb({{colors.on_secondary.default.hex_stripped}})"
-M.secondary_container = "rgb({{colors.secondary_container.default.hex_stripped}})"
+M.secondary = "rgb({{ secondary.bare }})"
+M.on_secondary = "rgb({{ onSecondary.bare }})"
+M.secondary_container = "rgb({{ secondaryContainer.bare }})"
 
-M.tertiary = "rgb({{colors.tertiary.default.hex_stripped}})"
-M.tertiary_container = "rgb({{colors.tertiary_container.default.hex_stripped}})"
+M.tertiary = "rgb({{ tertiary.bare }})"
+M.tertiary_container = "rgb({{ tertiaryContainer.bare }})"
 
-M.error = "rgb({{colors.error.default.hex_stripped}})"
-M.error_container = "rgb({{colors.error_container.default.hex_stripped}})"
+M.error = "rgb({{ error.bare }})"
+M.error_container = "rgb({{ errorContainer.bare }})"
 
-M.surface = "rgb({{colors.surface.default.hex_stripped}})"
-M.on_surface = "rgb({{colors.on_surface.default.hex_stripped}})"
-M.surface_variant = "rgb({{colors.surface_variant.default.hex_stripped}})"
-M.on_surface_variant = "rgb({{colors.on_surface_variant.default.hex_stripped}})"
-M.surface_container = "rgb({{colors.surface_container.default.hex_stripped}})"
-M.surface_container_high = "rgb({{colors.surface_container_high.default.hex_stripped}})"
-M.surface_container_highest = "rgb({{colors.surface_container_highest.default.hex_stripped}})"
-M.surface_container_low = "rgb({{colors.surface_container_low.default.hex_stripped}})"
-M.surface_container_lowest = "rgb({{colors.surface_container_lowest.default.hex_stripped}})"
+M.surface = "rgb({{ surface.bare }})"
+M.on_surface = "rgb({{ onSurface.bare }})"
+M.surface_variant = "rgb({{ surfaceVariant.bare }})"
+M.on_surface_variant = "rgb({{ onSurfaceVariant.bare }})"
+M.surface_container = "rgb({{ surfaceContainer.bare }})"
+M.surface_container_high = "rgb({{ surfaceContainerHigh.bare }})"
+M.surface_container_highest = "rgb({{ surfaceContainerHighest.bare }})"
+M.surface_container_low = "rgb({{ surfaceContainerLow.bare }})"
+M.surface_container_lowest = "rgb({{ surfaceContainerLowest.bare }})"
 
-M.outline = "rgb({{colors.outline.default.hex_stripped}})"
-M.outline_variant = "rgb({{colors.outline_variant.default.hex_stripped}})"
+M.outline = "rgb({{ outline.bare }})"
+M.outline_variant = "rgb({{ outlineVariant.bare }})"
 
-M.inverse_surface = "rgb({{colors.inverse_surface.default.hex_stripped}})"
-M.inverse_primary = "rgb({{colors.inverse_primary.default.hex_stripped}})"
+M.inverse_surface = "rgb({{ inverseSurface.bare }})"
+M.inverse_primary = "rgb({{ inversePrimary.bare }})"
 
 -- rgba variants for borders, shadows, transparency
-M.primary_alpha = "rgba({{colors.primary.default.hex_stripped}}ee)"
-M.surface_alpha = "rgba({{colors.surface.default.hex_stripped}}cc)"
-M.outline_alpha = "rgba({{colors.outline.default.hex_stripped}}88)"
-M.shadow_alpha = "rgba({{colors.shadow.default.hex_stripped}}aa)"
+M.primary_alpha = "rgba({{ primary.bare }}ee)"
+M.surface_alpha = "rgba({{ surface.bare }}cc)"
+M.outline_alpha = "rgba({{ outline.bare }}88)"
+M.shadow_alpha = "rgba({{ shadow.bare }}aa)"
 
 return M

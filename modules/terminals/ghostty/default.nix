@@ -1,5 +1,4 @@
 {
-  config,
   lexicon,
   ...
 }:
@@ -32,16 +31,7 @@
         id = "ghostty";
         output = ".config/ghostty/themes/reactive.conf";
         reload = "${reload}/bin/ghostty-reload-theme";
-        renderers = {
-          noctalia = {
-            source = ./config/themes/reactive.conf;
-            sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-          };
-          caelestia = {
-            source = ./config/themes/caelestia.conf;
-            placedAs = "theme.conf";
-          };
-        };
+        template = ./config/themes/reactive.conf;
       };
   };
 }

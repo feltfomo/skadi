@@ -1,5 +1,4 @@
 {
-  config,
   lexicon,
   ...
 }:
@@ -34,30 +33,12 @@
         {
           subId = "chrome";
           output = ".config/mozilla/firefox/feltfomo/chrome/userChrome.css";
-          renderers = {
-            noctalia = {
-              source = ./config/chrome/userChrome.css;
-              sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-            };
-            caelestia = {
-              source = ./config/chrome/caelestia-userChrome.css;
-              placedAs = "userChrome.css";
-            };
-          };
+          template = ./config/chrome/userChrome.css;
         }
         {
           subId = "content";
           output = ".config/mozilla/firefox/feltfomo/chrome/userContent.css";
-          renderers = {
-            noctalia = {
-              source = ./config/chrome/userContent.css;
-              sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-            };
-            caelestia = {
-              source = ./config/chrome/caelestia-userContent.css;
-              placedAs = "userContent.css";
-            };
-          };
+          template = ./config/chrome/userContent.css;
         }
       ];
     };

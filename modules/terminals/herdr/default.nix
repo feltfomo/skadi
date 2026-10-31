@@ -1,5 +1,4 @@
 {
-  config,
   lexicon,
   inputs,
   ...
@@ -58,7 +57,7 @@ in
           '';
         };
         toml = inputs.lexicon.lib.toml { inherit pkgs; };
-        themes = import ./_themes.nix;
+        palette = import ./_themes.nix;
       in
       {
         id = "herdr";
@@ -93,28 +92,13 @@ in
                 }) fleet.machines;
               };
             };
-            renderers = {
-              noctalia = {
-                source = toString (toml.generate "herdr-reactive.toml" themes.reactive);
-                placedAs = "reactive.toml";
-                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-              };
-              caelestia = {
-                source = toString (toml.generate "herdr-caelestia.toml" themes.caelestia);
-                placedAs = "caelestia.toml";
-              };
-            };
+            template = toml.render palette;
+            placedAs = "reactive.toml";
           }
           {
             subId = "pickr";
             output = ".config/herdr/plugins/config/javoscript.herdr-pickr/config.json";
-            renderers = {
-              noctalia = {
-                source = ./config/themes/pickr-reactive.json;
-                sharedWith = config.skadi.theme.noctaliaCompatibleRenderers;
-              };
-              caelestia.source = ./config/themes/pickr-caelestia.json;
-            };
+            template = ./config/themes/pickr-reactive.json;
           }
         ];
       };
