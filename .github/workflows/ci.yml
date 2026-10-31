@@ -19,13 +19,14 @@ jobs:
       # `nix flake check` with "mismatch in field 'url' of input". evaluating with
       # Lix (the lock's owner) makes CI agree with how the fleet is actually built.
       # (Lix GHA installer: lix.systems/install)
+      # the installer writes this token into nix.conf, so the secret goes through its input
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
-      - name: Give nix read access to private inputs
+        with:
+          github_access_token: ${{ secrets.NIX_GITHUB_TOKEN }}
+      - name: Give git read access to junban
         env:
           TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
-        run: |
-          echo "access-tokens = github.com=$TOKEN" | sudo tee -a /etc/nix/nix.conf > /dev/null
-          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
+        run: git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       # github's ubuntu-latest (24.04) sets
       # kernel.apparmor_restrict_unprivileged_userns=1, blocking unprivileged user
@@ -61,13 +62,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # the installer writes this token into nix.conf, so the secret goes through its input
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
-      - name: Give nix read access to private inputs
+        with:
+          github_access_token: ${{ secrets.NIX_GITHUB_TOKEN }}
+      - name: Give git read access to junban
         env:
           TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
-        run: |
-          echo "access-tokens = github.com=$TOKEN" | sudo tee -a /etc/nix/nix.conf > /dev/null
-          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
+        run: git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -83,13 +85,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # the installer writes this token into nix.conf, so the secret goes through its input
       - uses: samueldr/lix-gha-installer-action@v2026-06-15
-      - name: Give nix read access to private inputs
+        with:
+          github_access_token: ${{ secrets.NIX_GITHUB_TOKEN }}
+      - name: Give git read access to junban
         env:
           TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
-        run: |
-          echo "access-tokens = github.com=$TOKEN" | sudo tee -a /etc/nix/nix.conf > /dev/null
-          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
+        run: git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
