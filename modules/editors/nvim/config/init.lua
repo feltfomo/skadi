@@ -29,6 +29,20 @@ vim.opt.foldlevel = 99
 vim.opt.foldlevelstart = 99
 vim.opt.confirm = true
 
+-- an ssh or herdr session may have no wayland socket for wl-copy, and herdr doesn't answer
+-- osc 52 reads, so a real paste provider would hang every `p` until its timeout.
+if vim.env.SSH_CONNECTION or vim.env.HERDR_ENV == "1" then
+	local osc52 = require("vim.ui.clipboard.osc52")
+	local function internal()
+		return { vim.fn.getreg('"', 1, true), vim.fn.getregtype('"') }
+	end
+	vim.g.clipboard = {
+		name = "osc52-copy-only",
+		copy = { ["+"] = osc52.copy("+"), ["*"] = osc52.copy("*") },
+		paste = { ["+"] = internal, ["*"] = internal },
+	}
+end
+
 vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<cr>", { desc = "Clear Search Highlight" })
 vim.keymap.set("n", "<C-h>", "<C-w>h", { desc = "Focus Left Window" })
 vim.keymap.set("n", "<C-j>", "<C-w>j", { desc = "Focus Lower Window" })
