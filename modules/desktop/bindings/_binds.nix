@@ -100,7 +100,13 @@ keys.define {
     (keys.bind "SUPER + CTRL + m" (actions.layout.select "master"))
 
     # general shell binds i guess idk
-    (keys.bind "SUPER + Space" (actions.exec "noctalia msg panel-toggle launcher"))
+    (keys.bind "SUPER + Space" (
+      # pinax has no mango adapter yet
+      keys.native {
+        hyprland.exec = "pinax toggle launcher";
+        mango.exec = "noctalia msg panel-toggle launcher";
+      }
+    ))
     (keys.bind "SUPER + c" (actions.exec "noctalia msg panel-toggle clipboard"))
     (keys.bind "ALT + Tab" (actions.exec "noctalia msg window-switcher"))
 
@@ -132,7 +138,7 @@ keys.define {
     (keys.bind {
       chord = "SUPER + d";
       targets = [ "hyprland" ];
-      action = actions.exec "pinax toggle";
+      action = actions.exec "pinax toggle windows";
     })
     (keys.bind "SUPER + t" (actions.exec "kitty"))
   ];
