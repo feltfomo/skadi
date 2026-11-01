@@ -32,7 +32,7 @@ function B.swap(direction)
 	local next_column = hl.dsp.layout("swapcol r")
 	return function()
 		if scrolling() then
-			local axis = column_directions[hl.get_config("scrolling.direction")]
+			local axis = column_directions[workspace.scroll_direction(hl.get_active_workspace())]
 			local column = axis and axis[direction]
 			if column then
 				-- Column order remains available when the adjacent window is offscreen.
@@ -63,7 +63,7 @@ function B.monitor_move(direction)
 			hl.dispatch(hl.dsp.layout("colresize " .. source_width))
 		end
 
-		local axis = column_directions[hl.get_config("scrolling.direction")]
+		local axis = column_directions[workspace.scroll_direction(window.workspace)]
 		local travel = axis and axis[direction]
 		if not travel then
 			return
@@ -121,8 +121,17 @@ function B.maximize()
 end
 
 function B.layout(name, direction)
+	local widen = hl.dsp.layout("colresize 1.0")
 	return function()
-		hl.config({ scrolling = { direction = direction }, general = { layout = name } })
+		local window = hl.get_active_window()
+		local maximized = name == "scrolling" and window and window.fullscreen == 1
+		workspace.select_layout(hl.get_active_workspace(), name, direction)
+		if maximized then
+			-- the swap clears maximized state and is deferred, so the full-width column is set after it
+			hl.timer(function()
+				hl.dispatch(widen)
+			end, { timeout = 1, type = "oneshot" })
+		end
 	end
 end
 

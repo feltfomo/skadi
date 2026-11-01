@@ -217,7 +217,7 @@ Collision checks cover bindings declared through this helper. They can't inspect
 | `actions.monitor.focus` | Direction to the next monitor |
 | `actions.monitor.move` | Move the focused window to the monitor in that direction and follow it, entering Hyprland scrolling columns from the crossed edge |
 | `actions.window.focus` | Direction, with Hyprland scrolling-aware focus |
-| `actions.layout.select` | `vertical-scroller`, `scroller`, `dwindle`, `monocle` or `master` |
+| `actions.layout.select` | `vertical-scroller`, `scroller`, `dwindle`, `monocle` or `master`, on the focused workspace until the next config reload on Hyprland |
 | `actions.window.close` | Close the focused window |
 | `actions.session.quit` | End the compositor session |
 | `actions.window.swap` | Direction to exchange windows |

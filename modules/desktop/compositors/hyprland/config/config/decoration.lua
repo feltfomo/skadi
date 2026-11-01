@@ -74,5 +74,6 @@ animation("windowsOut", { speed = 2, style = "popin 90%" })
 animation("windowsMove", { speed = 5, bezier = "mangoMove", style = "slide" })
 animation("fadeIn", { speed = 2 })
 animation("fadeOut", { speed = 2 })
-animation("workspaces", { speed = 3.5, bezier = "mangoMove", style = "slide" })
+-- a horizontal slide pulls offscreen scrolling columns into view, so workspaces move on the other axis
+animation("workspaces", { speed = 3.5, bezier = "mangoMove", style = "slidevert" })
 animation("layers", { speed = 3, style = "fade" })
