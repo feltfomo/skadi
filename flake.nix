@@ -21,10 +21,6 @@
   };
 
   inputs = {
-    ai-usagebar = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:akitaonrails/ai-usagebar";
-    };
     caelestia = {
       inputs = {
         nixpkgs.follows = "nixpkgs";
@@ -101,6 +97,10 @@
     noctalia-greeter = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:noctalia-dev/noctalia-greeter";
+    };
+    noctalia-official-plugins = {
+      flake = false;
+      url = "github:noctalia-dev/official-plugins/8c6b90fa92519bd2da1dd8b5f2cc940cce08367f";
     };
     pi-extensions = {
       inputs = {

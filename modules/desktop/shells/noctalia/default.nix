@@ -7,13 +7,22 @@ let
   lib = inputs.nixpkgs.lib;
   settings = import ./_settings.nix;
   plugins = {
-    enabled = [ "miguelfm/ai-triage" ];
+    enabled = [
+      "nightwatch75/claude-cockpit"
+      "noctalia/mpvpaper"
+    ];
     auto_update = "none";
     source = [
       {
         name = "nix-community";
         kind = "path";
         location = "${inputs.noctalia-community-plugins}";
+        enabled = true;
+      }
+      {
+        name = "nix-official";
+        kind = "path";
+        location = "${inputs.noctalia-official-plugins}";
         enabled = true;
       }
       {
@@ -56,9 +65,11 @@ in
       url = "github:noctalia-dev/community-plugins/e9dec7443b8a70ab606dc72669fb122a9d668bce";
       flake = false;
     };
-    ai-usagebar = {
-      url = "github:akitaonrails/ai-usagebar";
-      inputs.nixpkgs.follows = "nixpkgs";
+    # path sources can't use a catalog's older release rows, so this stays on the last
+    # commit whose mpvpaper plugin fits Noctalia 5.3.0's plugin API 34
+    noctalia-official-plugins = {
+      url = "github:noctalia-dev/official-plugins/8c6b90fa92519bd2da1dd8b5f2cc940cce08367f";
+      flake = false;
     };
   };
 
@@ -103,10 +114,12 @@ in
         };
       in
       {
-        home.packages = [
-          inputs.ai-usagebar.packages.${pkgs.stdenv.hostPlatform.system}.default
-          pkgs.satty
+        home.packages = with pkgs; [
+          mpvpaper
           session
+          satty
+          socat
+          mpv
         ];
       };
 

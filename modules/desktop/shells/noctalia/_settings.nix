@@ -28,13 +28,13 @@
           start = [
             "workspaces"
             "media"
-            "bar"
+            "widget"
           ];
         };
       };
       widget = {
-        bar = {
-          type = "miguelfm/ai-triage:bar";
+        widget = {
+          type = "nightwatch75/claude-cockpit:widget";
         };
         clock = {
           format = "{:%H:%M:%S}";
@@ -198,9 +198,13 @@
     };
     "plugins.toml" = {
       plugin_settings = {
-        "miguelfm/ai-triage" = {
+        "nightwatch75/claude-cockpit" = {
+          currency = "usd";
           panel_placement = "floating";
           panel_position = "center";
+        };
+        "noctalia/mpvpaper" = {
+          video_directory = "/home/feltfomo/Wallpapers/Videos";
         };
       };
     };

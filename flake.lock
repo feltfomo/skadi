@@ -1,25 +1,5 @@
 {
   "nodes": {
-    "ai-usagebar": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1792707929,
-        "narHash": "sha256-fCpoee2gruVO4xCwpmH3bdYSOxozPmk2IIXRzi88/TQ=",
-        "owner": "akitaonrails",
-        "repo": "ai-usagebar",
-        "rev": "d1af986fe4bf8d05316bc8d6e1506881b5f4d265",
-        "type": "github"
-      },
-      "original": {
-        "owner": "akitaonrails",
-        "repo": "ai-usagebar",
-        "type": "github"
-      }
-    },
     "aquamarine": {
       "inputs": {
         "hyprutils": [
@@ -1010,11 +990,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793423929,
-        "narHash": "sha256-y4HXmU/D7qW8W7TPoVFMyp0MFQ/yN4s4wLKXd+1crZs=",
+        "lastModified": 1793496238,
+        "narHash": "sha256-HlJv6RI3X3Q5+mkCvZWzh+pXrY9wMx0shm5H26WVbyo=",
         "ref": "refs/heads/main",
-        "rev": "4a4452a7660f66906cb4daf9f980c935b4c070de",
-        "revCount": 3,
+        "rev": "3473c4b1c1cf94e921dbe7c096deccac193d2e8f",
+        "revCount": 18,
         "type": "git",
         "url": "ssh://git@github.com/feltfomo/Junban"
       },
@@ -1562,6 +1542,23 @@
         "type": "github"
       }
     },
+    "noctalia-official-plugins": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791673839,
+        "narHash": "sha256-sPxOFsGN3rCJ56gUtSRShvYOv1H11nqA+4FL0iraoac=",
+        "owner": "noctalia-dev",
+        "repo": "official-plugins",
+        "rev": "8c6b90fa92519bd2da1dd8b5f2cc940cce08367f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "noctalia-dev",
+        "repo": "official-plugins",
+        "rev": "8c6b90fa92519bd2da1dd8b5f2cc940cce08367f",
+        "type": "github"
+      }
+    },
     "pi-extensions": {
       "inputs": {
         "home-manager": [
@@ -1651,7 +1648,6 @@
     },
     "root": {
       "inputs": {
-        "ai-usagebar": "ai-usagebar",
         "caelestia": "caelestia",
         "chaotic": "chaotic",
         "den": "den",
@@ -1678,6 +1674,7 @@
         "noctalia": "noctalia",
         "noctalia-community-plugins": "noctalia-community-plugins",
         "noctalia-greeter": "noctalia-greeter",
+        "noctalia-official-plugins": "noctalia-official-plugins",
         "pi-extensions": "pi-extensions",
         "quickshell": "quickshell_2",
         "serpantinum": "serpantinum",
@@ -1716,11 +1713,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1783577481,
-        "narHash": "sha256-EWMxOWrJ031f8f/lrcEmhTRs4npw1/5N3Hcjin846c8=",
+        "lastModified": 1793434469,
+        "narHash": "sha256-+sgVNI2c67di+XIeMaz5KSei4T65kX68s5Nl0E5Gzbc=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "4cdea398dc491b082dccdce0fad1ed0b75fa3394",
+        "rev": "6ecf534a7c16e7c969f26838fdd8c93597ae93f3",
         "type": "github"
       },
       "original": {

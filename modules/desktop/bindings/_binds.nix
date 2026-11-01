@@ -82,6 +82,7 @@ keys.define {
     ))
     (keys.bind "SUPER + Space" (actions.exec "noctalia msg panel-toggle launcher"))
     (keys.bind "SUPER + c" (actions.exec "noctalia msg panel-toggle clipboard"))
+    (keys.bind "SUPER + SHIFT + w" (actions.exec "noctalia msg panel-toggle noctalia/mpvpaper:picker"))
     (keys.bind "SUPER + w" (actions.exec "noctalia msg panel-toggle wallpaper"))
     (keys.bind "SUPER + CTRL + v" (actions.layout.select "vertical-scroller"))
     (keys.bind "ALT + Tab" (actions.exec "noctalia msg window-switcher"))
