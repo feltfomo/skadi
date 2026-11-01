@@ -29,12 +29,14 @@ hl.window_rule({
 	float = true,
 })
 
--- Noctalia's IPC command reuses a shell-owned window instead of spawning a tracked process.
+-- every opener (bind, bar, IPC) lands here, otherwise the window floats at its 1020x500 minimum
 hl.window_rule({
-	name = "noctalia-settings-scratchpad",
+	name = "noctalia-settings",
 	match = { class = "^dev.noctalia.Noctalia$", title = "^Noctalia Settings$" },
 	float = true,
 	group = "deny",
+	size = "min(monitor_w,1600) monitor_h*0.7",
+	center = true,
 })
 
 -- persistent class rules survive steam's transient bootstrap windows

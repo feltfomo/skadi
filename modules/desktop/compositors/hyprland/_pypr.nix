@@ -35,14 +35,5 @@
       command = "thunar";
       class = "thunar";
     };
-    settings = {
-      use = "centered";
-      command = "noctalia msg settings-open";
-      class = "dev.noctalia.Noctalia";
-      match_by = "title";
-      title = "Noctalia Settings";
-      # The shell owns the window; the IPC command exits after opening it.
-      process_tracking = false;
-    };
   };
 }

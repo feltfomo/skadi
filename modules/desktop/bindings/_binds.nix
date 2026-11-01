@@ -64,7 +64,18 @@ keys.define {
       actions.exec "noctalia msg volume-down"
     ))
     (keys.bind "SUPER + comma" (
-      scratchpad "settings" "dev.noctalia.Noctalia" "noctalia msg settings-open"
+      # the shell owns this window, and it can reopen a hidden one behind pypr's back
+      keys.native {
+        hyprland.exec = "noctalia msg settings-toggle";
+        mango = {
+          command = "toggle_named_scratchpad";
+          arguments = [
+            "dev.noctalia.Noctalia"
+            "none"
+            "noctalia msg settings-open"
+          ];
+        };
+      }
     ))
     (keys.bind [ "SUPER + SHIFT + period" "SUPER + SHIFT + equal" ] (
       actions.exec "noctalia msg volume-up"
