@@ -28,6 +28,7 @@
       spicetify
       superfile
       tty-clock
+      arx-theme
       appimage
       hyprland
       noctalia
@@ -36,7 +37,6 @@
       spotatui
       vscodium
       ayugram
-      end4-pc
       equibop
       ghostty
       lazygit
