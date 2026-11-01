@@ -39,6 +39,15 @@ hl.window_rule({
 	center = true,
 })
 
+-- layer surfaces can't draw their own compositor blur, so the rule sits with pinax's namespace
+hl.layer_rule({
+	name = "pinax",
+	match = { namespace = "^pinax$" },
+	blur = true,
+	ignore_alpha = 0.05,
+	dim_around = true,
+})
+
 -- persistent class rules survive steam's transient bootstrap windows
 if G.hostname == "khion" then
 	local startup_rules = {

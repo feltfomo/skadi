@@ -33,6 +33,26 @@
         "type": "github"
       }
     },
+    "arx": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793533314,
+        "narHash": "sha256-eOk3FBP7Obfe6fvanvt8OPREhZsArMUlkfOkvn1siUI=",
+        "ref": "refs/heads/main",
+        "rev": "1c248b6d2bc239eca4c0b43c84536b392b7ba9a6",
+        "revCount": 34,
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/arx"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/arx"
+      }
+    },
     "axiom": {
       "inputs": {
         "nixpkgs": "nixpkgs_5"
@@ -1582,6 +1602,26 @@
         "type": "github"
       }
     },
+    "pinax": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793533251,
+        "narHash": "sha256-59jfpsJUdYZxojFfVQskF9zik+jwq14av4BLk9jabAk=",
+        "ref": "refs/heads/main",
+        "rev": "cc5bb0ad757a9f5fcf30f5a8e0a9673b608e1464",
+        "revCount": 2,
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/pinax"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/pinax"
+      }
+    },
     "pre-commit-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -1648,6 +1688,7 @@
     },
     "root": {
       "inputs": {
+        "arx": "arx",
         "caelestia": "caelestia",
         "chaotic": "chaotic",
         "den": "den",
@@ -1676,6 +1717,7 @@
         "noctalia-greeter": "noctalia-greeter",
         "noctalia-official-plugins": "noctalia-official-plugins",
         "pi-extensions": "pi-extensions",
+        "pinax": "pinax",
         "quickshell": "quickshell_2",
         "serpantinum": "serpantinum",
         "silent-sddm": "silent-sddm",

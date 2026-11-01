@@ -45,6 +45,7 @@
       theming
       wooting
       junban
+      arx
       devenv
       fuzzel
       heroic
@@ -58,6 +59,7 @@
       herdr
       kitty
       lunar
+      pinax
       qt-hm
       shell
       idea

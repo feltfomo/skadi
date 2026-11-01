@@ -21,6 +21,10 @@
   };
 
   inputs = {
+    arx = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "git+ssh://git@github.com/feltfomo/arx";
+    };
     caelestia = {
       inputs = {
         nixpkgs.follows = "nixpkgs";
@@ -108,6 +112,10 @@
         nixpkgs.follows = "nixpkgs";
       };
       url = "github:feltfomo/pi-extensions";
+    };
+    pinax = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "git+ssh://git@github.com/feltfomo/pinax";
     };
     quickshell = {
       inputs.nixpkgs.follows = "nixpkgs";

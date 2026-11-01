@@ -129,6 +129,11 @@ keys.define {
     (keys.bind "SUPER + m" actions.session.quit)
 
     # app binds
+    (keys.bind {
+      chord = "SUPER + d";
+      targets = [ "hyprland" ];
+      action = actions.exec "pinax toggle";
+    })
     (keys.bind "SUPER + t" (actions.exec "kitty"))
   ];
 
