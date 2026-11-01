@@ -15,20 +15,23 @@ return {
 			accept = { auto_brackets = { blocked_filetypes = { "kotlin" } } },
 			ghost_text = { enabled = true },
 			menu = {
-				border = "rounded",
+				border = "single",
+				draw = {
+					columns = { { "kind_icon" }, { "label", "label_description", gap = 1 } },
+				},
 			},
 			documentation = {
 				auto_show = true,
 				auto_show_delay_ms = 300,
 				window = {
-					border = "rounded",
+					border = "single",
 				},
 			},
 		},
 		signature = {
 			enabled = true,
 			window = {
-				border = "rounded",
+				border = "single",
 			},
 		},
 		sources = {

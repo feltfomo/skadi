@@ -57,6 +57,11 @@ return {
 				header = { "%s", align = "left" },
 			},
 		},
+		styles = {
+			input = { border = "single" },
+			notification = { border = "single" },
+			notification_history = { border = "single" },
+		},
 		explorer = { enabled = false },
 		input = {},
 		indent = {},

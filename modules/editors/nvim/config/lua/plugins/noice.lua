@@ -1,3 +1,5 @@
+local square = { border = { style = "single" } }
+
 return {
 	"folke/noice.nvim",
 	event = "VeryLazy",
@@ -10,12 +12,14 @@ return {
 				["vim.lsp.util.stylize_markdown"] = true,
 			},
 		},
+		-- presets apply after user options, so their rounded borders are overridden in place
 		presets = {
 			bottom_search = true,
-			command_palette = true,
+			command_palette = { views = { cmdline_popup = square, cmdline_popupmenu = square } },
 			long_message_to_split = true,
-			lsp_doc_border = true,
+			lsp_doc_border = { views = { hover = square } },
 		},
+		views = { cmdline_input = square, confirm = square, popup = square, popupmenu = square },
 	},
 	keys = {
 		{ "<leader>nl", "<cmd>Noice last<cr>", desc = "Last Message" },

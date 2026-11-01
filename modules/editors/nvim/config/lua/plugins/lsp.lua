@@ -123,7 +123,7 @@ return {
 			},
 			underline = true,
 			severity_sort = true,
-			float = { border = "rounded", source = true },
+			float = { border = "single", source = true },
 		})
 
 		local servers = {

@@ -3,6 +3,7 @@ return {
 	event = "VeryLazy",
 	opts = {
 		preset = "helix",
+		win = { border = "single" },
 		spec = {
 			{ "<leader>b", group = "Buffers" },
 			{ "<leader>c", group = "Code" },

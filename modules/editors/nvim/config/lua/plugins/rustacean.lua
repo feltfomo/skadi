@@ -10,7 +10,7 @@ return {
 	init = function()
 		vim.g.rustaceanvim = {
 			tools = {
-				float_win_config = { border = "rounded" },
+				float_win_config = { border = "single" },
 			},
 			server = {
 				default_settings = {

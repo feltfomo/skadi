@@ -28,7 +28,7 @@ return {
 		},
 		opts = {
 			close_if_last_window = true,
-			popup_border_style = "rounded",
+			popup_border_style = "single",
 			source_selector = { winbar = true, statusline = false },
 			window = { width = 42 },
 			filesystem = {

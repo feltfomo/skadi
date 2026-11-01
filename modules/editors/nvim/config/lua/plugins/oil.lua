@@ -5,7 +5,7 @@ return {
 	opts = {
 		default_file_explorer = false,
 		float = {
-			border = "rounded",
+			border = "single",
 		},
 	},
 	lazy = false,
