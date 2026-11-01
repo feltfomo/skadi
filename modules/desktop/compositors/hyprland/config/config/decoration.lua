@@ -3,7 +3,6 @@ local ok, colors = pcall(require, "colors")
 if not ok then
 	colors = {
 		primary = "rgb(89b4fa)",
-		outline = "rgb(6c7086)",
 		outline_variant = "rgb(45475a)",
 		shadow_alpha = "rgba(000000aa)",
 	}
@@ -17,11 +16,15 @@ hl.config({
 		layout = "dwindle",
 		col = {
 			active_border = colors.primary,
-			inactive_border = colors.outline_variant or colors.outline,
+			inactive_border = colors.outline_variant,
 			-- pyprland scratchpads deny grouping and use the no-group border colors
-			nogroup_border = colors.outline_variant or colors.outline,
+			nogroup_border = colors.outline_variant,
 			nogroup_border_active = colors.primary,
 		},
+	},
+	scrolling = {
+		wrap_focus = false,
+		wrap_swapcol = false,
 	},
 	decoration = {
 		rounding = 0,
@@ -47,8 +50,6 @@ hl.config({
 })
 
 hl.curve("easeOutQuint", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })
-hl.curve("easeInOutCubic", { type = "bezier", points = { { 0.65, 0.05 }, { 0.36, 1 } } })
-hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
 hl.curve("mangoMove", { type = "bezier", points = { { 0.46, 1 }, { 0.29, 1 } } })
 
 -- shared defaults keep leaf overrides small without hiding native animation fields
@@ -68,7 +69,6 @@ local function animation(leaf, overrides)
 end
 
 animation("global")
-animation("windows", { style = "popin 87%" })
 animation("windowsIn", { speed = 3, style = "popin 90%" })
 animation("windowsOut", { speed = 2, style = "popin 90%" })
 animation("windowsMove", { speed = 5, bezier = "mangoMove", style = "slide" })

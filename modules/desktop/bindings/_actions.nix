@@ -73,7 +73,7 @@ let
     };
     "window.fullscreen" = {
       mango = "togglefullscreen";
-      hyprland = ''hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle", layout_aware = true })'';
+      hyprland = "hl.dsp.window.fullscreen()";
     };
     "window.floating" = {
       mango = "togglefloating";
@@ -129,6 +129,7 @@ let
   };
 in
 {
+  inherit check lua positive;
   actions = {
     exec = command: check (text command) "exec needs a nonempty command" (action "exec" command);
     window = {
@@ -143,7 +144,14 @@ in
     };
     workspace = {
       moveToSlot = slot "workspace.move";
+      followToSlot = slot "workspace.follow";
       selectSlot = slot "workspace.select";
+      step =
+        value:
+        check (builtins.elem value [
+          "down"
+          "up"
+        ]) "workspace steps go down or up" (action "workspace.step" value);
     };
     monitor = {
       focus = direction "monitor.focus";
@@ -192,23 +200,31 @@ in
           if target == "mango" then "focusmon,${arg}" else "hl.dsp.focus({ monitor = ${lua arg} })"
         else if kind == "monitor.move" then
           if target == "mango" then "tagmon,${arg},0" else "B.monitor_move(${lua arg})"
-        else if kind == "workspace.select" || kind == "workspace.move" then
+        else if kind == "workspace.step" then
+          if target == "hyprland" then
+            "B.workspace_step(${lua arg})"
+          else if arg == "up" then
+            "viewtoleft,0"
+          else
+            "viewtoright,0"
+        else if lib.hasPrefix "workspace." kind then
           let
             policy = routing.${target};
             count = builtins.foldl' (current: bank: lib.min current bank.count) policy.count (
               policy.banks or [ ]
             );
-            move = kind == "workspace.move";
+            mode = lib.removePrefix "workspace." kind;
           in
           check (arg <= count) "workspace slot ${toString arg} exceeds ${target}'s ${toString count} slots" (
             if target == "hyprland" then
-              "B.workspace(${toString arg}, ${lua move})"
-            else if !move then
-              "view,${toString arg},0"
-            else if policy.moveFollows then
-              "tag,${toString arg},0"
+              "B.workspace(${toString arg}, ${lua mode})"
             else
-              "tagsilent,${toString arg}"
+              {
+                select = "view,${toString arg},0";
+                move = "tagsilent,${toString arg}";
+                follow = "tag,${toString arg},0";
+              }
+              .${mode}
           )
         else if kind == "layout" then
           let

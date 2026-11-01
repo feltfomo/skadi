@@ -9,7 +9,7 @@ if G.hostname == "lumi" then
 		scale = "1",
 	})
 elseif G.hostname == "khion" then
-	for i, output in ipairs({ G.monitors.left, G.monitors.right }) do
+	for i, output in ipairs({ "DP-1", "DP-2" }) do
 		hl.monitor({
 			output = output,
 			mode = "2560x1440@180",

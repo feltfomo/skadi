@@ -3,36 +3,16 @@
   den,
   inputs,
   lexicon,
+  lib,
   ...
 }:
 let
-  # config modules are discovered during evaluation while libraries stay explicit
-  luaModules =
-    directory:
-    let
-      entries = builtins.readDir directory;
-    in
-    builtins.filter (name: entries.${name} == "regular" && builtins.match ".*\\.lua$" name != null) (
-      builtins.attrNames entries
-    );
-  # generated manifests avoid filesystem scanning inside hyprland's lua runtime
-  luaManifest =
-    name: prefix: modules:
-    builtins.toFile name (
-      builtins.concatStringsSep "\n" (
-        map (
-          file:
-          let
-            moduleName = builtins.substring 0 (builtins.stringLength file - 4) file;
-          in
-          ''require("${prefix}.${moduleName}")''
-        ) modules
-      )
-      + "\n"
-    );
-
-  hyprConfigModules = luaModules ./config/config;
-  hyprlandAutoload = luaManifest "hyprland-autoload.lua" "config" hyprConfigModules;
+  # a generated manifest avoids filesystem scanning inside hyprland's lua runtime
+  hyprlandAutoload = builtins.toFile "hyprland-autoload.lua" (
+    lib.concatMapStrings (file: ''
+      require("config.${lib.removeSuffix ".lua" file}")
+    '') (builtins.filter (lib.hasSuffix ".lua") (builtins.attrNames (builtins.readDir ./config/config)))
+  );
 
   # the tagged source requests glaze 7 while its pinned nixpkgs provides glaze 8
   # relaxing the cmake constraint keeps the build offline and matches nixpkgs' fix
@@ -204,7 +184,7 @@ in
         source =
           pkgs.writeText "hyprland-shared-binds.lua"
             (config.skadi.bindings {
-              lib = inputs.nixpkgs.lib;
+              inherit lib;
               hostName = host.name;
             }).hyprland;
         destination = ".config/hypr/shared-binds.lua";

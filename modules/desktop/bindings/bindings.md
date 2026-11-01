@@ -8,12 +8,12 @@ The supported target names are `hyprland` and `mango`. This is an internal skadi
 
 | File | What to edit there |
 | --- | --- |
-| [../configs/desktop/binds.nix](../configs/desktop/binds.nix) | Shortcuts, groups, workspace routing and locally named native actions |
-| [../configs/hypr/lib/workspace.lua](../configs/hypr/lib/workspace.lua) | Runtime workspace bank selection and follow behavior |
-| [../configs/hypr/config/binds.lua](../configs/hypr/config/binds.lua) | Hyprland runtime behavior and additional Lua bindings |
-| [../configs/mango/binds.conf](../configs/mango/binds.conf) | Additional native Mango bindings after the generated include |
-| [binding-actions.nix](binding-actions.nix) | Shared actions and their native implementations |
-| [bindings.nix](bindings.nix) | Expansion, validation and rendering |
+| [\_binds.nix](_binds.nix) | Shortcuts, groups, workspace routing and locally named native actions |
+| [workspace.lua](../compositors/hyprland/config/lib/workspace.lua) | Runtime workspace bank selection and movement |
+| [binds.lua](../compositors/hyprland/config/config/binds.lua) | Hyprland runtime behavior and additional Lua bindings |
+| [binds.conf](../compositors/mango/config/binds.conf) | Additional native Mango bindings after the generated include |
+| [\_actions.nix](_actions.nix) | Shared actions and their native implementations |
+| [\_bindings.nix](_bindings.nix) | Expansion, validation and rendering |
 
 ## Add a shared shortcut
 
@@ -22,7 +22,7 @@ The declaration imports the helper and returns a definition:
 ```nix
 { lib }:
 let
-  inherit (import ../../lib/bindings.nix { inherit lib; }) keys actions;
+  inherit (import ./_bindings.nix { inherit lib; }) keys actions;
 in
 keys.define {
   bindings = [
@@ -97,15 +97,12 @@ Workspace actions take a logical slot, starting at one. The compositor adapter r
 ```nix
 workspaceRouting = {
   hyprland = {
-    selectBank = "focused-output";
-    moveFollows = false;
     banks = [
       { output = "DP-1"; first = 1; count = 10; }
       { output = "DP-2"; first = 11; count = 10; }
     ];
   };
   mango = {
-    moveFollows = false;
     count = 9;
   };
 };
@@ -113,7 +110,7 @@ workspaceRouting = {
 
 Slot three selects workspace 3 on DP-1, workspace 13 on DP-2, or tag 3 in Mango. Each configured Hyprland bank creates persistent workspace rules for its output. Overlapping banks and repeated output names are errors.
 
-The skadi declaration supplies these banks on khion. Lumi has no output banks. Hyprland's fallback range starts at `first = 1` and has `count = 10` slots. The fallback also applies to an output without a configured bank. Both fields are configurable. For a single global range, set `selectBank = "global"` and leave `banks` empty.
+The skadi declaration supplies these banks on khion. Lumi has no output banks. Hyprland's fallback range starts at `first = 1` and has `count = 10` slots. The fallback also applies to an output without a configured bank. Both fields are configurable. For a single global range, leave `banks` empty.
 
 The shared number groups use slots one through nine. Hyprland's additional slot uses a target-specific binding:
 
@@ -133,7 +130,9 @@ The shared number groups use slots one through nine. Hyprland's additional slot 
 
 On khion, key `0` addresses workspace 10 on DP-1 or workspace 20 on DP-2. A shared slot-ten action would fail because Mango has nine slots. When banks have different sizes, shared slot actions must fit every bank and the fallback range.
 
-`moveFollows = false` sends the window without changing the viewed workspace. Hyprland uses `follow = false`; Mango uses `tagsilent`. With `true`, Hyprland follows the move and Mango uses `tag`. Mango's second `tag` argument controls monitor synchronization, not whether focus follows.
+`moveToSlot` sends the window without changing the viewed workspace. Hyprland uses `follow = false`; Mango uses `tagsilent`. `followToSlot` sends the window and switches to its workspace. Hyprland uses `follow = true`; Mango uses `tag`. Mango's second `tag` argument controls monitor synchronization, not whether focus follows.
+
+`step` goes to the adjacent workspace on the focused monitor, with `up` toward lower numbers and `down` toward higher ones. It stops at the first and last slot. Mango wraps instead if `tag_carousel` is enabled.
 
 ## Use native actions
 
@@ -181,7 +180,7 @@ To share one shortcut with different implementations, provide both `hyprland` an
 
 ## Keep Lua and native config where they help
 
-Add runtime-dependent Hyprland logic directly in `configs/hypr/config/binds.lua`, alongside the generated binding load. For example:
+Add runtime-dependent Hyprland logic directly in `modules/desktop/compositors/hyprland/config/config/binds.lua`, alongside the generated binding load. For example:
 
 ```lua
 hl.bind("SUPER + CTRL + e", function()
@@ -192,7 +191,7 @@ hl.bind("SUPER + CTRL + e", function()
 end)
 ```
 
-Add Mango-only bindings to `configs/mango/binds.conf`, after its `source` line:
+Add Mango-only bindings to `modules/desktop/compositors/mango/config/binds.conf`, after its `source` line:
 
 ```ini
 bind=SUPER+CTRL,e,spawn,thunar
@@ -207,7 +206,9 @@ Collision checks cover bindings declared through this helper. They can't inspect
 | Action | Argument or behavior |
 | --- | --- |
 | `actions.workspace.moveToSlot` | Logical slot, resolved through workspace routing |
+| `actions.workspace.followToSlot` | Logical slot, resolved through workspace routing |
 | `actions.workspace.selectSlot` | Logical slot, resolved through workspace routing |
+| `actions.workspace.step` | `down` or `up`, one workspace at a time |
 | `actions.scroll.columnWidth` | Width from 0.1 through 1, for scrolling layouts |
 | `actions.window.fullscreen` | Toggle layout-aware fullscreen |
 | `actions.window.maximize` | Toggle full column width in Hyprland scrolling, or maximization elsewhere |
@@ -226,8 +227,8 @@ Collision checks cover bindings declared through this helper. They can't inspect
 
 ## Validate a change
 
-Hyprland's generated output is a Lua module loaded by `configs/hypr/config/binds.lua`. That entry point supplies the scrolling and workspace callbacks. Mango's output is included by `configs/mango/binds.conf`. Keep those entry points when editing the adapters.
+Hyprland's generated output is a Lua module loaded by `modules/desktop/compositors/hyprland/config/config/binds.lua`. That entry point supplies the scrolling and workspace callbacks. Mango's output is included by `modules/desktop/compositors/mango/config/binds.conf`. Keep those entry points when editing the adapters.
 
-The compositor aspects import `configs/desktop/binds.nix` with the host name. The returned `hyprland` and `mango` strings become the generated config files. Output lines are sorted longest first. Sorting doesn't assign shortcut priority. Duplicate chords on the same target fail evaluation.
+The compositor aspects import `_binds.nix` with the host name. The returned `hyprland` and `mango` strings become the generated config files. Output lines are sorted longest first. Sorting doesn't assign shortcut priority. Duplicate chords on the same target fail evaluation.
 
-Run `praxis check` from the repo's dev shell. The binding checks cover target restrictions, missing implementations, chord collisions, workspace limits and routing, native actions, and the Hyprland Lua integration on both hosts. The full gate also builds khion and lumi. Runtime compositor behavior still needs a session check when the change affects focus, layouts or window placement.
+Run `praxis check` from the repo's dev shell. It runs `nix flake check`, which builds the hosts, so evaluation catches target restrictions, missing implementations, chord collisions, workspace limits, routing errors and malformed native actions. It doesn't run any Hyprland Lua, so a change that affects focus, layouts, window placement or the Lua callbacks still needs a session check.

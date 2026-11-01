@@ -1,6 +1,7 @@
 { lib }:
 let
   adapters = import ./_actions.nix { inherit lib; };
+  inherit (adapters) check lua positive;
   supported = [
     "hyprland"
     "mango"
@@ -11,10 +12,6 @@ let
     "CTRL"
     "ALT"
   ];
-  check =
-    condition: message: value:
-    assert lib.assertMsg condition "bindings: ${message}";
-    value;
   fields =
     label: allowed: value:
     check (
@@ -76,21 +73,15 @@ let
     let
       root = fields "workspaceRouting" supported value;
       hypr = {
-        selectBank = "focused-output";
-        moveFollows = false;
         banks = [ ];
         first = 1;
         count = 10;
       }
-      // fields "Hyprland routing" [ "selectBank" "moveFollows" "banks" "first" "count" ] (
-        root.hyprland or { }
-      );
+      // fields "Hyprland routing" [ "banks" "first" "count" ] (root.hyprland or { });
       mango = {
-        moveFollows = false;
         count = 9;
       }
-      // fields "Mango routing" [ "moveFollows" "count" ] (root.mango or { });
-      positive = number: builtins.isInt number && number > 0;
+      // fields "Mango routing" [ "count" ] (root.mango or { });
       banks = map (
         bank:
         let
@@ -120,13 +111,6 @@ let
         && positive hypr.count
         && positive mango.count
         && mango.count <= 9
-        && builtins.isBool hypr.moveFollows
-        && builtins.isBool mango.moveFollows
-        && builtins.elem hypr.selectBank [
-          "focused-output"
-          "global"
-        ]
-        && (hypr.selectBank != "global" || banks == [ ])
         && unique (map (bank: bank.output) banks)
         && disjoint.valid
       )
@@ -156,7 +140,6 @@ let
     };
   };
   longestFirst = lib.sort (a: b: builtins.stringLength a > builtins.stringLength b);
-  lua = lib.generators.toLua { multiline = false; };
   keys = rec {
     bind =
       specification:
@@ -351,13 +334,7 @@ let
       in
       builtins.deepSeq routing (
         builtins.deepSeq compiled (
-          check (collisions == [ ]) "duplicate shortcuts: ${lib.concatStringsSep ", " collisions}" (
-            rendered
-            // {
-              bindings = normalized;
-              workspaceRouting = routing;
-            }
-          )
+          check (collisions == [ ]) "duplicate shortcuts: ${lib.concatStringsSep ", " collisions}" rendered
         )
       );
   };

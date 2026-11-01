@@ -10,12 +10,4 @@ local function read_hostname()
 	return name or "unknown"
 end
 
-local G = {
-	hostname = read_hostname(),
-	monitors = {
-		left = "DP-1",
-		right = "DP-2",
-	},
-}
-
-return G
+return { hostname = read_hostname() }

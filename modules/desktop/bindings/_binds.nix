@@ -21,10 +21,9 @@ let
     };
 in
 keys.define {
+  # workspace binds
   workspaceRouting = {
     hyprland = {
-      selectBank = "focused-output";
-      moveFollows = false;
       banks = lib.optionals (hostName == "khion") [
         {
           output = "DP-1";
@@ -39,7 +38,6 @@ keys.define {
       ];
     };
     mango = {
-      moveFollows = false;
       count = 9;
     };
   };
@@ -50,19 +48,22 @@ keys.define {
       targets = [ "mango" ];
       action = keys.native { mango.command = "toggleoverview"; };
     })
+    # set to hyprland cause mango doesnt have a 9th tag/workspace
     (keys.bind {
       chord = "SUPER + SHIFT + 0";
       targets = [ "hyprland" ];
       action = actions.workspace.moveToSlot 10;
     })
     (keys.bind {
+      chord = "SUPER + CTRL + 0";
+      targets = [ "hyprland" ];
+      action = actions.workspace.followToSlot 10;
+    })
+    (keys.bind {
       chord = "SUPER + 0";
       targets = [ "hyprland" ];
       action = actions.workspace.selectSlot 10;
     })
-    (keys.bind [ "SUPER + SHIFT + comma" "SUPER + SHIFT + minus" ] (
-      actions.exec "noctalia msg volume-down"
-    ))
     (keys.bind "SUPER + comma" (
       # the shell owns this window, and it can reopen a hidden one behind pypr's back
       keys.native {
@@ -77,36 +78,61 @@ keys.define {
         };
       }
     ))
+
+    (keys.bind "SUPER + Page_Down" (actions.workspace.step "down"))
+    (keys.bind "SUPER + Page_Up" (actions.workspace.step "up"))
+
+    # audio binds
+    (keys.bind [ "SUPER + SHIFT + comma" "SUPER + SHIFT + minus" ] (
+      actions.exec "noctalia msg volume-down"
+    ))
     (keys.bind [ "SUPER + SHIFT + period" "SUPER + SHIFT + equal" ] (
       actions.exec "noctalia msg volume-up"
     ))
-    (keys.bind "SUPER + Space" (actions.exec "noctalia msg panel-toggle launcher"))
-    (keys.bind "SUPER + c" (actions.exec "noctalia msg panel-toggle clipboard"))
+
+    # wallpaper binds
     (keys.bind "SUPER + SHIFT + w" (actions.exec "noctalia msg panel-toggle noctalia/mpvpaper:picker"))
     (keys.bind "SUPER + w" (actions.exec "noctalia msg panel-toggle wallpaper"))
-    (keys.bind "SUPER + CTRL + v" (actions.layout.select "vertical-scroller"))
-    (keys.bind "ALT + Tab" (actions.exec "noctalia msg window-switcher"))
-    (keys.bind "Print" (actions.exec "noctalia msg screenshot-region"))
-    (keys.bind "SUPER + s" (scratchpad "spotify" "spotify" "spotify"))
-    (keys.bind "SUPER + CTRL + s" (actions.layout.select "scroller"))
+
+    # layout binds
     (keys.bind "SUPER + CTRL + d" (actions.layout.select "dwindle"))
     (keys.bind "SUPER + CTRL + o" (actions.layout.select "monocle"))
     (keys.bind "SUPER + CTRL + m" (actions.layout.select "master"))
-    (keys.bind "SUPER + e" (scratchpad "thunar" "thunar" "thunar"))
+
+    # general shell binds i guess idk
+    (keys.bind "SUPER + Space" (actions.exec "noctalia msg panel-toggle launcher"))
+    (keys.bind "SUPER + c" (actions.exec "noctalia msg panel-toggle clipboard"))
+    (keys.bind "ALT + Tab" (actions.exec "noctalia msg window-switcher"))
+
+    # screenshot sutff
+    (keys.bind "Print" (actions.exec "noctalia msg screenshot-region"))
     (keys.bind "SUPER + a" (actions.exec "noctalia msg annotate"))
+
+    # scroller binds
+    (keys.bind "SUPER + CTRL + v" (actions.layout.select "vertical-scroller"))
+    (keys.bind "SUPER + CTRL + s" (actions.layout.select "scroller"))
     (keys.bind "SUPER + ALT + d" (actions.scroll.columnWidth 0.5))
     (keys.bind "SUPER + ALT + f" (actions.scroll.columnWidth 1.0))
+
+    # scratchpads
+    (keys.bind "SUPER + s" (scratchpad "spotify" "spotify" "spotify"))
+    (keys.bind "SUPER + e" (scratchpad "thunar" "thunar" "thunar"))
+
+    # window management binds
     (keys.bind "SUPER + SHIFT + f" actions.window.fullscreen)
     (keys.bind "SUPER + mouse:right" actions.window.resize)
     (keys.bind "SUPER + mouse:left" actions.window.drag)
     (keys.bind "SUPER + v" actions.window.floating)
     (keys.bind "SUPER + f" actions.window.maximize)
-    (keys.bind "SUPER + t" (actions.exec "kitty"))
     (keys.bind "SUPER + r" actions.session.reload)
     (keys.bind "SUPER + q" actions.window.close)
     (keys.bind "SUPER + m" actions.session.quit)
+
+    # app binds
+    (keys.bind "SUPER + t" (actions.exec "kitty"))
   ];
 
+  # binds for directional window movement
   groups = [
     (keys.directions {
       modifiers = [
@@ -154,6 +180,8 @@ keys.define {
       ];
       action = actions.window.focus;
     })
+
+    # binds for workspaces
     (keys.numbered {
       modifiers = [
         "SUPER"
@@ -161,6 +189,14 @@ keys.define {
       ];
       numbers = lib.range 1 9;
       action = actions.workspace.moveToSlot;
+    })
+    (keys.numbered {
+      modifiers = [
+        "SUPER"
+        "CTRL"
+      ];
+      numbers = lib.range 1 9;
+      action = actions.workspace.followToSlot;
     })
     (keys.numbered {
       modifiers = [ "SUPER" ];

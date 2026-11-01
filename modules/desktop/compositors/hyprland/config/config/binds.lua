@@ -3,6 +3,8 @@ local workspace = require("lib.workspace")
 local B = {}
 
 B.configureRouting = workspace.configure
+B.workspace = workspace.dispatch
+B.workspace_step = workspace.step
 
 local function scrolling()
 	local current = hl.get_active_workspace()
@@ -12,7 +14,7 @@ end
 
 function B.focus(direction)
 	local focus = hl.dsp.focus({ direction = direction })
-	local scroll = hl.dsp.layout("focus " .. direction:sub(1, 1))
+	local scroll = hl.dsp.layout("focus " .. direction)
 	return function()
 		-- scrolling's dispatcher advances the tape within the current workspace.
 		hl.dispatch(scrolling() and scroll or focus)
@@ -26,28 +28,20 @@ local column_directions = {
 	up = { up = "r", down = "l" },
 }
 
+local swap_column = { l = hl.dsp.layout("swapcol l"), r = hl.dsp.layout("swapcol r") }
+
 function B.swap(direction)
 	local swap = hl.dsp.window.swap({ direction = direction })
-	local previous = hl.dsp.layout("swapcol l")
-	local next_column = hl.dsp.layout("swapcol r")
 	return function()
-		if scrolling() then
-			local axis = column_directions[workspace.scroll_direction(hl.get_active_workspace())]
-			local column = axis and axis[direction]
-			if column then
-				-- Column order remains available when the adjacent window is offscreen.
-				hl.dispatch(column == "l" and previous or next_column)
-				return
-			end
-		end
-		hl.dispatch(swap)
+		local column = scrolling()
+			and column_directions[workspace.scroll_direction(hl.get_active_workspace())][direction]
+		-- column order remains available when the adjacent window is offscreen
+		hl.dispatch(column and swap_column[column] or swap)
 	end
 end
 
 function B.monitor_move(direction)
 	local move = hl.dsp.window.move({ monitor = direction, follow = true })
-	local previous = hl.dsp.layout("swapcol l")
-	local next_column = hl.dsp.layout("swapcol r")
 	return function()
 		local window = hl.get_active_window()
 		local source_monitor = window and window.monitor and window.monitor.name
@@ -63,14 +57,13 @@ function B.monitor_move(direction)
 			hl.dispatch(hl.dsp.layout("colresize " .. source_width))
 		end
 
-		local axis = column_directions[workspace.scroll_direction(window.workspace)]
-		local travel = axis and axis[direction]
+		local travel = column_directions[workspace.scroll_direction(window.workspace)][direction]
 		if not travel then
 			return
 		end
 
 		local index = window.layout.column.index
-		local swaps, swap = index, previous
+		local swaps, swap = index, swap_column.l
 		if travel == "l" then
 			local last_index = index
 			for _, other in ipairs(hl.get_workspace_windows(window.workspace)) do
@@ -79,9 +72,9 @@ function B.monitor_move(direction)
 					last_index = math.max(last_index, layout.column.index)
 				end
 			end
-			swaps, swap = last_index - index, next_column
+			swaps, swap = last_index - index, swap_column.r
 		end
-		-- Enter the destination strip from the crossed monitor edge, rather than beside its focused column.
+		-- enter the destination strip from the crossed monitor edge, rather than beside its focused column.
 		for _ = 1, swaps do
 			hl.dispatch(swap)
 		end
@@ -90,30 +83,27 @@ end
 
 function B.column_width(width)
 	local resize = hl.dsp.layout("colresize " .. width)
-	local unmaximize = hl.dsp.window.fullscreen({ mode = "maximized", action = "unset", layout_aware = true })
+	local unmaximize = hl.dsp.window.fullscreen({ mode = "maximized", action = "unset" })
 	return function()
 		if scrolling() then
-			if hl.get_active_window().fullscreen == 1 then
-				hl.dispatch(unmaximize)
-			end
+			hl.dispatch(unmaximize)
 			hl.dispatch(resize)
 		end
 	end
 end
 
 function B.maximize()
-	local maximize = hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle", layout_aware = true })
+	local maximize = hl.dsp.window.fullscreen({ mode = "maximized" })
 	return function()
-		if not scrolling() or hl.get_active_window().fullscreen == 2 then
+		local window = hl.get_active_window()
+		if not scrolling() or window.fullscreen == 2 then
 			hl.dispatch(maximize)
 			return
 		end
 
-		local window = hl.get_active_window()
-		local column = window.layout.column
-		-- Maximized columns trigger fullscreen fades that break the continuous scrolling strip.
+		-- maximized columns trigger fullscreen fades that break the continuous scrolling strip
 		local width = 1.0
-		if window.fullscreen ~= 1 and column.width >= 1.0 then
+		if window.fullscreen ~= 1 and window.layout.column.width >= 1.0 then
 			width = hl.get_config("scrolling.column_width")
 		end
 		B.column_width(width)()
@@ -132,12 +122,6 @@ function B.layout(name, direction)
 				hl.dispatch(widen)
 			end, { timeout = 1, type = "oneshot" })
 		end
-	end
-end
-
-function B.workspace(number, move)
-	return function()
-		workspace.dispatch(number, move)
 	end
 end
 
