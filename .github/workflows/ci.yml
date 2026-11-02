@@ -29,6 +29,7 @@ jobs:
         run: |
           git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
           git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/pinax".insteadOf "ssh://git@github.com/feltfomo/pinax"
+          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/arx".insteadOf "ssh://git@github.com/feltfomo/arx"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       # github's ubuntu-latest (24.04) sets
       # kernel.apparmor_restrict_unprivileged_userns=1, blocking unprivileged user
@@ -74,6 +75,7 @@ jobs:
         run: |
           git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
           git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/pinax".insteadOf "ssh://git@github.com/feltfomo/pinax"
+          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/arx".insteadOf "ssh://git@github.com/feltfomo/arx"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -99,6 +101,7 @@ jobs:
         run: |
           git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/Junban".insteadOf "ssh://git@github.com/feltfomo/Junban"
           git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/pinax".insteadOf "ssh://git@github.com/feltfomo/pinax"
+          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/arx".insteadOf "ssh://git@github.com/feltfomo/arx"
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Allow unprivileged user namespaces
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
