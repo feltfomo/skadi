@@ -9,16 +9,25 @@ let
     let
       twilight = inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.twilight;
       # Zen ignores SIGPIPE and inotifywait inherits that, so a dead reader wouldn't stop it. stdin
-      # closes however Zen ends, including a crash, which makes it the one stop signal.
+      # closes however Zen ends, including a crash, which makes it the one stop signal. the helper
+      # exits with inotifywait, and the reader keeps out of stdout, so Zen sees EOF and can restart it.
+      # fd 3 is taken: Subprocess watches it for process exit.
       paletteWatch = pkgs.writeShellApplication {
         name = "zen-palette-watch";
         runtimeInputs = with pkgs; [ inotify-tools ];
         text = ''
+          exec 4<&0
           inotifywait --monitor --event close_write --event moved_to \
-            --include '/palette\.css$' "$1" &
+            --event move_self --event delete_self \
+            --include '/(palette\.css)?$' "$1" 4<&- &
           watcher=$!
-          read -r _ || true
-          kill "$watcher"
+          {
+            read -r _ <&4 || true
+            kill "$watcher"
+          } >/dev/null 2>&1 &
+          reader=$!
+          wait "$watcher" || true
+          kill "$reader" 2>/dev/null || true
         '';
       };
       autoconfig = pkgs.replaceVars ./config/autoconfig.js {
