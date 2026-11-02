@@ -5,6 +5,7 @@
 {
   den.aspects.feltfomo = {
     includes = with den.aspects; [
+      (den.batteries.user-avatar ./_avatars/feltfomo.jpg)
       (den.batteries.user-shell "fish")
       den.batteries.primary-user
       den.batteries.define-user

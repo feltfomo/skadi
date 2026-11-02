@@ -17,7 +17,6 @@
             "cpu"
             "tray"
             "volume"
-            "wallpaper"
             "notifications"
             "control-center"
           ];
@@ -27,7 +26,6 @@
           radius = 0;
           start = [
             "workspaces"
-            "media"
             "widget"
           ];
         };
@@ -68,7 +66,6 @@
       desktop_widgets = {
         schema_version = 2;
         widget_order = [
-          "desktop-widget-0000000000000001"
           "desktop-widget-0000000000000005"
           "desktop-widget-0000000000000006"
         ];
@@ -78,22 +75,6 @@
           visible = true;
         };
         widget = {
-          desktop-widget-0000000000000001 = {
-            box_height = 176.0;
-            box_width = 384.0;
-            cx = 256.0;
-            cy = 856.0;
-            output = "DP-2";
-            placement_height = 1440.0;
-            placement_width = 2560.0;
-            rotation = 0.0;
-            type = "media_player";
-            settings = {
-              bands = 32;
-              layout = "horizontal";
-              show_when_idle = true;
-            };
-          };
           desktop-widget-0000000000000005 = {
             box_height = 448.0;
             box_width = 640.0;
@@ -123,7 +104,7 @@
       dock = {
         background_opacity = 0.6;
         border_width = 1.0;
-        enabled = false;
+        enabled = true;
         launcher_position = "start";
         margin_edge = 10;
         pinned = [
@@ -132,7 +113,14 @@
           "equibop"
           "zen-twilight"
         ];
+        reserve_space = false;
         show_dots = true;
+        smart_auto_hide = true;
+      };
+    };
+    "location.toml" = {
+      location = {
+        auto_locate = true;
       };
     };
     "lockscreen_widgets.toml" = {
@@ -205,6 +193,7 @@
         };
         "noctalia/mpvpaper" = {
           auto_pause = "off";
+          picker_placement = "floating";
           video_directory = "/home/feltfomo/Wallpapers/Videos";
         };
       };
@@ -212,7 +201,7 @@
     "shell.toml" = {
       shell = {
         app_icon_color = "secondary";
-        avatar_path = "/home/feltfomo/main_pfp.jpeg";
+        avatar_path = "/home/feltfomo/${import ../../../users/avatar/_destination.nix}";
         clipboard_history_max_entries = 100.0;
         font_family = "Maple Mono NF";
         launch_apps_as_systemd_services = true;
@@ -293,17 +282,6 @@
       };
       desktop_widgets = {
         widget = {
-          desktop-widget-0000000000000001 = {
-            box_height = 192.0;
-            box_width = 512.0;
-            cx = 2240.0;
-            cy = 1136.0;
-            settings = {
-              background_opacity = 0.65;
-              background_padding = 20;
-              background_radius = 0;
-            };
-          };
           desktop-widget-0000000000000005 = {
             settings = {
               background_opacity = 0.65;
@@ -313,7 +291,7 @@
           };
           desktop-widget-0000000000000006 = {
             box_width = 512.0;
-            cx = 2240.0;
+            cx = 2256.0;
             type = "audio_visualizer";
             settings = {
               background_opacity = 0.65;
