@@ -112,6 +112,32 @@ in
             exec ${pkgs.systemd}/bin/systemd-cat --identifier=noctalia ${python}/bin/python ${./session.py} ${noctalia}/bin/noctalia ${baselines} "$@"
           '';
         };
+        # the plugin stops a player with SIGTERM, which a paused mpvpaper can hang on, and the old
+        # video keeps running under the new one. so each start clears older players on its output.
+        mpvpaper = pkgs.symlinkJoin {
+          name = "mpvpaper";
+          paths = [
+            (pkgs.writeShellApplication {
+              name = "mpvpaper";
+              text = ''
+                if (($# >= 2)); then
+                  output=''${*: -2:1}
+                  while read -r pid; do
+                    mapfile -d "" -t args <"/proc/$pid/cmdline" || continue
+                    ((''${#args[@]} >= 2)) || continue
+                    [[ ''${args[0]##*/} == mpvpaper ]] || continue
+                    other=''${args[-2]}
+                    if [[ $output == "*" || $other == "*" || $other == "$output" ]]; then
+                      kill -KILL "$pid" 2>/dev/null || true
+                    fi
+                  done < <(${pkgs.procps}/bin/pgrep -f '(^|/)mpvpaper ' || true)
+                fi
+                exec ${pkgs.mpvpaper}/bin/mpvpaper "$@"
+              '';
+            })
+            pkgs.mpvpaper
+          ];
+        };
       in
       {
         home.packages = with pkgs; [

@@ -204,6 +204,7 @@
           panel_position = "center";
         };
         "noctalia/mpvpaper" = {
+          auto_pause = "off";
           video_directory = "/home/feltfomo/Wallpapers/Videos";
         };
       };
