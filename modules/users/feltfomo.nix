@@ -45,17 +45,14 @@
       theming
       wooting
       junban
-      arx
       devenv
       fuzzel
       heroic
-      linear
       python
       tablet
       thunar
       brave
       codex
-      helix
       herdr
       kitty
       lunar
@@ -66,6 +63,7 @@
       niri
       nvim
       dms
+      arx
       obs
       osu
       vlc
