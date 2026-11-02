@@ -23,7 +23,7 @@
   inputs = {
     arx = {
       inputs.nixpkgs.follows = "nixpkgs";
-      url = "git+ssh://git@github.com/feltfomo/arx";
+      url = "git+ssh://git@github.com/feltfomo/arx?ref=effort/client&rev=2af4a0391756f0d4d1ecc6fe5ceb4d842edf1a1c";
     };
     caelestia = {
       inputs = {
