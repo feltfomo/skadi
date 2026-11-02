@@ -1,8 +1,8 @@
 {
   pyprland = {
     plugins = [
-      "scratchpads"
       "fetch_client_menu"
+      "scratchpads"
     ];
   };
   fetch_client_menu = {

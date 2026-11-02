@@ -35,12 +35,12 @@
           atk
         ];
         jdks = [
-          jdk8
+          graalvmPackages.graalvm-ce
+          graalvm-oracle-21
           jdk21
           jdk17
           jdk25
-          graalvm-oracle-21
-          graalvmPackages.graalvm-ce
+          jdk8
         ];
       };
   };

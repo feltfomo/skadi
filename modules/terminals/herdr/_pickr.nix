@@ -48,9 +48,9 @@ stdenvNoCC.mkDerivation {
     makeWrapper ${lua}/bin/lua "$out/bin/herdr-pickr-lua" \
       --prefix PATH : ${
         lib.makeBinPath [
-          fzf
           coreutils
           herdr
+          fzf
         ]
       }
     substituteInPlace "$out/herdr-plugin.toml" \

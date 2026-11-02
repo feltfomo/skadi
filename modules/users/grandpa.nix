@@ -4,9 +4,9 @@
     # omit primary-user to keep this account out of wheel and networkmanager.
     includes = [
       den.batteries.define-user
+      den.aspects.obsidian
       den.aspects.ghostty
       den.aspects.chrome
-      den.aspects.obsidian
     ];
 
     nixos =
@@ -76,10 +76,10 @@
         ];
       in
       {
-        home.packages = [
-          pkgs.zed-editor
-          pkgs.papirus-icon-theme
-          pkgs.win10-cursors
+        home.packages = with pkgs; [
+          papirus-icon-theme
+          win10-cursors
+          zed-editor
         ];
         home.file.".icons/Win10OS".source = "${pkgs.win10-cursors}/share/icons/Win10OS";
 

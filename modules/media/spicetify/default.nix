@@ -36,13 +36,13 @@
         };
         colorScheme = "dark";
         enabledExtensions = with spicePkgs.extensions; [
-          shuffle
-          fullAppDisplay
-          beautifulLyrics
-          adblockify
-          hidePodcasts
           simpleBeautifulLyrics
+          beautifulLyrics
+          fullAppDisplay
+          hidePodcasts
           spicyLyrics
+          adblockify
+          shuffle
         ];
       };
     };
