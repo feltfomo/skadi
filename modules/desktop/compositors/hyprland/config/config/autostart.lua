@@ -6,8 +6,8 @@ hl.on("hyprland.start", function()
 		"wl-paste --type image --watch cliphist store",
 		"wl-paste --type text --watch cliphist store",
 		"systemctl --user restart audio-opacity",
+		"systemctl --user restart pinax",
 		"noctalia-session hyprland",
-		"pinax",
 		"pypr",
 	}
 
