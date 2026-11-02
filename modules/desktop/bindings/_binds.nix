@@ -107,7 +107,12 @@ keys.define {
         mango.exec = "noctalia msg panel-toggle launcher";
       }
     ))
-    (keys.bind "SUPER + c" (actions.exec "noctalia msg panel-toggle clipboard"))
+    (keys.bind "SUPER + c" (
+      keys.native {
+        hyprland.exec = "pinax toggle clipboard";
+        mango.exec = "noctalia msg panel-toggle clipboard";
+      }
+    ))
     (keys.bind "ALT + Tab" (actions.exec "noctalia msg window-switcher"))
 
     # screenshot sutff

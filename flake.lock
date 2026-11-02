@@ -1609,11 +1609,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793537202,
-        "narHash": "sha256-YkDHnxsxkghLlcygbIWuHz1GgBkdeG72PB6PClcn2WY=",
+        "lastModified": 1793582310,
+        "narHash": "sha256-F9GbBI28gxEcCYHjq/CfqTrmbN+2UmVz+ym3F+Snkvo=",
         "ref": "refs/heads/main",
-        "rev": "b977d4e56061ffa22719e85ea6bdc33f569fb5d3",
-        "revCount": 3,
+        "rev": "d4861a87c7741e04f8c92171825cd3f2c2cc6dd8",
+        "revCount": 4,
         "type": "git",
         "url": "ssh://git@github.com/feltfomo/pinax"
       },
