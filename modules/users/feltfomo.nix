@@ -109,6 +109,13 @@
         # github's key can't wait for a first interactive connection.
         programs.ssh.knownHosts."github.com".publicKey =
           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+
+        # sudo nixos-rebuild evaluates as root, which fetches private inputs the store doesn't have yet.
+        programs.ssh.extraConfig = ''
+          Match host github.com localuser root
+            IdentityFile /home/feltfomo/.ssh/id_ed25519
+            IdentitiesOnly yes
+        '';
       };
 
     homeManager = {
