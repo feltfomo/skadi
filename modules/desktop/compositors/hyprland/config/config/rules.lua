@@ -51,7 +51,6 @@ hl.layer_rule({
 -- persistent class rules survive steam's transient bootstrap windows
 if G.hostname == "khion" then
 	local startup_rules = {
-		{ name = "startup-zen", class = "^zen-twilight$", workspace = 1 },
 		{ name = "startup-equibop", class = "^equibop$", workspace = 2 },
 		{ name = "startup-steam", class = "^steam$", workspace = 3 },
 	}

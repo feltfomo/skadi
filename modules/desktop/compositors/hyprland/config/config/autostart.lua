@@ -15,10 +15,13 @@ hl.on("hyprland.start", function()
 		hl.exec_cmd(command)
 	end
 
-	-- persistent rules place these apps without one-shot launch properties
 	-- spotify is launched lazily by its scratchpad instead
 	if G.hostname == "khion" then
-		for _, command in ipairs({ "zen-twilight", "equibop", "steam" }) do
+		-- a launch rule is spent on the first window, so later zen windows open where they're asked for
+		hl.exec_cmd("zen-twilight", { workspace = "1 silent" })
+
+		-- persistent rules in rules.lua place these
+		for _, command in ipairs({ "equibop", "steam" }) do
 			hl.exec_cmd(command)
 		end
 	end
