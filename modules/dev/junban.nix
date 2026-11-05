@@ -37,6 +37,20 @@
           ];
         };
       };
+      # the rust daemon beside go's. its queue.source stays go, so it takes no gate until cutover
+      next = {
+        enable = true;
+        settings.machines = [
+          {
+            name = "khion";
+            ssh = "khion";
+          }
+          {
+            name = "lumi";
+            ssh = "lumi";
+          }
+        ];
+      };
     };
   };
 }
