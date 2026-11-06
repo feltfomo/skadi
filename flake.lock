@@ -1012,11 +1012,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793949732,
-        "narHash": "sha256-oNioy1KNUwNyf4YgMmuYsw30x5WIT7MbVcd/YigXNp4=",
+        "lastModified": 1793959253,
+        "narHash": "sha256-cN+3qGFOrcFqh8qPUMaVse0S3Ujt7iDuF/WQoQA+QWg=",
         "ref": "refs/heads/main",
-        "rev": "79f3fad526bc58665f711aa6e19a1f92208d8045",
-        "revCount": 77,
+        "rev": "748f35821dcd8703c1800b62ab467ddff03bfa08",
+        "revCount": 85,
         "type": "git",
         "url": "ssh://git@github.com/feltfomo/enishi"
       },
