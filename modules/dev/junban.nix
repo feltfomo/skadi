@@ -9,10 +9,10 @@
   den.aspects.junban.nixos = {
     imports = [ inputs.junban.nixosModules.default ];
 
-    services.junban = {
+    services.enishi = {
       enable = true;
       settings = {
-        primary = "khion";
+        # the coordinator order: the first machine leads, as go's primary did
         machines = [
           {
             name = "khion";
@@ -23,9 +23,11 @@
             ssh = "lumi";
           }
         ];
-        light_capacity = 2;
-        aging_limit = "30m";
-        default_estimate = "10m";
+        queue = {
+          light_capacity = 2;
+          aging_limit_ms = 1800000;
+          default_estimate_ms = 600000;
+        };
         projects.odyssey = {
           priority = 100;
           heavy = [ "^devenv test" ];
@@ -36,20 +38,6 @@
             }
           ];
         };
-      };
-      # the rust daemon beside go's. its queue.source stays go, so it takes no gate until cutover
-      next = {
-        enable = true;
-        settings.machines = [
-          {
-            name = "khion";
-            ssh = "khion";
-          }
-          {
-            name = "lumi";
-            ssh = "lumi";
-          }
-        ];
       };
     };
   };
