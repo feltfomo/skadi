@@ -62,7 +62,7 @@
     import-tree.url = "github:vic/import-tree";
     junban = {
       inputs.nixpkgs.follows = "nixpkgs";
-      url = "git+ssh://git@github.com/feltfomo/Junban";
+      url = "git+ssh://git@github.com/feltfomo/enishi";
     };
     lexicon = {
       inputs.nixpkgs.follows = "nixpkgs";

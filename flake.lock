@@ -1018,11 +1018,11 @@
         "rev": "79f3fad526bc58665f711aa6e19a1f92208d8045",
         "revCount": 77,
         "type": "git",
-        "url": "ssh://git@github.com/feltfomo/Junban"
+        "url": "ssh://git@github.com/feltfomo/enishi"
       },
       "original": {
         "type": "git",
-        "url": "ssh://git@github.com/feltfomo/Junban"
+        "url": "ssh://git@github.com/feltfomo/enishi"
       }
     },
     "krisis": {

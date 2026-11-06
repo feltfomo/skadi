@@ -2,7 +2,7 @@
 {
   # the repository is private, so nix fetches it over ssh
   flake-file.inputs.junban = {
-    url = "git+ssh://git@github.com/feltfomo/Junban";
+    url = "git+ssh://git@github.com/feltfomo/enishi";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
