@@ -38,6 +38,10 @@
             }
           ];
         };
+        # this repository's gates recorded `junban` before its folder was renamed
+        projects.enishi = {
+          formerly = [ "junban" ];
+        };
       };
     };
   };
