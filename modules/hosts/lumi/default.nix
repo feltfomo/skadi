@@ -17,6 +17,12 @@
       base
     ];
 
+    # fill the N95's 4 cores with two builds at once, matching khion's two-job split.
+    nixos.nix.settings = {
+      max-jobs = 2;
+      cores = 2;
+    };
+
     nixos.skadi.silent-sddm.preferredSessions = {
       feltfomo = "Hyprland";
       grandpa = "Plasma (Wayland)";
