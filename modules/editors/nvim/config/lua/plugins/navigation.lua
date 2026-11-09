@@ -34,6 +34,8 @@ return {
 			filesystem = {
 				bind_to_cwd = false,
 				group_empty_dirs = true,
+				-- agents edit files outside nvim, and without a watcher the tree only rescans on nvim's own writes
+				use_libuv_file_watcher = true,
 				follow_current_file = { enabled = true, leave_dirs_open = true },
 				filtered_items = {
 					hide_dotfiles = false,
