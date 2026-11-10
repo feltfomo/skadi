@@ -1,13 +1,13 @@
 { inputs, ... }:
 {
   # the repository is private, so nix fetches it over ssh
-  flake-file.inputs.junban = {
+  flake-file.inputs.enishi = {
     url = "git+ssh://git@github.com/feltfomo/enishi";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  den.aspects.junban.nixos = {
-    imports = [ inputs.junban.nixosModules.default ];
+  den.aspects.enishi.nixos = {
+    imports = [ inputs.enishi.nixosModules.default ];
 
     services.enishi = {
       enable = true;

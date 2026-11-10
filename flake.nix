@@ -46,6 +46,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:abenz1267/elephant";
     };
+    enishi = {
+      inputs.nixpkgs.follows = "nixpkgs";
+      url = "git+ssh://git@github.com/feltfomo/enishi";
+    };
     flake-file.url = "github:denful/flake-file/v0.3.0";
     flake-parts.url = "github:hercules-ci/flake-parts";
     herdr-source = {
@@ -60,10 +64,6 @@
     illogical-impulse.url = "github:feltfomo/illogical-impulse-shell-nix";
     impermanence.url = "github:nix-community/impermanence";
     import-tree.url = "github:vic/import-tree";
-    junban = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "git+ssh://git@github.com/feltfomo/enishi";
-    };
     lexicon = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:feltfomo/lexicon";

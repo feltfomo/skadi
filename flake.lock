@@ -309,6 +309,26 @@
         "type": "github"
       }
     },
+    "enishi": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1794311853,
+        "narHash": "sha256-O2G2UQNq9SgW3zV3MC4clnS16PkeX8aTQF+KvyPKB7U=",
+        "ref": "refs/heads/main",
+        "rev": "ca59522dd8a45db73a7745b2c65a60e5c52f2cd6",
+        "revCount": 96,
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/enishi"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/feltfomo/enishi"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -1005,26 +1025,6 @@
         "type": "github"
       }
     },
-    "junban": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1794047440,
-        "narHash": "sha256-Ve9fnaVwebj8UIuVODUiU45R5jrZYmw8DnLQd4KXzow=",
-        "ref": "refs/heads/main",
-        "rev": "38e03e41931f3e202aae3a41df03dcfadb47c2a0",
-        "revCount": 95,
-        "type": "git",
-        "url": "ssh://git@github.com/feltfomo/enishi"
-      },
-      "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/feltfomo/enishi"
-      }
-    },
     "krisis": {
       "inputs": {
         "flake-parts": "flake-parts_4",
@@ -1697,6 +1697,7 @@
         "disko": "disko",
         "dms": "dms",
         "elephant": "elephant",
+        "enishi": "enishi",
         "flake-file": "flake-file",
         "flake-parts": "flake-parts",
         "herdr-source": "herdr-source",
@@ -1705,7 +1706,6 @@
         "illogical-impulse": "illogical-impulse",
         "impermanence": "impermanence",
         "import-tree": "import-tree",
-        "junban": "junban",
         "lexicon": "lexicon",
         "llm-agents": "llm-agents",
         "mango": "mango",
