@@ -21,6 +21,7 @@
       audio
       btrfs
       sops
+      zram
     ];
 
     nixos = { pkgs, lib, ... }: {
