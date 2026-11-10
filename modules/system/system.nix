@@ -24,6 +24,11 @@
       };
       # hardlink dedup on a schedule; auto-optimise-store would slow every build
       nix.optimise.automatic = true;
+      # builds and VM tests get the CPU and the disk only in the moments no normal process is waiting
+      # for them, so a gate never stalls typing, audio or video. an open program that's only waiting
+      # for input uses neither, so builds still get nearly the whole machine.
+      nix.daemonCPUSchedPolicy = "idle";
+      nix.daemonIOSchedClass = "idle";
 
       nixpkgs.config.allowUnfree = true;
 
