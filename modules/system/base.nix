@@ -19,6 +19,7 @@
       thunar
       system
       audio
+      btrfs
       sops
     ];
 
