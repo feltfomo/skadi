@@ -29,6 +29,23 @@
       # for input uses neither, so builds still get nearly the whole machine.
       nix.daemonCPUSchedPolicy = "idle";
       nix.daemonIOSchedClass = "idle";
+      # a build's scratch tree lives in RAM, so a check that writes millions of small files never
+      # puts them on the disk, and only what a build keeps reaches the store. zram backs overflow.
+      fileSystems."/nix/var/nix/b" = {
+        device = "tmpfs";
+        fsType = "tmpfs";
+        options = [
+          "size=16G"
+          "mode=0755"
+        ];
+      };
+      # btrfs commits every dirty page in one transaction, and a program's fsync waits for all of
+      # it. capping dirty data keeps each commit small, so a save never waits behind gigabytes of
+      # someone else's writes; the default of a fifth of RAM let a gate queue several.
+      boot.kernel.sysctl = {
+        "vm.dirty_bytes" = 256 * 1024 * 1024;
+        "vm.dirty_background_bytes" = 64 * 1024 * 1024;
+      };
 
       nixpkgs.config.allowUnfree = true;
 
