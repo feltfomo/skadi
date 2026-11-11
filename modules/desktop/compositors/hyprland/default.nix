@@ -14,18 +14,8 @@ let
     '') (builtins.filter (lib.hasSuffix ".lua") (builtins.attrNames (builtins.readDir ./config/config)))
   );
 
-  # the tagged source requests glaze 7 while its pinned nixpkgs provides glaze 8
-  # relaxing the cmake constraint keeps the build offline and matches nixpkgs' fix
-  hyprlandPackage =
-    pkgs:
-    (inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland.override {
-      makeWrapper = pkgs.makeBinaryWrapper;
-    }).overrideAttrs
-      (old: {
-        postPatch = (old.postPatch or "") + ''
-          substituteInPlace CMakeLists.txt --replace-fail "glaze 7...<8" "glaze"
-        '';
-      });
+  # left unmodified so the store path matches the one hyprland.cachix serves
+  hyprlandPackage = pkgs: inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.hyprland;
 
   # keep audio-playing windows opaque while inactive.
   audioOpacityService =
@@ -64,7 +54,7 @@ in
 {
   flake-file = {
     inputs = {
-      hyprland.url = "github:hyprwm/Hyprland?ref=v0.56.2";
+      hyprland.url = "github:hyprwm/Hyprland?ref=v0.57.2";
     };
     nixConfig = {
       extra-substituters = [ "https://hyprland.cachix.org" ];
