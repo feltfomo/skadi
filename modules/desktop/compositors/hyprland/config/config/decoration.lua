@@ -28,12 +28,12 @@ hl.config({
 	},
 	decoration = {
 		rounding = 0,
-		active_opacity = 0.85,
-		inactive_opacity = 0.85,
+		active_opacity = 0.70,
+		inactive_opacity = 0.70,
 		blur = {
 			enabled = true,
 			size = 15,
-			passes = 2,
+			passes = 3,
 			new_optimizations = true,
 		},
 		shadow = {

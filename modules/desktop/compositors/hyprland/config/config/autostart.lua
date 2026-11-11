@@ -21,7 +21,7 @@ hl.on("hyprland.start", function()
 		hl.exec_cmd("zen-twilight", { workspace = "1 silent" })
 
 		-- persistent rules in rules.lua place these
-		for _, command in ipairs({ "equibop", "steam" }) do
+		for _, command in ipairs({ "ckb-next --background", "equibop", "steam" }) do
 			hl.exec_cmd(command)
 		end
 	end
