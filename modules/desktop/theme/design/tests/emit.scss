@@ -1,0 +1,30 @@
+// the web renderer must produce exactly these expressions, and every shared material must render
+// when its palette defines every role.
+@use "skadi/css";
+@use "skadi/recipes";
+
+@function expect($actual, $expected) {
+  @if "#{$actual}" != $expected {
+    @error "expected `#{$expected}`, got `#{$actual}`";
+  }
+  @return true;
+}
+
+$_: expect(css.color(on_primary), "var(--skadi-on-primary)");
+$_: expect(
+  css.color(shell),
+  "color-mix(in srgb, var(--skadi-primary) 8%, var(--skadi-surface-container-low))"
+);
+$_: expect(
+  css.color(hover),
+  "color-mix(in srgb, var(--skadi-primary) 12%, color-mix(in srgb, var(--skadi-primary) 6%, var(--skadi-surface-container)))"
+);
+$_: expect(
+  css.color(shadow),
+  "color-mix(in srgb, hsl(from var(--skadi-surface) h calc(s * 0.2) calc(l * 0.2)) 28%, transparent)"
+);
+$_: expect(css.alpha(primary, 0.35), "color-mix(in srgb, var(--skadi-primary) 35%, transparent)");
+
+@each $name in recipes.$names {
+  $_: css.color($name);
+}

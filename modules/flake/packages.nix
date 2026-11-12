@@ -21,10 +21,14 @@ in
     den.aspects.skadi-packages.nixos.nixpkgs.overlays = [ overlay ];
     den.schema.host.includes = [ den.aspects.skadi-packages ];
 
+    # recipes may take each other as arguments, so they resolve through the same overlay hosts use.
     perSystem =
       { pkgs, ... }:
+      let
+        withSkadi = pkgs.extend overlay;
+      in
       {
-        packages = lib.mapAttrs (_: recipe: pkgs.callPackage recipe { }) recipes;
+        packages = lib.mapAttrs (name: _: withSkadi.${name}) recipes;
       };
   };
 }

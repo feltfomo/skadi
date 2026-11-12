@@ -1,7 +1,7 @@
 // compact scale around the 13px chrome size. headings get weight before size
 // so dense panels stay dense.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 
 .large-title {

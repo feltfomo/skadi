@@ -1,0 +1,7 @@
+// menu items have no selected state, so asking for one must not render.
+@use "skadi/css";
+@use "skadi/states";
+
+.item {
+  @include css.state(states.$menuitem, on);
+}

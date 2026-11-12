@@ -1,0 +1,4 @@
+// shell needs surface_container_low, which this palette doesn't define.
+@use "skadi/css" with ($available: (primary, on_primary));
+
+$_: css.color(shell);

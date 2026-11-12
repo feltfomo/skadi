@@ -4,7 +4,7 @@
 @use "sass:map";
 @use "../gtk";
 @use "../materials" as mat;
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 
 $_bound: (
   accent-color: accent_color,

@@ -1,6 +1,6 @@
 // boxed lists, preference rows and cards: the Noctalia settings look, cards on
 // the frame with hairline separators and restrained selection.
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

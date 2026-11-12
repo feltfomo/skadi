@@ -1,7 +1,7 @@
 // scales, progress bars and level bars. troughs are the deepest well so the
 // filled part reads as content, not chrome.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

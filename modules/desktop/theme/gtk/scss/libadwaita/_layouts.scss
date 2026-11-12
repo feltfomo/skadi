@@ -1,7 +1,7 @@
 // split views, navigation views and AdwSidebar. one continuous shell material
 // across sidebar and bars; the content pane is the same frame, divided by a
 // hairline rather than a second tint.
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

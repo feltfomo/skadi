@@ -3,7 +3,7 @@
 // 12%/22% tint of that color on hover/press composited over the fill. this is
 // the fix for the "dark square in a pale selected tab" defect in the brief.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 

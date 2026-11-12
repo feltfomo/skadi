@@ -1,0 +1,108 @@
+// material recipes as data; each toolkit renders them in its own color syntax.
+// shade() matches GTK's: it scales lightness and saturation.
+@use "sass:list";
+@use "sass:map";
+@use "sass:math";
+@use "sass:meta";
+@use "roles";
+
+@function _unitless($value) {
+  @if meta.type-of($value) != "number" or not math.is-unitless($value) {
+    @error "recipe factors are unitless numbers, got #{$value}";
+  }
+  @return $value;
+}
+
+@function mix($base, $tint, $amount) {
+  @return (op: mix, base: $base, tint: $tint, amount: _unitless($amount));
+}
+
+@function alpha($color, $amount) {
+  @return (op: alpha, color: $color, amount: _unitless($amount));
+}
+
+@function shade($color, $factor) {
+  @return (op: shade, color: $color, factor: _unitless($factor));
+}
+
+@function operands($op) {
+  @if map.get($op, op) == mix {
+    @return (map.get($op, base), map.get($op, tint));
+  }
+  @return (map.get($op, color),);
+}
+
+@function _check-operand($value, $defined) {
+  @if meta.type-of($value) == "map" {
+    @each $operand in operands($value) {
+      $_: _check-operand($operand, $defined);
+    }
+    @return true;
+  }
+  @if not roles.is-role($value) and not list.index($defined, $value) {
+    @error "recipe operand `#{$value}` is neither a palette role nor a material defined above it";
+  }
+  @return true;
+}
+
+// a material may only use materials above it, which rules out cycles.
+@function check($recipes) {
+  $defined: ();
+  @each $name, $op in $recipes {
+    @if roles.is-role($name) {
+      @error "material `#{$name}` shadows a palette role";
+    }
+    $_: _check-operand($op, $defined);
+    $defined: list.append($defined, $name);
+  }
+  @return $recipes;
+}
+
+$recipes: check((
+  shell: mix(surface_container_low, primary, 0.08),
+  panel: mix(surface_container, primary, 0.06),
+  field: mix(surface_container_high, primary, 0.04),
+  well: mix(surface, primary, 0.04),
+  raised: mix(surface_container_high, primary, 0.06),
+  hover: mix(panel, primary, 0.12),
+  pressed: mix(panel, primary, 0.22),
+  border: mix(outline_variant, primary, 0.35),
+  border_strong: mix(outline_variant, primary, 0.65),
+  disabled: mix(panel, on_surface_variant, 0.55),
+  border_faint: alpha(border, 0.5),
+  accent_hover: mix(primary, on_primary, 0.12),
+  accent_pressed: mix(primary, on_primary, 0.22),
+  accent_disabled: mix(panel, primary, 0.45),
+  // controls inside a selection tint with its text color, not the frame's.
+  on_accent_hover: alpha(on_primary, 0.12),
+  on_accent_pressed: alpha(on_primary, 0.22),
+  on_accent_border: alpha(on_primary, 0.35),
+  on_accent_dim: mix(on_primary, primary, 0.3),
+  error_hover: mix(error, on_error, 0.12),
+  error_pressed: mix(error, on_error, 0.22),
+  error_disabled: mix(panel, error, 0.45),
+  secondary_hover: mix(secondary_container, on_secondary_container, 0.12),
+  rubberband: alpha(primary, 0.18),
+  drop: alpha(tertiary_container, 0.45),
+  warning_container: mix(surface_container_high, warning, 0.28),
+  on_warning_container: mix(on_surface, warning, 0.2),
+  success_container: mix(surface_container_high, success, 0.28),
+  on_success_container: mix(on_surface, success, 0.2),
+  // a palette-tinted shadow in both modes, without black.
+  shadow: alpha(shade(surface, 0.2), 0.28),
+  shade: alpha(shade(surface, 0.2), 0.12),
+  osd: alpha(mix(surface, primary, 0.06), 0.9),
+));
+
+$names: map.keys($recipes);
+
+@function is-material($name) {
+  @return map.has-key($recipes, $name);
+}
+
+@function get($name) {
+  @if not is-material($name) {
+    @error "unknown material `#{$name}`";
+  }
+  @return map.get($recipes, $name);
+}

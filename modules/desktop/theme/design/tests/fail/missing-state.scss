@@ -1,0 +1,15 @@
+// a recipe without a disabled look must not render.
+@use "skadi/css";
+
+.button {
+  @include css.states(
+    (
+      idle: (bg: panel),
+      hover: (),
+      active: (),
+      backdrop: (),
+      focus: (),
+      drop: (),
+    )
+  );
+}

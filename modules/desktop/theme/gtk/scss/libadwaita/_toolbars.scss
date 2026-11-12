@@ -1,6 +1,6 @@
 // AdwToolbarView and AdwHeaderBar: top and bottom bars share the shell
 // material with the content's sidebar, separated by hairlines.
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

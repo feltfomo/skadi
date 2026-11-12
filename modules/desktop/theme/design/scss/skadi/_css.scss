@@ -1,0 +1,172 @@
+// renders roles and materials as color-mix() over `--skadi-<role>` properties.
+// `$available` lists the roles the palette file defines; using any other fails the build.
+@use "sass:list";
+@use "sass:map";
+@use "sass:math";
+@use "sass:meta";
+@use "sass:string";
+@use "roles";
+@use "recipes";
+@use "metrics" as m;
+@use "states" as recipe-states;
+
+$available: roles.$roles !default;
+
+@each $role in $available {
+  $_: roles.check($role);
+}
+
+@function _kebab($name) {
+  $text: "#{$name}";
+  $out: "";
+  @for $i from 1 through string.length($text) {
+    $char: string.slice($text, $i, $i);
+    @if $char == "_" {
+      $char: "-";
+    }
+    $out: $out + $char;
+  }
+  @return $out;
+}
+
+@function _role($name) {
+  $_: roles.check($name);
+  @if not list.index($available, $name) {
+    @error "palette role `#{$name}` isn't defined by this palette";
+  }
+  @return string.unquote("var(--skadi-#{_kebab($name)})");
+}
+
+@function _percent($amount) {
+  @return math.percentage($amount);
+}
+
+@function _render($value) {
+  @if meta.type-of($value) != "map" {
+    @return color($value);
+  }
+  $op: map.get($value, op);
+  @if $op == mix {
+    $tint: _render(map.get($value, tint));
+    $base: _render(map.get($value, base));
+    @return string.unquote("color-mix(in srgb, #{$tint} #{_percent(map.get($value, amount))}, #{$base})");
+  }
+  @if $op == alpha {
+    $color: _render(map.get($value, color));
+    @return string.unquote("color-mix(in srgb, #{$color} #{_percent(map.get($value, amount))}, transparent)");
+  }
+  @if $op == shade {
+    $color: _render(map.get($value, color));
+    $factor: map.get($value, factor);
+    @return string.unquote("hsl(from #{$color} h calc(s * #{$factor}) calc(l * #{$factor}))");
+  }
+  @error "unknown recipe operation `#{$op}`";
+}
+
+// the custom property a role or material is published under.
+@function property($name) {
+  @if not roles.is-role($name) and not recipes.is-material($name) {
+    @error "unknown color `#{$name}`; use a palette role or a material";
+  }
+  @return "--skadi-#{_kebab($name)}";
+}
+
+// a palette role or a material, by name.
+@function color($name) {
+  @if roles.is-role($name) {
+    @return _role($name);
+  }
+  @if not recipes.is-material($name) {
+    @error "unknown color `#{$name}`; use a palette role or a material";
+  }
+  @return _render(recipes.get($name));
+}
+
+// sheet-specific blends of named colors, checked like the shared recipes.
+@function mix($base, $tint, $amount) {
+  @return _render(recipes.mix($base, $tint, $amount));
+}
+
+@function alpha($color, $amount) {
+  @return _render(recipes.alpha($color, $amount));
+}
+
+@function _value($value) {
+  @if $value == transparent or $value == none {
+    @return $value;
+  }
+  @return color($value);
+}
+
+@mixin _apply($map, $important) {
+  @each $key, $value in $map {
+    @if not map.has-key(recipe-states.$properties, $key) {
+      @error "unknown state key `#{$key}`";
+    }
+    $property: map.get(recipe-states.$properties, $key);
+    @if $important {
+      #{$property}: _value($value) !important;
+    } @else {
+      #{$property}: _value($value);
+    }
+  }
+}
+
+@mixin _ring($important) {
+  @if $important {
+    outline: m.$focus-width solid !important;
+    outline-offset: m.$focus-offset !important;
+  } @else {
+    outline: m.$focus-width solid;
+    outline-offset: m.$focus-offset;
+  }
+}
+
+@mixin _block($selector, $map, $important) {
+  @if list.length($map) > 0 {
+    &#{$selector} {
+      @include _apply($map, $important);
+    }
+  }
+}
+
+// renders a shared state recipe as web CSS. $on is the selector suffix that marks the selected
+// one (an attribute or class), or null for components without one. backdrop and drop are GTK
+// states with no web equivalent. $important lets a sheet win over an app's own rules.
+@mixin states($recipe, $on: null, $important: false) {
+  $recipe: recipe-states.check($recipe, $on != null);
+  @include _apply(map.get($recipe, idle), $important);
+  transition: m.$transition;
+  @include _block(":hover", map.get($recipe, hover), $important);
+  @include _block(":active", map.get($recipe, active), $important);
+  @if $on {
+    @include _block($on, map.get($recipe, on), $important);
+    @include _block("#{$on}:hover", map.get($recipe, on-hover), $important);
+    @include _block("#{$on}:active", map.get($recipe, on-active), $important);
+  }
+  @include _block(":disabled", map.get($recipe, disabled), $important);
+  @if $on {
+    @include _block("#{$on}:disabled", map.get($recipe, on-disabled), $important);
+  }
+  &:focus-visible {
+    @include _ring($important);
+    @include _apply(map.get($recipe, focus), $important);
+  }
+  @if $on and list.length(map.get($recipe, on-focus)) > 0 {
+    &#{$on}:focus-visible {
+      @include _apply(map.get($recipe, on-focus), $important);
+    }
+  }
+}
+
+// one state of a shared recipe, for an app that marks the state with its own class or on a parent
+// (a script-driven keyboard cursor, a selected wrapper), where states() can't reach it.
+@mixin state($recipe, $state, $important: false) {
+  @if not map.has-key($recipe, $state) {
+    @error "recipe has no state `#{$state}`";
+  }
+  @if $state == focus or $state == on-focus {
+    @include _ring($important);
+  }
+  @include _apply(map.get($recipe, $state), $important);
+}

@@ -1,0 +1,9 @@
+// hover builds on panel, which is only defined after it.
+@use "skadi/recipes";
+
+$_: recipes.check(
+  (
+    hover: recipes.mix(panel, primary, 0.12),
+    panel: recipes.mix(surface_container, primary, 0.06),
+  )
+);

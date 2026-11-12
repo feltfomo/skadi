@@ -1,7 +1,7 @@
 // sidebars sit on the same shell material as the header bar so a sidebar and
 // toolbar read as one continuous frame.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

@@ -1,7 +1,7 @@
 // content views: lists, grids, tree views, icon views and column views. they
 // share the row recipe, so hover, selection and selected-hover always match.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

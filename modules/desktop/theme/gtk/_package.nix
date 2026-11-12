@@ -1,24 +1,19 @@
 {
   lib,
   stdenvNoCC,
-  dart-sass,
   python3,
+  skadi-theme-design,
 }:
 stdenvNoCC.mkDerivation {
   pname = "skadi-gtk-theme";
   version = "2.0.0";
   src = ./scss;
-  nativeBuildInputs = [ dart-sass ];
+  nativeBuildInputs = [ skadi-theme-design ];
 
   buildPhase = ''
     runHook preBuild
     for version in 3 4; do
-      # deprecated sass syntax fails the build instead of breaking silently on a sass upgrade
-      sass --no-source-map --style=expanded --no-charset \
-        --fatal-deprecation=import \
-        --fatal-deprecation=global-builtin \
-        --fatal-deprecation=if-function \
-        "gtk$version.scss" "gtk$version.css"
+      skadi-sass "gtk$version.scss" "gtk$version.css"
     done
     runHook postBuild
   '';

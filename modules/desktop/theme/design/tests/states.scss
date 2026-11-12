@@ -1,0 +1,39 @@
+// every shared state recipe renders as web CSS with every role defined.
+@use "skadi/css";
+@use "skadi/states";
+
+$_recipes: (
+  states.$button,
+  states.$flat,
+  states.$stepper,
+  states.$suggested,
+  states.$destructive,
+  states.$chip,
+  states.$row,
+  states.$tab,
+  states.$indicator,
+  states.$on-accent,
+  states.$on-accent-flat
+);
+
+@each $recipe in $_recipes {
+  .with-on {
+    @include css.states($recipe, $on: '[aria-selected="true"]');
+  }
+}
+
+@each $recipe in (states.$menuitem, states.$field) {
+  .without-on {
+    @include css.states($recipe);
+  }
+}
+
+.single {
+  @include css.state(states.$row, on, $important: true);
+  &.cursor {
+    @include css.state(states.$menuitem, hover);
+  }
+  &.keyboard {
+    @include css.state(states.$button, focus);
+  }
+}

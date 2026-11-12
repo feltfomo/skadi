@@ -1,7 +1,7 @@
 // header bars, title buttons and window frames. hyprland already applies
 // window opacity and blur here, so frames stay opaque and shadows restrained.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";

@@ -1,7 +1,7 @@
 // gtk3 draws calendar days itself and themes them through states and classes
 // on the single calendar node; gtk4 builds a real header/grid tree.
 @use "../target";
-@use "../metrics" as m;
+@use "skadi/metrics" as m;
 @use "../materials" as mat;
 @use "../states";
 @use "../mixins";
