@@ -1,0 +1,50 @@
+// the settings window and other paged dialogs (game properties): the page list in the frame and
+// the page as a bordered panel, matching the library window.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+.PagedSettingsDialog_PageListColumn {
+  @include shape.flat-fill;
+  background-color: css.color(shell) !important;
+  border: none !important;
+}
+
+// a paged dialog's window behind the list; steam paints it the darkest well.
+.ModalDialogPopup .ModalDialogBody {
+  background-color: css.color(shell) !important;
+}
+
+// the page beside the list is a bordered panel, like the library's.
+.PagedSettingsDialog_PageContent {
+  @include shape.flat-fill;
+  margin: m.$space-2 m.$space-2 m.$space-2 0;
+  border: m.$border solid css.color(border) !important;
+  border-radius: m.$radius-floating !important;
+  background-color: css.color(panel) !important;
+}
+
+// a setting's row: steam fills each row; on the panel the rows read as one surface, as in the
+// approved settings windows.
+.PagedSettingsDialog_PageContent .Field.Background {
+  background: transparent !important;
+}
+
+.PagedSettingsDialog_PageContent .Field.Clickable:not(.Disabled):hover {
+  background: css.color(hover) !important;
+}
+
+.PagedSettingsDialog_PageListItem {
+  @include css.states(states.$row, $on: ".Active", $important: true);
+  @include shape.flat-fill;
+  @include shape.inherit-ink(".PageListItem_Icon");
+  margin-inline: m.$space-2;
+  border: none !important;
+  border-radius: m.$radius-small !important;
+
+  &.DisabledItem,
+  &.DisabledItem:hover {
+    @include css.state(states.$row, disabled, $important: true);
+  }
+}

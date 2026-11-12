@@ -1,0 +1,28 @@
+// the main window's top nav (store, library, community, profile).
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+// each tab spans the bar's full height; centering it lets the fill sit around the label instead.
+.SuperNavMenu:not(.MenuPopup) {
+  @include css.states(states.$tab, $on: ".Selected", $important: true);
+  @include shape.inherit-ink(".MenuButton");
+  height: auto !important;
+  padding: m.$space-1 m.$space-2 !important;
+  margin-inline-end: m.$space-1 !important;
+  // steam's tabs are 18px capitals; the chrome's other text is 13px mono.
+  font-size: m.$font-size + 1px !important;
+  font-weight: normal !important;
+  text-transform: none !important;
+  border-radius: m.$radius-small !important;
+
+  &.Disabled {
+    @include css.state(states.$tab, disabled, $important: true);
+  }
+
+  // the recipe's fill marks the selected tab, so steam's underline goes.
+  .MenuButton::after {
+    display: none !important;
+  }
+}

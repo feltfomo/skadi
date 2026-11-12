@@ -1,0 +1,44 @@
+// steam's react components read radix-style 12-step scales: 1-2 backgrounds, 3-5 component fills
+// (idle, hover, pressed), 6-8 edges, 9-10 solid fills, 11-12 text. the root carries them under
+// data-accent-color and data-dull-color attributes, which outrank :root, so these are important.
+@use "palette" as css;
+
+$dull: (
+  1: css.color(shell),
+  2: css.color(panel),
+  3: css.color(field),
+  4: css.color(hover),
+  5: css.color(pressed),
+  6: css.color(border),
+  7: css.color(border),
+  8: css.color(border_strong),
+  9: css.color(disabled),
+  10: css.mix(panel, on_surface_variant, 0.7),
+  11: css.color(on_surface_variant),
+  12: css.color(on_surface),
+);
+
+$accent: (
+  1: css.mix(panel, primary, 0.08),
+  2: css.color(hover),
+  3: css.color(pressed),
+  4: css.mix(panel, primary, 0.3),
+  5: css.mix(panel, primary, 0.38),
+  6: css.color(border),
+  7: css.color(border_strong),
+  8: css.mix(outline_variant, primary, 0.85),
+  9: css.color(primary),
+  10: css.color(accent_hover),
+  11: css.color(primary),
+  12: css.mix(on_surface, primary, 0.3),
+);
+
+:root {
+  @each $step, $value in $dull {
+    --color-dull-#{$step}: #{$value} !important;
+  }
+  @each $step, $value in $accent {
+    --color-accent-#{$step}: #{$value} !important;
+  }
+  --color-accent-contrast: #{css.color(on_primary)} !important;
+}

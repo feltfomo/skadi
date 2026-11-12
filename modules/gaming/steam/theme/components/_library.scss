@@ -1,0 +1,137 @@
+// the library: the game list in the frame, its rows, the home view's shelves and a game's page.
+@use "sass:map";
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+// steam colors a row's name by its install state (installed, not installed, running, updating), so
+// an idle row keeps steam's text color and only takes the recipe's fill.
+$game-row: map.merge(states.$row, (idle: (bg: transparent)));
+
+// the list shares the frame's material with the title and bottom bars; the page's border is its edge.
+.LeftListSizableContainer {
+  @include shape.flat-fill;
+  background-color: css.color(shell) !important;
+  border: none !important;
+
+  // the list's own root and header paint steam's raised gradient over the frame.
+  :has(> .GameListHomeAndSearch),
+  .GameListHomeAndSearch {
+    @include shape.flat-fill;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+.LibraryWindowDivider {
+  background-color: css.color(shell) !important;
+
+  &.Sizable:hover {
+    background-color: css.color(border_strong) !important;
+  }
+}
+
+.IsResizingLeftList .LibraryWindowDivider {
+  background-color: css.color(primary) !important;
+}
+
+// a game row is the list module's Container holding the entry; other Containers in the list are
+// collection headers and wrappers.
+.LeftListSizableContainer .Container:has(> .GameListEntryContainer) {
+  @include css.states($game-row, $on: ".Selected", $important: true);
+  border-radius: m.$radius-small !important;
+  box-shadow: none !important;
+
+  // steam's drag-and-drop and context-menu hover, which mouse :hover doesn't cover.
+  &.HoverOverlay:not(.Selected) {
+    @include css.state($game-row, hover, $important: true);
+  }
+
+  &.Selected.HoverOverlay {
+    @include css.state($game-row, on-hover, $important: true);
+  }
+
+  &.Selected {
+    @include shape.inherit-ink("span, svg, .GameListEntryName, .DownloadProgress, .DownloadDash");
+  }
+}
+
+// keyboard focus lands on the row's wrapper, so the ring is drawn on the row inside it.
+.LeftListSizableContainer :focus-visible > .Container:has(> .GameListEntryContainer) {
+  @include css.state($game-row, focus, $important: true);
+
+  &.Selected {
+    @include css.state($game-row, on-focus, $important: true);
+  }
+}
+
+// a multi-selection marks the row's focusable wrapper rather than the row.
+.LeftListSizableContainer .Selected > .Container:has(> .GameListEntryContainer) {
+  @include css.state($game-row, on, $important: true);
+  @include shape.inherit-ink("span, svg, .GameListEntryName, .DownloadProgress, .DownloadDash");
+
+  &:hover {
+    @include css.state($game-row, on-hover, $important: true);
+  }
+}
+
+// the view picker above the list ("games and software") is a dropdown button.
+.SearchBar .MenuHeader {
+  @include shape.edge;
+  @include css.states(states.$button, $important: true);
+}
+
+// a shelf's title and the sort picker are dropdowns written as headings; they stay text until
+// hovered, so the shelves don't read as rows of buttons.
+.CollectionDropDown .DialogDropDown,
+.SortingDropDown .DialogDropDown {
+  @include css.states(states.$flat, $important: true);
+  @include shape.flat-fill;
+  border-radius: m.$radius-small !important;
+  box-shadow: none !important;
+
+  .DialogDropDown_CurrentDisplay,
+  .DialogDropDown_Arrow {
+    background-color: transparent !important;
+  }
+}
+
+// steam swells the rule beside a shelf title into a bar while hovered; a hairline stays one.
+.ShowcaseHeader .Rule {
+  height: m.$border !important;
+  background-color: css.color(border_faint) !important;
+}
+
+// a game page's sections: panels with one hairline, in place of steam's gradient frames.
+.AppDetailsSectionContainer.RightColumnSection {
+  @include shape.flat-fill;
+  border-image: none !important;
+  border: m.$border solid css.color(border) !important;
+  border-radius: m.$radius-card !important;
+  background-color: css.color(panel) !important;
+  box-shadow: none !important;
+}
+
+// the settings, info and favorite buttons beside the play bar.
+.PlayBar .MenuButton {
+  @include shape.edge;
+  @include css.states(states.$button, $important: true);
+  @include shape.inherit-ink("svg");
+}
+
+// the store, hub and guide links under the play bar: steam dims them to a third of white, below
+// the secondary text everywhere else.
+.LinksSectionBody .Link {
+  .Text {
+    color: css.color(on_surface_variant) !important;
+  }
+
+  &:hover .Text {
+    color: css.color(on_surface) !important;
+  }
+
+  &.Disabled .Text {
+    color: css.color(disabled) !important;
+  }
+}

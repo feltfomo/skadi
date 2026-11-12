@@ -1,0 +1,52 @@
+// the materials a web page is built from. the page itself is the panel material, the same as the
+// library page beside it in the client; cards sit on it raised with a hairline, and bars that
+// continue the client's frame take the frame material.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "../../components/shape";
+
+@mixin page {
+  @include shape.flat-fill;
+  background-color: css.color(panel) !important;
+}
+
+@mixin card($radius: m.$radius-card) {
+  @include shape.flat-fill;
+  background-color: css.color(raised) !important;
+  border: m.$border solid css.color(border) !important;
+  border-radius: $radius !important;
+  box-shadow: none !important;
+}
+
+// a surface inside a card or a strip of the page, without an edge of its own.
+@mixin well {
+  @include shape.flat-fill;
+  background-color: css.color(field) !important;
+  box-shadow: none !important;
+}
+
+// a bar continuous with the client's title bar.
+@mixin frame {
+  @include shape.flat-fill;
+  background-color: css.color(shell) !important;
+  box-shadow: none !important;
+}
+
+@mixin floating {
+  @include shape.floating;
+}
+
+// a section heading's rule: steam paints a gradient image under the heading text.
+@mixin heading-rule {
+  @include shape.flat-fill;
+  background-color: transparent !important;
+  border-bottom: m.$border solid css.color(border) !important;
+  color: css.color(on_surface) !important;
+}
+
+// ordinary transparent wrappers steam paints with a gradient or a black veil.
+@mixin clear {
+  @include shape.flat-fill;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}

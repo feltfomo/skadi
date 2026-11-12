@@ -1,0 +1,101 @@
+// context menus, the menu bar's menus and the top nav's dropdowns, which all render steam's
+// contextMenu inside their own popup window.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+// steam sizes a popup window to its menu's width rounded down, so with the chrome font's fractional
+// widths anything drawn on the menu's right edge falls outside the window. the edge is an overlay
+// pinned to the window instead: exact by construction, and above the menu's opaque fill.
+html.ContextMenuPopup body {
+  background-color: css.color(panel) !important;
+
+  &::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483647;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 m.$border css.color(border_strong);
+  }
+}
+
+.contextMenu,
+.SuperNavMenu.MenuPopup {
+  @include shape.floating;
+}
+
+html.ContextMenuPopup .contextMenu {
+  border-width: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.contextMenuContents {
+  padding: m.$space-1 !important;
+  background-color: transparent !important;
+}
+
+.contextMenuItem {
+  @include css.states(states.$menuitem, $important: true);
+  // steam paints its play and install items as accent gradients; in a menu the hovered item is
+  // the only accent, so they read as ordinary items.
+  @include shape.flat-fill;
+  @include shape.inherit-ink("svg");
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  // the friends window's menus pack items edge to edge; every menu gets the same rhythm.
+  padding: m.$space-2 m.$space-3 !important;
+  border: none !important;
+  border-radius: m.$radius-small !important;
+
+  // steam moves its keyboard cursor with this class instead of focus.
+  &.active {
+    @include css.state(states.$menuitem, hover, $important: true);
+  }
+
+  &.disabled,
+  &.disabled:hover {
+    @include css.state(states.$menuitem, disabled, $important: true);
+  }
+
+  // a checked item keeps its accent mark, except on the accent cursor.
+  &.menuChecked:not(:hover, .active) {
+    color: css.color(primary) !important;
+  }
+}
+
+// the separator is its own thin element between items.
+.ContextMenuSeparator {
+  height: m.$border !important;
+  min-height: m.$border !important;
+  margin-block: m.$space-1 !important;
+  background-color: css.color(border) !important;
+}
+
+// dropdown lists render inside the window that owns them rather than in a popup: the sort picker's
+// list and the dialogs' dropdown menus. steam moves their cursor with focus.
+.SortingDropDownContainer > div,
+.DialogDropDownMenu {
+  @include shape.floating;
+  padding: m.$space-1 !important;
+}
+
+.SortingDropDownItems,
+.DialogDropDownMenu_Item {
+  @include css.states(states.$menuitem, $important: true);
+  @include shape.flat-fill;
+  border-radius: m.$radius-small !important;
+
+  &:focus {
+    @include css.state(states.$menuitem, hover, $important: true);
+    outline: none !important;
+  }
+}
+
+.DialogDropDownMenu_Separator {
+  height: m.$border !important;
+  margin-block: m.$space-1 !important;
+  background-color: css.color(border) !important;
+}

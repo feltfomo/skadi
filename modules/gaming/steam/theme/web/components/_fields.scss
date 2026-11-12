@@ -1,0 +1,47 @@
+// text fields on steam's web pages. steam often draws the box on a wrapper and leaves the input
+// bare, so pages pass the element that owns the box; the input inside only takes the ink.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "../../components/shape";
+
+// a box that holds an input: the field recipe on the box, with focus following the input inside.
+@mixin box($radius: m.$radius-small) {
+  @include shape.edge($radius);
+  @include css.states(states.$field, $important: true);
+  @include shape.flat-fill;
+  box-shadow: none !important;
+
+  &:focus-within {
+    border-color: css.color(primary) !important;
+  }
+
+  input {
+    @include input-ink;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+  }
+}
+
+// a bare input that is its own box.
+@mixin field {
+  @include box;
+  @include input-ink;
+
+  &:focus {
+    border-color: css.color(primary) !important;
+  }
+}
+
+@mixin input-ink {
+  color: css.color(on_surface) !important;
+  font-style: normal !important;
+  caret-color: css.color(on_surface) !important;
+  box-shadow: none !important;
+
+  &::placeholder {
+    color: css.color(on_surface_variant) !important;
+    font-style: normal !important;
+  }
+}

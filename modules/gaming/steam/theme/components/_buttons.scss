@@ -1,0 +1,48 @@
+// buttons: steam's DialogButton and the library's play button.
+@use "palette" as css;
+@use "skadi/states";
+@use "shape";
+
+// variants that carry their own meaning keep steam's look: destructive red, link-like detail
+// buttons, the play bar's chips and controller binding rows.
+$own-look: ".Destructive, .deleteButton, .AppDetailsButton, .ClickablePlayBarItem, .BindingFromParentSet";
+
+.DialogButton:not(#{$own-look}) {
+  @include shape.edge;
+  @include css.states(states.$button, $important: true);
+  @include shape.flat-fill;
+
+  &.Disabled {
+    @include css.state(states.$button, disabled, $important: true);
+  }
+
+  &.Primary {
+    @include css.states(states.$suggested, $important: true);
+
+    &.Disabled {
+      @include css.state(states.$suggested, disabled, $important: true);
+    }
+  }
+}
+
+// the play, install and update buttons, and the streaming target beside them. play stays the one
+// filled control on the page, so it takes the suggested recipe for every action.
+.PlayButtonContainer {
+  .ButtonChild {
+    @include shape.edge;
+    @include css.states(states.$suggested, $important: true);
+    @include shape.flat-fill;
+    @include shape.inherit-ink(".ButtonText, svg");
+  }
+
+  &.Disabled .ButtonChild,
+  .Disabled > .ButtonChild {
+    @include css.state(states.$suggested, disabled, $important: true);
+  }
+
+  .ShutdownAppButton {
+    @include shape.edge;
+    @include css.states(states.$button, $important: true);
+    @include shape.inherit-ink("svg");
+  }
+}

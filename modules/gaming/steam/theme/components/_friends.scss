@@ -1,0 +1,36 @@
+// the friends list window: its header and the friends' rows.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+.friendListHeaderContainer {
+  @include shape.flat-fill;
+  background-color: css.color(shell) !important;
+  box-shadow: none !important;
+  border-bottom: m.$border solid css.color(border) !important;
+}
+
+// steam's blue glow behind the signed-in user is an inline svg gradient whose stop-color recolor.js
+// can't reach. the in-game glow is a status color and stays.
+.currentUserContainer:not(.ingame) .statusHeaderGlow {
+  display: none !important;
+}
+
+// a friend's row keeps steam's status colors and takes the shared row's hover and press fills in
+// place of steam's darker band.
+.friendGroup .friend {
+  border-radius: m.$radius-small !important;
+
+  &:hover {
+    @include css.state(states.$row, hover, $important: true);
+  }
+
+  &:active {
+    @include css.state(states.$row, active, $important: true);
+  }
+
+  &:focus-visible {
+    @include css.state(states.$row, focus, $important: true);
+  }
+}

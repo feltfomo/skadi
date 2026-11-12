@@ -3,17 +3,17 @@
   lexicon,
   ...
 }:
-let
-  themeDirectory = ".local/share/Steam/millennium/themes/Aika";
-in
 {
   flake-file.inputs = {
     millennium = {
-      url = "github:SteamClientHomebrew/Millennium/f7a356f6789bc7d23f44bfbcdd95c71f0385cc1a?dir=packages/nix";
+      url = "github:SteamClientHomebrew/Millennium/dee8e60f689b4f42b04eea0a4f4f063ecd8609aa?dir=packages/nix";
       inputs.nixpkgs.follows = "nixpkgs";
+      inputs.millennium-src.follows = "millennium-src";
     };
-    steam-aika = {
-      url = "github:hatewxb/Aika/d7722137658a9f89ca8af7dfc563620b3c03a7fe";
+    # upstream's packaging builds the 64-bit client hook, but its source input still points at a
+    # commit from before that code landed; build the packaging's own commit instead.
+    millennium-src = {
+      url = "github:SteamClientHomebrew/Millennium/dee8e60f689b4f42b04eea0a4f4f063ecd8609aa";
       flake = false;
     };
   };
@@ -59,30 +59,5 @@ in
         };
       }
     ];
-
-    furnish = {
-      directories = [
-        {
-          source = "${inputs.steam-aika}";
-          destination = themeDirectory;
-          exclude = [
-            "screenshots"
-            ".gitignore"
-            "ROADMAP.md"
-            "README.md"
-            "tools"
-          ];
-        }
-      ];
-      files = [
-        {
-          source = ./config/millennium.json;
-          destination = ".config/millennium/config.json";
-          # millennium atomically replaces this file when it saves settings.
-          representation = "writable";
-          onConflict = "source-wins";
-        }
-      ];
-    };
   };
 }

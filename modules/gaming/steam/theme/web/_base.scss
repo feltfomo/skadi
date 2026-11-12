@@ -1,0 +1,65 @@
+// the shared web layer every page sheet starts with: steam's color scales on the palette, the page
+// material, text and links, and the shared components that use steam's own class names. page
+// partials reuse the component mixins for controls that don't carry those classes.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "components/scales";
+@use "components/buttons";
+@use "components/surfaces";
+
+// shared_global.css's palette. the status hues (green, red, orange, yellow) keep their meaning.
+$gp: (
+  gpSystemLightestGrey: css.color(on_surface),
+  gpSystemLighterGrey: css.color(on_surface_variant),
+  gpSystemLightGrey: css.color(on_surface_variant),
+  gpSystemGrey: css.color(disabled),
+  gpSystemDarkGrey: css.color(field),
+  gpSystemDarkerGrey: css.color(panel),
+  gpSystemDarkestGrey: css.color(shell),
+  gpStoreLightestGrey: css.color(on_surface),
+  gpStoreLighterGrey: css.color(on_surface_variant),
+  gpStoreLightGrey: css.color(on_surface_variant),
+  gpStoreGrey: css.color(border_strong),
+  gpStoreDarkGrey: css.color(raised),
+  gpStoreDarkerGrey: css.color(panel),
+  gpStoreDarkestGrey: css.color(shell),
+  gpColor-Blue: css.color(primary),
+  gpColor-BlueHi: css.color(accent_hover),
+  gpColor-DustyBlue: css.color(pressed),
+  gpColor-LightBlue: css.color(primary),
+  gpColor-ChalkyBlue: css.color(primary),
+  gpBackground-LightSofter: css.color(hover),
+  gpBackground-LightSoft: css.color(pressed),
+  gpBackground-DarkSofter: css.alpha(shell, 0.2),
+  gpBackground-DarkSoft: css.alpha(shell, 0.4),
+  gpBackground-DarkMedium: css.alpha(shell, 0.6),
+  gpBackground-DarkHard: css.alpha(shell, 0.8),
+);
+
+:root {
+  @each $name, $value in $gp {
+    --#{$name}: #{$value};
+  }
+}
+
+html,
+body {
+  @include surfaces.page;
+  color: css.color(on_surface_variant);
+}
+
+::selection {
+  background-color: css.alpha(primary, 0.35);
+  color: css.color(on_surface);
+}
+
+// steam's web scrollbars are a blue thumb on a dark rail; they follow the client's instead.
+* {
+  scrollbar-color: css.color(border_strong) transparent;
+}
+
+// keyboard focus: steam's pages mostly draw none, or a white box shadow.
+:focus-visible {
+  outline: m.$focus-width solid css.color(primary) !important;
+  outline-offset: m.$border;
+}

@@ -1,0 +1,164 @@
+// the layer the store's pages share on top of the base: the store menu bar with its search and
+// dropdowns, the capsule hover card, prices and the footer. the menu is a react
+// component whose classes are build hashes, so it's reached through its feature target, roles and
+// element structure instead.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "base";
+@use "components/surfaces";
+@use "components/fields";
+@use "components/tags";
+
+$menu: "[data-featuretarget=store-menu-v7]";
+
+// the bar continues the client's frame. its dropdowns open inside it, so the nested panels drop
+// their gradients and the bar's own material shows through.
+#{$menu} .Panel:has(> [role="navigation"]) {
+  @include surfaces.frame;
+  border-bottom: m.$border solid css.color(border) !important;
+
+  .Panel {
+    @include surfaces.clear;
+  }
+}
+
+// the veil steam lays over the page while a dropdown is open, and the strip under the bar.
+#{$menu} [role="presentation"]:not(svg) {
+  background-color: css.alpha(shell, 0.6) !important;
+}
+
+#{$menu} [role="navigation"] {
+  // the top-level dropdown buttons: quiet text that brightens on hover. the open one keeps steam's
+  // underline, drawn in the accent.
+  button[role="button"] {
+    @include css.states(states.$flat, $important: true);
+    border-radius: m.$radius-small !important;
+    color: css.color(on_surface_variant) !important;
+
+    &:hover {
+      color: css.color(on_surface) !important;
+    }
+
+    svg {
+      fill: currentColor !important;
+    }
+
+    > div > div > div {
+      background-color: css.color(primary) !important;
+    }
+  }
+
+  form[role="search"] {
+    @include fields.box;
+    overflow: hidden !important;
+
+    button[type="submit"] {
+      @include css.states(states.$flat, $important: true);
+      border-radius: 0 !important;
+      border-inline-start: m.$border solid css.color(border) !important;
+      color: css.color(on_surface_variant) !important;
+
+      &:hover {
+        color: css.color(on_surface) !important;
+      }
+
+      svg,
+      path {
+        fill: currentColor !important;
+      }
+    }
+  }
+
+  // search suggestions: a floating panel under the field.
+  [id^="searchSuggestions"] {
+    @include surfaces.floating;
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+
+    a {
+      @include css.states(states.$row, $important: true);
+    }
+  }
+}
+
+#{$menu} a[href*="/wishlist/"] {
+  @include css.states(states.$flat, $important: true);
+  border-radius: m.$radius-small !important;
+  color: css.color(on_surface_variant) !important;
+
+  &:hover {
+    color: css.color(on_surface) !important;
+  }
+
+  svg,
+  path {
+    fill: currentColor !important;
+  }
+}
+
+// links in the open dropdowns.
+#{$menu} .Panel:has(> [role="navigation"]) a.Focusable:not(:has(img, [style*="background-image"])) {
+  border-radius: m.$radius-small !important;
+  transition: m.$transition;
+
+  &:hover {
+    background-color: css.color(hover) !important;
+  }
+}
+
+// steam's generic link hover, the one rule every store link without its own hover falls back to.
+a:hover:where(:not(.noOpinionatedGlobalStyles a)) {
+  color: css.color(primary);
+}
+
+// the hover card a capsule opens: a floating panel with the game's summary and tags. its side arrow
+// is an image of steam's old gradient, so it goes.
+.game_hover_box {
+  @include surfaces.floating;
+  color: css.color(on_surface_variant) !important;
+
+  h4.hover_title {
+    color: css.color(on_surface) !important;
+  }
+
+  .hover_review_summary {
+    @include surfaces.well;
+    border-radius: m.$radius-small !important;
+  }
+
+  .hover_tag_row .app_tag {
+    @include tags.label;
+  }
+}
+
+.game_hover :is(.hover_arrow_left, .hover_arrow_right) {
+  display: none !important;
+}
+
+// prices. the discount percentage keeps steam's sale green; the price beside it sits on a field.
+.discount_prices,
+.discount_block .bundle_base_discount,
+.StoreSalePriceWidgetContainer,
+.game_purchase_price {
+  background-color: css.color(field) !important;
+}
+
+.discount_final_price,
+.game_purchase_price,
+.StoreSalePriceWidgetContainer {
+  color: css.color(on_surface) !important;
+}
+
+.discount_original_price {
+  color: css.color(on_surface_variant) !important;
+}
+
+.CapsuleBottomBar {
+  @include surfaces.well;
+}
+
+#footer {
+  @include surfaces.frame;
+  border-top: m.$border solid css.color(border) !important;
+}

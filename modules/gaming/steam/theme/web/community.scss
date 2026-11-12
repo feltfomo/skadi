@@ -1,0 +1,84 @@
+// the community's activity home: the popular hubs and search cards, the content tabs and sort, and
+// the grid of activity cards.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "base";
+@use "components/surfaces";
+@use "components/fields";
+
+.apphub_background,
+.community_home {
+  @include surfaces.clear;
+}
+
+.community_home_title {
+  color: css.color(on_surface) !important;
+}
+
+.community_home_app_shortcuts,
+.community_home_search_box {
+  @include surfaces.card;
+}
+
+.community_home_search_apps,
+.community_home_search_players {
+  @include fields.box;
+}
+
+.community_home_search_divider {
+  background: none !important;
+  border: none !important;
+  border-top: m.$border solid css.color(border) !important;
+  height: 0 !important;
+}
+
+.community_home_app_shortcuts :is(.new_items_num, .new_items_text) {
+  color: css.color(primary) !important;
+}
+
+// the content tabs read as headings, like the store's, so the chosen one keeps steam's underline.
+.apphub_sectionTab {
+  color: css.color(on_surface_variant) !important;
+  opacity: 1 !important;
+  transition: m.$transition;
+
+  &:hover,
+  &.active {
+    color: css.color(on_surface) !important;
+  }
+
+  &.active {
+    border-bottom-color: css.color(primary) !important;
+  }
+}
+
+.apphub_Card {
+  @include surfaces.card;
+
+  // steam's blue circuit pattern under workshop and screenshot captions, and the hover tag.
+  .apphub_CardBG {
+    background-image: none !important;
+  }
+
+  .apphub_CardContentType {
+    @include surfaces.well;
+    color: css.color(on_surface) !important;
+  }
+
+  .review_award_aggregated {
+    color: css.color(primary) !important;
+  }
+
+  .apphub_CardContentAuthorBlock {
+    border-color: css.color(border) !important;
+  }
+
+  .apphub_CardContentGuideTitle {
+    @include surfaces.well;
+  }
+
+  // the fade that clips long reviews runs into the card's own material.
+  .UserReviewCardContent_Footer .gradient {
+    background: linear-gradient(css.alpha(raised, 0), css.color(raised)) !important;
+  }
+}

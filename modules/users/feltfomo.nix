@@ -20,6 +20,7 @@
       claude-code
       image-tools
       qbittorrent
+      steam-theme
       steam-tools
       translation
       zen-browser

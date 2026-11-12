@@ -76,8 +76,15 @@
       url = "github:mangowm/mango";
     };
     millennium = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:SteamClientHomebrew/Millennium/f7a356f6789bc7d23f44bfbcdd95c71f0385cc1a?dir=packages/nix";
+      inputs = {
+        millennium-src.follows = "millennium-src";
+        nixpkgs.follows = "nixpkgs";
+      };
+      url = "github:SteamClientHomebrew/Millennium/dee8e60f689b4f42b04eea0a4f4f063ecd8609aa?dir=packages/nix";
+    };
+    millennium-src = {
+      flake = false;
+      url = "github:SteamClientHomebrew/Millennium/dee8e60f689b4f42b04eea0a4f4f063ecd8609aa";
     };
     niri = {
       inputs.nixpkgs.follows = "nixpkgs";
@@ -139,10 +146,6 @@
     spicetify-nix = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:Gerg-L/spicetify-nix";
-    };
-    steam-aika = {
-      flake = false;
-      url = "github:hatewxb/Aika/d7722137658a9f89ca8af7dfc563620b3c03a7fe";
     };
     treefmt-nix = {
       inputs.nixpkgs.follows = "nixpkgs";

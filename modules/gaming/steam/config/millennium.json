@@ -9,14 +9,8 @@
     "hasShownWelcomeModal": true
   },
   "themes": {
-    "activeTheme": "Aika",
+    "activeTheme": "Skadi",
     "allowedScripts": true,
-    "allowedStyles": true,
-    "conditions": {
-      "Aika": {
-        "Color preset": "Aika",
-        "Custom colors": "no"
-      }
-    }
+    "allowedStyles": true
   }
 }

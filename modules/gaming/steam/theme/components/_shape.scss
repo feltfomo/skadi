@@ -1,0 +1,48 @@
+// geometry shared by the component partials. steam's own rules reach controls through hashed-class
+// chains several classes deep, so every component here declares !important instead of racing that
+// specificity; these mixins follow suit so a component's edge can't come from steam and its color
+// from the theme.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+
+// a 1px edge whose color the component's state recipe sets.
+@mixin edge($radius: m.$radius-small) {
+  border-width: m.$border !important;
+  border-style: solid !important;
+  border-radius: $radius !important;
+}
+
+// steam paints most fills as gradients over the color; the recipe's fill only shows without them.
+@mixin flat-fill {
+  background-image: none !important;
+}
+
+// menus and popovers: a raised panel with the strong edge and a restrained, palette-tinted shadow.
+@mixin floating {
+  @include edge(m.$radius-floating);
+  @include flat-fill;
+  background-color: css.color(panel) !important;
+  border-color: css.color(border_strong) !important;
+  box-shadow: m.$shadow-floating-offset css.color(shadow) !important;
+}
+
+// a surface people read against the frame: panel fill, one hairline.
+@mixin panel($sides: all) {
+  @include flat-fill;
+  background-color: css.color(panel) !important;
+  @if $sides == all {
+    border: m.$border solid css.color(border) !important;
+  } @else {
+    border-#{$sides}: m.$border solid css.color(border) !important;
+  }
+}
+
+// text and icons inside a control follow the control, so a selected fill keeps its on-accent pair
+// even where steam colors a child span or svg directly.
+@mixin inherit-ink($children) {
+  #{$children} {
+    color: inherit !important;
+    fill: currentColor !important;
+    text-shadow: none !important;
+  }
+}

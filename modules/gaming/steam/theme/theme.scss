@@ -1,0 +1,24 @@
+// the materials recolor.js points steam's own colors at, over the palette's roles, and the
+// component layer that gives steam's controls the shared shapes and state recipes.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "components/frame";
+@use "components/library";
+@use "components/buttons";
+@use "components/fields";
+@use "components/menus";
+@use "components/settings";
+@use "components/friends";
+@use "components/nav";
+@use "components/tooltips";
+
+$materials: (well, shell, panel, raised, field, hover, pressed, border, border_strong, border_faint, disabled);
+
+:root {
+  @each $name in $materials {
+    #{css.property($name)}: #{css.color($name)};
+  }
+  // steam's dark blue fills, such as selected-but-unfocused rows and progress tracks.
+  --skadi-accent-dim: #{css.mix(panel, primary, 0.25)};
+  --skadi-font: #{m.$font-family};
+}

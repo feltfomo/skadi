@@ -1,0 +1,34 @@
+// tags: small chips that name a genre or feature. a linked tag is a quiet button; a tag that only
+// labels something has the idle look without hover.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "../../components/shape";
+@use "rank";
+
+// steam sizes tag rows to the tag's own box and clips the overflow, so the edge is drawn inside
+// the box instead of as a border that would grow it by 2px.
+@mixin label {
+  @include shape.flat-fill;
+  border-radius: m.$radius-small !important;
+  background-color: css.color(field) !important;
+  box-shadow: inset 0 0 0 m.$border css.color(border) !important;
+  color: css.color(on_surface_variant) !important;
+  text-shadow: none !important;
+}
+
+@mixin link {
+  &#{rank.$outrank} {
+    @include label;
+    transition: m.$transition;
+
+    &:hover {
+      background-color: css.color(hover) !important;
+      box-shadow: inset 0 0 0 m.$border css.color(border_strong) !important;
+      color: css.color(on_surface) !important;
+    }
+
+    &:active {
+      background-color: css.color(pressed) !important;
+    }
+  }
+}

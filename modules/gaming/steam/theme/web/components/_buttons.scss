@@ -1,0 +1,90 @@
+// steam's web buttons (buttons.css): an outer link that steam pads by 1px for a gradient edge, and
+// an inner span that carries the fill. the outer element becomes the control, with a real 1px edge
+// in place of the padding, and the span turns transparent so the recipe's fill shows through.
+@use "palette" as css;
+@use "skadi/states";
+@use "../../components/shape";
+@use "rank";
+
+// steam marks a chosen button with any of these; the store's wishlist, follow and ignore buttons
+// use the last once they're on.
+$selected: ":is(.btn_active, .active, .queue_btn_active)";
+
+// steam's green buys, plays or installs, and the community's dark blue marks the chosen one of a
+// pair (the activity sort) or a page's main action. the blue store buttons beside a buy button
+// (bundle info) are secondary there, so they stay ordinary.
+$primary: (
+  ".btn_green_steamui",
+  ".btn_green_white_innerfade",
+  ".btnv6_green_white_innerfade",
+  ".btn_darkblue_white_innerfade",
+);
+
+// everything else that reads as an ordinary button. red, teal, plum and royal blue variants carry
+// their own meaning and keep steam's look.
+$ordinary: (
+  ".btn_blue_steamui",
+  ".btn_blue_white_innerfade",
+  ".btnv6_blue_hoverfade",
+  ".btnv6_blue_blue_innerfade",
+  ".btnv6_lightblue_blue",
+  ".btnv6_white_transparent",
+  ".btnv6_grey_black",
+  ".btn_grey_black",
+  ".btn_grey_grey",
+  ".btn_grey_grey_outer_bevel",
+  ".btn_grey_white_innerfade",
+  ".btn_grey_steamui",
+  ".btn_black",
+);
+
+@mixin _button($recipe) {
+  &#{rank.$outrank} {
+    @include shape.edge;
+    @include css.states($recipe, $on: $selected, $important: true);
+    @include shape.flat-fill;
+    padding: 0 !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+
+    &.btn_disabled,
+    &.btn_disabled:hover {
+      @include css.state($recipe, disabled, $important: true);
+      cursor: default !important;
+    }
+
+    > span {
+      @include shape.flat-fill;
+      background-color: transparent !important;
+      color: inherit !important;
+      border-radius: 0 !important;
+      text-shadow: none !important;
+      box-shadow: none !important;
+    }
+
+    // steam's icons inside buttons are images, so only svg glyphs can follow the ink.
+    svg {
+      fill: currentColor !important;
+    }
+  }
+}
+
+#{$primary} {
+  @include _button(states.$suggested);
+}
+
+#{$ordinary} {
+  @include _button(states.$button);
+}
+
+// the shared button for a page partial's controls that don't carry steam's button classes: react
+// buttons, links styled as buttons, toggles. $on names the class that marks the chosen one.
+@mixin button($recipe: states.$button, $on: null) {
+  &#{rank.$outrank} {
+    @include shape.edge;
+    @include css.states($recipe, $on: $on, $important: true);
+    @include shape.flat-fill;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+}

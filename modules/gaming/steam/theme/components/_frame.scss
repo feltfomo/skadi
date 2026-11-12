@@ -1,0 +1,90 @@
+// the main window's chrome: one frame material from the title bar through the library list to the
+// bottom bar, with the page beside the list as a bordered panel, like Zen's content area.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+.ForceOpaqueBackground,
+.TopBar,
+.URLBarReplacement,
+.BottomBar {
+  @include shape.flat-fill;
+  background-color: css.color(shell) !important;
+  box-shadow: none !important;
+}
+
+// steam rounds and bevels the bar under the nav; the page's own edge separates them instead.
+.URLBarReplacement {
+  height: m.$space-2 !important;
+  min-height: m.$space-2 !important;
+}
+
+// the library page. the gap on the far edge lets its rounded corner and border read against the
+// frame; the list's side has none, so the divider stays where steam measures it.
+.MainPanel {
+  margin-inline-end: m.$space-2 !important;
+  border: m.$border solid css.color(border) !important;
+  border-radius: m.$radius-floating !important;
+  overflow: hidden !important;
+  background-color: css.color(panel) !important;
+}
+
+// pages without the list (downloads) put the panel straight in the frame.
+.LocalContentContainer > .MainPanel {
+  margin-inline-start: m.$space-2 !important;
+}
+
+.AppDetailsTransitionGroup,
+.MainPanel .LibraryHome,
+.MainPanel .Container:has(> .InnerContainer .LibraryHome) {
+  @include shape.flat-fill;
+  background-color: css.color(panel) !important;
+}
+
+// the menu bar (steam, view, friends, games, help): text buttons in the frame.
+.RootMenuButton {
+  @include css.states(states.$flat, $important: true);
+  padding-inline: m.$space-2 !important;
+  height: m.$control-height !important;
+  align-self: center !important;
+  border-radius: m.$radius-small !important;
+  color: css.color(on_surface_variant) !important;
+
+  &:hover {
+    color: css.color(on_surface) !important;
+  }
+}
+
+// the title bar's buttons: notifications, account and big picture are quiet until hovered; the
+// news button keeps steam's filled look while it has unread news.
+.NotificationsButton,
+.AccountMenu,
+.GamepadUIToggle,
+.AnnouncementsButton:not(.Active) {
+  @include shape.edge;
+  @include css.states(states.$flat, $important: true);
+  @include shape.flat-fill;
+  @include shape.inherit-ink(".Icon, .Chevron, .WalletBalance");
+}
+
+.AnnouncementsButton.Active {
+  @include shape.edge;
+  @include css.states(states.$suggested, $important: true);
+  @include shape.inherit-ink(".Icon");
+}
+
+.windowControlButton {
+  @include css.states(states.$flat, $important: true);
+}
+
+// the bottom bar's text buttons.
+.BottomBar {
+  .AddGameButton,
+  .DownloadStatusContent,
+  .FriendsButton {
+    @include css.states(states.$flat, $important: true);
+    border-radius: m.$radius-small !important;
+    @include shape.inherit-ink(".Text, .Icon, svg");
+  }
+}

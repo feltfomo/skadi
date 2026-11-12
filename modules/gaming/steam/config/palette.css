@@ -1,0 +1,11 @@
+:root {
+  --skadi-surface: {{ surface }};
+  --skadi-surface-container-low: {{ surfaceContainerLow }};
+  --skadi-surface-container: {{ surfaceContainer }};
+  --skadi-surface-container-high: {{ surfaceContainerHigh }};
+  --skadi-on-surface: {{ onSurface }};
+  --skadi-on-surface-variant: {{ onSurfaceVariant }};
+  --skadi-outline-variant: {{ outlineVariant }};
+  --skadi-primary: {{ primary }};
+  --skadi-on-primary: {{ onPrimary }};
+}

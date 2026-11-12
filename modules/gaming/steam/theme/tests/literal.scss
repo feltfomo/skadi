@@ -1,0 +1,7 @@
+// a hand-written color compiles fine, so the literal check must be what stops it.
+@use "palette" as css;
+
+.DialogButton {
+  background-color: css.color(panel);
+  border-color: #4a5060;
+}

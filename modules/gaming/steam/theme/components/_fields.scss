@@ -1,0 +1,123 @@
+// text fields, dropdowns and the library's search box.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "shape";
+
+.DialogTextInputBase {
+  @include shape.edge;
+  @include css.states(states.$field, $important: true);
+  caret-color: css.color(on_surface) !important;
+  box-shadow: none !important;
+
+  &::placeholder {
+    color: css.color(on_surface_variant) !important;
+  }
+}
+
+// a dropdown opens a menu, so it reads as a button, not a field.
+.DialogDropDown {
+  @include shape.edge;
+  @include css.states(states.$button, $important: true);
+  @include shape.flat-fill;
+}
+
+// the library search expands a white strip under dark text when focused; it becomes a field.
+.SearchAndTitleContainer {
+  color: css.color(on_surface) !important;
+
+  &.ShowingSearch:hover {
+    background-color: css.color(hover) !important;
+  }
+
+  .SearchFieldBackground.WhiteBackground {
+    @include shape.edge;
+    background-color: css.color(field) !important;
+    border-color: css.color(border) !important;
+  }
+
+  &:focus-within .SearchFieldBackground.WhiteBackground {
+    border-color: css.color(primary) !important;
+  }
+
+  .SearchBox {
+    color: css.color(on_surface) !important;
+    caret-color: css.color(on_surface) !important;
+  }
+
+  .SearchIconLeft,
+  .SearchIconRight,
+  input::placeholder {
+    color: css.color(on_surface_variant) !important;
+  }
+}
+
+// switches: a field-colored rail that fills with the accent, and a knob that pairs with whichever
+// fill is under it. steam slides its accent in as the rail's ::before.
+.Toggle {
+  .ToggleRail {
+    background: css.color(field) !important;
+    box-shadow: inset 0 0 0 m.$border css.color(border) !important;
+
+    &::before {
+      background: css.color(primary) !important;
+    }
+  }
+
+  .ToggleSwitch {
+    background: css.color(on_surface_variant) !important;
+    box-shadow: none !important;
+  }
+
+  &.On .ToggleSwitch {
+    background: css.color(on_primary) !important;
+  }
+
+  &:not(.Disabled):hover {
+    box-shadow: 0 0 0 m.$space-1 css.color(hover) !important;
+  }
+
+  &:focus-visible {
+    outline: m.$focus-width solid css.color(primary) !important;
+    outline-offset: m.$border !important;
+  }
+
+  &.Disabled .ToggleRail {
+    background: css.color(panel) !important;
+    box-shadow: inset 0 0 0 m.$border css.color(border_faint) !important;
+  }
+
+  &.Disabled .ToggleSwitch {
+    background: css.color(disabled) !important;
+  }
+}
+
+// segmented choices (library display size and the like): the chosen one takes the accent.
+.Button.RadioButton {
+  @include shape.edge;
+  @include css.states(states.$tab, $on: ".Active", $important: true);
+  @include shape.flat-fill;
+  border-color: css.color(border) !important;
+  box-shadow: none !important;
+}
+
+// checkboxes: a field box with a hairline; checked fills with the accent and draws the tick in its
+// text color. steam strokes the tick, so stroke follows the ink too.
+.DialogCheckbox {
+  @include shape.edge;
+  @include css.states(states.$indicator, $on: ".Active", $important: true);
+  box-shadow: none !important;
+
+  .SVGIcon_DialogCheck path {
+    stroke: currentColor !important;
+  }
+}
+
+.DialogCheckbox_Container:hover .DialogCheckbox:not(.Disabled, .Active) {
+  @include css.state(states.$indicator, hover, $important: true);
+}
+
+.DialogCheckbox_Container:focus-visible .DialogCheckbox {
+  outline: m.$focus-width solid css.color(primary) !important;
+  outline-offset: m.$border !important;
+}

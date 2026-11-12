@@ -1,0 +1,17 @@
+// tooltips: steam's are a pale gradient under dark text; the shared look is a panel with the strong
+// edge and the chrome's own text.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "shape";
+
+.TextToolTip,
+.ToolTipCustom {
+  @include shape.edge;
+  @include shape.flat-fill;
+  background-color: css.color(panel) !important;
+  border-color: css.color(border_strong) !important;
+  color: css.color(on_surface) !important;
+  text-shadow: none !important;
+  font-size: m.$font-size !important;
+  box-shadow: m.$shadow-floating-offset css.color(shadow) !important;
+}

@@ -1,0 +1,154 @@
+// the store's front page: the featured carousel, the deal and category rows, the new and trending
+// tabs with their preview pane, and the tag deep dive.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "store";
+@use "components/buttons";
+@use "components/surfaces";
+@use "components/tags";
+
+// home.css's own palette, which most of the page's containers read. a seasonal sale redeclares it
+// on the sale's wrapper, so the remap goes there too. the promo gradients of deal rows and the sale
+// green keep their meaning.
+$home: (
+  page-background: css.color(panel),
+  dark-ctn-bg: css.color(field),
+  price-dark-bg: css.color(field),
+  dark-ctn-bg-gradient: none,
+  light-ctn-bg: css.color(raised),
+  light-ctn-bg-gradient: linear-gradient(css.color(raised), css.color(raised)),
+  light-ctn-bg-gradient-top-color: css.color(raised),
+  light-ctn-bg-hover: css.color(hover),
+  light-fg: css.color(on_surface),
+  midlight-fg: css.color(on_surface_variant),
+  dimlight-fg: css.color(border),
+  dimmestlight-fg: css.color(border_faint),
+  mid-ctn-bg: css.color(field),
+  "blue": css.color(primary),
+  bright-teal: css.color(primary),
+  blue-translucent: css.alpha(primary, 0.12),
+  blue-translucent-light: css.alpha(primary, 0.26),
+  blue-gradient-bg-bold: linear-gradient(css.color(pressed), css.color(pressed)),
+  blue-gradient-bg-muted: linear-gradient(css.color(raised), css.color(raised)),
+  blue-gradient-bg-muted-opaque: linear-gradient(css.color(raised), css.color(raised)),
+  multi-color-bg-gradient-2: linear-gradient(css.color(raised), css.color(raised)),
+  hightlight-bottom: none,
+);
+
+:root,
+:root .seasonal_sale {
+  @each $name, $value in $home {
+    --#{$name}: #{$value} !important;
+  }
+}
+
+.home_title_ctn .home_title,
+.home_page_content h2 {
+  color: css.color(on_surface) !important;
+}
+
+// the featured carousel: the art stays, the info pane beside it becomes a card's body.
+.store_main_capsule {
+  @include surfaces.card;
+  overflow: hidden !important;
+
+  .info {
+    @include surfaces.clear;
+    background-color: css.color(raised) !important;
+  }
+}
+
+.carousel_thumbs > div {
+  background-color: css.color(border) !important;
+
+  &.focus {
+    background-color: css.color(primary) !important;
+  }
+}
+
+.tags > span,
+.tags > a,
+.deep_dive_tag {
+  @include tags.label;
+}
+
+.tab_item_tags,
+.tab_item_tags > .top_tag {
+  color: css.color(on_surface_variant) !important;
+}
+
+.home_gift_card_link {
+  @include buttons.button;
+}
+
+// react rows (discounts, recommendations): a pure-react-carousel slider of capsule panels.
+.carousel__slider {
+  @include surfaces.clear;
+}
+
+.carousel__inner-slide > .Panel {
+  @include surfaces.card;
+  overflow: hidden !important;
+}
+
+// new & trending, top sellers and the other tabs, with the preview of the hovered row.
+.home_tab_bg_ctn {
+  @include surfaces.clear;
+}
+
+// the tab titles read as headings, so the chosen one keeps steam's underline, in the accent.
+.home_tab_button {
+  color: css.color(on_surface_variant) !important;
+  opacity: 1 !important;
+  transition: m.$transition;
+
+  &:hover,
+  &.active {
+    color: css.color(on_surface) !important;
+  }
+
+  &.active {
+    border-bottom-color: css.color(primary) !important;
+  }
+}
+
+.tab_row_item {
+  @include surfaces.card(m.$radius-small);
+
+  &:hover,
+  &.focus {
+    background-color: css.color(hover) !important;
+    border-color: css.color(border_strong) !important;
+  }
+}
+
+.tab_preview {
+  @include surfaces.card;
+
+  .tab_preview_details {
+    @include surfaces.well;
+  }
+}
+
+.deep_dive_key_tags {
+  @include surfaces.card;
+}
+
+// the discovery queue banner: a react widget whose header class is stable.
+.Panel:has(> .WidgetHeaderCtn) {
+  @include surfaces.card;
+  overflow: hidden !important;
+
+  > * {
+    @include surfaces.clear;
+  }
+}
+
+.WidgetHeaderCtn {
+  @include surfaces.clear;
+  color: css.color(on_surface) !important;
+}
+
+.community_recommendations_block .view_more a {
+  color: css.color(primary) !important;
+}

@@ -1,0 +1,294 @@
+// a game's store page: the header and media, the glance column, the wishlist and follow bar, the
+// purchase area with its editions, bundles and dlc list, the details column and the description.
+@use "palette" as css;
+@use "skadi/metrics" as m;
+@use "skadi/states";
+@use "store";
+@use "components/rank";
+@use "components/buttons";
+@use "components/surfaces";
+@use "components/tags";
+@use "../components/shape";
+
+:root {
+  --summary-title-text-color: #{css.color(on_surface_variant)};
+}
+
+// the game's own art and steam's glows under it give way to the page material.
+.game_page_background_ctn > img {
+  display: none !important;
+}
+
+.game_page_background,
+.game_page_background_ctn,
+.game_background_glow,
+.game_background_lighten,
+#game_highlights,
+.related_items_ctn,
+.page_content_ctn {
+  @include surfaces.clear;
+}
+
+.apphub_AppName {
+  color: css.color(on_surface) !important;
+}
+
+.blockbg a,
+.blockbg {
+  color: css.color(on_surface_variant) !important;
+}
+
+// the glance column beside the media.
+.glance_ctn {
+  .game_description_snippet {
+    color: css.color(on_surface) !important;
+  }
+
+  .subtitle,
+  .dev_row b {
+    color: css.color(on_surface_variant) !important;
+  }
+
+  .dev_row a,
+  .summary > a {
+    color: css.color(primary) !important;
+  }
+}
+
+.glance_tags .app_tag {
+  @include tags.link;
+}
+
+// wishlist, follow and ignore. ignore is a split button whose arrow opens a flyout of options.
+.queue_ctn {
+  @include surfaces.card;
+}
+
+.queue_btn_menu > .queue_menu_arrow {
+  @include buttons.button($on: ".queue_btn_active");
+}
+
+.queue_btn_menu > .queue_menu_arrow#{rank.$outrank} {
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
+
+  // steam's arrow is a blue image; a triangle in the ink replaces it.
+  img {
+    display: none !important;
+  }
+
+  > span::after {
+    content: "";
+    display: block;
+    border-inline: m.$space-1 solid transparent;
+    border-top: 5px solid currentColor;
+    margin-inline: m.$space-2;
+  }
+}
+
+#ignoreBtn > .btnv6_blue_hoverfade#{rank.$outrank} {
+  border-start-end-radius: 0 !important;
+  border-end-end-radius: 0 !important;
+}
+
+.queue_menu_flyout {
+  @include surfaces.floating;
+  overflow: hidden !important;
+
+  .queue_menu_option {
+    @include css.states(states.$row, $important: true);
+  }
+
+  .option_title {
+    color: css.color(on_surface) !important;
+  }
+
+  .option_subtitle {
+    color: css.color(on_surface_variant) !important;
+  }
+}
+
+// the purchase area: each edition, bundle and subscription is a card, its price and button a field
+// strip, and buy is the page's one filled action.
+.game_area_purchase_game,
+.game_area_offsite_purchase {
+  @include surfaces.card;
+  color: css.color(on_surface_variant) !important;
+
+  h1,
+  .title {
+    color: css.color(on_surface) !important;
+  }
+}
+
+.game_purchase_action_bg {
+  @include shape.edge;
+  background-color: css.color(field) !important;
+  border-color: css.color(border) !important;
+}
+
+.game_purchase_options_editions_header,
+.game_area_dlc_section h2.gradientbg,
+.page_content h2:not(.title),
+.game_page_autocollapse h2 {
+  @include surfaces.heading-rule;
+}
+
+.game_purchase_options_editions_header_compare_button,
+h2.gradientbg .note {
+  @include buttons.button;
+}
+
+.bundle_contents_preview {
+  @include surfaces.well;
+}
+
+.bundle_label,
+.game_purchase_discount_countdown,
+.all_languages,
+.checkcol span {
+  color: css.color(primary) !important;
+}
+
+.dlc_highlight_reason {
+  background-color: css.color(primary) !important;
+  color: css.color(on_primary) !important;
+  border-radius: m.$radius-small !important;
+}
+
+// dlc rows: one list, separated by hairlines, with a tonal hover.
+.game_area_dlc_row {
+  @include surfaces.clear;
+  border-bottom: m.$border solid css.color(border_faint) !important;
+  color: css.color(on_surface_variant) !important;
+  transition: m.$transition;
+
+  &:hover {
+    background-color: css.color(hover) !important;
+    color: css.color(on_surface) !important;
+  }
+}
+
+.dlc_footer_element {
+  @include buttons.button;
+}
+
+// the details column on the right.
+.game_meta_data .block {
+  @include surfaces.card;
+}
+
+.game_area_details_specs_ctn {
+  @include surfaces.well;
+  border-radius: m.$radius-small !important;
+
+  .label {
+    @include surfaces.clear;
+    color: css.color(on_surface) !important;
+  }
+
+  &:hover {
+    background-color: css.color(hover) !important;
+  }
+}
+
+// the accessibility and controller rows are react, reachable through their feature targets: each
+// row is a summary or link holding an icon box and a label, styled like the feature rows above.
+.game_area_features_list_ctn [data-featuretarget] {
+  :is(summary, a):has(> span, > div) {
+    @include surfaces.well;
+    border-radius: m.$radius-small !important;
+    transition: m.$transition;
+
+    &:hover {
+      background-color: css.color(hover) !important;
+    }
+
+    > :is(div, span) {
+      @include surfaces.clear;
+      color: css.color(on_surface) !important;
+    }
+
+    span {
+      color: css.color(on_surface) !important;
+    }
+
+    // the "?" help link inside a row.
+    span > a {
+      @include buttons.button;
+    }
+  }
+}
+
+// react blocks in the right column that carry their own fill: the deck block's body under its
+// title, and the achievements panel.
+[data-featuretarget="deck-verified-results"] [role="group"] > div:not(:first-child),
+[data-featuretarget="achievements"] .noOpinionatedGlobalStyles > div {
+  @include surfaces.card;
+}
+
+[data-featuretarget="deck-verified-results"] a.Focusable {
+  @include buttons.button;
+}
+
+.linkbar {
+  @include buttons.button;
+}
+
+// the description, with its read-more fold and the system requirement tabs.
+.game_page_autocollapse_readmore {
+  @include surfaces.clear;
+  color: css.color(primary) !important;
+}
+
+.game_page_autocollapse_fade {
+  @include surfaces.clear;
+}
+
+.sysreq_tabs {
+  @include surfaces.clear;
+}
+
+.sysreq_tab {
+  @include buttons.button(states.$tab, ".active");
+}
+
+// react buttons in the lower carousels and the reviews.
+.FollowButton,
+.DialogButton {
+  @include buttons.button;
+
+  * {
+    color: inherit !important;
+  }
+}
+
+[data-featuretarget="creatorhome-carousel"],
+[data-featuretarget="storeitems-carousel"] {
+  .Panel {
+    @include surfaces.clear;
+  }
+}
+
+// the review summary and histogram are react without feature targets of their own, so they're found
+// by shape: the graph is the one element with role=img, and each score row pairs a count with the
+// focusable summary link.
+[data-featuretarget="appreviews"] {
+  div:has(> div > [role="img"]) {
+    @include surfaces.card;
+    overflow: hidden !important;
+
+    > div {
+      @include surfaces.clear;
+    }
+
+    > div + div {
+      border-inline-start: m.$border solid css.color(border) !important;
+    }
+  }
+
+  div:has(> div > .Focusable + span),
+  div:has(> span + .Focusable) {
+    @include surfaces.card(m.$radius-small);
+  }
+}
