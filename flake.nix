@@ -11,12 +11,14 @@
       "https://walker.cachix.org"
       "https://walker-git.cachix.org"
       "https://hyprland.cachix.org"
+      "https://cache.numtide.com"
     ];
     extra-trusted-public-keys = [
       "noctalia.cachix.org-1:pCOR47nnMEo5thcxNDtzWpOxNFQsBRglJzxWPp3dkU4="
       "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
       "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
       "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
     ];
   };
 
@@ -68,10 +70,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:feltfomo/lexicon";
     };
-    llm-agents = {
-      inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:numtide/llm-agents.nix";
-    };
+    llm-agents.url = "github:numtide/llm-agents.nix";
     mango = {
       inputs.nixpkgs.follows = "nixpkgs";
       url = "github:mangowm/mango";
