@@ -9,3 +9,8 @@ shell-integration-features = no-cursor
 
 window-padding-x = 0
 window-padding-y = 0
+
+# hyprland draws the blur. with this off, ghostty sends an empty blur region and hyprland skips it
+background-blur = true
+
+keybind = ctrl+enter=unbind
