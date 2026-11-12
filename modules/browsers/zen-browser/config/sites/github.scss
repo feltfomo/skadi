@@ -1,0 +1,97 @@
+// GitHub's dark themes on the Skadi palette, by remapping Primer's root tokens. names checked
+// against @primer/primitives 11.10.0; a rename fails silently. semantic colors stay native.
+@use "palette" as css;
+
+$tokens: (
+  // frame and surfaces
+  bgColor-default: css.color(shell),
+  bgColor-inset: css.color(well),
+  page-header-bgColor: css.color(shell),
+  // GitHub draws code blocks and box headers in this; panel sits too close to the page frame.
+  bgColor-muted: css.color(raised),
+  header-bgColor: css.color(panel),
+  overlay-bgColor: css.color(panel),
+  timelineBadge-bgColor: css.color(field),
+  tooltip-bgColor: css.color(panel),
+  tooltip-fgColor: css.color(on_surface),
+  bgColor-disabled: css.color(panel),
+  // fields and controls
+  control-bgColor-rest: css.color(field),
+  control-bgColor-hover: css.color(hover),
+  control-bgColor-active: css.color(pressed),
+  control-transparent-bgColor-hover: css.color(hover),
+  control-transparent-bgColor-active: css.color(pressed),
+  controlTrack-bgColor-rest: css.color(field),
+  controlTrack-bgColor-hover: css.color(hover),
+  controlTrack-bgColor-active: css.color(pressed),
+  headerSearch-bgColor: css.color(field),
+  menu-bgColor-active: css.color(hover),
+  // tonal, not accent: GitHub's text pairs assume a dark selection.
+  control-transparent-bgColor-selected: css.color(pressed),
+  sideNav-bgColor-selected: css.color(pressed),
+  selectMenu-bgColor-active: css.color(pressed),
+  // borders
+  borderColor-default: css.color(border),
+  borderColor-muted: css.color(border_faint),
+  borderColor-translucent: css.color(border_faint),
+  borderColor-emphasis: css.color(border_strong),
+  headerSearch-borderColor: css.color(border),
+  header-borderColor-divider: css.color(border),
+  control-borderColor-selected: css.color(primary),
+  // text
+  fgColor-default: css.color(on_surface),
+  fgColor-muted: css.color(on_surface_variant),
+  fgColor-neutral: css.color(on_surface_variant),
+  fgColor-disabled: css.color(disabled),
+  header-fgColor-default: css.color(on_surface_variant),
+  header-fgColor-logo: css.color(on_surface),
+  // accent, links and focus
+  fgColor-accent: css.color(primary),
+  borderColor-accent-emphasis: css.color(primary),
+  borderColor-accent-muted: css.alpha(primary, 0.4),
+  bgColor-accent-muted: css.alpha(primary, 0.12),
+  underlineNav-borderColor-active: css.color(primary),
+  selection-bgColor: css.alpha(primary, 0.35),
+  // carries white text, so it can't be the pale primary.
+  bgColor-accent-emphasis: css.mix(surface_container, primary, 0.45),
+  // buttons, not --bgColor-success-*, which status badges read.
+  button-primary-bgColor-rest: css.color(primary),
+  button-primary-bgColor-hover: css.color(accent_hover),
+  button-primary-bgColor-active: css.color(accent_pressed),
+  button-primary-fgColor-rest: css.color(on_primary),
+  button-primary-iconColor-rest: css.color(on_primary),
+  control-checked-bgColor-rest: css.color(primary),
+  control-checked-bgColor-hover: css.color(accent_hover),
+  control-checked-bgColor-active: css.color(accent_pressed),
+  control-checked-fgColor-rest: css.color(on_primary),
+  // contribution graph: an accent ramp instead of green.
+  contribution-default-bgColor-0: css.color(field),
+  contribution-default-bgColor-1: css.mix(panel, primary, 0.25),
+  contribution-default-bgColor-2: css.mix(panel, primary, 0.45),
+  contribution-default-bgColor-3: css.mix(panel, primary, 0.7),
+  contribution-default-bgColor-4: css.color(primary),
+  // diff hunk headers
+  diffBlob-hunkNum-bgColor-rest: css.mix(panel, primary, 0.25),
+  diffBlob-hunkNum-bgColor-hover: css.color(primary),
+  diffBlob-hunkNum-fgColor-hover: css.color(on_primary),
+);
+
+@mixin _tokens {
+  @each $name, $value in $tokens {
+    --#{$name}: #{$value} !important;
+  }
+}
+
+// GitHub redeclares tokens on nested color-mode elements, so :root alone isn't enough.
+@media (forced-colors: none) {
+  [data-color-mode="dark"][data-dark-theme^="dark"]:not([data-dark-theme*="high_contrast"]),
+  [data-color-mode="auto"][data-light-theme^="dark"]:not([data-light-theme*="high_contrast"]) {
+    @include _tokens;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-color-mode="auto"][data-dark-theme^="dark"]:not([data-dark-theme*="high_contrast"]) {
+      @include _tokens;
+    }
+  }
+}

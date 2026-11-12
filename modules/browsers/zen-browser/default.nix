@@ -1,9 +1,36 @@
 {
   lexicon,
   inputs,
+  lib,
   ...
 }:
 let
+  # themed websites, each with a sheet in config/sites.
+  sites =
+    map
+      (
+        site:
+        site
+        // {
+          documents = lib.concatMapStringsSep ", " (domain: ''domain("${domain}")'') site.domains;
+        }
+      )
+      [
+        {
+          name = "github";
+          domains = [ "github.com" ];
+        }
+      ];
+  siteSheetsFor =
+    pkgs: args:
+    pkgs.callPackage ./_site-sheets.nix (
+      {
+        inherit sites;
+        palette = ./config/reactive-palette.css;
+      }
+      // args
+    );
+
   package =
     pkgs:
     let
@@ -34,7 +61,10 @@ let
         modules = pkgs.replaceVarsWith {
           src = ./config/palette-reload.sys.mjs;
           dir = "modules";
-          replacements.paletteWatch = pkgs.lib.getExe paletteWatch;
+          replacements = {
+            paletteWatch = pkgs.lib.getExe paletteWatch;
+            siteDocuments = lib.concatMapStrings (site: ", ${site.documents}") sites;
+          };
         };
       };
       # autoconfig is the only chrome-privileged hook that patches neither omni.ja nor the profile.
@@ -62,8 +92,9 @@ in
   # a parse error in skadi.cfg stops Zen at startup, and one in the module or a misplaced install only
   # loses reloading without a sign, so neither shows up in a host build.
   perSystem =
-    { pkgs, ... }:
+    { pkgs, self', ... }:
     {
+      checks.zen-site-sheets = siteSheetsFor pkgs { inherit (self'.packages) skadi-theme-design; };
       checks.zen-autoconfig =
         pkgs.runCommand "zen-autoconfig"
           {
@@ -121,6 +152,7 @@ in
       };
 
     furnish.files =
+      { pkgs, ... }:
       map
         (name: {
           source = ./config/theme + "/${name}.css";
@@ -135,6 +167,12 @@ in
           "panels"
           "urlbar"
           "tabs"
-        ];
+        ]
+      ++ [
+        {
+          source = "${siteSheetsFor pkgs { }}/sites.css";
+          destination = ".config/zen/theme/sites.css";
+        }
+      ];
   };
 }

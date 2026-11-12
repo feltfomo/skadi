@@ -6,6 +6,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 });
 
 const PALETTE_WATCH = "@paletteWatch@";
+const SITE_DOCUMENTS = '@siteDocuments@';
 // matches app-theme-setup's reading of XDG_CONFIG_HOME, so both agree on the deployed theme.
 const THEME_DIRECTORY = PathUtils.join(
   Services.env.get("XDG_CONFIG_HOME") ||
@@ -46,8 +47,8 @@ async function readPalette() {
 
 // user-origin !important beats the palette.css that userChrome.css and userContent.css imported,
 // without touching those sheets. the service shares it with every document in every process,
-// including windows that don't exist yet, which no per-window update can do. about: pages take it
-// too; web pages don't, since they read nothing from the palette.
+// including windows that don't exist yet, which no per-window update can do. about: pages and
+// themed sites take it too.
 function applyPalette(text) {
   const declarations = text
     .match(PALETTE_SHAPE)?.[1]
@@ -55,7 +56,7 @@ function applyPalette(text) {
   if (!declarations) {
     return false;
   }
-  const css = `@-moz-document url-prefix("chrome:"), url-prefix("about:") { :root {${declarations} } }`;
+  const css = `@-moz-document url-prefix("chrome:"), url-prefix("about:")${SITE_DOCUMENTS} { :root {${declarations} } }`;
   const sheet = Services.io.newURI(
     `data:text/css;charset=utf-8,${encodeURIComponent(css)}`
   );
