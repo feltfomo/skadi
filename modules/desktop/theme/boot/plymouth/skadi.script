@@ -27,6 +27,10 @@ field.sprite.SetOpacity(0);
 
 bullets.sprite = Sprite();
 bullets.sprite.SetOpacity(0);
+hint.image = text("password", color_on_surface_variant, 14);
+hint.sprite = Sprite(hint.image);
+hint.sprite.SetPosition(centre_x(hint.image), field.y + field.image.GetHeight() / 2 - hint.image.GetHeight() / 2, 2);
+hint.sprite.SetOpacity(0);
 caps.sprite = Sprite(text("caps lock is on", color_warning, 12));
 caps.sprite.SetOpacity(0);
 message.sprite = Sprite();
@@ -34,14 +38,20 @@ message.sprite = Sprite();
 fun show_field(opacity) {
   field.sprite.SetOpacity(opacity);
   bullets.sprite.SetOpacity(opacity);
-  if (opacity == 0)
+  if (opacity == 0) {
     caps.sprite.SetOpacity(0);
+    hint.sprite.SetOpacity(0);
+  }
 }
 
 fun display_password(prompt, count) {
   # the name moves up so the name and the field sit centred together.
   name.sprite.SetY(centre_y - name.image.GetHeight() - 16);
   show_field(1);
+  if (count == 0)
+    hint.sprite.SetOpacity(1);
+  else
+    hint.sprite.SetOpacity(0);
   dots = "";
   for (index = 0; index < count; index++)
     dots += "•";

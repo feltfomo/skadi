@@ -59,9 +59,13 @@ in
 
         # errors still reach the journal; on screen they'd land on the password prompt.
         boot.consoleLogLevel = 3;
+        # the console takes the screen as soon as the driver loads. it waits for text otherwise, and
+        # on a quiet boot the firmware's last frame, grub's menu, shows whenever nothing else draws.
         boot.kernelParams = [
           "rd.systemd.show_status=auto"
+          "vt.global_cursor_default=0"
           "rd.udev.log_level=3"
+          "fbcon=nodefer"
           "quiet"
         ];
 
@@ -95,11 +99,11 @@ in
           earlySetup = true;
         };
 
-        # plymouth keeps its last frame until the greeter's compositor draws over it, so there's no
-        # black console between them.
+        # greetd is an idle unit, so it reports started at once but launches the greeter only when
+        # boot settles. the splash stays up until then, so the greeter replaces it directly.
         services.greetd.greeterManagesPlymouth = lib.mkIf config.services.greetd.enable true;
         systemd.services.plymouth-quit = lib.mkIf config.services.greetd.enable {
-          after = [ "greetd.service" ];
+          after = [ "graphical.target" ];
           serviceConfig.ExecStart = [
             ""
             "-${config.boot.plymouth.package}/bin/plymouth quit --retain-splash"
