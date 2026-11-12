@@ -2,9 +2,9 @@
 
 my nixos config for khion, my nvidia desktop, and lumi, my laptop. both track nixos-unstable and use lix.
 
-hyprland, niri and mango are configured for both machines. lumi uses silentsddm for login and has a separate `grandpa` account with plasma and no admin access. each feature keeps its config files and color templates next to its module under [modules/](modules/).
+hyprland, niri and mango are configured for both machines, and both log in through the noctalia greeter. each feature keeps its config files and color templates next to its module under [modules/](modules/).
 
-both machines use luks-encrypted btrfs. the root resets to a blank snapshot at boot, while `/home`, `/nix` and `/persist` survive. system services declare the state they need to keep in their aspects.
+both machines use luks-encrypted btrfs. the root resets to a blank snapshot at boot, and `/home`, `/nix` and `/persist` survive.
 
 ## daily use
 
@@ -12,7 +12,7 @@ both machines use luks-encrypted btrfs. the root resets to a blank snapshot at b
 praxis rebuild khion
 ```
 
-use `lumi` on the laptop. this formats the repo, then asks before running the selected host's den wrapper to build and switch through `nh os`. it doesn't deploy over ssh. generation and full flake checks are separate commands.
+use `lumi` on the laptop. praxis formats the repo, asks, then builds and switches through the host's den wrapper and `nh os`. it only rebuilds the machine it runs on.
 
 praxis uses `/etc/skadi` even when run from another directory.
 
@@ -45,36 +45,6 @@ nix develop /etc/skadi
 ```fish
 nix run /etc/skadi#praxis -- rebuild khion
 ```
-
-## editing the config
-
-| path                                                       | what's there                                                       |
-| ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| [modules/hosts/](modules/hosts/)                           | each machine's aspects, hardware, disks and bootloader             |
-| [modules/users/](modules/users/)                           | accounts and home manager settings                                 |
-| `modules/<area>/`                                          | features, each a single module or a folder with its files          |
-| [modules/desktop/bindings/](modules/desktop/bindings/)     | [shared desktop bindings](modules/desktop/bindings/bindings.md)    |
-| [modules/installer/](modules/installer/)                   | the installer iso, skadi-install and the vm test harness           |
-| [modules/flake/](modules/flake/)                           | inputs, checks, formatting, the dev shell and `skadi.packages`     |
-| [praxis.nix](praxis.nix)                                   | maintenance commands                                               |
-
-the areas are `ai`, `browsers`, `desktop`, `dev`, `editors`, `gaming`, `hardware`, `media`, `shell`, `social`, `system` and `terminals`. a feature folder keeps the files it deploys in `config/`, because furnish copies whole directories into the home and would otherwise ship the module too.
-
-every `.nix` file under `modules/` is imported as a module, except paths containing `/_`. put package recipes, host hardware and other plain nix files there. to share a package or value between features, publish it through `skadi.packages` or another `skadi.*` option instead of importing across feature folders.
-
-`flake.nix` is generated. change input declarations in the relevant module, then run `praxis gen`. [outputs.nix](outputs.nix) sets up module imports and the shared helpers from [lexicon](https://github.com/feltfomo/lexicon).
-
-after changing `praxis.nix`, use a fresh dev shell or `nix run /etc/skadi#praxis` to try it. the installed command keeps its old declarations until the next activation.
-
-when adding a system service, declare any state it needs across reboots in `persistence.directories` or `persistence.files`. `/home` already persists, so it doesn't need those declarations.
-
-## lumi's plasma account
-
-`grandpa` gets chrome, stock ghostty, zed and obsidian through nix and installs other apps from discover's per-user flathub source. these baseline apps stay installed across rebuilds and aren't managed by discover. the launcher lists chrome, files, discover, settings, and apps or website shortcuts added under that account.
-
-plasma starts in Breeze Dark with Papirus Dark icons, 12-point text and a 48-pixel Windows-style cursor. the cursor size stays adjustable in settings. initial files are copied only when absent. the palette and cursor are applied once, so later changes through settings remain writable and survive rebuilds. browser data and user flatpaks persist with `/home`.
-
-gnome, gdm and plain sddm remain available as aspects. lumi selects plasma and silentsddm; adding a desktop's module to the repository doesn't enable it.
 
 ## installation
 
@@ -129,11 +99,3 @@ nix store diff-closures /run/current-system ./result
 ```
 
 `sudo nixos-rebuild switch --flake /etc/skadi#khion` is the fallback if the wrapper isn't usable. before switching a new account or machine, provision its sops secrets and verify login on a fresh tty with a test activation.
-
-## remote tools
-
-pi's servers are declared in [modules/ai/pi/config/mcp-adapter.json](modules/ai/pi/config/mcp-adapter.json). context7 and github connect directly to their hosted servers. set pi's github token through the masked prompt:
-
-```fish
-pi-mcp-adapter token set github
-```

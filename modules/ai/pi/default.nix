@@ -34,6 +34,8 @@
         destination = ".pi/agent/AGENTS.md";
         onConflict = "source-wins";
       }
+      # the github token stays out of this file. pi stores it through its masked prompt:
+      # `pi-mcp-adapter token set github`.
       {
         source = ./config/mcp-adapter.json;
         destination = ".pi/agent/mcp-adapter.json";
