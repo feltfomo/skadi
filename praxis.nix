@@ -1,26 +1,9 @@
-{ inputs, pkgs, ... }:
-let
-  inherit (import ./modules/terminals/herdr/_machines.nix) machines user;
-in
+{ inputs, ... }:
 {
   # use the live checkout, including when invoked outside /etc/skadi.
   cwd = "/etc/skadi";
   scope = "global";
   commands = {
-    herdr = {
-      machines = {
-        description = "List the machines Herdr combines into one window";
-        command = [
-          "${pkgs.coreutils}/bin/printf"
-          "%-8s %s\n"
-        ]
-        ++ pkgs.lib.concatMap (machine: [
-          machine
-          "${user}@${machine}"
-        ]) machines;
-        forwardArgs = false;
-      };
-    };
     gen = {
       description = "Regenerate flake.nix from the module declarations";
       command = [

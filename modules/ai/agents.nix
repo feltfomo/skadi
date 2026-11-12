@@ -29,25 +29,21 @@ in
           destination = ".codex/AGENTS.md";
         }
       ];
-      directories =
-        { host, ... }:
-        let
-          herdr = inputs.llm-agents.packages.${host.system}.herdr;
-        in
-        [
-          {
-            source = "${herdr.src}/skills/herdr";
-            destination = ".claude/skills/herdr";
-          }
-          {
-            source = "${herdr.src}/skills/herdr";
-            destination = ".agents/skills/herdr";
-          }
-          {
-            source = "${herdr.src}/skills/herdr";
-            destination = ".codex/skills/herdr";
-          }
-        ];
+      directories = [
+        # the skill comes from the same checkout as the installed binary, so its commands match.
+        {
+          source = "${inputs.herdr}/skills/herdr";
+          destination = ".claude/skills/herdr";
+        }
+        {
+          source = "${inputs.herdr}/skills/herdr";
+          destination = ".agents/skills/herdr";
+        }
+        {
+          source = "${inputs.herdr}/skills/herdr";
+          destination = ".codex/skills/herdr";
+        }
+      ];
     };
   };
 }

@@ -52,9 +52,9 @@
     };
     flake-file.url = "github:denful/flake-file/v0.3.0";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    herdr-source = {
+    herdr = {
       inputs.nixpkgs.follows = "nixpkgs";
-      url = "github:feltfomo/herdr/c66572a9e9ed73949004012c7372df069c5fc4e9";
+      url = "github:herdrdev/herdr";
     };
     home-manager = {
       inputs.nixpkgs.follows = "nixpkgs";

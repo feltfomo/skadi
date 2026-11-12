@@ -9,7 +9,6 @@
       active_row_bg = "{{ surfaceContainerHigh }}";
       selection_bg = "{{ surfaceContainerHighest }}";
       accent = "{{ primary }}";
-      on_accent = "{{ onPrimary }}";
       green = "{{ term2 }}";
       yellow = "{{ term3 }}";
       blue = "{{ secondary }}";
@@ -18,7 +17,8 @@
       surface1 = "{{ surfaceContainer }}";
       surface_dim = "{{ outline }}";
       overlay0 = "{{ outline }}";
-      overlay1 = "{{ outlineVariant }}";
+      # herdr's overlay1 is lighter than overlay0 and labels named inactive tabs.
+      overlay1 = "{{ onSurfaceVariant }}";
       text = "{{ onSurface }}";
       subtext0 = "{{ onSurfaceVariant }}";
       mauve = "{{ tertiary }}";

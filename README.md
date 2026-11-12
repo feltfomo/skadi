@@ -46,28 +46,6 @@ nix develop /etc/skadi
 nix run /etc/skadi#praxis -- rebuild khion
 ```
 
-## remote herdr sessions
-
-herdr combines khion and lumi itself. both machines are declared once in [`_machines.nix`](modules/terminals/herdr/_machines.nix), which the herdr config lists under `[fleet]`. run these from a terminal on the machine you are using:
-
-```fish
-herdr
-herdr --session skadi
-herdr --fleet lumi --session skadi
-herdr --fleet lumi --session research --new
-praxis herdr machines
-```
-
-plain `herdr` opens a combined window for the session, with this device selected. herdr finds this device by its host name and connects to it locally, without SSH. `--fleet lumi` selects lumi's copy of the session instead; it must already be running there, because connecting never starts a stopped peer session. `--new` creates the named session on that machine first. names use 1-64 ASCII letters, numbers, dots, underscores or hyphens. `.`, `..` and `default` are reserved. `praxis herdr machines` lists the declared machines without probing them.
-
-the window shows only the selected session. each machine contributes its own spaces from that session; other sessions are never attached or shown. the sidebar is a tree of machines and their spaces. "This device" uses local IPC, while the other machine uses SSH over Tailscale. an offline machine does not block the local terminal. the agents panel defaults to this space; this machine and all machines also stay within the session. the session picker (`prefix+g`) lists sessions across both machines and opens or creates one in a fresh window.
-
-opening a peer connection also opens the same-named local session for local editing.
-
-connection windows keep their sidebar preferences under `$XDG_STATE_HOME/herdr/connections`, or `~/.local/state/herdr/connections` by default. windows opened by the old praxis helper used different directories there, so their sidebar preferences don't carry over. herdr launched with `HERDR_SOCKET_PATH` or `HERDR_CLIENT_SOCKET_PATH` set keeps its ordinary window and saved machines.
-
-SSH uses your existing keys and Tailscale hostnames. the other machine must be awake and reachable. both machines need the patched Herdr binary for combined connections. an older peer fails with an update notice.
-
 ## editing the config
 
 | path                                                       | what's there                                                       |

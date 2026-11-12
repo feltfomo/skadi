@@ -4,25 +4,13 @@
   ...
 }:
 let
-  herdrFor = pkgs: inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.herdr-scoped;
-  fleet = import ./_machines.nix;
+  herdrFor = pkgs: inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
-  flake-file.inputs.llm-agents = {
-    url = "github:numtide/llm-agents.nix";
+  flake-file.inputs.herdr = {
+    url = "github:herdrdev/herdr";
     inputs.nixpkgs.follows = "nixpkgs";
   };
-
-  flake-file.inputs.herdr-source = {
-    url = "github:feltfomo/herdr/c66572a9e9ed73949004012c7372df069c5fc4e9";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
-
-  perSystem =
-    { system, ... }:
-    {
-      packages.herdr-scoped = inputs.herdr-source.packages.${system}.default;
-    };
 
   den.aspects.herdr = lexicon {
     package = herdrFor;
@@ -85,11 +73,6 @@ in
                   name = "kanagawa-lotus";
                   auto_switch = false;
                 };
-                # every machine is listed with its ssh target; herdr ignores the target of the machine it runs on.
-                fleet.machines = map (machine: {
-                  id = machine;
-                  target = "${fleet.user}@${machine}";
-                }) fleet.machines;
               };
             };
             template = toml.render palette;
