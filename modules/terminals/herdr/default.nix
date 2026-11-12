@@ -34,7 +34,7 @@ in
           # each named session runs its own server; plain reload-config only reaches the default one.
           text = ''
             ${herdr}/bin/herdr session list --json \
-              | ${pkgs.jq}/bin/jq -er '.sessions[] | select(.running) | [.default, .name] | @tsv' \
+              | ${pkgs.jq}/bin/jq -r '.sessions[] | select(.running) | [.default, .name] | @tsv' \
               | while IFS=$'\t' read -r default name; do
                   if [ "$default" = true ]; then
                     ${herdr}/bin/herdr server reload-config
