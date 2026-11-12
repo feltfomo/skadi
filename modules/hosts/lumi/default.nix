@@ -19,6 +19,13 @@
       base
     ];
 
+    # grandpa logs in without picking anything. the greeter remembers one last session for every
+    # user, so plasma is pinned and the other sessions are picked by hand.
+    nixos.services.displayManager.noctalia-greeter.settings = {
+      session.default = "Plasma (Wayland)";
+      user.default = "grandpa";
+    };
+
     # fill the N95's 4 cores with two builds at once, matching khion's two-job split.
     nixos.nix.settings = {
       max-jobs = 2;
