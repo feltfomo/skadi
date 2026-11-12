@@ -1,27 +1,18 @@
 # publishes the user's live palette and wallpaper for the boot-theme service, which renders them
-# onto the esp. only noctalia's templates can name the wallpaper, through `{{ image }}`. other
-# shells publish nothing, and the boot keeps the fallback theme.
+# onto the esp. the palette is a portable template, so lexicon derives every role the fallback
+# palette has, success and warning included. only noctalia can name the wallpaper, through its own
+# `{{ image }}`, so the template is noctalia's alone. other shells publish nothing, and the boot
+# keeps the fallback theme.
 {
   config,
   den,
   lexicon,
+  lib,
   ...
 }:
 let
-  # success and warning aren't material roles, so noctalia has no token for them.
-  roles = builtins.filter (role: role != "success" && role != "warning") (
-    builtins.attrNames config.skadi.fallbackPalette
-  );
   template = builtins.toJSON (
-    {
-      wallpaper = "{{ image }}";
-    }
-    // builtins.listToAttrs (
-      map (role: {
-        name = role;
-        value = "{{ colors.${role}.default.hex }}";
-      }) roles
-    )
+    lib.mapAttrs (role: _: "{{ ${lib.toCamelCase role} }}") config.skadi.fallbackPalette
   );
 in
 {
@@ -31,13 +22,22 @@ in
   ];
 
   den.aspects.boot-theme-palette = lexicon {
-    theme = {
-      id = "boot";
-      renderers.noctalia = {
-        source = builtins.toFile "boot.json" template;
-        placedAs = "boot.json";
-        output = ".local/state/skadi/boot.json";
+    theme =
+      { pkgs, ... }:
+      {
+        id = "boot";
+        renderers.noctalia = {
+          inherit template;
+          placedAs = "boot.json";
+          output = ".local/state/skadi/boot.json";
+          # lexicon rejects shell-native tokens in a portable template, so the wallpaper goes in after
+          # it compiles.
+          transform =
+            compiled:
+            pkgs.runCommand "boot.json" { nativeBuildInputs = [ pkgs.jq ]; } ''
+              jq '. + { wallpaper: "{{ image }}" }' ${compiled} > "$out"
+            '';
+        };
       };
-    };
   };
 }

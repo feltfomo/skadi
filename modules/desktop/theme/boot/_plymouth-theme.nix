@@ -1,38 +1,33 @@
-# the plymouth splash. the script reads the palette as globals written ahead of it, so the scene
-# stays plain script and only the colors come from nix.
+# the plymouth splash. its images come from the fallback theme's plymouth/, and the script prefers
+# the live ones on the esp. the two colors it still draws itself, the surface behind the backdrop and
+# the error messages, are written ahead of the script as globals.
 {
   lib,
   runCommand,
-  imagemagick,
   palette,
-  hostName,
+  fallback,
 }:
 let
   colors = import ./_colors.nix { inherit lib; };
-  roles = [
-    "on_surface_variant"
-    "on_surface"
-    "surface"
-    "warning"
-    "error"
-  ];
-  globals = ''
-    host_name = "${hostName}";
-  ''
-  + lib.concatMapStrings (
-    role:
-    let
-      channels = lib.splitString ", " (colors.unit palette.${role});
-    in
-    lib.concatImapStrings (
-      index: value: "color_${role}[${toString (index - 1)}] = ${value};\n"
-    ) channels
-  ) roles;
+  globals =
+    lib.concatMapStrings
+      (
+        role:
+        let
+          channels = lib.splitString ", " (colors.unit palette.${role});
+        in
+        lib.concatImapStrings (
+          index: value: "color_${role}[${toString (index - 1)}] = ${value};\n"
+        ) channels
+      )
+      [
+        "surface"
+        "error"
+      ];
   directory = "share/plymouth/themes/skadi";
 in
 runCommand "skadi-plymouth-theme"
   {
-    nativeBuildInputs = [ imagemagick ];
     inherit globals;
     passAsFile = [ "globals" ];
   }
@@ -40,9 +35,7 @@ runCommand "skadi-plymouth-theme"
     set -euo pipefail
     mkdir -p "$out/${directory}"
     cat "$globalsPath" ${./plymouth/skadi.script} > "$out/${directory}/skadi.script"
-    magick -size 560x56 xc:none \
-      -fill '${palette.surface_container_high}' -stroke '${palette.outline_variant}' -strokewidth 2 \
-      -draw "roundrectangle 1,1,558,54,6,6" "$out/${directory}/field.png"
+    cp ${fallback}/plymouth/*.png "$out/${directory}/"
     cat > "$out/${directory}/skadi.plymouth" <<EOF
     [Plymouth Theme]
     Name=Skadi

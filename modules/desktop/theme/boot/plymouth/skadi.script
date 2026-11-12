@@ -1,13 +1,29 @@
-# the boot splash: the host name on the palette's surface, and the disk password field under it
-# when cryptsetup asks. the theme package prepends the palette as `color_*` globals, each three
-# 0-1 channels. plymouth draws this scene centred on every display.
+# the boot splash: the host name on the backdrop, pulsing dots while boot runs, and the disk password
+# field when cryptsetup asks. every piece is an image the boot renderer drew in the palette, since the
+# script can't read colors at boot. the theme package prepends the two colors it draws itself as
+# `color_*` globals, each three 0-1 channels.
+
+# image paths are joined onto the theme's directory, and `..` stops at /, so enough of them reach
+# any absolute path. the initrd mounts the esp at /run/skadi-esp for the boot splash; the shutdown
+# splash runs on the real system, where it's /boot. a live image that's missing falls back to the
+# theme's own.
+root = "../../../../../../../../../../../..";
+fun load(name) {
+  image = Image(root + "/run/skadi-esp/skadi/plymouth/" + name);
+  if (!image)
+    image = Image(root + "/boot/skadi/plymouth/" + name);
+  if (!image)
+    image = Image(name);
+  return image;
+}
 
 Window.SetBackgroundTopColor(color_surface[0], color_surface[1], color_surface[2]);
 Window.SetBackgroundBottomColor(color_surface[0], color_surface[1], color_surface[2]);
 
-fun text(string, color, size) {
-  return Image.Text(string, color[0], color[1], color[2], 1, "Maple Mono NF " + size);
-}
+# the backdrop is rendered small and already blurred, so stretching it to the screen doesn't show.
+backdrop.image = load("backdrop.png").Scale(Window.GetWidth(), Window.GetHeight());
+backdrop.sprite = Sprite(backdrop.image);
+backdrop.sprite.SetPosition(Window.GetX(), Window.GetY(), -100);
 
 fun centre_x(image) {
   return Window.GetX() + Window.GetWidth() / 2 - image.GetWidth() / 2;
@@ -15,28 +31,36 @@ fun centre_x(image) {
 
 centre_y = Window.GetY() + Window.GetHeight() / 2;
 
-name.image = text(host_name, color_on_surface_variant, 16);
+name.image = load("name.png");
 name.sprite = Sprite(name.image);
 name.sprite.SetPosition(centre_x(name.image), centre_y - name.image.GetHeight() / 2, 1);
 
-field.image = Image("field.png");
+field.image = load("field.png");
 field.sprite = Sprite(field.image);
 field.y = centre_y + 24;
 field.sprite.SetPosition(centre_x(field.image), field.y, 1);
 field.sprite.SetOpacity(0);
 
-bullets.sprite = Sprite();
-bullets.sprite.SetOpacity(0);
-hint.image = text("password", color_on_surface_variant, 14);
+hint.image = load("hint.png");
 hint.sprite = Sprite(hint.image);
 hint.sprite.SetPosition(centre_x(hint.image), field.y + field.image.GetHeight() / 2 - hint.image.GetHeight() / 2, 2);
 hint.sprite.SetOpacity(0);
-caps.sprite = Sprite(text("caps lock is on", color_warning, 12));
+
+caps.sprite = Sprite(load("caps.png"));
 caps.sprite.SetOpacity(0);
 message.sprite = Sprite();
 
+# one sprite per typed character, made up front, since a sprite made inside a callback would be
+# local to it. the field fits fewer than this many anyway.
+bullet_image = load("bullet.png");
+bullet_count = 40;
+for (index = 0; index < bullet_count; index++) {
+  bullet[index] = Sprite(bullet_image);
+  bullet[index].SetOpacity(0);
+}
+
 # three dots under the name that pulse in turn while boot runs.
-pulse_image = text("•", color_on_surface_variant, 16);
+pulse_image = load("pulse.png");
 pulse_gap = pulse_image.GetWidth() * 2;
 for (index = 0; index < 3; index++) {
   pulse[index].sprite = Sprite(pulse_image);
@@ -44,10 +68,24 @@ for (index = 0; index < 3; index++) {
 }
 frame = 0;
 
+fun show_bullets(count) {
+  width = bullet_image.GetWidth();
+  left = Window.GetX() + Window.GetWidth() / 2 - count * width / 2;
+  y = field.y + field.image.GetHeight() / 2 - bullet_image.GetHeight() / 2;
+  for (index = 0; index < bullet_count; index++) {
+    if (index < count) {
+      bullet[index].SetPosition(left + index * width, y, 2);
+      bullet[index].SetOpacity(1);
+    } else {
+      bullet[index].SetOpacity(0);
+    }
+  }
+}
+
 fun show_field(opacity) {
   field.sprite.SetOpacity(opacity);
-  bullets.sprite.SetOpacity(opacity);
   if (opacity == 0) {
+    show_bullets(0);
     caps.sprite.SetOpacity(0);
     hint.sprite.SetOpacity(0);
   }
@@ -61,12 +99,7 @@ fun display_password(prompt, count) {
     hint.sprite.SetOpacity(1);
   else
     hint.sprite.SetOpacity(0);
-  dots = "";
-  for (index = 0; index < count; index++)
-    dots += "•";
-  image = text(dots, color_on_surface, 18);
-  bullets.sprite.SetImage(image);
-  bullets.sprite.SetPosition(centre_x(image), field.y + field.image.GetHeight() / 2 - image.GetHeight() / 2, 2);
+  show_bullets(count);
 }
 
 fun display_normal() {
@@ -90,8 +123,10 @@ fun refresh() {
   }
 }
 
+# messages are rare and their text isn't known ahead, so plymouth draws them in the fallback error
+# color.
 fun display_message(string) {
-  image = text(string, color_error, 12);
+  image = Image.Text(string, color_error[0], color_error[1], color_error[2], 1, "Maple Mono NF 12");
   message.sprite.SetImage(image);
   message.sprite.SetPosition(centre_x(image), Window.GetY() + Window.GetHeight() - 120, 1);
   message.sprite.SetOpacity(1);

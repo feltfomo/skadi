@@ -1,11 +1,13 @@
 #!@nu@
-# renders the grub theme: the host's card on the palette's surface, or on a blurred wallpaper when
-# one is given. the build renders the fallback theme with it and the boot-theme service renders the
-# live one onto the esp, so both share one layout.
+# renders the boot theme into two directories: grub/, the menu's theme, and plymouth/, the splash's
+# images. the build renders the fallback theme with it and the boot-theme service renders the live
+# one onto the esp, so both share one layout. with a wallpaper, both stages sit on a blur of it;
+# without one, on the palette's surface.
 #
 # grub scales the background to whatever mode the firmware gives it, but fonts, rows and icons stay
 # in pixels, so they're sized from the resolution's height. grub's theme parser takes only whole
-# percents, and it reads only 8-bit pngs.
+# percents, and it reads only 8-bit pngs. plymouth reads only pngs, and its script can't read
+# colors at boot, so every piece of its scene in a palette color is an image rendered here.
 
 const roles = [
     surface_container_high
@@ -16,6 +18,7 @@ const roles = [
     on_surface
     primary
     surface
+    warning
 ]
 
 # the layout in whole percents. the background is drawn from the same numbers, so the card and the
@@ -38,6 +41,43 @@ def main [
         }
     }
 
+    mkdir ($out | path join grub icons) ($out | path join plymouth)
+    let out = ($out | path expand)
+    let backdrop = (render-backdrop $"($out)/plymouth" $colors $width $height $wallpaper)
+    render-grub $"($out)/grub" $colors $host $width $height $backdrop ($wallpaper != null)
+    render-plymouth $"($out)/plymouth" $colors $host ($wallpaper != null)
+}
+
+# the blurred, tinted wallpaper at an eighth of the screen, or the bare surface without one. plymouth
+# stretches it to the screen itself; blurred, it looks the same as a full-size render, and loads in
+# a fraction of the time. the tint toward the surface keeps text readable on a bright wallpaper.
+def render-backdrop [out: path, colors: record, width: int, height: int, wallpaper: any] {
+    let small = $"($width // 8)x($height // 8)"
+    let source = if $wallpaper == null {
+        [-size $small $"xc:($colors.surface)"]
+    } else {
+        [
+            $"($wallpaper)[0]" -auto-orient -resize $"($width)x($height)^" -gravity center
+            -extent $"($width)x($height)" +gravity -resize $"($small)!"
+            -blur $"0x((5 * $height + 720) // 1440)" -fill $colors.surface -colorize 45%
+        ]
+    }
+    let path = $"($out)/backdrop.png"
+    ^@magick@ ...$source -depth 8 -define png:color-type=2 $path
+    $path
+}
+
+def render-grub [
+    out: path
+    colors: record
+    host: string
+    width: int
+    height: int
+    backdrop: path
+    photo: bool
+] {
+    cd $out
+
     # pixel sizes are designed at 1440 rows.
     let px = {|value: int| ($value * $height + 720) // 1440 }
     let x = {|value: int| $value * $width // 100 }
@@ -57,16 +97,15 @@ def main [
     let tile = (do $px 34)
     let glyph = $tile - 2 * (do $px 7)
 
-    mkdir ($out | path join icons)
-    cd $out
-
-    # the live background is a jpeg, since a photo as a png takes megabytes on the esp. grub.cfg
-    # loads the jpeg reader before it switches to the live theme.
-    let extension = if $wallpaper == null { "png" } else { "jpg" }
+    # a blurred photo is a jpeg, since as a png it takes megabytes on the esp. grub.cfg loads the jpeg
+    # reader before it switches to the live theme.
+    let extension = if $photo { "jpg" } else { "png" }
+    let encoding = if $photo {
+        [-depth 8 -quality 92 -sampling-factor 4:2:0]
+    } else {
+        [-depth 8 -define png:color-type=2]
+    }
     let background = $"background.($extension)"
-    # grub keeps showing its background image after an entry is picked, while it loads the kernel.
-    # the backdrop is the same picture without the card, so the card leaves with the menu.
-    let backdrop = $"backdrop.($extension)"
 
     $"title-text: \"\"
 desktop-image: \"($background)\"
@@ -124,33 +163,21 @@ terminal-border: \"0\"
         ^@mkfont@ --size $size --range 0x20-0x7e,0xa0-0x17f --output $"maple-($size).pf2" @font@
     }
 
+    # grub keeps showing its background image after an entry is picked, while it loads the kernel.
+    # the backdrop is the same picture without the card, so the card leaves with the menu.
     let size = $"($width)x($height)"
+    let full = $"backdrop.($extension)"
+    ^@magick@ $backdrop -resize $"($size)!" ...$encoding $full
+
     let card_shape = (
         $"roundrectangle (do $x $card.left),(do $y $card.top),"
         + $"(do $x ($card.left + $card.width)),(do $y ($card.top + $card.height)),"
         + $"(do $px 10),(do $px 10)"
     )
-    # blurring at an eighth of the size is quicker than a full-size blur and looks the same. the tint
-    # toward the surface keeps the card's text readable on a bright wallpaper.
-    let base = if $wallpaper == null {
-        [-size $size $"xc:($colors.surface)"]
-    } else {
-        [
-            $"($wallpaper)[0]" -auto-orient -resize $"($size)^" -gravity center -extent $size +gravity
-            -resize 12.5% -blur $"0x(do $px 5)" -resize $"($size)!"
-            -fill $colors.surface -colorize 45%
-        ]
-    }
-    # over a wallpaper the card is a translucent panel on the blur, so it reads as frosted glass. the
+    # over a photo the card is a translucent panel on the blur, so it reads as frosted glass. the
     # shadow is cut out under the card, or it would show through and darken the glass.
-    let card_fill = if $wallpaper == null { $colors.surface_container_low } else { $"($colors.surface_container_low)66" }
-    let encoding = if $wallpaper == null {
-        [-depth 8 -define png:color-type=2]
-    } else {
-        [-depth 8 -quality 92 -sampling-factor 4:2:0]
-    }
-    ^@magick@ ...$base ...$encoding $backdrop
-    (^@magick@ $backdrop
+    let card_fill = if $photo { $"($colors.surface_container_low)66" } else { $colors.surface_container_low }
+    (^@magick@ $full
         "(" -size $size xc:none -fill "rgba(0,0,0,0.45)" -draw $card_shape -blur $"0x(do $px 28)"
             "(" -size $size xc:none -fill white -draw $card_shape ")" -compose DstOut -composite ")"
         -compose Over -composite
@@ -182,4 +209,26 @@ terminal-border: \"0\"
     }
 
     ^@magick@ -size 8x8 $"xc:($colors.surface)" -depth 8 -define png:color-type=6 terminal_c.png
+}
+
+# the splash's pieces. sizes are in points at plymouth's 96 dpi, so they match what plymouth's own
+# text rendering would draw.
+def render-plymouth [out: path, colors: record, host: string, photo: bool] {
+    cd $out
+    let rgba = [-depth 8 -define png:color-type=6]
+    let text = {|file: string, label: string, color: string, points: int|
+        (^@magick@ -background none -fill $color -font @font@ -density 96 -pointsize $points
+            $"label:($label)" ...$rgba $file)
+    }
+    do $text name.png $host $colors.on_surface_variant 16
+    do $text hint.png password $colors.on_surface_variant 14
+    do $text caps.png "caps lock is on" $colors.warning 12
+    do $text pulse.png "•" $colors.on_surface_variant 16
+    do $text bullet.png "•" $colors.on_surface 18
+    # the password field matches grub's card: frosted over a photo, with the same faint accent rim.
+    # it's less see-through than the card, so the typed dots stay crisp.
+    let fill = if $photo { $"($colors.surface_container_low)99" } else { $colors.surface_container_high }
+    (^@magick@ -size 560x56 xc:none
+        -fill $fill -stroke $"($colors.primary)66" -strokewidth 2
+        -draw "roundrectangle 1,1,558,54,6,6" ...$rgba field.png)
 }

@@ -1,12 +1,13 @@
-# the boot from grub to the greeter in the fallback palette: grub's menu, a quiet kernel, the
-# plymouth splash with the disk password, and the console's colors. these stages run before the
-# live palette exists, so they read the fixed one.
+# the boot from grub to the greeter: grub's menu, a quiet kernel, the plymouth splash with the disk
+# password, and the console's colors. each stage is built in the fallback palette. when a user
+# publishes their live palette (live.nix), a service renders the live versions onto the esp, which
+# boot reads before the root filesystem is unlocked, and each stage prefers those when present.
 { config, ... }:
 let
   palette = config.skadi.fallbackPalette;
 in
 {
-  skadi.packages.skadi-grub-theme = ./_grub-renderer.nix;
+  skadi.packages.skadi-boot-theme = ./_renderer.nix;
 
   den.aspects.boot-theme.nixos =
     {
@@ -28,9 +29,29 @@ in
       );
       inherit (config.skadi.bootTheme) publisher;
       home = config.users.users.${publisher}.home;
+      # the console's sixteen colors in ansi order, which programs on a tty expect: black, red,
+      # green, yellow, blue, magenta, cyan, white, then the bright set.
+      consoleRoles = [
+        "surface"
+        "error"
+        "success"
+        "warning"
+        "primary"
+        "tertiary"
+        "primary"
+        "on_surface"
+        "outline_variant"
+        "error"
+        "success"
+        "warning"
+        "primary"
+        "tertiary"
+        "primary"
+        "on_surface"
+      ];
       published = "${home}/.local/state/skadi/boot.json";
-      grubTheme = pkgs.callPackage ./_grub-theme.nix { inherit palette hostName resolution; };
-      plymouthTheme = pkgs.callPackage ./_plymouth-theme.nix { inherit palette hostName; };
+      fallback = pkgs.callPackage ./_fallback-theme.nix { inherit palette hostName resolution; };
+      plymouthTheme = pkgs.callPackage ./_plymouth-theme.nix { inherit palette fallback; };
     in
     {
       # the screen's native mode, which grub asks the firmware for first.
@@ -49,19 +70,24 @@ in
       options.skadi.bootTheme.publisher = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        description = "The user whose live palette and wallpaper the boot menu follows.";
+        description = "The user whose live palette and wallpaper the boot theme follows.";
       };
 
       config = {
         boot.loader.grub = {
-          theme = grubTheme;
-          splashImage = "${grubTheme}/backdrop.png";
-          # install-grub replaces /theme on every switch, so the live theme has its own directory.
+          theme = "${fallback}/grub";
+          splashImage = "${fallback}/grub/backdrop.png";
+          # install-grub replaces /theme on every switch, so the live theme has its own directory. a
+          # video wallpaper renders the live theme without a photo, as pngs.
           extraConfig = ''
-            if [ -f /skadi/theme.txt ]; then
+            if [ -f /skadi/grub/theme.txt ]; then
               insmod jpeg
-              background_image /skadi/backdrop.jpg
-              set theme=/skadi/theme.txt
+              if [ -f /skadi/grub/backdrop.jpg ]; then
+                background_image /skadi/grub/backdrop.jpg
+              else
+                background_image /skadi/grub/backdrop.png
+              fi
+              set theme=/skadi/grub/theme.txt
               export theme
             fi
           '';
@@ -78,6 +104,27 @@ in
           font = "${pkgs.maple-mono.NF}/share/fonts/truetype/MapleMono-NF-Regular.ttf";
         };
 
+        # the splash reads the live images from the esp, which isn't encrypted, so the initrd mounts
+        # it read-only before plymouth starts. the disk shows up with the password's partition, so the
+        # splash waits on it only briefly, and a missing esp gives up quickly and keeps the fallback.
+        # it's unmounted before the switch to the real root, which mounts the same esp read-write.
+        boot.initrd.supportedFilesystems = lib.mkIf (publisher != null) [ "vfat" ];
+        boot.initrd.systemd.mounts = lib.mkIf (publisher != null) [
+          {
+            what = config.fileSystems."/boot".device;
+            where = "/run/skadi-esp";
+            type = "vfat";
+            options = "ro";
+            wantedBy = [ "plymouth-start.service" ];
+            conflicts = [ "initrd-switch-root.target" ];
+            before = [
+              "initrd-switch-root.target"
+              "plymouth-start.service"
+            ];
+            unitConfig.JobTimeoutSec = 5;
+          }
+        ];
+
         # renders the publisher's palette and wallpaper onto the esp at boot, on a switch that changes
         # the renderer, and whenever their session publishes a change. a render goes to a temporary
         # directory first, so a failed one keeps the last theme, and the stamp skips the render when
@@ -93,14 +140,14 @@ in
           };
         };
         systemd.services.skadi-boot-theme-refresh = lib.mkIf (publisher != null) {
-          description = "Re-render the live boot menu after a published change";
+          description = "Re-render the live boot theme after a published change";
           serviceConfig = {
             ExecStart = "${config.systemd.package}/bin/systemctl restart skadi-boot-theme.service";
             Type = "oneshot";
           };
         };
         systemd.services.skadi-boot-theme = lib.mkIf (publisher != null) {
-          description = "Render the live boot menu onto the ESP";
+          description = "Render the live boot theme onto the ESP";
           wantedBy = [ "multi-user.target" ];
           serviceConfig.RemainAfterExit = true;
           unitConfig.RequiresMountsFor = [
@@ -108,6 +155,7 @@ in
             home
           ];
           path = with pkgs; [
+            config.systemd.package
             coreutils
             gnugrep
             file
@@ -124,7 +172,8 @@ in
             fi
             stamp=$(
               {
-                echo ${lib.getExe pkgs.skadi-grub-theme} ${hostName} ${toString resolution.width} ${toString resolution.height}
+                echo ${lib.getExe pkgs.skadi-boot-theme} ${hostName} ${toString resolution.width} ${toString resolution.height}
+                echo ${toString consoleRoles}
                 cat ${published}
                 if [ ''${#options[@]} -gt 0 ]; then stat --format '%s %Y' "$wallpaper"; fi
               } | sha256sum
@@ -133,15 +182,46 @@ in
 
             work=$(mktemp --directory)
             trap 'rm -rf "$work"' EXIT
-            ${lib.getExe pkgs.skadi-grub-theme} --palette ${published} --host ${hostName} \
+            ${lib.getExe pkgs.skadi-boot-theme} --palette ${published} --host ${hostName} \
               --width ${toString resolution.width} --height ${toString resolution.height} \
               "''${options[@]}" "$work/theme"
+
+            # setvtrgb's format: one line each for red, green and blue, sixteen decimals apiece.
+            for channel in 1 3 5; do
+              values=()
+              for role in ${toString consoleRoles}; do
+                hex=$(jq -r --arg role "$role" '.[$role]' ${published})
+                values+=("$((16#''${hex:channel:2}))")
+              done
+              (IFS=,; echo "''${values[*]}")
+            done > "$work/theme/vtrgb"
+
             echo "$stamp" > "$work/theme/stamp"
             rm -rf /boot/skadi.new
             cp -r "$work/theme" /boot/skadi.new
             rm -rf /boot/skadi
             mv /boot/skadi.new /boot/skadi
+            systemctl start skadi-console-colors.service
           '';
+        };
+
+        # the kernel starts the console in the fallback palette, and this swaps in the live one before
+        # the greeter, so the gap after the splash matches it.
+        systemd.services.skadi-console-colors = lib.mkIf (publisher != null) {
+          description = "Load the live palette into the console";
+          wantedBy = [ "multi-user.target" ];
+          before = [
+            "plymouth-quit.service"
+            "greetd.service"
+          ];
+          unitConfig = {
+            ConditionPathExists = "/boot/skadi/vtrgb";
+            RequiresMountsFor = [ "/boot" ];
+          };
+          serviceConfig = {
+            ExecStart = "${pkgs.kbd}/bin/setvtrgb /boot/skadi/vtrgb";
+            Type = "oneshot";
+          };
         };
 
         # errors still reach the journal; on screen they'd land on the password prompt.
@@ -156,28 +236,7 @@ in
           "quiet"
         ];
 
-        # standard ansi hues from the palette's semantic roles, since programs on a tty expect them.
-        console.colors = map colors.bare (
-          with palette;
-          [
-            surface
-            error
-            success
-            warning
-            primary
-            tertiary
-            primary
-            on_surface
-            outline_variant
-            error
-            success
-            warning
-            primary
-            tertiary
-            primary
-            on_surface
-          ]
-        );
+        console.colors = map (role: colors.bare palette.${role}) consoleRoles;
 
         # bold terminus at about 45 rows. at 1440p the kernel picks the same size itself, but no bold.
         console = {
