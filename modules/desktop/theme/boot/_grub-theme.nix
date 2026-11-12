@@ -52,7 +52,8 @@ let
   # grub draws one icon for an entry whether or not it's selected, so each glyph sits on a tile
   # that reads on both the card and the accent pill.
   tile = px 34;
-  glyph = px 20;
+  # an even inset keeps the glyph's size the same parity as the tile's, so it can sit exactly centred.
+  glyph = tile - 2 * px 7;
   # grub picks an entry's icon by its --class: nixos for each generation, submenu for the rest.
   icons = {
     nixos = "${nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake-white.svg";
