@@ -16,6 +16,7 @@
       nix-development
       screen-capture
       prismlauncher
+      github-token
       claude-code
       image-tools
       qbittorrent

@@ -11,10 +11,8 @@
     includes = [ den.aspects.agents ];
   }
   // lexicon {
-    # the github plugin expands GITHUB_PERSONAL_ACCESS_TOKEN into its
-    # Authorization header. reading the secret at launch keeps it out of
-    # other shells. hosts without the secret leave it unset, so the plugin
-    # fails to connect with a malformed Authorization header.
+    # the github plugin reads GITHUB_PERSONAL_ACCESS_TOKEN. reading the
+    # secret at launch keeps it out of other shells.
     package =
       pkgs:
       let
@@ -27,27 +25,9 @@
         nativeBuildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
           wrapProgram "$out/bin/claude" \
-            --run 'if [ -r /run/secrets/github-mcp-token ]; then export GITHUB_PERSONAL_ACCESS_TOKEN="$(< /run/secrets/github-mcp-token)"; fi'
+            --run 'if [ -r /run/secrets/github-token ]; then export GITHUB_PERSONAL_ACCESS_TOKEN="$(< /run/secrets/github-token)"; fi'
         '';
       };
-    nixos = [
-      {
-        hosts = [
-          "khion"
-          "lumi"
-        ];
-        value = {
-          sops.secrets."github-mcp-token" = {
-            owner = "feltfomo";
-            mode = "0400";
-          };
-          skadi.provision.secrets.github-mcp-token = {
-            method = "paste";
-            prompt = "GitHub personal access token for the github MCP server";
-          };
-        };
-      }
-    ];
     homeManager =
       { pkgs, lib, ... }:
       let
