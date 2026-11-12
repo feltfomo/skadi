@@ -62,7 +62,11 @@ def main [
 
     # the live background is a jpeg, since a photo as a png takes megabytes on the esp. grub.cfg
     # loads the jpeg reader before it switches to the live theme.
-    let background = if $wallpaper == null { "background.png" } else { "background.jpg" }
+    let extension = if $wallpaper == null { "png" } else { "jpg" }
+    let background = $"background.($extension)"
+    # grub keeps showing its background image after an entry is picked, while it loads the kernel.
+    # the backdrop is the same picture without the card, so the card leaves with the menu.
+    let backdrop = $"backdrop.($extension)"
 
     $"title-text: \"\"
 desktop-image: \"($background)\"
@@ -145,12 +149,14 @@ terminal-border: \"0\"
     } else {
         [-depth 8 -quality 92 -sampling-factor 4:2:0]
     }
-    (^@magick@ ...$base
+    ^@magick@ ...$base ...$encoding $backdrop
+    (^@magick@ $backdrop
         "(" -size $size xc:none -fill "rgba(0,0,0,0.45)" -draw $card_shape -blur $"0x(do $px 28)"
             "(" -size $size xc:none -fill white -draw $card_shape ")" -compose DstOut -composite ")"
         -compose Over -composite
-        -fill $card_fill -stroke $colors.outline_variant -strokewidth (do $px 2) -draw $card_shape
-        -draw $"line (do $x $inner.left),(do $y $rows.divider),(do $x ($inner.left + $inner.width)),(do $y $rows.divider)"
+        # a faint accent on the rim, like light catching the glass, without competing with the pill.
+        -fill $card_fill -stroke $"($colors.primary)66" -strokewidth (do $px 2) -draw $card_shape
+        -stroke $colors.outline_variant -draw $"line (do $x $inner.left),(do $y $rows.divider),(do $x ($inner.left + $inner.width)),(do $y $rows.divider)"
         ...$encoding $background)
 
     # the selection is a pill cut into a stretchable middle and two rounded ends.

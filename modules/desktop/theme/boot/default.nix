@@ -55,11 +55,12 @@ in
       config = {
         boot.loader.grub = {
           theme = grubTheme;
-          splashImage = "${grubTheme}/background.png";
+          splashImage = "${grubTheme}/backdrop.png";
           # install-grub replaces /theme on every switch, so the live theme has its own directory.
           extraConfig = ''
             if [ -f /skadi/theme.txt ]; then
               insmod jpeg
+              background_image /skadi/backdrop.jpg
               set theme=/skadi/theme.txt
               export theme
             fi
@@ -77,16 +78,31 @@ in
           font = "${pkgs.maple-mono.NF}/share/fonts/truetype/MapleMono-NF-Regular.ttf";
         };
 
-        # renders the publisher's palette and wallpaper onto the esp whenever their session publishes
-        # a change. a render goes to a temporary directory first, so a failed one keeps the last
-        # theme, and the stamp skips the render at boot when nothing changed.
+        # renders the publisher's palette and wallpaper onto the esp at boot, on a switch that changes
+        # the renderer, and whenever their session publishes a change. a render goes to a temporary
+        # directory first, so a failed one keeps the last theme, and the stamp skips the render when
+        # nothing changed.
+        #
+        # the service stays active after it renders, so a switch restarts it when it changes. that
+        # also means starting it again does nothing, so the path unit restarts it instead.
         systemd.paths.skadi-boot-theme = lib.mkIf (publisher != null) {
           wantedBy = [ "multi-user.target" ];
-          pathConfig.PathChanged = published;
+          pathConfig = {
+            Unit = "skadi-boot-theme-refresh.service";
+            PathChanged = published;
+          };
+        };
+        systemd.services.skadi-boot-theme-refresh = lib.mkIf (publisher != null) {
+          description = "Re-render the live boot menu after a published change";
+          serviceConfig = {
+            ExecStart = "${config.systemd.package}/bin/systemctl restart skadi-boot-theme.service";
+            Type = "oneshot";
+          };
         };
         systemd.services.skadi-boot-theme = lib.mkIf (publisher != null) {
           description = "Render the live boot menu onto the ESP";
           wantedBy = [ "multi-user.target" ];
+          serviceConfig.RemainAfterExit = true;
           unitConfig.RequiresMountsFor = [
             "/boot"
             home
