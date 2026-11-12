@@ -99,11 +99,11 @@ in
           earlySetup = true;
         };
 
-        # greetd is an idle unit, so it reports started at once but launches the greeter only when
-        # boot settles. the splash stays up until then, so the greeter replaces it directly.
+        # the splash quits once greetd starts. it can't wait for boot to settle, since boot waits for
+        # the splash to quit. the console fills the gap in the palette's surface.
         services.greetd.greeterManagesPlymouth = lib.mkIf config.services.greetd.enable true;
         systemd.services.plymouth-quit = lib.mkIf config.services.greetd.enable {
-          after = [ "graphical.target" ];
+          after = [ "greetd.service" ];
           serviceConfig.ExecStart = [
             ""
             "-${config.boot.plymouth.package}/bin/plymouth quit --retain-splash"

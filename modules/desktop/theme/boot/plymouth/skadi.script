@@ -35,6 +35,15 @@ caps.sprite = Sprite(text("caps lock is on", color_warning, 12));
 caps.sprite.SetOpacity(0);
 message.sprite = Sprite();
 
+# three dots under the name that pulse in turn while boot runs.
+pulse_image = text("•", color_on_surface_variant, 16);
+pulse_gap = pulse_image.GetWidth() * 2;
+for (index = 0; index < 3; index++) {
+  pulse[index].sprite = Sprite(pulse_image);
+  pulse[index].sprite.SetPosition(centre_x(pulse_image) + (index - 1) * pulse_gap, centre_y + 24, 1);
+}
+frame = 0;
+
 fun show_field(opacity) {
   field.sprite.SetOpacity(opacity);
   bullets.sprite.SetOpacity(opacity);
@@ -66,6 +75,13 @@ fun display_normal() {
 }
 
 fun refresh() {
+  frame++;
+  for (index = 0; index < 3; index++) {
+    if (field.sprite.GetOpacity() == 1)
+      pulse[index].sprite.SetOpacity(0);
+    else
+      pulse[index].sprite.SetOpacity(0.25 + 0.75 * (Math.Sin(frame / 8 - index) + 1) / 2);
+  }
   if (field.sprite.GetOpacity() == 1 && Plymouth.GetCapslockState()) {
     caps.sprite.SetPosition(centre_x(caps.sprite.GetImage()), field.y + field.image.GetHeight() + 16, 1);
     caps.sprite.SetOpacity(1);
