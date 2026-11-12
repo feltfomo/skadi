@@ -12,6 +12,7 @@ stdenvNoCC.mkDerivation {
     fileset = lib.fileset.unions [
       ./scss
       ./tests
+      ./fallback.json
       ./skadi-sass.nu
     ];
   };
@@ -48,6 +49,7 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
     mkdir -p "$out/share/sass"
     cp -r scss/skadi "$out/share/sass/"
+    install -Dm644 fallback.json "$out/share/skadi/fallback-palette.json"
     install -Dm755 skadi-sass "$out/bin/skadi-sass"
     runHook postInstall
   '';

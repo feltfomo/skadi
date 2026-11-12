@@ -3,6 +3,7 @@
   stdenvNoCC,
   python3,
   makeWrapper,
+  skadi-theme-design,
 }:
 stdenvNoCC.mkDerivation {
   pname = "skadi-qt-theme";
@@ -15,7 +16,8 @@ stdenvNoCC.mkDerivation {
     set -euo pipefail
     runHook preInstall
     mkdir -p "$out/lib/skadi-qt-theme" "$out/bin"
-    cp artwork.py compose.py Skadi.kvconfig fallback.json "$out/lib/skadi-qt-theme/"
+    cp artwork.py compose.py Skadi.kvconfig "$out/lib/skadi-qt-theme/"
+    cp ${skadi-theme-design}/share/skadi/fallback-palette.json "$out/lib/skadi-qt-theme/fallback.json"
     ${python3}/bin/python "$out/lib/skadi-qt-theme/compose.py" \
       --output "$out/share/Kvantum/Skadi"
     makeWrapper ${python3}/bin/python "$out/bin/skadi-qt-theme" \
