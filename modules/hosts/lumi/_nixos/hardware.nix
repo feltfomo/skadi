@@ -20,6 +20,8 @@
     "rtsx_usb_sdmmc"
   ];
   boot.kernelModules = [ "kvm-intel" ];
+  # early kms, so plymouth draws the disk password prompt at the panel's native mode.
+  boot.initrd.kernelModules = [ "i915" ];
 
   # keep intel cpu microcode up to date
   hardware.cpu.intel.updateMicrocode = true;
