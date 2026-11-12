@@ -1,6 +1,6 @@
 --- a/src/config/config_service.cpp
 +++ b/src/config/config_service.cpp
-@@ -563,7 +563,7 @@
+@@ -614,7 +614,7 @@
  
    // Resolve settings.toml path; create the state dir eagerly so writes don't
    // race with directory creation later.
@@ -11,7 +11,7 @@
      m_overridesPath = dir + "/settings.toml";
 --- a/src/config/cli.cpp
 +++ b/src/config/cli.cpp
-@@ -345,7 +345,7 @@
+@@ -349,7 +349,7 @@
        if (pathArg.empty()) {
          const std::string configDir = FileUtils::configDir();
          std::string settingsPath;
@@ -20,7 +20,7 @@
            settingsPath = stateDir + "/settings.toml";
          }
          diagnostics = validateConfigSources(configDir, settingsPath);
-@@ -415,7 +415,7 @@
+@@ -427,7 +427,7 @@
  
        const std::string configDir = FileUtils::configDir();
        std::string settingsPath;
@@ -29,21 +29,21 @@
          settingsPath = stateDir + "/settings.toml";
        }
  
---- a/src/util/file_utils.h
-+++ b/src/util/file_utils.h
+--- a/lib/util/file_utils.h
++++ b/lib/util/file_utils.h
 @@ -404,6 +404,15 @@
-     return {};
-   }
  
-+  // Appearance overrides follow the compositor profile; histories remain shared.
-+  [[nodiscard]] inline std::string profileStateDir() {
-+    const char* profile = std::getenv("NOCTALIA_PROFILE_STATE_HOME");
+   inline std::string stateDir() { return applicationXdgDir("STATE_HOME", "XDG_STATE_HOME", ".local/state"); }
+ 
++  // appearance overrides follow the compositor profile; histories remain shared.
++  inline std::string profileStateDir() {
++    const char* profile = std::getenv(applicationEnvVar("PROFILE_STATE_HOME").c_str());
 +    if (profile != nullptr && profile[0] != '\0') {
-+      return std::string(profile) + "/noctalia";
++      return std::string(profile) + "/" + applicationIdentity().name;
 +    }
 +    return stateDir();
 +  }
 +
-   [[nodiscard]] inline std::string dataDir() {
-     const char* noctalia = std::getenv("NOCTALIA_DATA_HOME");
-     if (noctalia != nullptr && noctalia[0] != '\0') {
+   inline std::string dataDir() { return applicationXdgDir("DATA_HOME", "XDG_DATA_HOME", ".local/share"); }
+ 
+   inline std::vector<std::uint8_t> readBinaryFile(const std::string& path) {
