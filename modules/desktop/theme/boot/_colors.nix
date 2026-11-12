@@ -1,11 +1,13 @@
 # the palette's #rrggbb roles in the forms the boot stages read.
 { lib }:
 let
-  channels = hex: map (i: lib.fromHexString (builtins.substring i 2 (lib.removePrefix "#" hex))) [
-    0
-    2
-    4
-  ];
+  channels =
+    hex:
+    map (i: lib.fromHexString (builtins.substring i 2 (lib.removePrefix "#" hex))) [
+      0
+      2
+      4
+    ];
 in
 {
   # "rrggbb", as console.colors takes it.

@@ -41,10 +41,10 @@ Steam's classic sheets load before the theme's but its React chunks load after, 
 ## Add a web page
 
 1. Find the page's URL shape and write a regex that matches the whole URL, including an optional query string. Add `{ name; url; }` to `pages` in theme.nix.
-2. Create `theme/web/<name>.scss`. Start it with `@use "store";` for a store page or `@use "base";` for any other, then the components it needs.
-3. Remap the page's own CSS variables first. List them by reading the page's stylesheets in DevTools.
-4. Style the remaining components with the shared mixins. Only add a mixin to `components/` when a second page needs it.
-5. Run `git add` on the new sheet, since the flake only sees tracked files.
+1. Create `theme/web/<name>.scss`. Start it with `@use "store";` for a store page or `@use "base";` for any other, then the components it needs.
+1. Remap the page's own CSS variables first. List them by reading the page's stylesheets in DevTools.
+1. Style the remaining components with the shared mixins. Only add a mixin to `components/` when a second page needs it.
+1. Run `git add` on the new sheet, since the flake only sees tracked files.
 
 ## Dev loop
 
