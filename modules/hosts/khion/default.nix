@@ -17,7 +17,6 @@
       tailscale
       wayland
       wooting
-      docker
       tablet
       steam
       grub
