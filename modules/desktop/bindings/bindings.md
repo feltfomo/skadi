@@ -10,7 +10,8 @@ The supported target names are `hyprland` and `mango`. This is an internal skadi
 | --- | --- |
 | [\_binds.nix](_binds.nix) | Shortcuts, groups, workspace routing and locally named native actions |
 | [workspace.lua](../compositors/hyprland/config/lib/workspace.lua) | Runtime workspace bank selection and movement |
-| [binds.lua](../compositors/hyprland/config/config/binds.lua) | Hyprland runtime behavior and additional Lua bindings |
+| [binds.lua](../compositors/hyprland/config/config/binds.lua) | Plain Hyprland-only shortcuts, one per line, and the generated binding load |
+| [lib/binds.lua](../compositors/hyprland/config/lib/binds.lua) | Hyprland runtime behavior the shared bindings call |
 | [binds.conf](../compositors/mango/config/binds.conf) | Additional native Mango bindings after the generated include |
 | [\_actions.nix](_actions.nix) | Shared actions and their native implementations |
 | [\_bindings.nix](_bindings.nix) | Expansion, validation and rendering |
@@ -180,7 +181,18 @@ To share one shortcut with different implementations, provide both `hyprland` an
 
 ## Keep Lua and native config where they help
 
-Add runtime-dependent Hyprland logic directly in `modules/desktop/compositors/hyprland/config/config/binds.lua`, alongside the generated binding load. For example:
+Add a Hyprland-only shortcut as one line in `modules/desktop/compositors/hyprland/config/config/binds.lua`. A command string runs through `exec`; any other action is a Hyprland dispatcher. An optional third entry passes bind options such as `{ repeating = true }`:
+
+```lua
+local binds = {
+  { "SUPER + X", "kitty --class btop -e btop" },
+  { "SUPER + Z", hl.dsp.window.pseudo() },
+}
+```
+
+These chords aren't checked against the shared ones, so pick keys `_binds.nix` doesn't use.
+
+Add runtime-dependent Hyprland logic to `binds.lua` as a Lua function, and put helpers the shared bindings call in `modules/desktop/compositors/hyprland/config/lib/binds.lua`. For example:
 
 ```lua
 hl.bind("SUPER + CTRL + e", function()
@@ -227,7 +239,7 @@ Collision checks cover bindings declared through this helper. They can't inspect
 
 ## Validate a change
 
-Hyprland's generated output is a Lua module loaded by `modules/desktop/compositors/hyprland/config/config/binds.lua`. That entry point supplies the scrolling and workspace callbacks. Mango's output is included by `modules/desktop/compositors/mango/config/binds.conf`. Keep those entry points when editing the adapters.
+Hyprland's generated output is a Lua module loaded by `modules/desktop/compositors/hyprland/config/config/binds.lua`, which passes it the scrolling and workspace callbacks from `lib/binds.lua`. Mango's output is included by `modules/desktop/compositors/mango/config/binds.conf`. Keep those entry points when editing the adapters.
 
 The compositor aspects import `_binds.nix` with the host name. The returned `hyprland` and `mango` strings become the generated config files. Output lines are sorted longest first. Sorting doesn't assign shortcut priority. Duplicate chords on the same target fail evaluation.
 
