@@ -6,6 +6,8 @@ let
   palette = config.skadi.fallbackPalette;
 in
 {
+  skadi.packages.skadi-grub-theme = ./_grub-renderer.nix;
+
   den.aspects.boot-theme.nixos =
     {
       config,
@@ -24,6 +26,9 @@ in
           "auto"
         ]
       );
+      inherit (config.skadi.bootTheme) publisher;
+      home = config.users.users.${publisher}.home;
+      published = "${home}/.local/state/skadi/boot.json";
       grubTheme = pkgs.callPackage ./_grub-theme.nix { inherit palette hostName resolution; };
       plymouthTheme = pkgs.callPackage ./_plymouth-theme.nix { inherit palette hostName; };
     in
@@ -40,10 +45,25 @@ in
         };
       };
 
+      # set by the boot-theme-live user aspect, so two users can't both claim the esp.
+      options.skadi.bootTheme.publisher = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "The user whose live palette and wallpaper the boot menu follows.";
+      };
+
       config = {
         boot.loader.grub = {
           theme = grubTheme;
           splashImage = "${grubTheme}/background.png";
+          # install-grub replaces /theme on every switch, so the live theme has its own directory.
+          extraConfig = ''
+            if [ -f /skadi/theme.txt ]; then
+              insmod jpeg
+              set theme=/skadi/theme.txt
+              export theme
+            fi
+          '';
           # firmware without the native mode falls back to 1080p, where the text and rows look larger.
           gfxmodeEfi = gfxmode;
           gfxmodeBios = gfxmode;
@@ -55,6 +75,57 @@ in
           themePackages = [ plymouthTheme ];
           # the initrd's fontconfig knows only this file, so every family name resolves to it.
           font = "${pkgs.maple-mono.NF}/share/fonts/truetype/MapleMono-NF-Regular.ttf";
+        };
+
+        # renders the publisher's palette and wallpaper onto the esp whenever their session publishes
+        # a change. a render goes to a temporary directory first, so a failed one keeps the last
+        # theme, and the stamp skips the render at boot when nothing changed.
+        systemd.paths.skadi-boot-theme = lib.mkIf (publisher != null) {
+          wantedBy = [ "multi-user.target" ];
+          pathConfig.PathChanged = published;
+        };
+        systemd.services.skadi-boot-theme = lib.mkIf (publisher != null) {
+          description = "Render the live boot menu onto the ESP";
+          wantedBy = [ "multi-user.target" ];
+          unitConfig.RequiresMountsFor = [
+            "/boot"
+            home
+          ];
+          path = with pkgs; [
+            coreutils
+            gnugrep
+            file
+            jq
+          ];
+          serviceConfig.Type = "oneshot";
+          script = ''
+            [ -f ${published} ] || exit 0
+            wallpaper=$(jq -r '.wallpaper // ""' ${published})
+            # a video wallpaper keeps the flat surface.
+            options=()
+            if [ -f "$wallpaper" ] && file --brief --mime-type "$wallpaper" | grep -q '^image/'; then
+              options=(--wallpaper "$wallpaper")
+            fi
+            stamp=$(
+              {
+                echo ${lib.getExe pkgs.skadi-grub-theme} ${hostName} ${toString resolution.width} ${toString resolution.height}
+                cat ${published}
+                if [ ''${#options[@]} -gt 0 ]; then stat --format '%s %Y' "$wallpaper"; fi
+              } | sha256sum
+            )
+            if [ "$(cat /boot/skadi/stamp 2>/dev/null)" = "$stamp" ]; then exit 0; fi
+
+            work=$(mktemp --directory)
+            trap 'rm -rf "$work"' EXIT
+            ${lib.getExe pkgs.skadi-grub-theme} --palette ${published} --host ${hostName} \
+              --width ${toString resolution.width} --height ${toString resolution.height} \
+              "''${options[@]}" "$work/theme"
+            echo "$stamp" > "$work/theme/stamp"
+            rm -rf /boot/skadi.new
+            cp -r "$work/theme" /boot/skadi.new
+            rm -rf /boot/skadi
+            mv /boot/skadi.new /boot/skadi
+          '';
         };
 
         # errors still reach the journal; on screen they'd land on the password prompt.

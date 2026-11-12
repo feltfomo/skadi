@@ -11,6 +11,7 @@
       den.batteries.define-user
       native-debugging
       bootstrap-repos
+      boot-theme-live
       jvm-development
       lua-development
       nix-development
