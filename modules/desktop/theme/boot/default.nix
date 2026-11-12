@@ -205,14 +205,14 @@ in
           '';
         };
 
-        # the kernel starts the console in the fallback palette, and this swaps in the live one before
-        # the greeter, so the gap after the splash matches it.
+        # the kernel starts the console in the fallback palette, and this swaps in the live one. it
+        # waits for plymouth to quit, since plymouth writes back the palette it found when it started.
         systemd.services.skadi-console-colors = lib.mkIf (publisher != null) {
           description = "Load the live palette into the console";
           wantedBy = [ "multi-user.target" ];
-          before = [
+          after = [
+            "plymouth-quit-wait.service"
             "plymouth-quit.service"
-            "greetd.service"
           ];
           unitConfig = {
             ConditionPathExists = "/boot/skadi/vtrgb";
