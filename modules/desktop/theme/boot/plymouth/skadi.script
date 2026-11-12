@@ -1,0 +1,82 @@
+# the boot splash: the host name on the palette's surface, and the disk password field under it
+# when cryptsetup asks. the theme package prepends the palette as `color_*` globals, each three
+# 0-1 channels. plymouth draws this scene centred on every display.
+
+Window.SetBackgroundTopColor(color_surface[0], color_surface[1], color_surface[2]);
+Window.SetBackgroundBottomColor(color_surface[0], color_surface[1], color_surface[2]);
+
+fun text(string, color, size) {
+  return Image.Text(string, color[0], color[1], color[2], 1, "Maple Mono NF " + size);
+}
+
+fun centre_x(image) {
+  return Window.GetX() + Window.GetWidth() / 2 - image.GetWidth() / 2;
+}
+
+centre_y = Window.GetY() + Window.GetHeight() / 2;
+
+name.image = text(host_name, color_on_surface_variant, 16);
+name.sprite = Sprite(name.image);
+name.sprite.SetPosition(centre_x(name.image), centre_y - name.image.GetHeight() / 2, 1);
+
+field.image = Image("field.png");
+field.sprite = Sprite(field.image);
+field.y = centre_y + 24;
+field.sprite.SetPosition(centre_x(field.image), field.y, 1);
+field.sprite.SetOpacity(0);
+
+bullets.sprite = Sprite();
+bullets.sprite.SetOpacity(0);
+caps.sprite = Sprite(text("caps lock is on", color_warning, 12));
+caps.sprite.SetOpacity(0);
+message.sprite = Sprite();
+
+fun show_field(opacity) {
+  field.sprite.SetOpacity(opacity);
+  bullets.sprite.SetOpacity(opacity);
+  if (opacity == 0)
+    caps.sprite.SetOpacity(0);
+}
+
+fun display_password(prompt, count) {
+  # the name moves up so the name and the field sit centred together.
+  name.sprite.SetY(centre_y - name.image.GetHeight() - 16);
+  show_field(1);
+  dots = "";
+  for (index = 0; index < count; index++)
+    dots += "•";
+  image = text(dots, color_on_surface, 18);
+  bullets.sprite.SetImage(image);
+  bullets.sprite.SetPosition(centre_x(image), field.y + field.image.GetHeight() / 2 - image.GetHeight() / 2, 2);
+}
+
+fun display_normal() {
+  name.sprite.SetY(centre_y - name.image.GetHeight() / 2);
+  show_field(0);
+}
+
+fun refresh() {
+  if (field.sprite.GetOpacity() == 1 && Plymouth.GetCapslockState()) {
+    caps.sprite.SetPosition(centre_x(caps.sprite.GetImage()), field.y + field.image.GetHeight() + 16, 1);
+    caps.sprite.SetOpacity(1);
+  } else {
+    caps.sprite.SetOpacity(0);
+  }
+}
+
+fun display_message(string) {
+  image = text(string, color_error, 12);
+  message.sprite.SetImage(image);
+  message.sprite.SetPosition(centre_x(image), Window.GetY() + Window.GetHeight() - 120, 1);
+  message.sprite.SetOpacity(1);
+}
+
+fun hide_message(string) {
+  message.sprite.SetOpacity(0);
+}
+
+Plymouth.SetDisplayPasswordFunction(display_password);
+Plymouth.SetDisplayNormalFunction(display_normal);
+Plymouth.SetRefreshFunction(refresh);
+Plymouth.SetDisplayMessageFunction(display_message);
+Plymouth.SetHideMessageFunction(hide_message);

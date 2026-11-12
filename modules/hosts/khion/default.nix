@@ -12,6 +12,7 @@
       cpuid-hypervisor
       noctalia-greeter
       performance
+      boot-theme
       gpu-nvidia
       networking
       tailscale
@@ -41,6 +42,11 @@
 
         # khion is zen 3, so keep the cached generic clang build.
         boot.kernelPackages = pkgs.linuxPackages_cachyos;
+
+        skadi.bootTheme.resolution = {
+          width = 2560;
+          height = 1440;
+        };
       };
   };
 }

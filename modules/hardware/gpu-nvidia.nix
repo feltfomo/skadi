@@ -43,6 +43,13 @@
       ];
 
       boot.kernelModules = [ "nvidia-uvm" ]; # cuda
+      # early kms: plymouth ignores simpledrm, so without these the disk password prompt waits on
+      # a timeout, then draws at the firmware's mode until the driver loads after unlock.
+      boot.initrd.kernelModules = [
+        "nvidia_modeset"
+        "nvidia_drm"
+        "nvidia"
+      ];
 
       # steer the userspace gl/va/gbm stack at the nvidia driver
       environment.variables = {
