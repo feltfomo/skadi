@@ -3,12 +3,16 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+# a newer push makes an older run's result moot.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 env:
   NIX_CONFIG: "extra-experimental-features = pipe-operator"
 jobs:
-  # fast gate (~1-2 min): eval the whole flake + check formatting without
-  # realising the world, so eval errors and treefmt drift fail here immediately
-  # instead of two hours into the heavy build.
+  # evaluates both hosts and checks formatting, without building them. the machines build their
+  # own systems on every rebuild, and github's runners can't build both from source within a
+  # job's time limit.
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -45,7 +49,7 @@ jobs:
       # generation), so it dies with a bogus "path ... did not exist in the store".
       # evaluating the drvPath forces the full module eval -- so real errors still
       # fail fast -- while only building those tiny IFD inputs, never the heavy
-      # packages. magic-nix-cache keeps them warm for the build jobs below.
+      # packages. magic-nix-cache keeps them between runs.
       - name: eval hosts (instantiate, no realise)
         run: |
           nix eval .#nixosConfigurations.khion.config.system.build.toplevel.drvPath --accept-flake-config --raw
@@ -57,50 +61,3 @@ jobs:
       # the local formatter would have fixed.
       - name: formatting (treefmt)
         run: nix fmt -- --ci
-  # heavy builds run only after lint is green; the two hosts build as separate
-  # parallel jobs (not a matrix) so they run on their own runners at once.
-  build-khion:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # the installer writes this token into nix.conf, so the secret goes through its input
-      - uses: samueldr/lix-gha-installer-action@v2026-06-15
-        with:
-          github_access_token: ${{ secrets.NIX_GITHUB_TOKEN }}
-      - name: Give git read access to private inputs
-        env:
-          TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
-        # one rule for the whole owner, so a new private input can't be left out.
-        run: |
-          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/".insteadOf "ssh://git@github.com/feltfomo/"
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Allow unprivileged user namespaces
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      # --accept-flake-config trusts the flake's declared cachix caches (hyprland /
-      # walker / noctalia), so anything already published is substituted instead of
-      # compiled. versions with no cache (e.g. a freshly bumped noctalia) still
-      # build from source, but magic-nix-cache keeps that result across runs so it's
-      # only paid once.
-      - name: build khion
-        run: nix build .#nixosConfigurations.khion.config.system.build.toplevel --accept-flake-config --print-out-paths --print-build-logs
-  build-lumi:
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # the installer writes this token into nix.conf, so the secret goes through its input
-      - uses: samueldr/lix-gha-installer-action@v2026-06-15
-        with:
-          github_access_token: ${{ secrets.NIX_GITHUB_TOKEN }}
-      - name: Give git read access to private inputs
-        env:
-          TOKEN: ${{ secrets.NIX_GITHUB_TOKEN }}
-        # one rule for the whole owner, so a new private input can't be left out.
-        run: |
-          git config --global url."https://x-access-token:$TOKEN@github.com/feltfomo/".insteadOf "ssh://git@github.com/feltfomo/"
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-      - name: Allow unprivileged user namespaces
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-      - name: build lumi
-        run: nix build .#nixosConfigurations.lumi.config.system.build.toplevel --accept-flake-config --print-out-paths --print-build-logs
