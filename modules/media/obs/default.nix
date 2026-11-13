@@ -1,18 +1,16 @@
 { lexicon, ... }: {
   den.aspects.obs = lexicon {
     hosts = [ "khion" ];
-    nixos = { pkgs, ... }: [
-      {
-        hosts = [ "khion" ];
-        value.programs.obs-studio = {
-          enable = true;
-
-          plugins = with pkgs.obs-studio-plugins; [
-            obs-pipewire-audio-capture
-          ];
-        };
-      }
-    ];
+    nixos =
+      { pkgs, ... }:
+      [
+        {
+          value.programs.obs-studio = {
+            enable = true;
+            plugins = with pkgs.obs-studio-plugins; [ obs-pipewire-audio-capture ];
+          };
+        }
+      ];
     homeManager =
       { pkgs, lib, ... }:
       let
