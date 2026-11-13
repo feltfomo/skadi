@@ -81,54 +81,50 @@ in
         hyprlandPkg = hyprlandPackage pkgs;
         hyprlandPkgs = inputs.hyprland.inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system};
       in
-      [
-        {
-          value = {
-            # native Hyprland exports its display without starting graphical-session.target.
-            # gate portal activation on that export so lingering users cannot cache GTK-only backends before login.
-            nixpkgs.overlays = [
-              (_: prev: {
-                xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
-                  postPatch = (old.postPatch or "") + ''
-                    substituteInPlace src/xdg-desktop-portal.service.in \
-                      --replace-fail \
-                        "Requisite=graphical-session.target" \
-                        "ConditionEnvironment=WAYLAND_DISPLAY"
-                  '';
-                });
-              })
+      {
+        # native Hyprland exports its display without starting graphical-session.target.
+        # gate portal activation on that export so lingering users cannot cache GTK-only backends before login.
+        nixpkgs.overlays = [
+          (_: prev: {
+            xdg-desktop-portal = prev.xdg-desktop-portal.overrideAttrs (old: {
+              postPatch = (old.postPatch or "") + ''
+                substituteInPlace src/xdg-desktop-portal.service.in \
+                  --replace-fail \
+                    "Requisite=graphical-session.target" \
+                    "ConditionEnvironment=WAYLAND_DISPLAY"
+              '';
+            });
+          })
+        ];
+
+        programs.hyprland = {
+          enable = true;
+          package = hyprlandPkg;
+          portalPackage =
+            inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
+        };
+        hardware.graphics = {
+          package = hyprlandPkgs.mesa;
+          package32 = hyprlandPkgs.pkgsi686Linux.mesa;
+        };
+        environment.systemPackages = [ pkgs.hyprland-preview-share-picker ];
+        programs.ydotool.enable = true;
+        services.flatpak.enable = true;
+
+        xdg.portal = {
+          extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+          config.hyprland = {
+            default = [
+              "hyprland"
+              "gtk"
             ];
-
-            programs.hyprland = {
-              enable = true;
-              package = hyprlandPkg;
-              portalPackage =
-                inputs.hyprland.packages.${pkgs.stdenv.hostPlatform.system}.xdg-desktop-portal-hyprland;
-            };
-            hardware.graphics = {
-              package = hyprlandPkgs.mesa;
-              package32 = hyprlandPkgs.pkgsi686Linux.mesa;
-            };
-            environment.systemPackages = [ pkgs.hyprland-preview-share-picker ];
-            programs.ydotool.enable = true;
-            services.flatpak.enable = true;
-
-            xdg.portal = {
-              extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-              config.hyprland = {
-                default = [
-                  "hyprland"
-                  "gtk"
-                ];
-                "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
-                "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
-                "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
-              };
-            };
-
+            "org.freedesktop.impl.portal.ScreenCast" = [ "hyprland" ];
+            "org.freedesktop.impl.portal.Screenshot" = [ "hyprland" ];
+            "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
           };
-        }
-      ];
+        };
+
+      };
     homeManager = { pkgs, ... }: {
       imports = [ audioOpacityService ];
       home.packages = with pkgs; [

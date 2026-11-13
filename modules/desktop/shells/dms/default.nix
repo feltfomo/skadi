@@ -22,20 +22,16 @@
         onConflict = "source-wins";
       }
     ];
-    nixos = _: [
-      {
-        value = {
-          imports = [ inputs.dms.nixosModules.dank-material-shell ];
-          programs.dank-material-shell = {
-            enable = true;
-            enableCalendarEvents = false;
-            systemd = {
-              enable = true;
-              target = "niri.service";
-            };
-          };
+    nixos = _: {
+      imports = [ inputs.dms.nixosModules.dank-material-shell ];
+      programs.dank-material-shell = {
+        enable = true;
+        enableCalendarEvents = false;
+        systemd = {
+          enable = true;
+          target = "niri.service";
         };
-      }
-    ];
+      };
+    };
   };
 }

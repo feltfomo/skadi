@@ -82,9 +82,7 @@ in
 
   den.aspects.noctalia = lexicon {
     package = pkgs: import ./_package.nix { inherit inputs pkgs; };
-    nixos = [
-      { value.services.gnome.gnome-keyring.enable = true; }
-    ];
+    nixos.services.gnome.gnome-keyring.enable = true;
     homeManager =
       { pkgs, ... }:
       let

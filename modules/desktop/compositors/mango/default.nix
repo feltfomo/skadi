@@ -16,29 +16,25 @@
       "khion"
       "lumi"
     ];
-    nixos = { pkgs, ... }: [
-      {
-        value = {
-          imports = [ inputs.mango.nixosModules.mango ];
-          programs.mango = {
-            enable = true;
-            package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
-          };
-          # wlr must be registered as a portal, not only installed as a package.
-          # mango-portals.conf routes screencast to wlr and file dialogs to gtk.
-          xdg.portal = {
-            enable = true;
-            wlr.enable = true;
-            wlr.settings.screencast = {
-              chooser_type = "simple";
-              chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
-              max_fps = 60;
-            };
-            extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-          };
+    nixos = { pkgs, ... }: {
+      imports = [ inputs.mango.nixosModules.mango ];
+      programs.mango = {
+        enable = true;
+        package = inputs.mango.packages.${pkgs.stdenv.hostPlatform.system}.default;
+      };
+      # wlr must be registered as a portal, not only installed as a package.
+      # mango-portals.conf routes screencast to wlr and file dialogs to gtk.
+      xdg.portal = {
+        enable = true;
+        wlr.enable = true;
+        wlr.settings.screencast = {
+          chooser_type = "simple";
+          chooser_cmd = "${pkgs.slurp}/bin/slurp -f %o -or";
+          max_fps = 60;
         };
-      }
-    ];
+        extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+      };
+    };
     furnish.directories = [
       {
         source = ./config;

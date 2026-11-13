@@ -19,45 +19,41 @@
   };
 
   den.aspects.steam = lexicon {
-    nixos = { pkgs, ... }: [
-      {
-        value = {
-          programs = {
-            gamemode = {
-              enable = true;
-              settings = {
-                general = {
-                  desiredgov = "performance";
-                  softrealtime = "auto";
-                  inhibit_screensaver = 1;
-                };
-                custom = {
-                  start = "${pkgs.power-profiles-daemon}/bin/powerprofilesctl set performance";
-                  end = "${pkgs.power-profiles-daemon}/bin/powerprofilesctl set balanced";
-                  script_timeout = 10;
-                };
-              };
+    nixos = { pkgs, ... }: {
+      programs = {
+        gamemode = {
+          enable = true;
+          settings = {
+            general = {
+              desiredgov = "performance";
+              softrealtime = "auto";
+              inhibit_screensaver = 1;
             };
-
-            gamescope = {
-              enable = true;
-              enableWsi = true;
-              capSysNice = true;
-            };
-
-            steam = {
-              enable = true;
-              package = inputs.millennium.packages.${pkgs.stdenv.hostPlatform.system}.millennium-steam;
-              extest.enable = true;
-              protontricks.enable = true;
-              extraCompatPackages = with pkgs; [
-                proton-cachyos_x86_64_v3
-                proton-ge-bin
-              ];
+            custom = {
+              start = "${pkgs.power-profiles-daemon}/bin/powerprofilesctl set performance";
+              end = "${pkgs.power-profiles-daemon}/bin/powerprofilesctl set balanced";
+              script_timeout = 10;
             };
           };
         };
-      }
-    ];
+
+        gamescope = {
+          enable = true;
+          enableWsi = true;
+          capSysNice = true;
+        };
+
+        steam = {
+          enable = true;
+          package = inputs.millennium.packages.${pkgs.stdenv.hostPlatform.system}.millennium-steam;
+          extest.enable = true;
+          protontricks.enable = true;
+          extraCompatPackages = with pkgs; [
+            proton-cachyos_x86_64_v3
+            proton-ge-bin
+          ];
+        };
+      };
+    };
   };
 }

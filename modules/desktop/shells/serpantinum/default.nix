@@ -40,17 +40,13 @@ in
       "lumi"
     ];
     package = packageFor;
-    nixos = [
-      {
-        value = {
-          imports = [ inputs.serpantinum.nixosModules.default ];
-          programs.serpantinum.enable = true;
-          security.polkit.enable = true;
-          services.accounts-daemon.enable = true;
-          services.upower.enable = true;
-        };
-      }
-    ];
+    nixos = {
+      imports = [ inputs.serpantinum.nixosModules.default ];
+      programs.serpantinum.enable = true;
+      security.polkit.enable = true;
+      services.accounts-daemon.enable = true;
+      services.upower.enable = true;
+    };
     furnish.files = [
       {
         # Replace the bundled display map rather than merging its disabled eDP-1.
