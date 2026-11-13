@@ -107,6 +107,23 @@ in
           package = hyprlandPkgs.mesa;
           package32 = hyprlandPkgs.pkgsi686Linux.mesa;
         };
+        # furnish swaps the config's symlinks to new store files, which hyprland's file watcher
+        # doesn't see, so running sessions reload after it. a dead session leaves its socket
+        # behind, and its reload fails harmlessly.
+        system.activationScripts.hyprland-reload = {
+          deps = [ "furnish" ];
+          text = ''
+            for socket in /run/user/*/hypr/*/.socket.sock; do
+              [ -S "$socket" ] || continue
+              instance=''${socket%/.socket.sock}
+              runtime=''${instance%/hypr/*}
+              ${pkgs.util-linux}/bin/runuser -u "$(${pkgs.coreutils}/bin/stat -c %U "$runtime")" -- \
+                ${pkgs.coreutils}/bin/env XDG_RUNTIME_DIR="$runtime" HYPRLAND_INSTANCE_SIGNATURE="''${instance##*/}" \
+                ${pkgs.coreutils}/bin/timeout 5 ${hyprlandPkg}/bin/hyprctl reload >/dev/null 2>&1 || true
+            done
+          '';
+        };
+
         environment.systemPackages = [ pkgs.hyprland-preview-share-picker ];
         programs.ydotool.enable = true;
         services.flatpak.enable = true;
