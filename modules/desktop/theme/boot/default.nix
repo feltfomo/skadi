@@ -9,6 +9,32 @@ in
 {
   skadi.packages.skadi-boot-theme = ./_renderer.nix;
 
+  # declared on every host, since a host sets its resolution and the publisher's user aspect
+  # sets the publisher whether or not the host includes boot-theme. without boot-theme they do
+  # nothing.
+  den.default.nixos =
+    { lib, ... }:
+    {
+      # the screen's native mode, which grub asks the firmware for first.
+      options.skadi.bootTheme.resolution = {
+        width = lib.mkOption {
+          type = lib.types.ints.positive;
+          default = 1920;
+        };
+        height = lib.mkOption {
+          type = lib.types.ints.positive;
+          default = 1080;
+        };
+      };
+
+      # set by the boot-theme-live user aspect, so two users can't both claim the esp.
+      options.skadi.bootTheme.publisher = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = "The user whose live palette and wallpaper the boot theme follows.";
+      };
+    };
+
   den.aspects.boot-theme.nixos =
     {
       config,
@@ -54,25 +80,6 @@ in
       plymouthTheme = pkgs.callPackage ./_plymouth-theme.nix { inherit palette fallback; };
     in
     {
-      # the screen's native mode, which grub asks the firmware for first.
-      options.skadi.bootTheme.resolution = {
-        width = lib.mkOption {
-          type = lib.types.ints.positive;
-          default = 1920;
-        };
-        height = lib.mkOption {
-          type = lib.types.ints.positive;
-          default = 1080;
-        };
-      };
-
-      # set by the boot-theme-live user aspect, so two users can't both claim the esp.
-      options.skadi.bootTheme.publisher = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        description = "The user whose live palette and wallpaper the boot theme follows.";
-      };
-
       config = {
         boot.loader.grub = {
           theme = "${fallback}/grub";
