@@ -26,10 +26,11 @@
       user.default = "grandpa";
     };
 
-    # fill the N95's 4 cores with two builds at once, matching khion's two-job split.
+    # one large build, such as a whole cargo workspace, gets all four of the N95's cores; a fixed
+    # share per build left half of them idle whenever only one build ran.
     nixos.nix.settings = {
       max-jobs = 2;
-      cores = 2;
+      cores = 0;
     };
 
     # disko's nixos module must sit with the disko.devices it enables
