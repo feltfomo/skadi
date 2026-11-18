@@ -29,14 +29,45 @@
         '';
       };
     homeManager =
-      { pkgs, lib, ... }:
+      {
+        config,
+        pkgs,
+        lib,
+        ...
+      }:
       let
         setup = pkgs.skadi-app-theme-setup;
+        # the keep-warm watcher lives in the skills checkout beside the hooks that write its
+        # records, so an edit there applies without a rebuild. its README explains the hooks, the
+        # watcher and the stop rule.
+        keepWarm = "${config.home.homeDirectory}/Projects/skills/hooks/keep-warm.py";
+        herdr = inputs.herdr.packages.${pkgs.stdenv.hostPlatform.system}.default;
       in
       {
         home.activation.claudeCodeTheme = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
           run ${setup}/bin/app-theme-setup claude-code
         '';
+
+        systemd.user.services.claude-keep-warm = {
+          Unit = {
+            Description = "Poke idle Claude Code agents before their prompt cache expires";
+            ConditionPathExists = keepWarm;
+          };
+          Service = {
+            Type = "oneshot";
+            ExecStart = "${pkgs.python3}/bin/python3 -I ${keepWarm} watch --herdr ${herdr}/bin/herdr";
+          };
+        };
+        # a 30 second tick lands every poke within 30 seconds of the watcher's 54 minute mark.
+        systemd.user.timers.claude-keep-warm = {
+          Unit.Description = "Run the Claude Code keep-warm watcher every 30 seconds";
+          Timer = {
+            OnBootSec = "30s";
+            OnUnitActiveSec = "30s";
+            AccuracySec = "1s";
+          };
+          Install.WantedBy = [ "timers.target" ];
+        };
       };
     theme =
       { pkgs, ... }:
