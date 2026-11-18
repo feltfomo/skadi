@@ -28,6 +28,7 @@
       proton-vpn
       sops-tools
       winetricks
+      chiaki-ng
       gtk-theme
       spicetify
       superfile
