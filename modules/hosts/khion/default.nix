@@ -34,9 +34,10 @@
           ./_nixos/disko.nix
         ];
 
-        # Use the 5700X's 16 threads without launching many memory-heavy builds at once.
+        # four builds at once, each up to 8 of the 5700X's 16 threads: a project's gate runs its VM
+        # tests side by side instead of two at a time, while one big build still gets the 8 it had.
         nix.settings = {
-          max-jobs = 2;
+          max-jobs = 4;
           cores = 8;
         };
 
