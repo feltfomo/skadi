@@ -14,6 +14,7 @@
       performance
       boot-theme
       gpu-nvidia
+      astro-a50x
       networking
       tailscale
       wayland
